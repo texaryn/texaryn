@@ -163,7 +163,9 @@ TanStack Form validates this approach with its 100-line adapters.
 abstraction before a second adapter exists risks designing for imaginary
 requirements. Ship with a JSON Schema adapter only. Define the port by what that
 adapter needs. Extract the generalization when Zod or TypeBox support actually
-lands. The port should be internal (not public API) until then.
+lands. The port is exported from `@texaryn/core` (separate adapter packages
+need the type), but marked experimental before 1.0: its shape is driven by JSON
+Schema needs and may change when a second schema format tests the abstraction.
 
 ### P3: Strict separation of domain schema, UI description, and UI implementation
 
@@ -180,12 +182,23 @@ it.
 ### P4: Deterministic core (same inputs produce same state)
 
 **Verdict: Keep, with a precise definition.** "Deterministic" means:
-`compile(schema, uiHints, data) => IR` is a pure function. Given the same schema,
-the same UI hints, and the same data snapshot, the IR is identical. State
-transitions are deterministic: `dispatch(command, currentState) => nextState` is
-pure. Side effects (validation requests, action execution) are modeled as
-effects emitted by the state machine, not performed inside it. This is the Elm
-architecture applied to form state.
+the compiler is a pure function of its inputs. Stable array identity is
+history-dependent (two runtimes with identical data can have different identity
+maps), so the compiler consumes identity rather than owning it:
+
+```typescript
+compile(input: {
+  projection: SchemaProjection   // resolved schema for current data
+  uiHints: UIHints
+  identities: IdentityMap        // current identity snapshot
+}): UIDocument
+```
+
+Given the same projection, the same UI hints, and the same identity snapshot,
+the IR is identical. State transitions are deterministic:
+`dispatch(command, currentState) => nextState` is pure. Side effects (validation
+requests, action execution) are modeled as effects emitted by the state machine,
+not performed inside it. This is the Elm architecture applied to form state.
 
 ### P5: Versioned, typed IR
 
@@ -432,7 +445,7 @@ interface NodeBase {
   id: NodeId
   type: string              // discriminant
   parentId: NodeId | null
-  dataPointer: string | null  // JSON Pointer to data location
+  dataPointer: JsonPointer | null  // pointer for this IR snapshot; can change on recompile
   order: number             // sibling order within parent
   visible: boolean          // resolved (not an expression)
   disabled: boolean         // resolved
@@ -503,7 +516,7 @@ interface ContainerNode extends NodeBase {
 
 interface ArrayMeta {
   itemIds: StableItemId[]   // stable identity, see section 6
-  itemKey?: string          // JSON Pointer relative to item, e.g. '/id'
+  itemKey?: string          // from UI hints, JSON Pointer relative to item, e.g. '/id'
   minItems?: number
   maxItems?: number
   canAdd: boolean           // derived from maxItems constraint
@@ -682,9 +695,11 @@ When data arrives from outside (server push, undo, reset):
 1. The runtime diffs the new array against the old using a configurable matcher.
 2. Default matcher: reference equality on primitives, deep equality on objects.
    This is best-effort: two items with identical content are fundamentally
-   ambiguous and may swap identities. Schemas can declare an `itemKey` (a
-   JSON Pointer relative to the item, e.g. `/id`) to resolve the ambiguity.
-   When present, the matcher uses it instead of deep equality.
+   ambiguous and may swap identities. The runtime accepts an optional identity
+   hint (`itemKey`: a JSON Pointer relative to the item, e.g. `/id`) to resolve
+   the ambiguity. When present, the matcher uses it instead of deep equality.
+   The hint lives in runtime configuration or UI hints, not in the JSON Schema
+   itself (identity is Texaryn behavior, not data semantics).
 3. Matched items keep their `StableItemId`. Unmatched items get new IDs.
 4. This is the one case where identity can change, and it is explicit.
 
@@ -701,8 +716,10 @@ function resolveItemId(pointer: string, containerId: NodeId): StableItemId
 // Returns the stable ID for the item at that index in that container
 ```
 
-The JSON Pointer is a computed property, not stored. It changes when items above
-it are inserted or removed. The `StableItemId` does not change.
+The JSON Pointer is stored in the IR snapshot (`NodeBase.dataPointer`) but can
+change between snapshots when items above it are inserted or removed. The
+`NodeId` and `StableItemId` remain constant across recompilation; the pointer
+does not.
 
 ## 7. State and Reactivity Model
 
@@ -742,8 +759,8 @@ interface NodeState {
   dirty: Store<boolean>
   touched: Store<boolean>
   validationStatus: Store<'idle' | 'pending' | 'valid' | 'invalid'>
-  visible: Store<boolean>          // derived from schema evaluation + data
-  disabled: Store<boolean>         // derived from readOnly + UI hints
+  visible: Store<boolean>          // reactive view of the current IR snapshot's resolved value
+  disabled: Store<boolean>         // reactive view of the current IR snapshot's resolved value
 }
 ```
 
@@ -1807,16 +1824,19 @@ requirement for v1, but the compiler should be structured to allow it.
 **Goal:** Given a JSON Schema and data, produce a valid IR backed by a real
 schema library.
 
-6. **Local $ref resolver.** Resolve `$defs`/`$ref` and `$anchor` within a single
-   schema document. Recursion limit. Tests against the JSON Schema Test Suite's
-   `$ref` cases. Remote `$ref` and `$dynamicRef` are deferred.
+6. **Schema evaluator spike + ADR.** Evaluate json-schema-library and
+   @hyperjump/json-schema against the `SchemaEvaluationPort` contract. Build a
+   minimal fixture harness running both against the JSON Schema Test Suite
+   ($ref, annotations, validation). Write ADR-002 recording the choice and
+   tradeoffs. The chosen library handles $ref resolution, dialect detection,
+   and annotation collection; Texaryn does not reimplement any of these.
 
-7. **First concrete `SchemaEvaluationPort` adapter.** Implement the port backed
-   by a real JSON Schema library (json-schema-library or @hyperjump/json-schema;
-   the choice is an implementation decision). The adapter delegates `resolve()`,
-   `annotations()`, and `validate()` to the library rather than reimplementing
-   schema semantics. Covers draft-07 and 2020-12 via dialect-aware evaluation
-   (section 9). Tests: run against the JSON Schema Test Suite's core vocabulary.
+7. **Concrete `SchemaEvaluationPort` adapter.** Implement the port with the
+   library chosen in PR6. The adapter delegates `resolve()`, `annotations()`,
+   and `validate()` to the library. Covers draft-07 and 2020-12 via
+   dialect-aware evaluation (section 9). Local and remote `$ref` work through
+   the library's resolver; `$dynamicRef` is deferred until the test suite
+   demands it. Tests: the fixture harness from PR6, expanded to core vocabulary.
 
 8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
    primitives (string, number, integer, boolean), objects, and arrays into IR
