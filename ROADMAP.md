@@ -856,8 +856,8 @@ optional adapter for consumers who already use it.
 ### Validation as Part of the Schema Evaluation Port
 
 The headless core does not validate. It delegates to the `SchemaEvaluationPort`
-(section 9), which includes `validate()` and `validateField()` methods alongside
-`resolve()` and `annotations()`. The validation methods use `MaybePromise`:
+(section 9), which includes `validate()` and optional `validateAt?()` alongside
+`project()`. The validation methods use `MaybePromise`:
 
 ```typescript
 type MaybePromise<T> = T | Promise<T>
@@ -866,7 +866,7 @@ type MaybePromise<T> = T | Promise<T>
 // Shown here for the validation architecture discussion.
 //
 //   validate(data: unknown): MaybePromise<ValidationResult>
-//   validateField(data, pointer, fieldPointer): MaybePromise<ValidationResult>
+//   validateAt?(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult>
 
 interface ValidationResult {
   valid: boolean
@@ -1016,9 +1016,9 @@ to integrate.
 #### Validator Choice Decision
 
 The core does not choose a validator. The `SchemaEvaluationPort` owns both
-validation and schema resolution, and its implementations wrap whatever validator
-the consumer prefers. Validation is one of three responsibilities (alongside
-`resolve()` and `annotations()`), not a separate subsystem.
+validation and schema projection, and its implementations wrap whatever library
+the consumer prefers. Validation is one of two responsibilities (alongside
+`project()`), not a separate subsystem.
 
 For annotation collection: static extraction (walking the resolved schema tree)
 covers properties, allOf, and simple oneOf where a discriminator property selects
@@ -1055,27 +1055,19 @@ using the stable identity map.
 
 The schema evaluation port is the boundary between domain description (JSON
 Schema today, potentially Zod or TypeBox later) and the IR compiler. It owns
-three responsibilities: reference resolution, active schema projection given
-current data, and annotation extraction.
+two responsibilities: producing a resolved schema projection for current data,
+and validation.
 
 ```typescript
 type MaybePromise<T> = T | Promise<T>
 
 interface SchemaEvaluationPort {
-  resolve(
-    pointer: JsonPointer,
-    data: unknown
-  ): SchemaResolution
-  // Returns the active schema at this pointer given current data.
-  // For schemas with if/then/else or dependentSchemas, this reflects
-  // which branch is active.
-
-  annotations(
-    pointer: JsonPointer,
-    data: unknown
-  ): AnnotationSet
-  // Returns title, description, default, readOnly, etc. for the
-  // active schema at this pointer.
+  project(data: unknown): SchemaProjection
+  // Returns the full resolved view of the schema given current data.
+  // Handles $ref resolution, if/then/else, dependentSchemas, oneOf/anyOf
+  // discrimination, and annotation collection in a single pass.
+  // SchemaProjection is a transient resolved view, not a long-lived
+  // normalized-domain layer.
 
   validate(
     data: unknown
@@ -1094,13 +1086,18 @@ interface SchemaEvaluationPort {
   // falls back to full validate() when this is absent or on submit.
 }
 
-interface SchemaResolution {
+interface SchemaProjection {
+  nodes: Map<JsonPointer, NodeProjection>
+}
+
+interface NodeProjection {
   type: JsonSchemaType
   format?: string
   constraints: FieldConstraints
-  children?: ChildResolution[]    // for object/array types
+  children?: ChildProjection[]    // for object/array types
   enumValues?: EnumOption[]       // for enum types
-  active: boolean                 // false if this pointer is hidden by conditionals
+  active: boolean                 // false if hidden by conditionals
+  annotations: AnnotationSet
 }
 
 interface AnnotationSet {
@@ -1114,9 +1111,23 @@ interface AnnotationSet {
 }
 ```
 
-The IR compiler calls `resolve()` and `annotations()` to build the flat node map.
-The runtime calls `resolve()` again after data changes to detect whether the active
-schema shifted, and re-compiles affected subtrees if it did.
+The data flow is:
+
+```text
+JSON Schema + data
+       ↓
+SchemaEvaluationPort.project()
+       ↓
+SchemaProjection  (transient resolved view)
+       ↓  + UIHints + IdentityMap
+     compile()
+       ↓
+   UIDocument
+```
+
+The IR compiler calls `project()` to build the flat node map.
+The runtime calls `project()` again after data changes to detect whether the
+active projection shifted, and re-compiles affected subtrees if it did.
 
 ### json-schema-library as Design Reference
 
@@ -1125,7 +1136,7 @@ before implementing the port. Its `getNode(pointer, data)` API resolves a JSON
 Pointer through a compiled schema using current instance data, handling `oneOf` and
 `dependencies` dynamically. Its `getChildSelection()` lists available sub-schema
 options. Its `eachNode()` traverses all schema nodes. These are close to the
-operations `SchemaEvaluationPort.resolve()` needs. The implementation may be usable
+operations `SchemaEvaluationPort.project()` needs. The implementation may be usable
 directly, wrapped behind the port, or its approach replicated.
 
 ### JSON Schema Adapter
@@ -1185,7 +1196,7 @@ JSON Pointers to presentation overrides:
 
 ```typescript
 interface UIHints {
-  [jsonPointer: string]: FieldHints
+  [jsonPointer: string]: FieldHints | ArrayHints
 }
 
 interface FieldHints {
@@ -1196,6 +1207,11 @@ interface FieldHints {
   colSpan?: number          // layout hint for grid containers
   hidden?: boolean          // force hide regardless of schema
   validationTrigger?: 'blur' | 'change' | 'submit'
+}
+
+interface ArrayHints extends FieldHints {
+  itemKey?: JsonPointer     // pointer relative to item, e.g. '/id'
+  canReorder?: boolean      // enable drag-to-reorder UI
 }
 ```
 
@@ -1832,11 +1848,12 @@ schema library.
    and annotation collection; Texaryn does not reimplement any of these.
 
 7. **Concrete `SchemaEvaluationPort` adapter.** Implement the port with the
-   library chosen in PR6. The adapter delegates `resolve()`, `annotations()`,
-   and `validate()` to the library. Covers draft-07 and 2020-12 via
-   dialect-aware evaluation (section 9). Local and remote `$ref` work through
-   the library's resolver; `$dynamicRef` is deferred until the test suite
-   demands it. Tests: the fixture harness from PR6, expanded to core vocabulary.
+   library chosen in PR6. The adapter delegates `project()` and `validate()`
+   to the library. Covers draft-07 and 2020-12 via dialect-aware evaluation
+   (section 9). Local `$ref` works through the library's resolver. Remote
+   `$ref` and `$dynamicRef` are deferred: networking, caching, and trust
+   policy make them more than library support. Tests: the fixture harness
+   from PR6, expanded to core vocabulary.
 
 8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
    primitives (string, number, integer, boolean), objects, and arrays into IR
@@ -2179,7 +2196,7 @@ resolves the active schema given current data" and "IR compiler produces snapsho
 from that projection" is the most consequential boundary in the system. It
 determines: (a) whether the IR can be produced without data (no, for schemas with
 conditionals), (b) when re-compilation happens (on data changes that affect the
-active schema), (c) what the schema evaluation port's `resolve()` method returns,
+active schema), (c) what the schema evaluation port's `project()` method returns,
 and (d) whether json-schema-library's `getNode(pointer, data)` pattern can back
 the port directly. This boundary is expensive to reverse: if evaluation logic is
 baked into the compiler, extracting it later requires splitting a monolithic
