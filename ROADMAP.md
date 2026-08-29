@@ -413,11 +413,12 @@ deterministic diffing.
 
 ```typescript
 interface UIDocument {
-  version: string           // IR version, semver
+  version: 1                // IR version, integer (see section 16)
   rootId: NodeId            // entry point into the node map
   nodes: Record<NodeId, UINode>
-  data: unknown             // current form data snapshot
 }
+// No data, no validation state, no interaction state.
+// The IR describes structure. Runtime state is separate (see below).
 
 type NodeId = string & { __brand: 'NodeId' }
 
@@ -456,13 +457,11 @@ interface FieldNode extends NodeBase {
   type: 'field'
   fieldType: FieldType
   format?: string           // JSON Schema format (email, uri, date, etc.)
-  value: unknown            // current value from data
   constraints: FieldConstraints
-  validation: ValidationState
-  interaction: InteractionState
   enumValues?: EnumOption[]
   widget?: string           // explicit widget override (from UI hints)
 }
+// No value, validation, or interaction state. Those live in RuntimeState.
 
 type FieldType =
   | 'string' | 'number' | 'integer' | 'boolean'
@@ -488,23 +487,8 @@ interface EnumOption {
   title?: string            // from annotation or oneOf/anyOf title
 }
 
-interface ValidationState {
-  status: 'idle' | 'pending' | 'valid' | 'invalid'
-  errors: ValidationError[]
-}
-
-interface ValidationError {
-  message: string
-  keyword: string           // JSON Schema keyword that failed
-  params: Record<string, unknown>
-}
-
-interface InteractionState {
-  dirty: boolean
-  touched: boolean
-  pristine: boolean         // inverse of dirty, kept for convenience
-  modified: boolean         // value differs from initial, not just "was changed"
-}
+// ValidationState and InteractionState are runtime-only (not in the IR).
+// See RuntimeState below.
 ```
 
 ### Container Nodes
@@ -519,6 +503,7 @@ interface ContainerNode extends NodeBase {
 
 interface ArrayMeta {
   itemIds: StableItemId[]   // stable identity, see section 6
+  itemKey?: string          // JSON Pointer relative to item, e.g. '/id'
   minItems?: number
   maxItems?: number
   canAdd: boolean           // derived from maxItems constraint
@@ -593,9 +578,52 @@ validation runs.
 
 ### What the IR Does Not Contain
 
-No framework-specific data. No CSS classes. No event handlers. No component
-references. No `options: any`. These are the documented failure modes of JSON
-Forms' UI Schema and RJSF's uiSchema.
+No data values. No validation state. No dirty/touched/interaction state. No
+framework-specific data. No CSS classes. No event handlers. No component
+references. No `options: any`. The IR describes structure and constraints. The
+runtime owns all mutable state. This avoids the two-sources-of-truth problem
+(value in the IR vs value in the store).
+
+### Runtime State (Separate from IR)
+
+```typescript
+interface RuntimeState {
+  data: unknown                            // current form data
+  nodes: Map<NodeId, NodeRuntimeState>     // per-node mutable state
+  identities: IdentityMap                  // stable array identity
+  submission: SubmissionState              // submission lifecycle
+}
+
+interface NodeRuntimeState {
+  value: unknown                           // current field value
+  validation: ValidationState
+  interaction: InteractionState
+}
+
+interface ValidationState {
+  status: 'idle' | 'pending' | 'valid' | 'invalid'
+  errors: ValidationError[]
+}
+
+interface ValidationError {
+  instancePointer: string                  // JSON Pointer to the failing location
+  keyword: string                          // JSON Schema keyword that failed
+  message?: string
+  params: Record<string, unknown>
+}
+
+interface InteractionState {
+  dirty: boolean
+  touched: boolean
+  pristine: boolean                        // inverse of dirty, for convenience
+  modified: boolean                        // value differs from initial
+}
+```
+
+The IR and runtime state are joined by `NodeId`: the IR says "this node is a
+required email field with maxLength 100," and the runtime state says "its current
+value is `'alice@example.com'`, it is valid, dirty, and touched." Renderers
+receive both through `Store<T>` instances (section 7).
 
 ## 6. Stable Identity Model
 
@@ -653,6 +681,10 @@ When data arrives from outside (server push, undo, reset):
 
 1. The runtime diffs the new array against the old using a configurable matcher.
 2. Default matcher: reference equality on primitives, deep equality on objects.
+   This is best-effort: two items with identical content are fundamentally
+   ambiguous and may swap identities. Schemas can declare an `itemKey` (a
+   JSON Pointer relative to the item, e.g. `/id`) to resolve the ambiguity.
+   When present, the matcher uses it instead of deep equality.
 3. Matched items keep their `StableItemId`. Unmatched items get new IDs.
 4. This is the one case where identity can change, and it is explicit.
 
@@ -740,8 +772,8 @@ The `Store<T>` interface (defined above) is the binding contract. Each framework
 adapter consumes it:
 
 - **React**: `useSyncExternalStore(store.subscribe, store.getSnapshot)`
-- **Vue**: `watchEffect` wrapping `store.getSnapshot()`
-- **Angular**: `toSignal()` from `@angular/core` (Angular 16+)
+- **Vue**: `shallowRef` seeded from `getSnapshot()`, updated via `subscribe`
+- **Angular**: `signal()` seeded from `getSnapshot()`, updated via `subscribe`
 - **Svelte**: `readable` store wrapping `subscribe`
 - **Web Components**: subscription in `connectedCallback`, cleanup in
   `disconnectedCallback`
@@ -1031,14 +1063,18 @@ interface SchemaEvaluationPort {
   validate(
     data: unknown
   ): MaybePromise<ValidationResult>
-  // Full-document validation. Used by the runtime's validation orchestrator.
+  // Full-document validation. Authoritative: the result accounts for
+  // cross-property constraints, dependentRequired, if/then/else,
+  // contains, unevaluated*, and combinators.
 
-  validateField(
+  validateAt?(
     data: unknown,
-    pointer: JsonPointer,
-    fieldPointer: JsonPointer
+    pointer: JsonPointer
   ): MaybePromise<ValidationResult>
-  // Single-field validation.
+  // Optional single-pointer validation with explicitly weaker semantics.
+  // May miss cross-property and combinator constraints. A fast path
+  // for on-blur feedback, not part of the correctness model. The runtime
+  // falls back to full validate() when this is absent or on submit.
 }
 
 interface SchemaResolution {
@@ -1162,30 +1198,46 @@ compiler.
 
 **Draft 2019-09** is supported because 2020-12 is a minor revision of it.
 
-**Draft-07** is supported through a dialect detection layer that maps draft-07
-keywords to their 2020-12 equivalents before compilation. This is necessary
-because the majority of schemas in the wild use draft-07.
+**Draft-07** is supported through a dialect-aware evaluator that processes
+draft-07 schemas natively, using draft-07 semantics. This is not keyword
+mapping: `$ref` behavior, tuple arrays (`items` + `additionalItems`),
+`dependencies`, and evaluation semantics differ between drafts, so a translation
+layer would introduce silent semantic bugs. The underlying validator libraries
+(AJV, @hyperjump, json-schema-library) already handle multiple dialects natively;
+the adapter delegates to the dialect the schema declares.
 
 **Draft-04** is deferred. It has significant keyword differences (`id` vs `$id`,
 `definitions` vs `$defs`, different `$ref` resolution) that would complicate the
-compiler without clear demand. Add it when a consumer needs it.
+adapter without clear demand. Add it when a consumer needs it.
 
 ### Dialect Detection
 
 ```typescript
-function detectDialect(schema: unknown): 'draft-07' | '2019-09' | '2020-12' {
-  if (typeof schema !== 'object' || schema === null) return '2020-12'
+type Dialect = 'draft-07' | '2019-09' | '2020-12'
+
+interface DialectConfig {
+  defaultDialect: Dialect    // used when $schema is absent
+}
+
+function detectDialect(
+  schema: unknown,
+  config: DialectConfig
+): Dialect {
+  if (typeof schema !== 'object' || schema === null) return config.defaultDialect
   const s = schema as Record<string, unknown>
   if (typeof s.$schema === 'string') {
     if (s.$schema.includes('draft-07')) return 'draft-07'
     if (s.$schema.includes('2019-09')) return '2019-09'
-    return '2020-12'
+    if (s.$schema.includes('2020-12')) return '2020-12'
   }
-  // Heuristic: presence of prefixItems indicates 2020-12
-  if ('prefixItems' in s) return '2020-12'
-  return 'draft-07' // safe default for undeclared schemas
+  return config.defaultDialect
 }
 ```
+
+When `$schema` is absent, the adapter uses a configurable `defaultDialect`
+(initially `'draft-07'`, since the majority of schemas in the wild use draft-07)
+rather than guessing from keyword heuristics. The consumer can set this to
+`'2020-12'` if they know their schemas are modern.
 
 ## 10. Renderer Contract
 
@@ -1667,7 +1719,9 @@ These invariants hold for any valid schema and data:
 - Every `parentId` references an existing node.
 - Every `children` array contains only existing `NodeId` values.
 - The `rootId` exists and has `parentId: null`.
-- Every `dataPointer` resolves to a location in the data.
+- Every non-null `dataPointer` resolves to a location in the data when the
+  field's closest required ancestor is present. Optional unfilled fields may
+  have a `dataPointer` whose parent path does not yet exist in the data.
 - The identity map is consistent: every `StableItemId` maps to an existing
   index, and every index maps back to the correct `StableItemId`.
 - `processCommand(state, command)` followed by the inverse command returns to
@@ -1734,9 +1788,13 @@ requirement for v1, but the compiler should be structured to allow it.
    `MaybePromise<T>` type in `packages/core/src/`. Export from the package root.
    Tests assert the types compile.
 
-3. **Signal implementation + `Store<T>` wrapper.** ~200 lines internal: `Signal`,
-   `Computed`, `batch()`. Public: `Store<T>` with `getSnapshot`, `subscribe`.
-   Property-based tests for consistency.
+3. **`Store<T>` binding spike, then signal implementation.** First: a trivial
+   `Store<T>` backed by a plain variable and callback list, with binding tests
+   for React (`useSyncExternalStore`) and one of Vue (`shallowRef` +
+   `subscribe`) or Angular (`signal()` + `subscribe`). This proves the contract
+   works across two frameworks before investing in signal internals. Then:
+   ~200 lines internal signal engine (`Signal`, `Computed`, `batch()`), swap the
+   trivial store for signal-backed stores. Property-based tests for consistency.
 
 4. **Command types and handler.** All command types from section 7. The handler
    as a pure function. Tests for every command type, including reversibility.
@@ -1746,29 +1804,34 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Phase 1: Schema Evaluation (PRs 6-10)
 
-**Goal:** Given a JSON Schema and data, produce a valid IR via the evaluation port.
+**Goal:** Given a JSON Schema and data, produce a valid IR backed by a real
+schema library.
 
 6. **Local $ref resolver.** Resolve `$defs`/`$ref` and `$anchor` within a single
    schema document. Recursion limit. Tests against the JSON Schema Test Suite's
    `$ref` cases. Remote `$ref` and `$dynamicRef` are deferred.
 
-7. **Schema evaluation port (primitives).** Implement `resolve()` and
-   `annotations()` for string, number, integer, boolean fields. IR compiler
-   produces FieldNodes from the resolution. Tests: for each primitive type,
-   assert the IR contains the expected FieldNode with correct annotations.
+7. **First concrete `SchemaEvaluationPort` adapter.** Implement the port backed
+   by a real JSON Schema library (json-schema-library or @hyperjump/json-schema;
+   the choice is an implementation decision). The adapter delegates `resolve()`,
+   `annotations()`, and `validate()` to the library rather than reimplementing
+   schema semantics. Covers draft-07 and 2020-12 via dialect-aware evaluation
+   (section 9). Tests: run against the JSON Schema Test Suite's core vocabulary.
 
-8. **Object and array evaluation.** Extend `resolve()` for `object` (returns
-   `children`) and `array` (returns `arrayMeta`). Compile as ContainerNodes.
-   Wire up the identity map for arrays.
+8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
+   primitives (string, number, integer, boolean), objects, and arrays into IR
+   nodes. FieldNodes for primitives, ContainerNodes for objects, array
+   ContainerNodes with identity map wiring. Tests: for each schema type, assert
+   the IR contains the expected node structure with correct annotations.
 
 9. **Conditional evaluation.** `if`/`then`/`else`, `dependentSchemas`,
-   `dependentRequired`, draft-07 `dependencies`. The evaluation port re-resolves
+   `dependentRequired`, draft-07 `dependencies`. The concrete adapter re-resolves
    affected pointers when data changes. Tests: change data, verify the active
    schema projection updates and IR reflects new visibility.
 
-10. **oneOf/anyOf discrimination.** `resolve()` determines which sub-schema
-    applies given current data. Data preservation (not destruction). Tests:
-    switch between sub-schemas, verify data is preserved.
+10. **oneOf/anyOf discrimination.** The concrete adapter determines which
+    sub-schema applies given current data. Data preservation (not destruction).
+    Tests: switch between sub-schemas, verify data is preserved.
 
 ### Phase 2: React Renderer (PRs 11-15)
 
@@ -1796,15 +1859,19 @@ requirement for v1, but the compiler should be structured to allow it.
 
 **Goal:** Production-ready validation, error display, and form submission.
 
-16. **Schema evaluation port + AJV adapter.** Implement `SchemaEvaluationPort`
-    with AJV backing validation. Wire up the validation orchestrator (blur,
-    change, submit scheduling).
+16. **Second `SchemaEvaluationPort` adapter.** Implement the port with the
+    library not chosen for PR7 (the other of json-schema-library or
+    @hyperjump/json-schema). Run the same test suite against both adapters to
+    prove the port abstraction holds.
 
-17. **@hyperjump adapter.** Implement `SchemaEvaluationPort` with
-    `@hyperjump/json-schema`. Annotation collection through `annotate()` API.
+17. **Validation orchestrator.** Wire validation scheduling (blur, change, submit
+    triggers). Connect validation results to `NodeRuntimeState.validation`.
+    Tests: blur a required empty field, verify the error surfaces; type valid
+    input, verify the error clears.
 
 18. **Error display.** Wire validation errors to field nodes. Error summary
-    action node. Conformance tests for error ARIA attributes.
+    action node. Conformance tests for error ARIA attributes (`aria-invalid`,
+    `aria-describedby` pointing to error text).
 
 19. **Form submission.** Submission lifecycle state machine. Submit action.
     Disabled state during submission. Error handling.
