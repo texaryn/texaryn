@@ -4,3 +4,4 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 docs/superpowers/
+packages/schema-json/spike/test-suite/

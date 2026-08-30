@@ -1,0 +1,807 @@
+{
+  "generatedAt": "2026-08-30T17:37:42.913Z",
+  "drafts": {
+    "draft7": {
+      "totalCases": 870,
+      "skippedRemoteRef": 57,
+      "hyperjump": {
+        "pass": 864,
+        "fail": 2,
+        "errors": 4
+      },
+      "jsl": {
+        "pass": 870,
+        "fail": 0,
+        "errors": 0
+      }
+    },
+    "draft2020-12": {
+      "totalCases": 1183,
+      "skippedRemoteRef": 116,
+      "hyperjump": {
+        "pass": 1179,
+        "fail": 0,
+        "errors": 4
+      },
+      "jsl": {
+        "pass": 1174,
+        "fail": 9,
+        "errors": 0
+      }
+    }
+  },
+  "skippedGroups": [
+    {
+      "draft": "draft7",
+      "file": "definitions.json",
+      "description": "validate definition against metaschema",
+      "refs": [
+        "http://json-schema.org/draft-07/schema#"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "$ref prevents a sibling $id from changing the base uri",
+      "refs": [
+        "foo.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "remote ref, containing refs itself",
+      "refs": [
+        "http://json-schema.org/draft-07/schema#"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "Recursive references between schemas",
+      "refs": [
+        "node",
+        "tree"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "Reference an anchor with a non-relative URI",
+      "refs": [
+        "https://example.com/schema-with-anchor#foo"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "Location-independent identifier with base URI change in subschema",
+      "refs": [
+        "http://localhost:1234/nested.json#foo"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "refs with relative uris and defs",
+      "refs": [
+        "schema-relative-uri-defs2.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "relative refs with absolute uris and defs",
+      "refs": [
+        "schema-refs-absolute-uris-defs2.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "$id must be resolved against nearest parent, not just immediate parent",
+      "refs": [
+        "http://example.com/b/d.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "simple URN base URI with $ref via the URN",
+      "refs": [
+        "urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "URN base URI with URN and JSON pointer ref",
+      "refs": [
+        "urn:uuid:deadbeef-1234-0000-0000-4321feebdaed#/definitions/bar"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "URN base URI with URN and anchor ref",
+      "refs": [
+        "urn:uuid:deadbeef-1234-ff00-00ff-4321feebdaed#something"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "ref to if",
+      "refs": [
+        "http://example.com/ref/if"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "ref to then",
+      "refs": [
+        "http://example.com/ref/then"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "ref to else",
+      "refs": [
+        "http://example.com/ref/else"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "ref.json",
+      "description": "ref with absolute-path-reference",
+      "refs": [
+        "/absref/foobar.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "remote ref",
+      "refs": [
+        "http://localhost:1234/integer.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "fragment within remote ref",
+      "refs": [
+        "http://localhost:1234/draft7/subSchemas.json#/definitions/integer"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "ref within remote ref",
+      "refs": [
+        "http://localhost:1234/draft7/subSchemas.json#/definitions/refToInteger"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "base URI change",
+      "refs": [
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "base URI change - change folder",
+      "refs": [
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "base URI change - change folder in subschema",
+      "refs": [
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "root ref in remote ref",
+      "refs": [
+        "draft7/name.json#/definitions/orNull"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "remote ref with ref to definitions",
+      "refs": [
+        "draft7/ref-and-definitions.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "Location-independent identifier in remote ref",
+      "refs": [
+        "http://localhost:1234/draft7/locationIndependentIdentifier.json#/definitions/refToInteger"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "retrieved nested refs resolve relative to their URI not $id",
+      "refs": [
+        "nested/foo-ref-string.json"
+      ]
+    },
+    {
+      "draft": "draft7",
+      "file": "refRemote.json",
+      "description": "$ref to $ref finds location-independent $id",
+      "refs": [
+        "http://localhost:1234/draft7/detached-ref.json#/definitions/foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "anchor.json",
+      "description": "Location-independent identifier with absolute URI",
+      "refs": [
+        "http://localhost:1234/draft2020-12/bar#foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "anchor.json",
+      "description": "Location-independent identifier with base URI change in subschema",
+      "refs": [
+        "http://localhost:1234/draft2020-12/nested.json#foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "anchor.json",
+      "description": "same $anchor with different base uri",
+      "refs": [
+        "child1#my_anchor"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "defs.json",
+      "description": "validate definition against metaschema",
+      "refs": [
+        "https://json-schema.org/draft/2020-12/schema"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated",
+      "refs": [
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef without anchor in fragment behaves identical to $ref",
+      "refs": [
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef with intermediate scopes that don't include a matching $dynamicAnchor does not affect dynamic scope resolution",
+      "refs": [
+        "intermediate-scope",
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "An $anchor with the same name as a $dynamicAnchor is not used for dynamic scope resolution",
+      "refs": [
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef without a matching $dynamicAnchor in the same schema resource behaves like a normal $ref to $anchor",
+      "refs": [
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef with a non-matching $dynamicAnchor in the same schema resource behaves like a normal $ref to $anchor",
+      "refs": [
+        "list"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef that initially resolves to a schema with a matching $dynamicAnchor resolves to the first $dynamicAnchor in the dynamic scope",
+      "refs": [
+        "extended",
+        "bar",
+        "extended#meta"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "A $dynamicRef that initially resolves to a schema without a matching $dynamicAnchor behaves like a normal $ref to $anchor",
+      "refs": [
+        "extended",
+        "bar",
+        "extended#meta"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "multiple dynamic paths to the $dynamicRef keyword",
+      "refs": [
+        "numberList",
+        "stringList",
+        "genericList"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "after leaving a dynamic scope, it is not used by a $dynamicRef",
+      "refs": [
+        "start",
+        "inner_scope#thingy"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "strict-tree schema, guards against misspelled properties",
+      "refs": [
+        "tree.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "tests for implementation dynamic anchor and reference link",
+      "refs": [
+        "extendible-dynamic-ref.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "$ref and $dynamicAnchor are independent of order - $defs first",
+      "refs": [
+        "extendible-dynamic-ref.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "$ref and $dynamicAnchor are independent of order - $ref first",
+      "refs": [
+        "extendible-dynamic-ref.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "$ref to $dynamicRef finds detached $dynamicAnchor",
+      "refs": [
+        "http://localhost:1234/draft2020-12/detached-dynamicref.json#/$defs/foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "$dynamicRef skips over intermediate resources - direct reference",
+      "refs": [
+        "item"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "dynamicRef.json",
+      "description": "$dynamicRef avoids the root of each schema, but scopes are still registered",
+      "refs": [
+        "first#/$defs/stuff",
+        "second#/$defs/stuff",
+        "third#/$defs/stuff"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "remote ref, containing refs itself",
+      "refs": [
+        "https://json-schema.org/draft/2020-12/schema"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "Recursive references between schemas",
+      "refs": [
+        "node",
+        "tree"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "refs with relative uris and defs",
+      "refs": [
+        "schema-relative-uri-defs2.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "relative refs with absolute uris and defs",
+      "refs": [
+        "schema-refs-absolute-uris-defs2.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "$id must be resolved against nearest parent, not just immediate parent",
+      "refs": [
+        "http://example.com/b/d.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "order of evaluation: $id and $ref",
+      "refs": [
+        "int.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "order of evaluation: $id and $ref on nested schema",
+      "refs": [
+        "nested/foo.json",
+        "./bar.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "simple URN base URI with $ref via the URN",
+      "refs": [
+        "urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "URN base URI with URN and JSON pointer ref",
+      "refs": [
+        "urn:uuid:deadbeef-1234-0000-0000-4321feebdaed#/$defs/bar"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "URN base URI with URN and anchor ref",
+      "refs": [
+        "urn:uuid:deadbeef-1234-ff00-00ff-4321feebdaed#something"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "URN ref with nested pointer ref",
+      "refs": [
+        "urn:uuid:deadbeef-4321-ffff-ffff-1234feebdaed"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "ref to if",
+      "refs": [
+        "http://example.com/ref/if"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "ref to then",
+      "refs": [
+        "http://example.com/ref/then"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "ref to else",
+      "refs": [
+        "http://example.com/ref/else"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "ref.json",
+      "description": "ref with absolute-path-reference",
+      "refs": [
+        "/absref/foobar.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "remote ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/integer.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "fragment within remote ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/subSchemas.json#/$defs/integer"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "anchor within remote ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/locationIndependentIdentifier.json#foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "ref within remote ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/subSchemas.json#/$defs/refToInteger"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "base URI change",
+      "refs": [
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "base URI change - change folder",
+      "refs": [
+        "baseUriChangeFolder/",
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "base URI change - change folder in subschema",
+      "refs": [
+        "baseUriChangeFolderInSubschema/#/$defs/bar",
+        "folderInteger.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "root ref in remote ref",
+      "refs": [
+        "name-defs.json#/$defs/orNull"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "remote ref with ref to defs",
+      "refs": [
+        "ref-and-defs.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "Location-independent identifier in remote ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/locationIndependentIdentifier.json#/$defs/refToInteger"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "retrieved nested refs resolve relative to their URI not $id",
+      "refs": [
+        "nested/foo-ref-string.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "remote HTTP ref with different $id",
+      "refs": [
+        "http://localhost:1234/draft2020-12/different-id-ref-string.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "remote HTTP ref with different URN $id",
+      "refs": [
+        "http://localhost:1234/draft2020-12/urn-ref-string.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "remote HTTP ref with nested absolute ref",
+      "refs": [
+        "http://localhost:1234/draft2020-12/nested-absolute-ref-to-string.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "refRemote.json",
+      "description": "$ref to $ref finds detached $anchor",
+      "refs": [
+        "http://localhost:1234/draft2020-12/detached-ref.json#/$defs/foo"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "unevaluatedItems.json",
+      "description": "unevaluatedItems with $dynamicRef",
+      "refs": [
+        "./baseSchema"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "unevaluatedProperties.json",
+      "description": "unevaluatedProperties with $dynamicRef",
+      "refs": [
+        "./baseSchema"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "vocabulary.json",
+      "description": "schema that uses custom metaschema with with no validation vocabulary",
+      "refs": [
+        "http://localhost:1234/draft2020-12/metaschema-no-validation.json"
+      ]
+    },
+    {
+      "draft": "draft2020-12",
+      "file": "vocabulary.json",
+      "description": "ignore unrecognized optional vocabulary",
+      "refs": [
+        "http://localhost:1234/draft2020-12/metaschema-optional-vocabulary.json"
+      ]
+    }
+  ],
+  "sampleFailures": [
+    {
+      "draft": "draft7",
+      "library": "hyperjump",
+      "file": "ref.json",
+      "group": "naive replacement of $ref with its destination is not correct",
+      "test": "do not evaluate the $ref inside the enum, definition exact match",
+      "expected": false,
+      "actualOrError": "true"
+    },
+    {
+      "draft": "draft7",
+      "library": "hyperjump",
+      "file": "ref.json",
+      "group": "naive replacement of $ref with its destination is not correct",
+      "test": "match the enum exactly",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "email format",
+      "test": "invalid email string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "regex format",
+      "test": "invalid regex string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "date format",
+      "test": "invalid date string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "date-time format",
+      "test": "invalid date-time string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "time format",
+      "test": "invalid time string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "json-pointer format",
+      "test": "invalid json-pointer string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "relative-json-pointer format",
+      "test": "invalid relative-json-pointer string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "uuid format",
+      "test": "invalid uuid string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    },
+    {
+      "draft": "draft2020-12",
+      "library": "jsl",
+      "file": "format.json",
+      "group": "duration format",
+      "test": "invalid duration string is only an annotation by default",
+      "expected": true,
+      "actualOrError": "false"
+    }
+  ]
+}

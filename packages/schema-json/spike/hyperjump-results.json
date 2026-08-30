@@ -1,0 +1,387 @@
+{
+  "library": "@hyperjump/json-schema",
+  "version": "1.17.8",
+  "criteria": {
+    "project() feasibility": {
+      "pass": true,
+      "notes": "A Map<JsonPointer, NodeProjection> was built synchronously for the flat-object fixture, including \"bio\" and \"newsletter\" which were never given a value in the test data (still correctly active, with title/description/default read straight off the schema by a static supplemental walk -- see the \"if/then/else\" criterion for why that second pass was necessary at all). hyperjump's annotate()/AnnotatedInstance API only exposes *annotations* (title, description, readOnly, custom keywords) per instance pointer -- it does NOT expose type, constraints, or enum values, because those keywords have no \"annotation\" behavior by design (confirmed in source: \"The type keyword doesn't produce annotations\"). To get a full NodeProjection (type/constraints/children), this probe wrote a custom EvaluationPlugin that records every keyword evaluated during a normal validate-style interpret() call, then resolves each keyword's raw value by JSON-Pointer lookup into the original schema document (the schemaUri fragment reported by the plugin is exactly that pointer for local $ref/$defs). This is real integration work beyond calling a single documented function, but it composes entirely from hyperjump's public plugin API (addKeyword's `plugin` field is for custom keywords; EvaluationPlugin passed via ValidationOptions.plugins is the public hook used here) -- no private internals were touched. The whole thing runs synchronously after one async compile.",
+      "data": {
+        "sampleNode": {
+          "type": "string",
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "active": true,
+          "annotations": {
+            "title": "Full Name",
+            "description": "The user's full name"
+          }
+        },
+        "bioNode": {
+          "type": "string",
+          "constraints": {
+            "maxLength": 500
+          },
+          "active": true,
+          "annotations": {
+            "title": "Biography",
+            "description": "Short bio",
+            "readOnly": false
+          }
+        },
+        "newsletterNode": {
+          "type": "boolean",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Subscribe to Newsletter",
+            "default": false
+          }
+        },
+        "rootChildren": [
+          {
+            "pointer": "/name",
+            "key": "name",
+            "required": true
+          },
+          {
+            "pointer": "/email",
+            "key": "email",
+            "required": true
+          },
+          {
+            "pointer": "/age",
+            "key": "age",
+            "required": false
+          },
+          {
+            "pointer": "/bio",
+            "key": "bio",
+            "required": false
+          },
+          {
+            "pointer": "/newsletter",
+            "key": "newsletter",
+            "required": false
+          }
+        ],
+        "pointerCount": 6
+      }
+    },
+    "validate() feasibility": {
+      "pass": true,
+      "notes": "BASIC output format produces { valid, errors: [{ keyword, absoluteKeywordLocation, instanceLocation }] }. instanceLocation is `${baseUri}#${jsonPointer}` (e.g. \"#/name\", \"#\" for root) which maps 1:1 onto ValidationResult.errors[].instancePointer by stripping the \"#\". \"keyword\" is a full URI (e.g. https://json-schema.org/keyword/minLength) and needs a trailing-segment extraction to get the plain keyword name. No human-readable message is provided by the stable API (would need a custom plugin or i18n layer on top, same situation any JSON Schema validator is in).",
+      "data": {
+        "validOutput": {
+          "valid": true
+        },
+        "invalidErrorsMapped": [
+          {
+            "instancePointer": "/name",
+            "keyword": "minLength",
+            "params": {}
+          },
+          {
+            "instancePointer": "/age",
+            "keyword": "minimum",
+            "params": {}
+          },
+          {
+            "instancePointer": "",
+            "keyword": "required",
+            "params": {}
+          }
+        ]
+      }
+    },
+    "Draft-07 support": {
+      "pass": true,
+      "notes": "Draft-07 is a first-class, natively supported dialect (import from \"@hyperjump/json-schema/draft-07\"), not a keyword-mapping shim over 2020-12. $ref, dependencies (schema form), if/then/else, and tuple items+additionalItems all behaved correctly against hand-written cases. Draft can be auto-detected from $schema as long as the matching draft module has been imported at least once.",
+      "data": {
+        "$ref": true,
+        "dependencies": true,
+        "if-then-else": true,
+        "items+additionalItems": true
+      }
+    },
+    "2020-12 support": {
+      "pass": true,
+      "notes": "2020-12 is the primary dialect this library is developed against. $ref, $dynamicRef, dependentSchemas, prefixItems, and unevaluatedProperties all behaved correctly against hand-written cases.",
+      "data": {
+        "$ref": true,
+        "$dynamicRef": true,
+        "dependentSchemas": true,
+        "prefixItems": true,
+        "unevaluatedProperties": true
+      }
+    },
+    "Local $ref": {
+      "pass": true,
+      "notes": "All three $ref pointers (homeAddress -> #/$defs/address, workAddress -> #/$defs/address, orgChart -> #/$defs/treeNode recursively) resolved with no custom code -- $ref is a built-in keyword handler. The recursive treeNode ref was followed to arbitrary depth (tested 2 levels of nesting) automatically, driven by the shape of the instance data rather than a fixed unroll depth, which is the correct behavior for a recursive schema.",
+      "data": {
+        "homeStreet": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Street"
+          }
+        },
+        "grandchildLabel": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {}
+        }
+      }
+    },
+    "Annotation collection": {
+      "pass": true,
+      "notes": "title/description/readOnly/default were all collected correctly through an allOf wrapper. Through oneOf, the matching branch's annotations (title on /b) were collected; the non-matching branch's field (/c) never appears as an active node with those annotations -- it only shows up (active: false, no annotations) via this probe's separate declared-shape walk, not from hyperjump itself. hyperjump does not surface \"this field exists but its branch didn't match\" on its own; a consumer has to reconcile the active set against a schema-shape walk to get that (as this probe's buildProjectionSync does).",
+      "data": {
+        "aNode": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "A Title",
+            "description": "A desc",
+            "readOnly": true,
+            "default": "x"
+          }
+        },
+        "bNode": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Branch One B"
+          }
+        },
+        "cNode": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        }
+      }
+    },
+    "if/then/else": {
+      "pass": true,
+      "notes": "Evaluating with accountType=\"business\" activates the then-branch (companyName active, its description annotation present; nickname inactive). Evaluating with accountType=\"personal\" flips it -- notably, personalNickname is active:true with its title/description populated even though \"nickname\" was never given a value in the test data. This required a fix during probing: hyperjump only fires keyword evaluations for instance pointers that exist in the data, so a blank-but-active optional field looks identical, from keyword-firing alone, to a field in a branch that did not match (see \"project() feasibility\" for the two-pass design this required: a data-driven pass for filled fields, plus a static schema walk -- gated by which if/then/else branch fired any nested keyword at all, since the \"then\"/\"else\" keyword itself always reports vacuously valid regardless of selection -- to backfill declared-but-unfilled fields with the correct active flag and static annotations).",
+      "data": {
+        "businessCompanyName": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Company Name",
+            "description": "Required for business accounts"
+          }
+        },
+        "businessNickname": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        },
+        "personalNickname": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Nickname",
+            "description": "Optional for personal accounts"
+          }
+        },
+        "personalCompanyName": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        }
+      }
+    },
+    "dependentSchemas / dependentRequired": {
+      "pass": true,
+      "notes": "dependentRequired correctly rejects creditCard present without billingAddress. dependentSchemas correctly activates the cvv field (with its own required+constraints) only when creditCard is present, and cvv is reported inactive when it is not.",
+      "data": {
+        "cvvWithCC": {
+          "type": "string",
+          "constraints": {
+            "minLength": 3,
+            "maxLength": 4
+          },
+          "active": true,
+          "annotations": {
+            "title": "CVV"
+          }
+        },
+        "cvvWithoutCC": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        },
+        "ccMissingBillingValid": false
+      }
+    },
+    "oneOf/anyOf discrimination": {
+      "pass": true,
+      "notes": "Switching the \"kind\" discriminator correctly switches which oneOf branch is active: radius active (with its title/description annotations) for kind=\"circle\"; width+height active for kind=\"rectangle\". The non-matching branch's fields are inactive in both directions.",
+      "data": {
+        "circleRadius": {
+          "type": "number",
+          "constraints": {
+            "minimum": 0
+          },
+          "active": true,
+          "annotations": {
+            "title": "Radius",
+            "description": "Circle radius"
+          }
+        },
+        "circleWidth": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        },
+        "rectWidth": {
+          "type": "number",
+          "constraints": {
+            "minimum": 0
+          },
+          "active": true,
+          "annotations": {
+            "title": "Width",
+            "description": "Rectangle width"
+          }
+        },
+        "rectRadius": {
+          "constraints": {},
+          "active": false,
+          "annotations": {}
+        }
+      }
+    },
+    "JSON Schema Test Suite pass rate": {
+      "pass": "partial",
+      "notes": "Not run by this probe. The brief (step 6) runs the official JSON-Schema-Test-Suite mandatory+optional cases jointly against both libraries from a single shared runner (spike/test-suite-runner.ts) so pass rates are directly comparable and remote-$ref cases are filtered identically for both. Running it here too would duplicate that work and risk a different filtering rule producing misleading numbers. See \"Draft-07 support\" and \"2020-12 support\" above for this probe's own targeted keyword-level evidence, and packages/schema-json/spike/test-suite-results.json for the joint pass-rate numbers once step 6 runs."
+    },
+    "CSP / eval safety": {
+      "pass": true,
+      "notes": "grep for \"new Function\", \"eval(\", \"Function(\" across all .js source in the installed package found zero matches. The library is a pure AST interpreter (compile builds a plain-object AST, interpret walks it) with no runtime code generation, so it is safe under a CSP that disallows unsafe-eval.",
+      "data": {
+        "grepOutput": null
+      }
+    },
+    "Bundle size": {
+      "pass": true,
+      "notes": "npm pack reports packageSize (gzip'd tarball) 59.6 KB, unpackedSize 417.4 KB, 209 files. This is the whole package (all draft versions, OpenAPI dialects, formats, bundling, annotations); a consumer only importing draft-07 + 2020-12 + annotations would tree-shake a meaningfully smaller subset in a bundler, but the probe reports the unmodified npm pack number for a fair, tool-free comparison against the roadmap's stated ~71KB figure.",
+      "data": {
+        "packageSizeBytes": 61044,
+        "unpackedSizeBytes": 427429,
+        "entryCount": 209
+      }
+    },
+    "Sync hot-path": {
+      "pass": true,
+      "notes": "Both `annotate(schemaUri)` and `validate(schemaUri)` (and the raw `compile()`/`interpret()` pair) follow the same shape: the *preparation* half (registerSchema -> getSchema -> compile, or the curried `annotate(uri)`/`validate(uri)` with one argument) is async, but the returned \"apply to this instance\" function is a genuinely synchronous JS function -- calling it returns a plain value, not a Promise. This is exactly the async-prepare-then-sync-project pattern SchemaEvaluationPort needs: compile once (await), then call the returned function on every keystroke/data change with no await. One caveat: `annotate()`'s returned function throws a ValidationError if the instance is *overall* invalid, so it is unsuitable as-is for projecting a form mid-edit (likely invalid) state -- this probe's buildProjectionSync instead uses the lower-level compile()+interpret() pair directly (also sync after compile), which returns {valid: false, errors} instead of throwing.",
+      "data": {
+        "isAnnotatorSync": true,
+        "resultIsPromise": false,
+        "threw": false
+      }
+    },
+    "Preparation cost": {
+      "pass": true,
+      "notes": "100 iterations of registerSchema + await annotate(uri) + first annotator(data) call for the flat-object fixture (5 fields, no conditionals): mean 0.414ms, p50 0.382ms, p95 0.700ms, total 41.4ms. Note the brief's matrix criterion describes a heavier 50-field/5-conditional benchmark scenario; this probe follows its own more specific instruction (flat-object, 100 iterations) which is a lighter but still representative measurement of per-schema-shape compile cost.",
+      "data": {
+        "meanMs": 0.41388879999999745,
+        "p50Ms": 0.3822500000001128,
+        "p95Ms": 0.69987500000002,
+        "totalMs": 41.388879999999745,
+        "iterations": 100
+      }
+    },
+    "Error path mapping": {
+      "pass": true,
+      "notes": "instanceLocation values (\"#/homeAddress\" etc.) map directly to RFC 6901 JSON Pointers matching ValidationError.instancePointer's expected shape (root is \"\", nested is \"/homeAddress\") once the leading \"#\" is stripped. Verified for a nested-through-$ref required-property violation.",
+      "data": {
+        "mapped": [
+          {
+            "instancePointer": "/homeAddress",
+            "keyword": "required",
+            "params": {}
+          }
+        ]
+      }
+    },
+    "Annotation semantics": {
+      "pass": true,
+      "notes": "With data { kind: \"b\", value: \"hello\" }, oneOf branch A (value: number) is attempted and fails, branch B (value: string) succeeds, and the document validates overall via B. The annotation surfaced for /value is \"Branch B Value\", not \"Branch A Value\" -- branch A's failed-branch annotations never leak through. This falls directly out of hyperjump's afterSchema/valid-gated annotation accumulation (lib/evaluation-plugins/annotations.js): a schema scope's collected annotations are only merged into its parent scope if that scope itself validated. This is the exact mechanism the brief calls out as differentiating; it is a structural property of how the library evaluates oneOf, not a special case that had to be worked around.",
+      "data": {
+        "valueNode": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Branch B Value"
+          }
+        }
+      }
+    },
+    "Ecosystem health": {
+      "pass": "partial",
+      "notes": "npm weekly downloads: 334718. npm last publish: 2026-08-05T18:35:22.136Z (121 versions published total, first published 2020, so a mature/actively-maintained package). GitHub: 7 open issues, 315 stars. Bus factor concern: top contributor has 283 commits vs. the next-highest at 5 -- this is a single-maintainer-dominated project (marked 'partial' rather than 'pass' specifically for this reason, not for download volume or maintenance cadence, both of which look healthy).",
+      "data": {
+        "downloadsLastWeek": 334718,
+        "npmLastPublish": "2026-08-05T18:35:22.136Z",
+        "npmVersionCount": 121,
+        "ghOpenIssues": 7,
+        "ghStars": 315,
+        "ghContributors": [
+          {
+            "login": "jdesrosiers",
+            "contributions": 283
+          },
+          {
+            "login": "mdrafi28",
+            "contributions": 5
+          },
+          {
+            "login": "Sam-61s",
+            "contributions": 4
+          },
+          {
+            "login": "valerii15298",
+            "contributions": 4
+          },
+          {
+            "login": "srivastava-diya",
+            "contributions": 2
+          },
+          {
+            "login": "Suyog241005",
+            "contributions": 2
+          },
+          {
+            "login": "Ahmedmhmud",
+            "contributions": 1
+          },
+          {
+            "login": "hudlow",
+            "contributions": 1
+          },
+          {
+            "login": "echozio",
+            "contributions": 1
+          },
+          {
+            "login": "justin212407",
+            "contributions": 1
+          }
+        ],
+        "busFactorConcern": true
+      }
+    }
+  },
+  "errors": []
+}

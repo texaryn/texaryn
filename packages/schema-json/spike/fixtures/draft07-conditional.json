@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "country": {
+      "type": "string",
+      "title": "Country",
+      "enum": ["US", "UK", "FR"]
+    },
+    "postalCode": {
+      "type": "string",
+      "title": "Postal Code"
+    }
+  },
+  "required": ["country"],
+  "dependencies": {
+    "country": {
+      "oneOf": [
+        {
+          "properties": {
+            "country": { "const": "US" },
+            "postalCode": { "pattern": "^[0-9]{5}$" }
+          }
+        },
+        {
+          "properties": {
+            "country": { "const": "UK" },
+            "postalCode": { "pattern": "^[A-Z]{1,2}[0-9]" }
+          }
+        },
+        {
+          "properties": {
+            "country": { "const": "FR" },
+            "postalCode": { "pattern": "^[0-9]{5}$" }
+          }
+        }
+      ]
+    }
+  }
+}

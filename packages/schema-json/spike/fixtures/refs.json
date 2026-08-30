@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "address": {
+      "type": "object",
+      "title": "Address",
+      "properties": {
+        "street": { "type": "string", "title": "Street" },
+        "city": { "type": "string", "title": "City" },
+        "country": { "type": "string", "title": "Country" }
+      },
+      "required": ["street", "city"]
+    },
+    "treeNode": {
+      "type": "object",
+      "title": "Tree Node",
+      "properties": {
+        "label": { "type": "string" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/treeNode" }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "homeAddress": { "$ref": "#/$defs/address" },
+    "workAddress": { "$ref": "#/$defs/address" },
+    "orgChart": { "$ref": "#/$defs/treeNode" }
+  }
+}
