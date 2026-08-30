@@ -75,7 +75,7 @@ export interface ContainerNode extends NodeBase {
 
 export interface ArrayMeta {
   itemIds: StableItemId[]
-  itemKey?: string
+  itemKey?: JsonPointer
   minItems?: number
   maxItems?: number
   canAdd: boolean

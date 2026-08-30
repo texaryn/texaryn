@@ -80,9 +80,12 @@ const simpleDoc: UIDocument = {
   },
 }
 
+const initialData = { name: 'Alice', age: 30 }
+
 function simpleState(): RuntimeState {
   return {
-    data: { name: 'Alice', age: 30 },
+    data: { ...initialData },
+    initialData: { ...initialData },
     nodes: new Map([
       [nid('name'), makeNodeState('Alice')],
       [nid('age'), makeNodeState(30)],
@@ -101,21 +104,24 @@ describe('processCommand', () => {
       expect((nextState.data as Record<string, unknown>).name).toBe('Bob')
     })
 
-    it('marks node as dirty', () => {
+    it('marks node as dirty and modified', () => {
       const state = simpleState()
       const cmd: Command = { type: 'SetValue', nodeId: nid('name'), value: 'Bob' }
       const { nextState } = processCommand(state, cmd, simpleDoc)
-      expect(nextState.nodes.get(nid('name'))!.interaction.dirty).toBe(true)
+      const interaction = nextState.nodes.get(nid('name'))!.interaction
+      expect(interaction.dirty).toBe(true)
+      expect(interaction.modified).toBe(true)
     })
 
-    it('emits validate effect', () => {
+    it('emits recompile effect (not validate)', () => {
       const state = simpleState()
       const cmd: Command = { type: 'SetValue', nodeId: nid('name'), value: 'Bob' }
       const { effects } = processCommand(state, cmd, simpleDoc)
       expect(effects).toContainEqual({
-        type: 'validate',
-        nodeIds: [nid('name')],
+        type: 'recompile',
+        reason: 'data-changed',
       })
+      expect(effects.some((e) => e.type === 'validate')).toBe(false)
     })
 
     it('does not mutate original state', () => {
@@ -123,6 +129,29 @@ describe('processCommand', () => {
       const original = (state.data as Record<string, unknown>).name
       processCommand(state, { type: 'SetValue', nodeId: nid('name'), value: 'Bob' }, simpleDoc)
       expect((state.data as Record<string, unknown>).name).toBe(original)
+    })
+
+    it('handles root data pointer (empty string)', () => {
+      const rootFieldDoc: UIDocument = {
+        version: 1,
+        rootId: nid('root'),
+        nodes: {
+          [nid('root') as string]: makeFieldNode('root', ''),
+        },
+      }
+      const state: RuntimeState = {
+        data: 'old',
+        initialData: 'old',
+        nodes: new Map([[nid('root'), makeNodeState('old')]]),
+        identities: emptyIdentities(),
+        submission: { status: 'idle' },
+      }
+      const { nextState } = processCommand(
+        state,
+        { type: 'SetValue', nodeId: nid('root'), value: 'new' },
+        rootFieldDoc,
+      )
+      expect(nextState.data).toBe('new')
     })
   })
 
@@ -152,16 +181,31 @@ describe('processCommand', () => {
   })
 
   describe('Reset', () => {
-    it('replaces data and clears interaction state', () => {
+    it('resets to initial data when no replacement provided', () => {
       const state = simpleState()
-      state.nodes.get(nid('name'))!.interaction.dirty = true
+      const r1 = processCommand(
+        state,
+        { type: 'SetValue', nodeId: nid('name'), value: 'Bob' },
+        simpleDoc,
+      )
+      const { nextState } = processCommand(
+        r1.nextState,
+        { type: 'Reset' },
+        simpleDoc,
+      )
+      expect((nextState.data as Record<string, unknown>).name).toBe('Alice')
+      expect(nextState.nodes.get(nid('name'))!.interaction.dirty).toBe(false)
+    })
+
+    it('resets to explicit data when provided', () => {
+      const state = simpleState()
       const { nextState } = processCommand(
         state,
         { type: 'Reset', data: { name: 'New', age: 0 } },
         simpleDoc,
       )
       expect((nextState.data as Record<string, unknown>).name).toBe('New')
-      expect(nextState.nodes.get(nid('name'))!.interaction.dirty).toBe(false)
+      expect(nextState.initialData).toEqual({ name: 'New', age: 0 })
     })
 
     it('emits recompile effect', () => {
@@ -176,19 +220,21 @@ describe('processCommand', () => {
   })
 
   describe('SetValue reversibility', () => {
-    it('setting back to original value restores data', () => {
+    it('setting back to original value clears modified', () => {
       const state = simpleState()
       const r1 = processCommand(
         state,
         { type: 'SetValue', nodeId: nid('name'), value: 'Bob' },
         simpleDoc,
       )
+      expect(r1.nextState.nodes.get(nid('name'))!.interaction.modified).toBe(true)
       const r2 = processCommand(
         r1.nextState,
         { type: 'SetValue', nodeId: nid('name'), value: 'Alice' },
         simpleDoc,
       )
       expect((r2.nextState.data as Record<string, unknown>).name).toBe('Alice')
+      expect(r2.nextState.nodes.get(nid('name'))!.interaction.modified).toBe(false)
     })
   })
 })

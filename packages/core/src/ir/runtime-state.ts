@@ -2,6 +2,7 @@ import type { NodeId, StableItemId, ValidationError } from '../types.js'
 
 export interface RuntimeState {
   data: unknown
+  initialData: unknown
   nodes: Map<NodeId, NodeRuntimeState>
   identities: IdentityMap
   submission: SubmissionState

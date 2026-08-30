@@ -1,6 +1,6 @@
 import type { UIDocument } from '../ir/types.js'
 import type { RuntimeState, NodeRuntimeState } from '../ir/runtime-state.js'
-import type { Command, Effect, CommandResult } from './types.js'
+import type { Command, CommandResult } from './types.js'
 import type { NodeId } from '../types.js'
 import { getAtPointer, setAtPointer } from '../json-pointer.js'
 import { insertItem, removeItem, moveItem } from '../identity/map.js'
@@ -22,9 +22,9 @@ export function processCommand(
     case 'SetTouched':
       return handleSetTouched(state, command)
     case 'Submit':
-      return handleSubmit(state, document)
+      return handleSubmit(state)
     case 'Reset':
-      return handleReset(state, command, document)
+      return handleReset(state, command)
   }
 }
 
@@ -34,20 +34,22 @@ function handleSetValue(
   document: UIDocument,
 ): CommandResult {
   const node = document.nodes[cmd.nodeId as string]
-  if (!node?.dataPointer) return { nextState: state, effects: [] }
+  if (node?.dataPointer == null) return { nextState: state, effects: [] }
 
   const newData = setAtPointer(state.data, node.dataPointer, cmd.value)
+  const initialValue = getAtPointer(state.initialData, node.dataPointer)
+  const modified = !Object.is(cmd.value, initialValue)
   const nodes = new Map(state.nodes)
   const prev = nodes.get(cmd.nodeId) ?? defaultNodeState(cmd.value)
   nodes.set(cmd.nodeId, {
     ...prev,
     value: cmd.value,
-    interaction: { ...prev.interaction, dirty: true, pristine: false },
+    interaction: { ...prev.interaction, dirty: true, pristine: false, modified },
   })
 
   return {
     nextState: { ...state, data: newData, nodes },
-    effects: [{ type: 'validate', nodeIds: [cmd.nodeId] }],
+    effects: [{ type: 'recompile', reason: 'data-changed' }],
   }
 }
 
@@ -57,7 +59,7 @@ function handleInsertItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (!container?.dataPointer) return { nextState: state, effects: [] }
+  if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   const newArr = [...arr.slice(0, cmd.index), cmd.value ?? null, ...arr.slice(cmd.index)]
@@ -76,7 +78,7 @@ function handleRemoveItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (!container?.dataPointer) return { nextState: state, effects: [] }
+  if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   const newArr = [...arr.slice(0, cmd.index), ...arr.slice(cmd.index + 1)]
@@ -95,7 +97,7 @@ function handleMoveItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (!container?.dataPointer) return { nextState: state, effects: [] }
+  if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
   const arr = [...((getAtPointer(state.data, container.dataPointer) as unknown[]) ?? [])]
   const [item] = arr.splice(cmd.from, 1)
@@ -124,10 +126,7 @@ function handleSetTouched(
   return { nextState: { ...state, nodes }, effects: [] }
 }
 
-function handleSubmit(
-  state: RuntimeState,
-  document: UIDocument,
-): CommandResult {
+function handleSubmit(state: RuntimeState): CommandResult {
   const allNodeIds = [...state.nodes.keys()]
   return {
     nextState: {
@@ -141,20 +140,20 @@ function handleSubmit(
 function handleReset(
   state: RuntimeState,
   cmd: { type: 'Reset'; data?: unknown },
-  _document: UIDocument,
 ): CommandResult {
-  const newData = cmd.data ?? state.data
+  const newData = cmd.data ?? state.initialData
   const nodes = new Map<NodeId, NodeRuntimeState>()
-  for (const [id, prev] of state.nodes) {
-    nodes.set(id, {
-      ...prev,
-      value: undefined,
-      validation: { status: 'idle', errors: [] },
-      interaction: { dirty: false, touched: false, pristine: true, modified: false },
-    })
+  for (const [id] of state.nodes) {
+    nodes.set(id, defaultNodeState(undefined))
   }
   return {
-    nextState: { ...state, data: newData, nodes, submission: { status: 'idle' } },
+    nextState: {
+      ...state,
+      data: newData,
+      initialData: newData,
+      nodes,
+      submission: { status: 'idle' },
+    },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
   }
 }
