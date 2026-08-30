@@ -147,5 +147,22 @@ describe('oneOf/anyOf discrimination', () => {
       expect(projection.nodes.get('/shape/radius' as JsonPointer)?.active).toBe(true)
       expect(projection.nodes.get('/shape/side' as JsonPointer)?.active).toBe(false)
     })
+
+    it('keeps the whole subtree present but inactive when no branch resolves', async () => {
+      const adapter = await createJsonSchemaAdapter(nestedOneOfSchema)
+      const projection = adapter.project({})
+
+      const shape = projection.nodes.get('/shape' as JsonPointer)
+      expect(shape).toBeDefined()
+      expect(shape!.active).toBe(false)
+
+      const radius = projection.nodes.get('/shape/radius' as JsonPointer)
+      expect(radius).toBeDefined()
+      expect(radius!.active).toBe(false)
+
+      const side = projection.nodes.get('/shape/side' as JsonPointer)
+      expect(side).toBeDefined()
+      expect(side!.active).toBe(false)
+    })
   })
 })

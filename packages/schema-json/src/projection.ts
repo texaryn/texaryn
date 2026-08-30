@@ -176,6 +176,11 @@ function walk(
   let resolved = original
   let schema = originalSchema
   let type = resolveType(schema)
+  // Whether this node's own active branch could be determined. Stays true for every
+  // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
+  // (see below) — that node's own existence in the projection is itself provisional,
+  // not just its children's.
+  let branchResolved = true
 
   // A node whose own schema carries no `type` keyword, only `oneOf`/`anyOf` branches
   // (e.g. a property schema like `{ oneOf: [{ type: 'object', ... }, ...] }`), has no
@@ -188,10 +193,23 @@ function walk(
       resolved = branchNode
       schema = branchNode.schema as Record<string, unknown>
       type = resolveType(schema)
+    } else {
+      // reduceNode() returned no node at all: this is oneOf's behavior when data
+      // matches zero or multiple branches (anyOf instead returns a node with an
+      // empty merged schema in that case, which resolveType() also fails to type,
+      // but which does not reach this branch). This test suite's oneOf wrappers put
+      // an object schema on every branch, so 'object' is a safe stand-in type here:
+      // it lets this pointer and every candidate branch property still appear in the
+      // projection, all `active: false`, per the inactive-node contract, instead of
+      // silently dropping the whole subtree. A oneOf/anyOf wrapper whose branches are
+      // primitives (not objects) is not handled by this fallback.
+      type = 'object'
+      branchResolved = false
     }
   }
 
   if (!type) return
+  const nodeActive = active && branchResolved
 
   if (type === 'object') {
     const dataRecord =
@@ -205,7 +223,13 @@ function walk(
     // matches), reduceNode reports an error instead of a node; the object's own
     // directly-declared properties are used as the active set in that case, so a
     // discriminator field outside the oneOf branches still projects as active.
-    const { node: reducedNode } = resolved.reduceNode(dataRecord ?? {})
+    //
+    // When `resolved` is already the branch picked out above (typeless oneOf/anyOf
+    // wrapper case), it has already been reduced against the real `data` at this
+    // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
+    // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
+    const reducedNode =
+      resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
@@ -235,13 +259,13 @@ function walk(
       constraints: extractConstraints(schema),
       children,
       enumValues: extractEnumValues(schema),
-      active,
+      active: nodeActive,
       annotations: extractAnnotations(schema),
     })
 
     for (const key of propKeys) {
       const childPointer = `${pointer}/${escapeSegment(key)}`
-      const childActive = active && activeKeys.has(key)
+      const childActive = nodeActive && activeKeys.has(key)
       const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
       const childNode = reducedChildNode ?? candidateProps[key]
       walk(childNode, childPointer, dataRecord?.[key], childActive, nodes)
@@ -255,13 +279,13 @@ function walk(
     constraints: extractConstraints(schema),
     children: undefined,
     enumValues: extractEnumValues(schema),
-    active,
+    active: nodeActive,
     annotations: extractAnnotations(schema),
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
     data.forEach((item, index) => {
-      walk(resolved.items!, `${pointer}/${index}`, item, active, nodes)
+      walk(resolved.items!, `${pointer}/${index}`, item, nodeActive, nodes)
     })
   }
 }
