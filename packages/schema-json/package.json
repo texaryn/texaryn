@@ -14,14 +14,15 @@
     "dist"
   ],
   "dependencies": {
-    "@texaryn/core": "workspace:*"
+    "@texaryn/core": "workspace:*",
+    "json-schema-library": "^11.6.2"
   },
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@hyperjump/json-schema": "^1.17.8",
-    "json-schema-library": "^11.6.2",
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.12",
+    "vitest": "^3.0.0"
   }
 }
