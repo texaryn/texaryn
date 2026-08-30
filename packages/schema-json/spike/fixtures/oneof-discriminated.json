@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["circle", "rectangle"]
+    }
+  },
+  "required": ["kind"],
+  "oneOf": [
+    {
+      "properties": {
+        "kind": { "const": "circle" },
+        "radius": {
+          "type": "number",
+          "title": "Radius",
+          "description": "Circle radius",
+          "minimum": 0
+        }
+      },
+      "required": ["radius"]
+    },
+    {
+      "properties": {
+        "kind": { "const": "rectangle" },
+        "width": {
+          "type": "number",
+          "title": "Width",
+          "description": "Rectangle width",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "title": "Height",
+          "description": "Rectangle height",
+          "minimum": 0
+        }
+      },
+      "required": ["width", "height"]
+    }
+  ]
+}

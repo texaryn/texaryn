@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "User Profile",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Full Name",
+      "description": "The user's full name",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "email": {
+      "type": "string",
+      "title": "Email",
+      "format": "email"
+    },
+    "age": {
+      "type": "integer",
+      "title": "Age",
+      "minimum": 0,
+      "maximum": 150
+    },
+    "bio": {
+      "type": "string",
+      "title": "Biography",
+      "description": "Short bio",
+      "readOnly": false,
+      "maxLength": 500
+    },
+    "newsletter": {
+      "type": "boolean",
+      "title": "Subscribe to Newsletter",
+      "default": false
+    }
+  },
+  "required": ["name", "email"]
+}

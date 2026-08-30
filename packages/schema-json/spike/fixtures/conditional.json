@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "accountType": {
+      "type": "string",
+      "title": "Account Type",
+      "enum": ["personal", "business"]
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    }
+  },
+  "required": ["accountType", "name"],
+  "if": {
+    "properties": { "accountType": { "const": "business" } },
+    "required": ["accountType"]
+  },
+  "then": {
+    "properties": {
+      "companyName": {
+        "type": "string",
+        "title": "Company Name",
+        "description": "Required for business accounts"
+      },
+      "taxId": {
+        "type": "string",
+        "title": "Tax ID"
+      }
+    },
+    "required": ["companyName"]
+  },
+  "else": {
+    "properties": {
+      "nickname": {
+        "type": "string",
+        "title": "Nickname",
+        "description": "Optional for personal accounts"
+      }
+    }
+  }
+}

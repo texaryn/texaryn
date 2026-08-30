@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "creditCard": {
+      "type": "string",
+      "title": "Credit Card Number"
+    },
+    "billingAddress": {
+      "type": "string",
+      "title": "Billing Address"
+    },
+    "useShipping": {
+      "type": "boolean",
+      "title": "Use shipping address for billing"
+    }
+  },
+  "dependentRequired": {
+    "creditCard": ["billingAddress"]
+  },
+  "dependentSchemas": {
+    "creditCard": {
+      "properties": {
+        "cvv": {
+          "type": "string",
+          "title": "CVV",
+          "minLength": 3,
+          "maxLength": 4
+        }
+      },
+      "required": ["cvv"]
+    }
+  }
+}

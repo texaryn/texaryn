@@ -10,11 +10,18 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@texaryn/core": "workspace:*"
   },
   "scripts": {
     "build": "tsc --build"
+  },
+  "devDependencies": {
+    "@hyperjump/json-schema": "^1.17.8",
+    "json-schema-library": "^11.6.2",
+    "tsx": "^4.23.12"
   }
 }
