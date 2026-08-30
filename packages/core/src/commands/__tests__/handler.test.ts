@@ -9,7 +9,7 @@ import type {
   NodeRuntimeState,
   IdentityMap,
 } from '../../index.js'
-import { processCommand } from '../handler.js'
+import { processCommand, registerArray, insertItem } from '../../index.js'
 import type { Command } from '../types.js'
 
 const nid = (s: string) => s as NodeId
@@ -246,6 +246,170 @@ describe('processCommand', () => {
       )
       expect((r2.nextState.data as Record<string, unknown>).name).toBe('Alice')
       expect(r2.nextState.nodes.get(nid('name'))!.interaction.modified).toBe(false)
+    })
+  })
+
+  const arrayDoc: UIDocument = {
+    version: 1,
+    rootId: nid('list'),
+    nodes: {
+      [nid('list') as string]: {
+        ...makeContainerNode('list', '/items', [], 'array'),
+        containerType: 'array' as const,
+      },
+    },
+  }
+
+  function arrayState(items: unknown[]): RuntimeState {
+    let identities = registerArray(emptyIdentities(), nid('list'))
+    for (let i = 0; i < items.length; i++) {
+      identities = insertItem(identities, nid('list'), i).map
+    }
+    return {
+      data: { items },
+      initialData: { items: [...items] },
+      nodes: new Map(),
+      identities,
+      submission: { status: 'idle' },
+    }
+  }
+
+  describe('InsertItem', () => {
+    it('inserts a value at the given index', () => {
+      const state = arrayState(['a', 'b'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 1, value: 'x' },
+        arrayDoc,
+      )
+      expect((nextState.data as { items: unknown[] }).items).toEqual(['a', 'x', 'b'])
+    })
+
+    it('assigns a stable identity to the new item', () => {
+      const state = arrayState(['a'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 1, value: 'b' },
+        arrayDoc,
+      )
+      const ids = nextState.identities.arrayIdentities.get(nid('list'))!
+      expect(ids).toHaveLength(2)
+    })
+
+    it('emits recompile effect', () => {
+      const state = arrayState([])
+      const { effects } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 0, value: 'a' },
+        arrayDoc,
+      )
+      expect(effects).toContainEqual({ type: 'recompile', reason: 'data-changed' })
+    })
+  })
+
+  describe('RemoveItem', () => {
+    it('removes the item at the given index', () => {
+      const state = arrayState(['a', 'b', 'c'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'RemoveItem', containerId: nid('list'), index: 1 },
+        arrayDoc,
+      )
+      expect((nextState.data as { items: unknown[] }).items).toEqual(['a', 'c'])
+    })
+
+    it('rejects out-of-range index (negative)', () => {
+      const state = arrayState(['a'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'RemoveItem', containerId: nid('list'), index: -1 },
+        arrayDoc,
+      )
+      expect(nextState).toBe(state)
+    })
+
+    it('rejects out-of-range index (beyond length)', () => {
+      const state = arrayState(['a'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'RemoveItem', containerId: nid('list'), index: 5 },
+        arrayDoc,
+      )
+      expect(nextState).toBe(state)
+    })
+  })
+
+  describe('MoveItem', () => {
+    it('moves an item from one index to another', () => {
+      const state = arrayState(['a', 'b', 'c'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'MoveItem', containerId: nid('list'), from: 0, to: 2 },
+        arrayDoc,
+      )
+      expect((nextState.data as { items: unknown[] }).items).toEqual(['b', 'c', 'a'])
+    })
+
+    it('rejects out-of-range from index', () => {
+      const state = arrayState(['a', 'b'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'MoveItem', containerId: nid('list'), from: 5, to: 0 },
+        arrayDoc,
+      )
+      expect(nextState).toBe(state)
+    })
+
+    it('rejects out-of-range to index', () => {
+      const state = arrayState(['a', 'b'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'MoveItem', containerId: nid('list'), from: 0, to: 5 },
+        arrayDoc,
+      )
+      expect(nextState).toBe(state)
+    })
+  })
+
+  describe('Reset identity reconciliation', () => {
+    it('reconciles array identities when data changes', () => {
+      const state = arrayState(['a', 'b'])
+      const r1 = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 0, value: 'x' },
+        arrayDoc,
+      )
+      const idsBeforeReset = r1.nextState.identities.arrayIdentities.get(nid('list'))!
+      expect(idsBeforeReset).toHaveLength(3)
+
+      const { nextState } = processCommand(
+        r1.nextState,
+        { type: 'Reset', data: { items: ['b', 'a'] } },
+        arrayDoc,
+      )
+      const idsAfterReset = nextState.identities.arrayIdentities.get(nid('list'))!
+      expect(idsAfterReset).toHaveLength(2)
+    })
+
+    it('preserves matched identities across reset', () => {
+      const state = arrayState(['a', 'b'])
+      const r1 = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 2, value: 'c' },
+        arrayDoc,
+      )
+      const idsBefore = r1.nextState.identities.arrayIdentities.get(nid('list'))!
+      const idForA = idsBefore[0]
+      const idForB = idsBefore[1]
+
+      const { nextState } = processCommand(
+        r1.nextState,
+        { type: 'Reset', data: { items: ['b', 'a'] } },
+        arrayDoc,
+      )
+      const idsAfter = nextState.identities.arrayIdentities.get(nid('list'))!
+      expect(idsAfter[0]).toBe(idForB)
+      expect(idsAfter[1]).toBe(idForA)
     })
   })
 })

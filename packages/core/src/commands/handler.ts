@@ -4,6 +4,7 @@ import type { Command, CommandResult } from './types.js'
 import type { NodeId } from '../types.js'
 import { getAtPointer, setAtPointer } from '../json-pointer.js'
 import { insertItem, removeItem, moveItem } from '../identity/map.js'
+import { reconcile } from '../identity/reconcile.js'
 
 export function processCommand(
   state: RuntimeState,
@@ -156,12 +157,31 @@ function handleReset(
       : getAtPointer(newData, node.dataPointer)
     nodes.set(id, defaultNodeState(value))
   }
+
+  let identities = state.identities
+  for (const node of Object.values(document.nodes)) {
+    if (node.type !== 'container' || node.containerType !== 'array') continue
+    if (node.dataPointer == null) continue
+    const oldItems = getAtPointer(state.data, node.dataPointer)
+    const newItems = getAtPointer(newData, node.dataPointer)
+    if (Array.isArray(oldItems) && Array.isArray(newItems)) {
+      identities = reconcile(
+        identities,
+        node.id,
+        oldItems,
+        newItems,
+        node.arrayMeta?.itemKey ? { itemKey: node.arrayMeta.itemKey } : undefined,
+      )
+    }
+  }
+
   return {
     nextState: {
       ...state,
       data: newData,
       initialData: newData,
       nodes,
+      identities,
       submission: { status: 'idle' },
     },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
