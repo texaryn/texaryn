@@ -29,6 +29,9 @@ export type {
   IdentityMap,
 } from './ir/index.js'
 
+export type { CompileResult, CompilerConfig } from './ir/index.js'
+export { compile } from './ir/index.js'
+
 export type {
   SchemaEvaluationPort,
   SchemaProjection,

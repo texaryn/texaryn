@@ -21,3 +21,6 @@ export type {
   SubmissionState,
   IdentityMap,
 } from './runtime-state.js'
+
+export type { CompileResult, CompilerConfig } from './compiler-types.js'
+export { compile } from './compiler.js'
