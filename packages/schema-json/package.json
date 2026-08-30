@@ -1,7 +1,21 @@
 {
   "name": "@texaryn/schema-json",
   "version": "0.0.0",
+  "description": "JSON Schema evaluation and validation adapter for Texaryn",
   "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/schema-json"
+  },
+  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -10,9 +24,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "dependencies": {
     "@texaryn/core": "workspace:*",
     "json-schema-library": "^11.6.2"
