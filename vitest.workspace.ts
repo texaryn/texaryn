@@ -18,6 +18,13 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'schema-json',
+      root: 'packages/schema-json',
+      include: ['src/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'binding-spikes',
       root: 'tests',
       include: ['binding-spikes/**/*.test.ts'],
