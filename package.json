@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.typecheck.json && tsc --noEmit -p packages/react/tsconfig.typecheck.json && tsc --noEmit -p tests/tsconfig.typecheck.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.0",
+    "vitest": "^3.0.0",
+    "fast-check": "^4.0.0",
+    "vue": "^3.5.0"
+  }
+}
