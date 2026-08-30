@@ -68,6 +68,7 @@ function compileNode(
   data: unknown,
   hints: UIHints | undefined,
   ctx: CompileContext,
+  required?: boolean,
 ): NodeId {
   const { nodes } = ctx
   const id = nextId(ctx)
@@ -99,6 +100,7 @@ function compileNode(
             data,
             hints,
             ctx,
+            child.required,
           )
           children.push(childId)
         }
@@ -146,6 +148,7 @@ function compileNode(
           data,
           hints,
           ctx,
+          false,
         )
         children.push(childId)
       }
@@ -189,7 +192,7 @@ function compileNode(
       annotations,
       fieldType,
       format: proj.format,
-      constraints: { ...proj.constraints },
+      constraints: { ...proj.constraints, required: required ?? proj.constraints.required ?? false },
       enumValues: proj.enumValues,
       widget: fieldHints?.widget,
     }

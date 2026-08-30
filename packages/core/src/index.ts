@@ -47,6 +47,10 @@ export { createStore } from './state/index.js'
 
 export type { Command, Effect, CommandResult } from './commands/index.js'
 export { processCommand } from './commands/index.js'
+
+export type { FormRuntime, FormRuntimeOptions, NodeState } from './runtime/index.js'
+export { createFormRuntime } from './runtime/index.js'
+
 export { getAtPointer, setAtPointer, parsePointer } from './json-pointer.js'
 
 export {
@@ -59,3 +63,6 @@ export {
   reconcile,
 } from './identity/index.js'
 export type { ReconcileOptions } from './identity/index.js'
+
+export type { WidgetTester, WidgetEntry, RendererRegistry } from './renderer/index.js'
+export { createRendererRegistry } from './renderer/index.js'
