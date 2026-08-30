@@ -197,6 +197,17 @@ describe('processCommand', () => {
       expect(nextState.nodes.get(nid('name'))!.interaction.dirty).toBe(false)
     })
 
+    it('populates node values from reset data', () => {
+      const state = simpleState()
+      const { nextState } = processCommand(
+        state,
+        { type: 'Reset' },
+        simpleDoc,
+      )
+      expect(nextState.nodes.get(nid('name'))!.value).toBe('Alice')
+      expect(nextState.nodes.get(nid('age'))!.value).toBe(30)
+    })
+
     it('resets to explicit data when provided', () => {
       const state = simpleState()
       const { nextState } = processCommand(

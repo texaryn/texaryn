@@ -1,3 +1,6 @@
+import { createSignal, subscribeToSignal } from './signal.js'
+import type { Signal } from './signal.js'
+
 export interface Store<T> {
   getSnapshot(): T
   subscribe(listener: () => void): () => void
@@ -8,19 +11,11 @@ export interface WritableStore<T> extends Store<T> {
 }
 
 export function createStore<T>(initialValue: T): WritableStore<T> {
-  let value = initialValue
-  const listeners = new Set<() => void>()
+  const signal: Signal<T> = createSignal(initialValue)
 
   return {
-    getSnapshot: () => value,
-    subscribe: (listener) => {
-      listeners.add(listener)
-      return () => { listeners.delete(listener) }
-    },
-    set: (newValue: T) => {
-      if (Object.is(value, newValue)) return
-      value = newValue
-      for (const fn of listeners) fn()
-    },
+    getSnapshot: () => signal.get(),
+    subscribe: (listener) => subscribeToSignal(signal, listener),
+    set: (value: T) => signal.set(value),
   }
 }

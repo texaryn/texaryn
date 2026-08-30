@@ -24,7 +24,7 @@ export function processCommand(
     case 'Submit':
       return handleSubmit(state)
     case 'Reset':
-      return handleReset(state, command)
+      return handleReset(state, command, document)
   }
 }
 
@@ -81,6 +81,7 @@ function handleRemoveItem(
   if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
+  if (cmd.index < 0 || cmd.index >= arr.length) return { nextState: state, effects: [] }
   const newArr = [...arr.slice(0, cmd.index), ...arr.slice(cmd.index + 1)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
   const { map: newIdentities } = removeItem(state.identities, cmd.containerId, cmd.index)
@@ -99,7 +100,11 @@ function handleMoveItem(
   const container = document.nodes[cmd.containerId as string]
   if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
-  const arr = [...((getAtPointer(state.data, container.dataPointer) as unknown[]) ?? [])]
+  const source = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
+  if (cmd.from < 0 || cmd.from >= source.length || cmd.to < 0 || cmd.to >= source.length) {
+    return { nextState: state, effects: [] }
+  }
+  const arr = [...source]
   const [item] = arr.splice(cmd.from, 1)
   arr.splice(cmd.to, 0, item)
   const newData = setAtPointer(state.data, container.dataPointer, arr)
@@ -140,11 +145,16 @@ function handleSubmit(state: RuntimeState): CommandResult {
 function handleReset(
   state: RuntimeState,
   cmd: { type: 'Reset'; data?: unknown },
+  document: UIDocument,
 ): CommandResult {
   const newData = cmd.data ?? state.initialData
   const nodes = new Map<NodeId, NodeRuntimeState>()
   for (const [id] of state.nodes) {
-    nodes.set(id, defaultNodeState(undefined))
+    const node = document.nodes[id as string]
+    const value = node?.dataPointer == null
+      ? undefined
+      : getAtPointer(newData, node.dataPointer)
+    nodes.set(id, defaultNodeState(value))
   }
   return {
     nextState: {

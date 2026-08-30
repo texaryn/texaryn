@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.typecheck.json && tsc --noEmit -p packages/react/tsconfig.typecheck.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
