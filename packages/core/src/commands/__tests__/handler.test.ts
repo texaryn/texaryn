@@ -296,6 +296,26 @@ describe('processCommand', () => {
       expect(ids).toHaveLength(2)
     })
 
+    it('rejects out-of-range index', () => {
+      const state = arrayState(['a'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 5, value: 'x' },
+        arrayDoc,
+      )
+      expect(nextState).toBe(state)
+    })
+
+    it('allows insert at end (index === length)', () => {
+      const state = arrayState(['a'])
+      const { nextState } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 1, value: 'b' },
+        arrayDoc,
+      )
+      expect((nextState.data as { items: unknown[] }).items).toEqual(['a', 'b'])
+    })
+
     it('emits recompile effect', () => {
       const state = arrayState([])
       const { effects } = processCommand(

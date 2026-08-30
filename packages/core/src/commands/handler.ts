@@ -63,6 +63,7 @@ function handleInsertItem(
   if (container?.dataPointer == null) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
+  if (cmd.index < 0 || cmd.index > arr.length) return { nextState: state, effects: [] }
   const newArr = [...arr.slice(0, cmd.index), cmd.value ?? null, ...arr.slice(cmd.index)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
   const { map: newIdentities } = insertItem(state.identities, cmd.containerId, cmd.index)
