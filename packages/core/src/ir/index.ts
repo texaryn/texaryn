@@ -22,5 +22,5 @@ export type {
   IdentityMap,
 } from './runtime-state.js'
 
-export type { CompileResult, CompilerConfig } from './compiler-types.js'
+export type { CompileResult } from './compiler-types.js'
 export { compile } from './compiler.js'

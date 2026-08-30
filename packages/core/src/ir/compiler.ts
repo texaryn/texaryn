@@ -4,7 +4,6 @@ import type {
   ChildProjection,
 } from '../schema/port.js'
 import type {
-  UIDocument,
   UINode,
   FieldNode,
   FieldType,
@@ -19,16 +18,14 @@ import type { JsonPointer, NodeId, StableItemId } from '../types.js'
 import { createIdentityMap, registerArray, insertItem } from '../identity/index.js'
 import { getAtPointer } from '../json-pointer.js'
 
-let nodeCounter = 0
-
-function nextId(): NodeId {
-  return `node_${++nodeCounter}` as NodeId
-}
-
 interface CompileContext {
   nodes: Record<string, UINode>
   identityMap: IdentityMap
-  pointerToId: Map<string, NodeId>
+  nodeCounter: number
+}
+
+function nextId(ctx: CompileContext): NodeId {
+  return `node_${++ctx.nodeCounter}` as NodeId
 }
 
 export function compile(
@@ -36,17 +33,15 @@ export function compile(
   data: unknown,
   hints?: UIHints,
 ): CompileResult {
-  nodeCounter = 0
   const nodes: Record<string, UINode> = {}
   const identityMap = createIdentityMap()
-  const pointerToId = new Map<string, NodeId>()
 
   const rootProjection = projection.nodes.get('' as JsonPointer)
   if (!rootProjection) {
     throw new Error('Schema projection missing root node')
   }
 
-  const ctx: CompileContext = { nodes, identityMap, pointerToId }
+  const ctx: CompileContext = { nodes, identityMap, nodeCounter: 0 }
   const rootId = compileNode(
     '' as JsonPointer,
     rootProjection,
@@ -75,8 +70,7 @@ function compileNode(
   ctx: CompileContext,
 ): NodeId {
   const { nodes } = ctx
-  const id = nextId()
-  ctx.pointerToId.set(pointer, id)
+  const id = nextId(ctx)
 
   const fieldHints = hints?.[pointer]
   const annotations: NodeAnnotations = {
