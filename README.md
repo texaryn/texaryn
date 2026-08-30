@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/texaryn/texaryn/actions/workflows/ci.yml">
-    <img src="https://github.com/texaryn/texaryn/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
+    <img src="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml/badge.svg" alt="CI" />
   </a>
 </p>
 
