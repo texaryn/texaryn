@@ -73,6 +73,8 @@ export function createFormRuntime(
     submission: { status: 'idle' },
   }
 
+  let destroyed = false
+
   function syncNodeStores(): void {
     for (const [nodeId, nodeRuntimeState] of state.nodes) {
       const bundle = nodeStores.get(nodeId)
@@ -181,12 +183,14 @@ export function createFormRuntime(
   function runOnSubmit(): Promise<void> {
     return Promise.resolve(options.onSubmit?.(state.data))
       .then(() => {
+        if (destroyed) return
         batch(() => {
           state = { ...state, submission: { status: 'submitted' } }
           submissionStore.set(state.submission)
         })
       })
       .catch((error: unknown) => {
+        if (destroyed) return
         batch(() => {
           state = { ...state, submission: { status: 'idle', error } }
           submissionStore.set(state.submission)
@@ -195,9 +199,11 @@ export function createFormRuntime(
   }
 
   function handleValidate(): void {
-    Promise.resolve(port.validate(state.data)).then((result) => {
-      applyValidationResult(result)
-    })
+    Promise.resolve(port.validate(state.data))
+      .then((result) => {
+        if (!destroyed) applyValidationResult(result)
+      })
+      .catch(() => {})
   }
 
   function handleEffect(effect: Effect): void {
@@ -214,6 +220,7 @@ export function createFormRuntime(
   }
 
   function dispatch(command: Command): void {
+    if (destroyed) return
     const { nextState, effects } = processCommand(state, command, currentDoc)
     state = nextState
     batch(() => {
@@ -231,6 +238,7 @@ export function createFormRuntime(
   }
 
   function destroy(): void {
+    destroyed = true
     nodeStores.clear()
   }
 
