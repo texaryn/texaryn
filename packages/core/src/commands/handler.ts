@@ -3,6 +3,7 @@ import type { RuntimeState, NodeRuntimeState } from '../ir/runtime-state.js'
 import type { Command, Effect, CommandResult } from './types.js'
 import type { NodeId } from '../types.js'
 import { getAtPointer, setAtPointer } from '../json-pointer.js'
+import { insertItem, removeItem, moveItem } from '../identity/map.js'
 
 export function processCommand(
   state: RuntimeState,
@@ -61,9 +62,10 @@ function handleInsertItem(
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   const newArr = [...arr.slice(0, cmd.index), cmd.value ?? null, ...arr.slice(cmd.index)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
+  const { map: newIdentities } = insertItem(state.identities, cmd.containerId, cmd.index)
 
   return {
-    nextState: { ...state, data: newData },
+    nextState: { ...state, data: newData, identities: newIdentities },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
   }
 }
@@ -79,9 +81,10 @@ function handleRemoveItem(
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   const newArr = [...arr.slice(0, cmd.index), ...arr.slice(cmd.index + 1)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
+  const { map: newIdentities } = removeItem(state.identities, cmd.containerId, cmd.index)
 
   return {
-    nextState: { ...state, data: newData },
+    nextState: { ...state, data: newData, identities: newIdentities },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
   }
 }
@@ -98,9 +101,10 @@ function handleMoveItem(
   const [item] = arr.splice(cmd.from, 1)
   arr.splice(cmd.to, 0, item)
   const newData = setAtPointer(state.data, container.dataPointer, arr)
+  const newIdentities = moveItem(state.identities, cmd.containerId, cmd.from, cmd.to)
 
   return {
-    nextState: { ...state, data: newData },
+    nextState: { ...state, data: newData, identities: newIdentities },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
   }
 }

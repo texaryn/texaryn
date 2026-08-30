@@ -55,4 +55,4 @@ export {
   resolvePointer,
   reconcile,
 } from './identity/index.js'
-export type { IdentityMapImpl, ReconcileOptions } from './identity/index.js'
+export type { ReconcileOptions } from './identity/index.js'

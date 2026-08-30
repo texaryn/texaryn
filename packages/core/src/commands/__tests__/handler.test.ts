@@ -66,6 +66,7 @@ function emptyIdentities(): IdentityMap {
   return {
     arrayIdentities: new Map(),
     itemLookup: new Map(),
+    nextId: 0,
   }
 }
 

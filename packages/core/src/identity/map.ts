@@ -1,11 +1,7 @@
 import type { NodeId, StableItemId } from '../types.js'
 import type { IdentityMap } from '../ir/runtime-state.js'
 
-export interface IdentityMapImpl extends IdentityMap {
-  nextId: number
-}
-
-export function createIdentityMap(): IdentityMapImpl {
+export function createIdentityMap(): IdentityMap {
   return {
     arrayIdentities: new Map(),
     itemLookup: new Map(),
@@ -14,19 +10,19 @@ export function createIdentityMap(): IdentityMapImpl {
 }
 
 export function registerArray(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   containerId: NodeId,
-): IdentityMapImpl {
+): IdentityMap {
   const arrayIdentities = new Map(map.arrayIdentities)
   arrayIdentities.set(containerId, [])
   return { ...map, arrayIdentities }
 }
 
 export function insertItem(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   containerId: NodeId,
   index: number,
-): { map: IdentityMapImpl; itemId: StableItemId } {
+): { map: IdentityMap; itemId: StableItemId } {
   const itemId = `item_${map.nextId}` as StableItemId
   const ids = [...(map.arrayIdentities.get(containerId) ?? [])]
   ids.splice(index, 0, itemId)
@@ -46,10 +42,10 @@ export function insertItem(
 }
 
 export function removeItem(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   containerId: NodeId,
   index: number,
-): { map: IdentityMapImpl; removedId: StableItemId } {
+): { map: IdentityMap; removedId: StableItemId } {
   const ids = [...(map.arrayIdentities.get(containerId) ?? [])]
   const removedId = ids[index]
   ids.splice(index, 1)
@@ -70,11 +66,11 @@ export function removeItem(
 }
 
 export function moveItem(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   containerId: NodeId,
   from: number,
   to: number,
-): IdentityMapImpl {
+): IdentityMap {
   const ids = [...(map.arrayIdentities.get(containerId) ?? [])]
   const [item] = ids.splice(from, 1)
   ids.splice(to, 0, item)
@@ -93,7 +89,7 @@ export function moveItem(
 }
 
 export function resolvePointer(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   itemId: StableItemId,
 ): string {
   const entry = map.itemLookup.get(itemId)

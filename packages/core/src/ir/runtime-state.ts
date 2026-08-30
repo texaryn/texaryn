@@ -33,4 +33,5 @@ export interface SubmissionState {
 export interface IdentityMap {
   arrayIdentities: Map<NodeId, StableItemId[]>
   itemLookup: Map<StableItemId, { containerId: NodeId; index: number }>
+  nextId: number
 }

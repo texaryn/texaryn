@@ -1,5 +1,5 @@
 import type { NodeId, StableItemId, JsonPointer } from '../types.js'
-import type { IdentityMapImpl } from './map.js'
+import type { IdentityMap } from '../ir/runtime-state.js'
 import { getAtPointer } from '../json-pointer.js'
 
 export interface ReconcileOptions {
@@ -7,12 +7,12 @@ export interface ReconcileOptions {
 }
 
 export function reconcile(
-  map: IdentityMapImpl,
+  map: IdentityMap,
   containerId: NodeId,
   oldItems: unknown[],
   newItems: unknown[],
   options?: ReconcileOptions,
-): IdentityMapImpl {
+): IdentityMap {
   const oldIds = map.arrayIdentities.get(containerId) ?? []
   const matcher = options?.itemKey
     ? keyMatcher(options.itemKey)
