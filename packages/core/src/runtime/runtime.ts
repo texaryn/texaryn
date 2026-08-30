@@ -92,19 +92,51 @@ export function createFormRuntime(
     state = { ...state, identities: result.identityMap }
     documentStore.set(currentDoc)
 
+    const seenNodeIds = new Set<NodeId>()
+
     for (const key of Object.keys(currentDoc.nodes)) {
       const nodeId = key as NodeId
+      seenNodeIds.add(nodeId)
       const uiNode = currentDoc.nodes[key]
+      const value = uiNode.dataPointer != null ? getAtPointer(state.data, uiNode.dataPointer) : undefined
       const bundle = nodeStores.get(nodeId)
+
       if (bundle) {
+        // A node id can end up representing a different array position after
+        // an insert/remove/move shifts indices, since ids are assigned by
+        // traversal order rather than tracked per logical item. Re-derive
+        // `value` from the freshly recompiled data so the bundle reflects
+        // whatever this id now points at, while keeping the id's own
+        // interaction/validation history (dirty, touched, errors, status).
+        const previous = state.nodes.get(nodeId)
+        const nodeRuntimeState: NodeRuntimeState = previous
+          ? { ...previous, value }
+          : defaultNodeState(value)
+        state.nodes.set(nodeId, nodeRuntimeState)
+
+        bundle.value.set(nodeRuntimeState.value)
+        bundle.dirty.set(nodeRuntimeState.interaction.dirty)
+        bundle.touched.set(nodeRuntimeState.interaction.touched)
+        bundle.errors.set(nodeRuntimeState.validation.errors)
+        bundle.validationStatus.set(nodeRuntimeState.validation.status)
         bundle.visible.set(uiNode.visible)
         bundle.disabled.set(uiNode.disabled)
         continue
       }
-      const value = uiNode.dataPointer != null ? getAtPointer(state.data, uiNode.dataPointer) : undefined
+
       const nodeRuntimeState = defaultNodeState(value)
       state.nodes.set(nodeId, nodeRuntimeState)
       nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode))
+    }
+
+    // Drop entries for node ids that no longer appear in the recompiled
+    // document (e.g. the trailing item after an array shrinks), so both
+    // maps don't grow without bound across the form's lifetime.
+    for (const nodeId of state.nodes.keys()) {
+      if (!seenNodeIds.has(nodeId)) {
+        state.nodes.delete(nodeId)
+        nodeStores.delete(nodeId)
+      }
     }
   }
 

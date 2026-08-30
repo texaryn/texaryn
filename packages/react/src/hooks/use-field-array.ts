@@ -5,7 +5,9 @@ import { useStore } from './use-store.js'
 
 export interface FieldArrayItem {
   id: StableItemId
-  nodeId: NodeId
+  // `undefined` when the projection didn't emit a per-item child pointer,
+  // so `children` and `arrayMeta.itemIds` are not index-aligned.
+  nodeId: NodeId | undefined
 }
 
 export interface UseFieldArrayReturn {
