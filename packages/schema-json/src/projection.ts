@@ -114,6 +114,7 @@ function collectCandidateProperties(node: SchemaNode): Record<string, SchemaNode
       }
     }
   }
+  for (const branch of node.allOf ?? []) merge(branch.properties)
   for (const branch of node.oneOf ?? []) merge(branch.properties)
   for (const branch of node.anyOf ?? []) merge(branch.properties)
   return candidates
