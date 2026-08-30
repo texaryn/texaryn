@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@texaryn/core": ["packages/core/src/index.ts"],
+      "@texaryn/schema-json": ["packages/schema-json/src/index.ts"],
+      "@texaryn/react": ["packages/react/src/index.ts"]
+    }
+  }
+}
