@@ -39,4 +39,7 @@ export type {
 
 export type { UIHints, FieldHints, ArrayHints } from './hints/index.js'
 
-export type { Store } from './state/index.js'
+export type { Store, WritableStore } from './state/index.js'
+export { createStore } from './state/index.js'
+export { createSignal, createComputed, batch, subscribeToSignal } from './state/index.js'
+export type { Signal, Computed } from './state/index.js'

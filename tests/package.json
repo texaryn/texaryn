@@ -1,0 +1,8 @@
+{
+  "name": "@texaryn/binding-spikes",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@texaryn/core": "workspace:*"
+  }
+}
