@@ -41,3 +41,7 @@ export type { UIHints, FieldHints, ArrayHints } from './hints/index.js'
 
 export type { Store, WritableStore } from './state/index.js'
 export { createStore } from './state/index.js'
+
+export type { Command, Effect, CommandResult } from './commands/index.js'
+export { processCommand } from './commands/index.js'
+export { getAtPointer, setAtPointer, parsePointer } from './json-pointer.js'
