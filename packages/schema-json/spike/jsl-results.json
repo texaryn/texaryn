@@ -1,0 +1,386 @@
+{
+  "library": "json-schema-library",
+  "version": "11.6.2",
+  "criteria": {
+    "project_feasibility": {
+      "pass": true,
+      "notes": "compileSchema() + node.toDataNodes(data) is fully synchronous. toDataNodes() walks the data instance against the compiled schema and returns only the resolved/active node for each data path (branch selection for oneOf/if-then-else already applied), which maps directly onto NodeProjection per pointer. Built a Map with 10/10 expected field entries. No async step is required anywhere in this path; compileSchema() itself is also synchronous for schemas with only local $ref (no remote fetch).",
+      "data": {
+        "pointerCount": 10,
+        "samplePointer": "/field0",
+        "sample": {
+          "type": "string",
+          "constraints": {},
+          "active": true,
+          "annotations": {
+            "title": "Field 0",
+            "description": "Description 0"
+          }
+        }
+      }
+    },
+    "validate_feasibility": {
+      "pass": true,
+      "notes": "node.validate(data) is synchronous and returns { valid, errors, annotations, errorsAsync }. Errors report pointer as a URI fragment (\"#/age\"); mapping to RFC 6901 JsonPointer requires stripping the leading \"#\" (done here via toJsonPointer). After mapping, instancePointer values are \"/email\" and \"/age\" as expected. errorsAsync is present on the return type for async format/custom validators but was empty for this schema.",
+      "data": {
+        "raw": {
+          "valid": false,
+          "errors": [
+            {
+              "code": "format-email-error",
+              "pointer": "#/email"
+            },
+            {
+              "code": "minimum-error",
+              "pointer": "#/age"
+            }
+          ]
+        },
+        "mapped": {
+          "valid": false,
+          "errors": [
+            {
+              "instancePointer": "/email",
+              "keyword": "format-email-error",
+              "message": "Value `not-an-email` at `#/email` is not a valid email",
+              "params": {
+                "value": "not-an-email",
+                "pointer": "#/email",
+                "schema": {
+                  "type": "string",
+                  "title": "Email",
+                  "format": "email"
+                }
+              }
+            },
+            {
+              "instancePointer": "/age",
+              "keyword": "minimum-error",
+              "message": "Value in `#/age` is `-5`, but should be `0` at minimum",
+              "params": {
+                "minimum": 0,
+                "length": -5,
+                "pointer": "#/age",
+                "schema": {
+                  "type": "integer",
+                  "title": "Age",
+                  "minimum": 0,
+                  "maximum": 150
+                },
+                "value": -5
+              }
+            }
+          ]
+        }
+      }
+    },
+    "draft07_support": {
+      "pass": true,
+      "notes": "Draft is auto-detected from $schema (\"http://json-schema.org/draft-07/schema#\") as \"draft-07\" without any explicit configuration. draft-07's \"dependencies\" keyword (schema-form, resolving to an internal oneOf across country values) evaluated correctly for both valid and invalid postalCode patterns. Full mandatory test-suite pass rate for draft-07 is reported separately in test-suite-results.json.",
+      "data": {
+        "draftVersion": "draft-07",
+        "goodValid": true,
+        "badValid": false,
+        "badErrors": [
+          {
+            "instancePointer": "",
+            "keyword": "one-of-error",
+            "message": "Value `{\"country\":\"US\",\"postalCode\":\"ABC\"}` in `#` does not match any given oneof schema",
+            "params": {
+              "value": "{\"country\":\"US\",\"postalCode\":\"ABC\"}",
+              "pointer": "#",
+              "schema": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "country": {
+                        "const": "US"
+                      },
+                      "postalCode": {
+                        "pattern": "^[0-9]{5}$"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "country": {
+                        "const": "UK"
+                      },
+                      "postalCode": {
+                        "pattern": "^[A-Z]{1,2}[0-9]"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "country": {
+                        "const": "FR"
+                      },
+                      "postalCode": {
+                        "pattern": "^[0-9]{5}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "oneOf": [
+                {
+                  "properties": {
+                    "country": {
+                      "const": "US"
+                    },
+                    "postalCode": {
+                      "pattern": "^[0-9]{5}$"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "country": {
+                      "const": "UK"
+                    },
+                    "postalCode": {
+                      "pattern": "^[A-Z]{1,2}[0-9]"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "country": {
+                      "const": "FR"
+                    },
+                    "postalCode": {
+                      "pattern": "^[0-9]{5}$"
+                    }
+                  }
+                }
+              ],
+              "errors": [
+                {
+                  "type": "error",
+                  "code": "pattern-error",
+                  "message": "Value in `#/postalCode` should match `^[0-9]{5}$`, but received `ABC`",
+                  "data": {
+                    "pattern": "^[0-9]{5}$",
+                    "description": "^[0-9]{5}$",
+                    "received": "ABC",
+                    "schema": {
+                      "pattern": "^[0-9]{5}$"
+                    },
+                    "value": "ABC",
+                    "pointer": "#/postalCode"
+                  }
+                },
+                {
+                  "type": "error",
+                  "code": "const-error",
+                  "message": "Expected value at `#/country` to be `UK`, but value given is `US`",
+                  "data": {
+                    "pointer": "#/country",
+                    "schema": {
+                      "const": "UK"
+                    },
+                    "value": "US",
+                    "expected": "UK"
+                  }
+                },
+                {
+                  "type": "error",
+                  "code": "pattern-error",
+                  "message": "Value in `#/postalCode` should match `^[A-Z]{1,2}[0-9]`, but received `ABC`",
+                  "data": {
+                    "pattern": "^[A-Z]{1,2}[0-9]",
+                    "description": "^[A-Z]{1,2}[0-9]",
+                    "received": "ABC",
+                    "schema": {
+                      "pattern": "^[A-Z]{1,2}[0-9]"
+                    },
+                    "value": "ABC",
+                    "pointer": "#/postalCode"
+                  }
+                },
+                {
+                  "type": "error",
+                  "code": "const-error",
+                  "message": "Expected value at `#/country` to be `FR`, but value given is `US`",
+                  "data": {
+                    "pointer": "#/country",
+                    "schema": {
+                      "const": "FR"
+                    },
+                    "value": "US",
+                    "expected": "FR"
+                  }
+                },
+                {
+                  "type": "error",
+                  "code": "pattern-error",
+                  "message": "Value in `#/postalCode` should match `^[0-9]{5}$`, but received `ABC`",
+                  "data": {
+                    "pattern": "^[0-9]{5}$",
+                    "description": "^[0-9]{5}$",
+                    "received": "ABC",
+                    "schema": {
+                      "pattern": "^[0-9]{5}$"
+                    },
+                    "value": "ABC",
+                    "pointer": "#/postalCode"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "draft2020_support": {
+      "pass": "partial",
+      "notes": "$schema \"https://json-schema.org/draft/2020-12/schema\" is detected as \"draft-2020-12\". dependentSchemas/dependentRequired (2020-12 replacements for draft-07 \"dependencies\") validate correctly. $ref via $defs resolves. Note: this probe does not exercise $dynamicRef, prefixItems or unevaluatedProperties directly (no fixture covers them); those are only verified indirectly via the JSON-Schema-Test-Suite mandatory-suite run in test-suite-results.json (owned by subtask 1d), so this row is reported 'partial' pending that data.",
+      "data": {
+        "draftVersion": "draft-2020-12",
+        "dependentSchemasValid": true
+      }
+    },
+    "local_ref": {
+      "pass": true,
+      "notes": "All three $ref pointers (homeAddress, workAddress -> #/$defs/address; orgChart -> #/$defs/treeNode, self-recursive via children[]) resolve without any custom code. getNode() dereferences $ref transparently and returns the resolved target schema (including title/properties). Recursion through orgChart/children/0 correctly re-resolves to the same treeNode schema, confirming the recursive $ref terminates and is walkable to arbitrary depth on demand (not eagerly unrolled).",
+      "data": {
+        "homeAddressTitle": "Address",
+        "orgChartTitle": "Tree Node",
+        "nestedChildTitle": "Tree Node"
+      }
+    },
+    "annotation_collection": {
+      "pass": true,
+      "notes": "toDataNodes(data) collects annotations (title, description, readOnly, default) from both allOf (merged unconditionally) and the matching oneOf branch, using per-pointer resolved node.schema. The allOf branch's \"a\" annotation and the matching oneOf branch's \"b\" annotation are both present; the non-matching oneOf branch's \"c\" annotation is absent entirely (not just marked inactive) because toDataNodes only descends into the resolved/active schema path.",
+      "data": {
+        "aSchema": {
+          "type": "string",
+          "title": "A field",
+          "readOnly": true
+        },
+        "bSchema": {
+          "type": "string",
+          "title": "B in branch 1",
+          "default": "x"
+        },
+        "cPresent": false
+      }
+    },
+    "if_then_else": {
+      "pass": true,
+      "notes": "getNode(pointer, data) resolves the active branch per data instance: for {accountType: \"business\"}, /companyName is active (then-branch) and /nickname is absent (else-branch); for {accountType: \"personal\"} it flips. Both states validate as true against their respective required fields. This confirms the project()-equivalent (getNode/toDataNodes) reflects the currently active if/then/else branch rather than exposing both branches unconditionally.",
+      "data": {
+        "businessCompanyNameActive": true,
+        "businessNicknameActive": false,
+        "personalCompanyNameActive": false,
+        "personalNicknameActive": true,
+        "businessValid": true,
+        "personalValid": true
+      }
+    },
+    "dependent_schemas": {
+      "pass": true,
+      "notes": "dependentRequired (creditCard -> billingAddress) and dependentSchemas (creditCard -> requires cvv) both evaluate natively for draft 2020-12. Data with creditCard + billingAddress + cvv validates; data without creditCard at all validates (dependency not triggered); data with only creditCard fails with both a missing-dependency-error and a required-property-error.",
+      "data": {
+        "withCreditCardValid": true,
+        "withoutCreditCardValid": true,
+        "missingDependentsValid": false,
+        "missingDependentsErrors": [
+          "missing-dependency-error",
+          "required-property-error"
+        ]
+      }
+    },
+    "oneof_anyof_discrimination": {
+      "pass": true,
+      "notes": "getNode() correctly switches branch by the \"kind\" const discriminator: circle data resolves /radius and not /width, rectangle data resolves /width(+/height) and not /radius. getChildSelection(property) returns the raw list of oneOf branch candidate schemas for a property (2 branches here) without resolving against data - callers must combine it with getNode()/toDataNodes() (data-aware) to pick the actual active branch; getChildSelection alone is schema-static, not data-resolved.",
+      "data": {
+        "circleRadiusActive": true,
+        "circleWidthActive": false,
+        "rectRadiusActive": false,
+        "rectWidthActive": true,
+        "childSelectionBranchCount": 2
+      }
+    },
+    "test_suite_pass_rate": {
+      "pass": "partial",
+      "notes": "Not measured by this probe. Full mandatory + optional JSON-Schema-Test-Suite pass rates for draft-07 and 2020-12 are computed by the separate spike/test-suite-runner.ts (subtask 1d) and written to spike/test-suite-results.json. This probe only exercises hand-written fixtures."
+    },
+    "csp_eval_safety": {
+      "pass": true,
+      "notes": "Grepped the built dist/*.mjs and dist/*.cjs bundles (the code actually shipped and imported) for \"new Function\", bare \"eval(\", and bare \"Function(\". Found 0 matching line(s). json-schema-library is a pure-interpretation validator/traversal library (no code generation step), so this is expected to be CSP-safe with no eval/new Function usage.",
+      "data": {
+        "matchCount": 0,
+        "matches": []
+      }
+    },
+    "bundle_size": {
+      "pass": "partial",
+      "notes": "npm pack tarball for json-schema-library@11.6.2: 613136 bytes (this is the full published gzip archive including source maps and alternate builds, not what a consumer's bundle actually includes). The main ESM entry point (dist/index.mjs, 22505 bytes) gzipped alone is a closer proxy for real browser payload and lines up with the roadmap's ~31KB estimate. Reported as 'partial' because npm-pack-tarball-size and shipped-bundle-size diverge significantly and the roadmap number likely refers to the latter.",
+      "data": {
+        "version": "11.6.2",
+        "packedTarballBytes": 613136,
+        "mainEntryGzipBytes": 22505,
+        "packOutputSummary": "npm pack --dry-run reported 613136 bytes (gzip tarball, includes source maps, iife bundles, tests config)."
+      }
+    },
+    "sync_hot_path": {
+      "pass": true,
+      "notes": "compileSchema() returns a SchemaNode directly (no Promise) for schemas with only local $ref - it is synchronous even in \"preparation\". getNode(), toDataNodes() and validate() are all synchronous methods on the returned node; none return Promises for local schemas. errorsAsync exists on ValidateReturnType only for async custom format validators, which this project does not need. This fully satisfies the async-prepare-once-then-sync-project pattern: compileSchema() can be called once (and would need to be async only if remote $ref fetching were involved, which is out of Phase 1 scope), and every per-data-change call afterward is synchronous.",
+      "data": {
+        "isCompileSync": true,
+        "isGetNodeSync": true,
+        "isToDataNodesSync": true,
+        "isValidateSync": true
+      }
+    },
+    "preparation_cost": {
+      "pass": true,
+      "notes": "100 iterations of compileSchema(): flat-object (5 fields) averaged 0.066ms/iter; a synthetic 50-field schema with 5 if/then conditionals averaged 0.307ms/iter. Both are well under 1ms and negligible even if re-run on every schema change rather than cached, which supports treating compileSchema() as cheap enough to not require aggressive memoization for Phase 1 schema sizes.",
+      "data": {
+        "flatMsPerIter": 0.06627207999999996,
+        "bigMsPerIter": 0.30682707999999936,
+        "iterations": 100
+      }
+    },
+    "error_path_mapping": {
+      "pass": true,
+      "notes": "Nested array/object error paths resolve correctly: a missing \"name\" on the second array item reports pointer \"#/items/1\" (root-relative, RFC-6901-shaped once the \"#\" is stripped). This directly satisfies ValidationError.instancePointer after the one-line \"#\" strip; no other transformation (e.g. index/key escaping) was needed in the cases tested.",
+      "data": {
+        "rawPointer": "#/items/1",
+        "mappedInstancePointer": "/items/1"
+      }
+    },
+    "annotation_semantics": {
+      "pass": true,
+      "notes": "Tested with type-shape discrimination (no const discriminator): { value: 42 } fails branch A (string, minLength 100) and matches branch B (number). toDataNodes() resolved /value to branch B's schema (\"Number value\" title) only; branch A's annotation (\"String value\") never appeared. The overall document validates as true. This directly contradicts the brief's expectation that \"only hyperjump is expected to pass this\" - json-schema-library's toDataNodes()/getNode() resolve oneOf by finding the (first) branch that actually validates against the data and only ever expose that branch's schema/annotations, so failing branches are never surfaced in the first place rather than being surfaced-then-filtered.",
+      "data": {
+        "branchBSelected": true,
+        "branchAAnnotationAbsent": true,
+        "overallValid": true,
+        "resolvedTitle": "Number value"
+      }
+    },
+    "ecosystem_health": {
+      "pass": "partial",
+      "notes": "json-schema-library@11.6.2: ~549579 npm weekly downloads, last published 2026-07-18T19:39:29.939Z, 11 open GitHub issues (repo: sagold/json-schema-library, not archived). Bus factor concern: top contributor (sagold, 768 commits) dominates over the next contributor (Adityakumar37, 11 commits) by more than 10x - single-maintainer bus-factor risk. Marked 'partial' because downloads figures are volume-not-adoption proxies and this reflects a single point-in-time snapshot, not a trend.",
+      "data": {
+        "version": "11.6.2",
+        "weeklyDownloads": 549579,
+        "lastPublish": "2026-07-18T19:39:29.939Z",
+        "openIssues": 11,
+        "topContributor": {
+          "login": "sagold",
+          "contributions": 768
+        },
+        "secondContributor": {
+          "login": "Adityakumar37",
+          "contributions": 11
+        },
+        "busFactorConcern": true
+      }
+    }
+  },
+  "errors": []
+}
