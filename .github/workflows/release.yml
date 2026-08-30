@@ -31,11 +31,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm build
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
       - uses: changesets/action@v2
         with:
-          version: pnpm version-packages
-          publish: pnpm release
-          title: "Version Packages (alpha)"
-          commit: "chore: version packages"
+          version-script: pnpm version-packages
+          publish-script: pnpm release
+          pr-title: "Version Packages (alpha)"
+          commit-message: "chore: version packages"
+          create-github-releases: true
+          push-git-tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
