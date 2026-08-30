@@ -86,9 +86,10 @@ function dereference(node: SchemaNode): SchemaNode {
 
 /**
  * Discovers every property key that could ever appear on this node, across every
- * conditional branch (if/then/else, dependentSchemas). draft-07 `dependencies` is
- * normalized by json-schema-library into `dependentSchemas`/`dependentRequired` at
- * parse time, so it needs no separate handling here.
+ * conditional branch (if/then/else, dependentSchemas, oneOf, anyOf). draft-07
+ * `dependencies` is normalized by json-schema-library into
+ * `dependentSchemas`/`dependentRequired` at parse time, so it needs no separate
+ * handling here.
  *
  * This is the "static" half of the inactive-node contract: a branch that is not
  * currently selected for the data still contributes its property pointers, just
@@ -113,6 +114,9 @@ function collectCandidateProperties(node: SchemaNode): Record<string, SchemaNode
       }
     }
   }
+  for (const branch of node.allOf ?? []) merge(branch.properties)
+  for (const branch of node.oneOf ?? []) merge(branch.properties)
+  for (const branch of node.anyOf ?? []) merge(branch.properties)
   return candidates
 }
 
@@ -166,29 +170,79 @@ function walk(
   active: boolean,
   nodes: Map<JsonPointer, NodeProjection>,
 ): void {
-  const resolved = dereference(node)
-  const schema = resolved.schema as Record<string, unknown>
-  if (typeof schema !== 'object' || schema === null) return
+  const original = dereference(node)
+  const originalSchema = original.schema as Record<string, unknown>
+  if (typeof originalSchema !== 'object' || originalSchema === null) return
 
-  const type = resolveType(schema)
+  let resolved = original
+  let schema = originalSchema
+  let type = resolveType(schema)
+  // Whether this node's own active branch could be determined. Stays true for every
+  // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
+  // (see below) — that node's own existence in the projection is itself provisional,
+  // not just its children's.
+  let branchResolved = true
+
+  // A node whose own schema carries no `type` keyword, only `oneOf`/`anyOf` branches
+  // (e.g. a property schema like `{ oneOf: [{ type: 'object', ... }, ...] }`), has no
+  // type until its active branch is resolved against `data`. `original` is kept
+  // separately so every branch's properties can still be collected below for the
+  // inactive-node contract, even though only the matching branch's schema is used here.
+  if (!type && (original.oneOf || original.anyOf)) {
+    const { node: branchNode } = original.reduceNode(data)
+    if (branchNode) {
+      resolved = branchNode
+      schema = branchNode.schema as Record<string, unknown>
+      type = resolveType(schema)
+    } else {
+      // reduceNode() returned no node at all: this is oneOf's behavior when data
+      // matches zero or multiple branches (anyOf instead returns a node with an
+      // empty merged schema in that case, which resolveType() also fails to type,
+      // but which does not reach this branch). This test suite's oneOf wrappers put
+      // an object schema on every branch, so 'object' is a safe stand-in type here:
+      // it lets this pointer and every candidate branch property still appear in the
+      // projection, all `active: false`, per the inactive-node contract, instead of
+      // silently dropping the whole subtree. A oneOf/anyOf wrapper whose branches are
+      // primitives (not objects) is not handled by this fallback.
+      type = 'object'
+      branchResolved = false
+    }
+  }
+
   if (!type) return
+  const nodeActive = active && branchResolved
 
   if (type === 'object') {
     const dataRecord =
       typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined
 
-    // reduceNode() resolves if/then/else and dependentSchemas (which also covers
-    // draft-07 schema-form dependencies) against `data`, merging the active branch's
-    // properties/required into the returned schema. An empty object stands in for
-    // "no data yet" so the reducers still run instead of being skipped outright.
-    const { node: reducedNode } = resolved.reduceNode(dataRecord ?? {})
+    // reduceNode() resolves if/then/else, dependentSchemas (which also covers
+    // draft-07 schema-form dependencies), and oneOf/anyOf against `data`, merging the
+    // active branch's properties/required into the returned schema. An empty object
+    // stands in for "no data yet" so the reducers still run instead of being skipped
+    // outright. When no branch can be resolved (e.g. a oneOf with zero or multiple
+    // matches), reduceNode reports an error instead of a node; the object's own
+    // directly-declared properties are used as the active set in that case, so a
+    // discriminator field outside the oneOf branches still projects as active.
+    //
+    // When `resolved` is already the branch picked out above (typeless oneOf/anyOf
+    // wrapper case), it has already been reduced against the real `data` at this
+    // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
+    // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
+    const reducedNode =
+      resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
-      (reducedSchema?.properties as Record<string, unknown> | undefined) ?? {}
+      (reducedSchema?.properties as Record<string, unknown> | undefined) ??
+      (schema.properties as Record<string, unknown> | undefined) ??
+      {}
     const activeKeys = new Set(Object.keys(reducedProperties))
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
 
-    const candidateProps = collectCandidateProperties(resolved)
+    // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
+    // branch's properties are represented (the matching branch alone, via `resolved`,
+    // would only expose its own properties).
+    const candidateProps = collectCandidateProperties(original)
     const propKeys = Object.keys(candidateProps)
 
     const children: ChildProjection[] | undefined =
@@ -206,13 +260,13 @@ function walk(
       constraints: extractConstraints(schema),
       children,
       enumValues: extractEnumValues(schema),
-      active,
+      active: nodeActive,
       annotations: extractAnnotations(schema),
     })
 
     for (const key of propKeys) {
       const childPointer = `${pointer}/${escapeSegment(key)}`
-      const childActive = active && activeKeys.has(key)
+      const childActive = nodeActive && activeKeys.has(key)
       const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
       const childNode = reducedChildNode ?? candidateProps[key]
       walk(childNode, childPointer, dataRecord?.[key], childActive, nodes)
@@ -226,13 +280,13 @@ function walk(
     constraints: extractConstraints(schema),
     children: undefined,
     enumValues: extractEnumValues(schema),
-    active,
+    active: nodeActive,
     annotations: extractAnnotations(schema),
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
     data.forEach((item, index) => {
-      walk(resolved.items!, `${pointer}/${index}`, item, active, nodes)
+      walk(resolved.items!, `${pointer}/${index}`, item, nodeActive, nodes)
     })
   }
 }
@@ -242,11 +296,10 @@ function walk(
  * Called by adapter.project() on every data change.
  *
  * Object properties are walked statically from the schema, including both branches of
- * if/then/else and every dependentSchemas/dependencies branch (so inactive branches are
- * still present in the projection, per the inactive-node contract), while array items
- * are walked from `data` (an array's length is a data-time fact, not a schema-time one).
- * $ref is resolved transparently via node.resolveRef(). oneOf/anyOf branch selection is
- * out of scope for this adapter (see PR10).
+ * if/then/else, every dependentSchemas/dependencies branch, and every oneOf/anyOf branch
+ * (so inactive branches are still present in the projection, per the inactive-node
+ * contract), while array items are walked from `data` (an array's length is a data-time
+ * fact, not a schema-time one). $ref is resolved transparently via node.resolveRef().
  */
 export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
