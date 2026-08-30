@@ -3,6 +3,8 @@ import type { FormRuntime } from '@texaryn/core'
 
 export const FormContext = createContext<FormRuntime | null>(null)
 
+export const FormProvider = FormContext.Provider
+
 export function useFormContext(): FormRuntime {
   const runtime = useContext(FormContext)
   if (!runtime) {
