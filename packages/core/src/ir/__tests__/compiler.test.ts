@@ -291,4 +291,44 @@ describe('compile', () => {
       expect(bioNode.widget).toBe('textarea')
     })
   })
+
+  describe('conditional visibility', () => {
+    it('sets visible: false for inactive nodes', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: '/name' as JsonPointer, key: 'name', required: true },
+            { pointer: '/hidden' as JsonPointer, key: 'hidden', required: false },
+          ],
+        }],
+        ['/name', { type: 'string', active: true }],
+        ['/hidden', { type: 'string', active: false }],
+      ])
+
+      const { document } = compile(projection, {})
+      const hiddenNode = Object.values(document.nodes).find(
+        n => n.dataPointer === '/hidden',
+      )!
+      expect(hiddenNode.visible).toBe(false)
+    })
+
+    it('sets visible: true for active nodes', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: '/shown' as JsonPointer, key: 'shown', required: false },
+          ],
+        }],
+        ['/shown', { type: 'string', active: true }],
+      ])
+
+      const { document } = compile(projection, {})
+      const shownNode = Object.values(document.nodes).find(
+        n => n.dataPointer === '/shown',
+      )!
+      expect(shownNode.visible).toBe(true)
+    })
+  })
 })
