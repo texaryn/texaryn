@@ -45,3 +45,14 @@ export { createStore } from './state/index.js'
 export type { Command, Effect, CommandResult } from './commands/index.js'
 export { processCommand } from './commands/index.js'
 export { getAtPointer, setAtPointer, parsePointer } from './json-pointer.js'
+
+export {
+  createIdentityMap,
+  registerArray,
+  insertItem,
+  removeItem,
+  moveItem,
+  resolvePointer,
+  reconcile,
+} from './identity/index.js'
+export type { IdentityMapImpl, ReconcileOptions } from './identity/index.js'
