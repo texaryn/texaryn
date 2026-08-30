@@ -52,7 +52,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      should-publish: ${{ steps.changesets.outputs.hasChangesets == 'false' }}
+      should-publish: ${{ steps.changesets.outputs['has-changesets'] == 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
