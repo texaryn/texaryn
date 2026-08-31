@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@texaryn/core": "workspace:*"
+    "@texaryn/core": "workspace:*",
+    "@texaryn/schema-json": "workspace:*",
+    "@texaryn/schema-json-hyperjump": "workspace:*"
   }
 }

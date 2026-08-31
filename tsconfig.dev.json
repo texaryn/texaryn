@@ -5,6 +5,7 @@
     "paths": {
       "@texaryn/core": ["packages/core/src/index.ts"],
       "@texaryn/schema-json": ["packages/schema-json/src/index.ts"],
+      "@texaryn/schema-json-hyperjump": ["packages/schema-json-hyperjump/src/index.ts"],
       "@texaryn/react": ["packages/react/src/index.ts"]
     }
   }

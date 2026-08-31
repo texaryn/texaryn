@@ -1,0 +1,33 @@
+{
+  "name": "@texaryn/schema-json-hyperjump",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "Hyperjump JSON Schema adapter for Texaryn",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/schema-json-hyperjump"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@texaryn/core": "workspace:*",
+    "@hyperjump/json-schema": "^1.17.8"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
