@@ -111,23 +111,23 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
 
 /**
  * Fills structural gaps (type, format, constraints, enum) on `node` from `schema`'s
- * directly-declared keywords; never overwrites a value the data-driven pass already
- * set. Applied unconditionally, even for a branch the data does not currently select:
- * a declared field's shape is a fact about the schema, not about the current instance,
- * and every node the walk visits needs a resolved `type` to survive finalization (the
- * port's NodeProjection.type is not optional).
+ * directly-declared keywords. When `overwrite` is true (the caller is an active
+ * branch), values are set unconditionally so the selected branch's structure takes
+ * precedence over anything an earlier inactive sibling wrote during the same static
+ * walk. When `overwrite` is false, existing values are preserved (the data-driven
+ * pass, or an earlier static write, already holds the correct value).
  */
-function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>): void {
+function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>, overwrite: boolean): void {
   const type = resolveType(schema)
-  if (type !== undefined && node.type === undefined) node.type = type
-  if (typeof schema.format === 'string' && node.format === undefined) node.format = schema.format
+  if (type !== undefined && (overwrite || node.type === undefined)) node.type = type
+  if (typeof schema.format === 'string' && (overwrite || node.format === undefined)) node.format = schema.format
   for (const key of CONSTRAINT_KEYS) {
     const value = schema[key]
-    if (value !== undefined && (node.constraints as Record<string, unknown>)[key] === undefined) {
+    if (value !== undefined && (overwrite || (node.constraints as Record<string, unknown>)[key] === undefined)) {
       ;(node.constraints as Record<string, unknown>)[key] = value
     }
   }
-  if (Array.isArray(schema.enum) && !node.enumValues) {
+  if (Array.isArray(schema.enum) && (overwrite || !node.enumValues)) {
     node.enumValues = schema.enum.map((value) => ({ value }))
   }
 }
@@ -173,6 +173,29 @@ function resolveRef(
  * the instance overall satisfies "exactly one"/"at least one".
  */
 export type BranchChecker = (schemaPointer: string, instancePointer: string, suffix: string) => boolean
+
+function walkBranchesActiveLast(
+  branches: unknown[],
+  keyword: string,
+  schemaPointer: string,
+  pointer: string,
+  data: unknown,
+  parentActive: boolean,
+  isBranchActive: BranchChecker,
+  nodes: Map<string, DraftNode>,
+  visited: Set<string>,
+  rootSchema: unknown,
+): void {
+  const indexed = branches.map((branch, i) => ({
+    branch,
+    i,
+    active: parentActive && isBranchActive(schemaPointer, pointer, `/${keyword}/${i}`),
+  }))
+  indexed.sort((a, b) => Number(a.active) - Number(b.active))
+  for (const { branch, i, active } of indexed) {
+    staticWalk(branch, data, pointer, `${schemaPointer}/${keyword}/${i}`, active, isBranchActive, nodes, visited, rootSchema)
+  }
+}
 
 /**
  * Walks the raw schema document statically (no data evaluation) to backfill
@@ -223,7 +246,7 @@ export function staticWalk(
   }
 
   const node = ensureNode(nodes, pointer)
-  applyStaticStructure(node, schema)
+  applyStaticStructure(node, schema, active)
   if (active) {
     node.active = true
     applyStaticAnnotations(node, schema)
@@ -251,66 +274,28 @@ export function staticWalk(
     }
   }
 
+  // Dynamic branches (if/then/else, oneOf, anyOf) are walked with inactive
+  // branches first, active branches last. applyStaticStructure fills gaps but
+  // never overwrites, so the last writer wins: walking the active branch last
+  // guarantees its type, format, and constraints take precedence over any
+  // inactive sibling that shares the same field name.
   if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
     const thenActive = active && isBranchActive(schemaPointer, pointer, '/then')
     const elseActive = active && isBranchActive(schemaPointer, pointer, '/else')
-    if (isRecord(schema.then)) {
-      staticWalk(
-        schema.then,
-        data,
-        pointer,
-        `${schemaPointer}/then`,
-        thenActive,
-        isBranchActive,
-        nodes,
-        visited,
-        rootSchema,
-      )
-    }
-    if (isRecord(schema.else)) {
-      staticWalk(
-        schema.else,
-        data,
-        pointer,
-        `${schemaPointer}/else`,
-        elseActive,
-        isBranchActive,
-        nodes,
-        visited,
-        rootSchema,
-      )
+    const branches: Array<{ key: string; schema: unknown; active: boolean }> = []
+    if (isRecord(schema.then)) branches.push({ key: 'then', schema: schema.then, active: thenActive })
+    if (isRecord(schema.else)) branches.push({ key: 'else', schema: schema.else, active: elseActive })
+    branches.sort((a, b) => Number(a.active) - Number(b.active))
+    for (const b of branches) {
+      staticWalk(b.schema, data, pointer, `${schemaPointer}/${b.key}`, b.active, isBranchActive, nodes, visited, rootSchema)
     }
   }
 
   if (Array.isArray(schema.oneOf)) {
-    schema.oneOf.forEach((branch: unknown, i: number) => {
-      staticWalk(
-        branch,
-        data,
-        pointer,
-        `${schemaPointer}/oneOf/${i}`,
-        active && isBranchActive(schemaPointer, pointer, `/oneOf/${i}`),
-        isBranchActive,
-        nodes,
-        visited,
-        rootSchema,
-      )
-    })
+    walkBranchesActiveLast(schema.oneOf as unknown[], 'oneOf', schemaPointer, pointer, data, active, isBranchActive, nodes, visited, rootSchema)
   }
   if (Array.isArray(schema.anyOf)) {
-    schema.anyOf.forEach((branch: unknown, i: number) => {
-      staticWalk(
-        branch,
-        data,
-        pointer,
-        `${schemaPointer}/anyOf/${i}`,
-        active && isBranchActive(schemaPointer, pointer, `/anyOf/${i}`),
-        isBranchActive,
-        nodes,
-        visited,
-        rootSchema,
-      )
-    })
+    walkBranchesActiveLast(schema.anyOf as unknown[], 'anyOf', schemaPointer, pointer, data, active, isBranchActive, nodes, visited, rootSchema)
   }
   if (Array.isArray(schema.allOf)) {
     schema.allOf.forEach((branch: unknown, i: number) => {
@@ -334,7 +319,7 @@ export function staticWalk(
         branch,
         data,
         pointer,
-        `${schemaPointer}/dependentSchemas/${key}`,
+        `${schemaPointer}/dependentSchemas/${escapeSegment(key)}`,
         active && keyPresent,
         isBranchActive,
         nodes,
@@ -356,7 +341,7 @@ export function staticWalk(
           branch,
           data,
           pointer,
-          `${schemaPointer}/dependencies/${key}`,
+          `${schemaPointer}/dependencies/${escapeSegment(key)}`,
           active && keyPresent,
           isBranchActive,
           nodes,

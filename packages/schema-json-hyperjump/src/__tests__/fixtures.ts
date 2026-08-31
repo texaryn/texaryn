@@ -252,6 +252,25 @@ export const nullableTypeSchema = {
   },
 } as const
 
+export const oneOfSharedKeySchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    kind: { type: 'string', enum: ['a', 'b'] },
+  },
+  required: ['kind'],
+  oneOf: [
+    {
+      properties: { kind: { const: 'a' }, value: { type: 'number', title: 'Branch A Value' } },
+      required: ['value'],
+    },
+    {
+      properties: { kind: { const: 'b' }, value: { type: 'string', title: 'Branch B Value' } },
+      required: ['value'],
+    },
+  ],
+} as const
+
 export const recursiveObjectRefSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $defs: {

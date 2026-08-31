@@ -18,6 +18,7 @@ import {
   draft07DependenciesSchema,
   arrayItemsSchema,
   nullableTypeSchema,
+  oneOfSharedKeySchema,
   recursiveObjectRefSchema,
   specialKeySchema,
 } from './fixtures.js'
@@ -309,6 +310,15 @@ describe('createHyperjumpAdapter', () => {
       expect(projection.nodes.get('/radius' as JsonPointer)?.active).toBe(true)
       expect(projection.nodes.get('/width' as JsonPointer)?.active).toBe(false)
       expect(projection.nodes.get('/height' as JsonPointer)?.active).toBe(false)
+    })
+
+    it('uses the selected incomplete branch structure for a shared field', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfSharedKeySchema)
+      const projection = adapter.project({ kind: 'b' })
+      const value = projection.nodes.get('/value' as JsonPointer)!
+      expect(value.active).toBe(true)
+      expect(value.type).toBe('string')
+      expect(value.annotations.title).toBe('Branch B Value')
     })
   })
 

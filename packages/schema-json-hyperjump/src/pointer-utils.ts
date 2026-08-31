@@ -24,7 +24,7 @@ export function resolveJsonPointer(doc: unknown, pointer: string): unknown {
   const parts = pointer
     .split('/')
     .slice(1)
-    .map((p) => decodeURIComponent(p).replace(/~1/g, '/').replace(/~0/g, '~'))
+    .map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'))
   let cur: unknown = doc
   for (const part of parts) {
     if (cur === null || cur === undefined) return undefined
