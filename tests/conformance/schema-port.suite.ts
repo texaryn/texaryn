@@ -98,6 +98,32 @@ const nestedOneOfSchema = {
   },
 }
 
+// A typed optional object with an if/then conditional. When unfilled (data={}),
+// the object property has no data but its type is declared at the base level.
+// It must stay active: the Texaryn contract keeps unfilled-but-reachable optional
+// fields active regardless of whether their internal conditionals have fired.
+const optionalConditionalObjectSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    address: {
+      type: 'object',
+      properties: {
+        country: { type: 'string', title: 'Country' },
+      },
+      if: {
+        properties: { country: { const: 'US' } },
+        required: ['country'],
+      },
+      then: {
+        properties: {
+          state: { type: 'string', title: 'State' },
+        },
+      },
+    },
+  },
+}
+
 const refSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $defs: {
@@ -208,6 +234,16 @@ export function schemaPortConformanceSuite(name: string, factory: AdapterFactory
       expect(shape!.type).toBe('object')
 
       expect(projection.nodes.get('/shape/radius' as JsonPointer)?.active).toBe(true)
+    })
+
+    it('keeps an unfilled typed object with conditionals active', async () => {
+      const adapter = await factory(optionalConditionalObjectSchema)
+      const projection = adapter.project({})
+
+      const address = projection.nodes.get('/address' as JsonPointer)
+      expect(address).toBeDefined()
+      expect(address!.type).toBe('object')
+      expect(address!.active).toBe(true)
     })
 
     it('follows local $ref into $defs', async () => {

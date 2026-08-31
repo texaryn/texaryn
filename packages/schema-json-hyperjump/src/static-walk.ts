@@ -348,14 +348,18 @@ export function staticWalk(
     staticWalk(db.schema, data, pointer, db.schemaPointer, db.active, isBranchActive, nodes, visited, rootSchema)
   }
 
-  // When the base walk entered this node with active=true (property of an active
-  // parent) but the instance has no data here AND every dynamic branch is inactive,
-  // the node is unreachable at runtime: downgrade its active flag so the projection
-  // reports the subtree as present but inactive.
-  if (dynamicBranches.length > 0 && (data === undefined || data === null)) {
-    if (!dynamicBranches.some(db => db.active)) {
-      node.active = false
-    }
+  // A typeless wrapper (no base-level `type` keyword) whose only type comes from
+  // dynamic branches (oneOf/anyOf) is inactive when no branch resolves and no data
+  // is present. Typed objects with conditionals (if/then, dependentSchemas) stay
+  // active: they are declared optional fields, and the Texaryn contract keeps
+  // unfilled-but-reachable optional fields active.
+  if (
+    resolveType(schema) === undefined &&
+    dynamicBranches.length > 0 &&
+    (data === undefined || data === null) &&
+    !dynamicBranches.some(db => db.active)
+  ) {
+    node.active = false
   }
 
   // `items` is a single subschema in 2019-09+ (paired with `prefixItems` for the tuple
