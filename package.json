@@ -7,12 +7,16 @@
     "clean": "tsc --build --clean",
     "typecheck": "tsc --noEmit -p packages/core/tsconfig.typecheck.json && tsc --noEmit -p packages/schema-json/tsconfig.typecheck.json && tsc --noEmit -p packages/react/tsconfig.typecheck.json && tsc --noEmit -p tests/tsconfig.typecheck.json",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.1",
+    "fast-check": "^4.0.0",
     "typescript": "~5.8.0",
     "vitest": "^3.0.0",
-    "fast-check": "^4.0.0",
     "vue": "^3.5.0"
   }
 }

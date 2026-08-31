@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/texaryn/texaryn/actions/workflows/ci.yml">
-    <img src="https://github.com/texaryn/texaryn/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
+    <img src="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml/badge.svg" alt="CI" />
   </a>
 </p>
 
@@ -53,7 +53,7 @@ That makes the UI definition portable, inspectable, testable, and safe to transf
 ## Quick start
 
 ```bash
-pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
+pnpm add @texaryn/core@alpha @texaryn/schema-json@alpha @texaryn/react@alpha
 ```
 
 React 18 or newer is required by `@texaryn/react`.

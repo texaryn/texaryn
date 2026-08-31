@@ -1,11 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.dev.json",
   "compilerOptions": {
-    "rootDir": "src",
     "noEmit": true,
     "composite": false,
     "jsx": "react-jsx"
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }]
+  "include": ["src"]
 }

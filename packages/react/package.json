@@ -1,7 +1,21 @@
 {
   "name": "@texaryn/react",
   "version": "0.0.0",
+  "description": "React bindings, hooks, prop getters, and default widgets for Texaryn",
   "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,12 +32,12 @@
     "react": ">=18.0.0"
   },
   "devDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "@testing-library/react": "^16.0.0",
     "@texaryn/schema-json": "workspace:*",
     "@types/react": "^19.0.0",
-    "jsdom": "^25.0.0"
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "scripts": {
     "build": "tsc --build"
