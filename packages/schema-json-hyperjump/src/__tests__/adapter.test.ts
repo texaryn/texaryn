@@ -21,6 +21,7 @@ import {
   oneOfSharedKeySchema,
   oneOfRequiredDemotionSchema,
   nestedOneOfSchema,
+  oneOfTiedFallbackSchema,
   oneOfAmbiguousSchema,
   recursiveObjectRefSchema,
   specialKeySchema,
@@ -380,6 +381,34 @@ describe('createHyperjumpAdapter', () => {
       expect(v).toBeDefined()
       expect(v!.active).toBe(true)
       expect(v!.type).toBe('string')
+    })
+  })
+
+  describe('oneOf tied fallback scores', () => {
+    it('selects neither branch when fallback sub-scope counts are tied', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfTiedFallbackSchema)
+      // Data {a: 5} satisfies the shared `minimum: 0` in both branches equally,
+      // but neither branch is directly valid (each has a required key missing).
+      // Sub-scope counts tie at 1, so under oneOf semantics no branch wins.
+      const projection = adapter.project({ a: 5 })
+      const x = projection.nodes.get('/x' as JsonPointer)
+      expect(x).toBeDefined()
+      expect(x!.active).toBe(false)
+      const y = projection.nodes.get('/y' as JsonPointer)
+      expect(y).toBeDefined()
+      expect(y!.active).toBe(false)
+    })
+
+    it('selects the branch whose required field is present', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfTiedFallbackSchema)
+      // Providing x breaks the tie: branch 0 becomes directly valid.
+      const projection = adapter.project({ a: 5, x: 'hello' })
+      const x = projection.nodes.get('/x' as JsonPointer)
+      expect(x).toBeDefined()
+      expect(x!.active).toBe(true)
+      const y = projection.nodes.get('/y' as JsonPointer)
+      expect(y).toBeDefined()
+      expect(y!.active).toBe(false)
     })
   })
 

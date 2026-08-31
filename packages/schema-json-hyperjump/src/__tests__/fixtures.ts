@@ -332,6 +332,24 @@ export const nestedOneOfSchema = {
   },
 } as const
 
+export const oneOfTiedFallbackSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    a: { type: 'number' },
+  },
+  oneOf: [
+    {
+      properties: { a: { minimum: 0 }, x: { type: 'string', title: 'X Field' } },
+      required: ['x'],
+    },
+    {
+      properties: { a: { minimum: 0 }, y: { type: 'string', title: 'Y Field' } },
+      required: ['y'],
+    },
+  ],
+} as const
+
 export const oneOfAmbiguousSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
