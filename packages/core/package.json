@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/core",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Framework-neutral UI IR, compiler, runtime, and renderer registry for schema-driven forms",
   "type": "module",
   "license": "Apache-2.0",
