@@ -84,11 +84,32 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
       - run: pnpm build
-      - uses: changesets/action@v2
+      - id: publish
+        uses: changesets/action@v2
         with:
           publish-script: pnpm release
-          create-github-releases: true
+          create-github-releases: false
           push-git-tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+      - name: Prepare GitHub release
+        if: steps.publish.outputs.published == 'true'
+        id: release
+        run: |
+          VERSION=$(node scripts/create-github-release.mjs)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          args=()
+          if [[ "$VERSION" == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "v$VERSION" \
+            --title "Texaryn v$VERSION" \
+            --notes-file .github-release-notes.md \
+            "${args[@]}"
