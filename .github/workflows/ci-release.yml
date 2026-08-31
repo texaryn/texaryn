@@ -38,12 +38,32 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm test
 
-  ci:
-    name: CI Gate
-    needs: [build, typecheck, test]
+  changeset:
+    name: Changeset
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All required checks passed"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Check changeset
+        run: pnpm changeset status --since=${{ github.event.pull_request.base.sha }}
+
+  ci:
+    name: CI Gate
+    needs: [build, typecheck, test, changeset]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          if [[ "${{ needs.build.result }}" != "success" ]]; then exit 1; fi
+          if [[ "${{ needs.typecheck.result }}" != "success" ]]; then exit 1; fi
+          if [[ "${{ needs.test.result }}" != "success" ]]; then exit 1; fi
+          if [[ "${{ needs.changeset.result }}" != "success" && "${{ needs.changeset.result }}" != "skipped" ]]; then exit 1; fi
 
   changesets:
     if: github.event_name == 'push'
