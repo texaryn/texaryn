@@ -110,6 +110,6 @@ jobs:
             args+=(--prerelease)
           fi
           gh release create "v$VERSION" \
-            --title "Texaryn v$VERSION" \
+            --title "v$VERSION" \
             --notes-file .github-release-notes.md \
             "${args[@]}"
