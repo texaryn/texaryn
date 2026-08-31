@@ -83,15 +83,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefined {
-  const type = schema.type
+/**
+ * Resolves a raw `type` keyword value (string or array form) to the single
+ * JsonSchemaType the projection surfaces. A type array's non-null entry wins over
+ * `null` when both are present, since `["null", "string"]` describes an optional
+ * field whose meaningful shape for rendering is the non-null branch; `null` is
+ * only returned when it is the sole valid entry.
+ */
+export function resolveTypeValue(type: unknown): JsonSchemaType | undefined {
   if (Array.isArray(type)) {
-    return type.find((t): t is JsonSchemaType => VALID_TYPES.has(t as JsonSchemaType))
+    return (
+      type.find((t): t is JsonSchemaType => VALID_TYPES.has(t as JsonSchemaType) && t !== 'null') ??
+      type.find((t): t is JsonSchemaType => VALID_TYPES.has(t as JsonSchemaType))
+    )
   }
   if (typeof type === 'string' && VALID_TYPES.has(type as JsonSchemaType)) {
     return type as JsonSchemaType
   }
   return undefined
+}
+
+function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefined {
+  return resolveTypeValue(schema.type)
 }
 
 /**

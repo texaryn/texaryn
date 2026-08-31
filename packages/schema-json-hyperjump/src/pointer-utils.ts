@@ -1,6 +1,7 @@
 export function schemaFragment(schemaUri: string): string {
   const hashIndex = schemaUri.indexOf('#')
-  return hashIndex === -1 ? '' : schemaUri.slice(hashIndex + 1)
+  if (hashIndex === -1) return ''
+  return decodeURI(schemaUri.slice(hashIndex + 1))
 }
 
 export function instancePointerFromUri(instanceUri: string): string {
@@ -15,7 +16,7 @@ export function keywordNameFromId(keywordId: string): string {
 }
 
 export function resolveJsonPointer(doc: unknown, pointer: string): unknown {
-  if (pointer === '' || pointer === '/') return doc
+  if (pointer === '') return doc
   const parts = pointer
     .split('/')
     .slice(1)

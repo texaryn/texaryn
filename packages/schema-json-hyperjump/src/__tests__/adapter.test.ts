@@ -13,6 +13,11 @@ import {
   ifThenElseSchema,
   oneOfSchema,
   dependentSchemasSchema,
+  anyOfSchema,
+  allOfSchema,
+  draft07DependenciesSchema,
+  arrayItemsSchema,
+  nullableTypeSchema,
 } from './fixtures.js'
 
 describe('createHyperjumpAdapter', () => {
@@ -170,6 +175,68 @@ describe('createHyperjumpAdapter', () => {
       const adapter = await createHyperjumpAdapter(dependentSchemasSchema)
       const projection = adapter.project({})
       expect(projection.nodes.get('/cvv' as JsonPointer)?.active).toBe(false)
+    })
+  })
+
+  describe('anyOf branch selection', () => {
+    it('activates the matching branch based on the instance value', async () => {
+      const adapter = await createHyperjumpAdapter(anyOfSchema)
+      const projection = adapter.project({ value: 'hello' })
+      const value = projection.nodes.get('/value' as JsonPointer)
+      expect(value).toBeDefined()
+      expect(value!.type).toBe('string')
+    })
+  })
+
+  describe('allOf merge', () => {
+    it('merges properties declared across all branches', async () => {
+      const adapter = await createHyperjumpAdapter(allOfSchema)
+      const projection = adapter.project({ name: 'Alice', age: 30 })
+      const name = projection.nodes.get('/name' as JsonPointer)
+      const age = projection.nodes.get('/age' as JsonPointer)
+      expect(name).toBeDefined()
+      expect(name!.type).toBe('string')
+      expect(age).toBeDefined()
+      expect(age!.type).toBe('integer')
+    })
+  })
+
+  describe('draft-07 dependencies (schema form)', () => {
+    it('activates the dependent field when the trigger is present', async () => {
+      const adapter = await createHyperjumpAdapter(draft07DependenciesSchema)
+      const projection = adapter.project({ creditCard: '1234' })
+      const billingAddress = projection.nodes.get('/billingAddress' as JsonPointer)
+      expect(billingAddress).toBeDefined()
+      expect(billingAddress!.active).toBe(true)
+    })
+
+    it('leaves the dependent field inactive when the trigger is absent', async () => {
+      const adapter = await createHyperjumpAdapter(draft07DependenciesSchema)
+      const projection = adapter.project({})
+      const billingAddress = projection.nodes.get('/billingAddress' as JsonPointer)
+      expect(billingAddress).toBeDefined()
+      expect(billingAddress!.active).toBe(false)
+    })
+  })
+
+  describe('array items with prefixItems', () => {
+    it('maps items and prefixItems element types', async () => {
+      const adapter = await createHyperjumpAdapter(arrayItemsSchema)
+      const projection = adapter.project({ tags: ['a', 'b'], coordinates: [48.8, 2.3] })
+      expect(projection.nodes.get('/tags/0' as JsonPointer)?.type).toBe('string')
+      expect(projection.nodes.get('/tags/1' as JsonPointer)?.type).toBe('string')
+      expect(projection.nodes.get('/coordinates/0' as JsonPointer)?.type).toBe('number')
+      expect(projection.nodes.get('/coordinates/1' as JsonPointer)?.type).toBe('number')
+    })
+  })
+
+  describe('nullable type array', () => {
+    it('resolves the non-null type from a type array', async () => {
+      const adapter = await createHyperjumpAdapter(nullableTypeSchema)
+      const projection = adapter.project({ middleName: 'Lee' })
+      const middleName = projection.nodes.get('/middleName' as JsonPointer)
+      expect(middleName).toBeDefined()
+      expect(middleName!.type).toBe('string')
     })
   })
 

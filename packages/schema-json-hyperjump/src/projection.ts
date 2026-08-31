@@ -1,6 +1,6 @@
 import { interpret, BASIC, type CompiledSchema } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
-import type { SchemaProjection, JsonSchemaType, EnumOption } from '@texaryn/core'
+import type { SchemaProjection, EnumOption } from '@texaryn/core'
 import { ProjectionPlugin, type KeywordRecord } from './plugin.js'
 import { schemaFragment, resolveJsonPointer } from './pointer-utils.js'
 import {
@@ -8,6 +8,7 @@ import {
   ensureNode,
   addChild,
   finalizeNodes,
+  resolveTypeValue,
   type DraftNode,
   type BranchChecker,
 } from './static-walk.js'
@@ -43,7 +44,7 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
  * value is then resolved by JSON Pointer lookup into the original schema document (the
  * schemaUri fragment the plugin reports is exactly that pointer for local $ref/$defs).
  * This is authoritative wherever it applies, since it reflects exactly what was
- * evaluated for the data given -- but hyperjump only fires keyword evaluations for
+ * evaluated for the data given: hyperjump only fires keyword evaluations for
  * instance pointers that exist in the data, so a declared-but-unfilled optional field is
  * indistinguishable, from firing alone, from a field in a branch that didn't match.
  *
@@ -52,7 +53,7 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
  * declared-but-currently-unfilled fields and to correctly mark declared-but-inactive-
  * branch fields as active: false. Fields pass 1 already populated are left untouched.
  * Branch selection for this pass comes from the plugin's per-scope validity map, not
- * from pass 1's `records` -- see makeBranchChecker for why (pass 1's merge-up gate can
+ * from pass 1's `records` (see makeBranchChecker for why: pass 1's merge-up gate can
  * legitimately go empty for a schema that is only *incomplete*, not misselected).
  */
 export function buildProjection(
@@ -87,7 +88,7 @@ export function buildProjection(
       resolvedByKeyword.set(record.keywordName, list)
     }
 
-    const type = resolvedByKeyword.get('type')?.[0] as JsonSchemaType | undefined
+    const type = resolveTypeValue(resolvedByKeyword.get('type')?.[0])
     if (type !== undefined) node.type = type
     const format = resolvedByKeyword.get('format')?.[0] as string | undefined
     if (format !== undefined) node.format = format

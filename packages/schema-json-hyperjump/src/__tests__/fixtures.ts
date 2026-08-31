@@ -178,3 +178,76 @@ export const dependentSchemasSchema = {
     },
   },
 } as const
+
+export const anyOfSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    value: {
+      anyOf: [
+        { type: 'string', title: 'Text Value', minLength: 1 },
+        { type: 'number', title: 'Numeric Value', minimum: 0 },
+      ],
+    },
+  },
+} as const
+
+export const allOfSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  allOf: [
+    {
+      properties: {
+        name: { type: 'string', title: 'Name', minLength: 1 },
+      },
+      required: ['name'],
+    },
+    {
+      properties: {
+        age: { type: 'integer', title: 'Age', minimum: 0 },
+      },
+    },
+  ],
+} as const
+
+export const draft07DependenciesSchema = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  type: 'object',
+  properties: {
+    creditCard: { type: 'string', title: 'Credit Card' },
+  },
+  dependencies: {
+    creditCard: {
+      properties: {
+        billingAddress: { type: 'string', title: 'Billing Address' },
+      },
+      required: ['billingAddress'],
+    },
+  },
+} as const
+
+export const arrayItemsSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    tags: {
+      type: 'array',
+      items: { type: 'string', title: 'Tag', minLength: 1 },
+    },
+    coordinates: {
+      type: 'array',
+      prefixItems: [
+        { type: 'number', title: 'Latitude' },
+        { type: 'number', title: 'Longitude' },
+      ],
+    },
+  },
+} as const
+
+export const nullableTypeSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    middleName: { type: ['null', 'string'], title: 'Middle Name' },
+  },
+} as const
