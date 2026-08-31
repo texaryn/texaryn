@@ -31,13 +31,15 @@ const validation = await adapter.validate(data)
 
 The package is marked `private: true`, so there is intentionally no npm installation command yet.
 
-## Supported dialects
+## JSON Schema dialect support
 
-The adapter supports:
-
-- Draft 7
-- Draft 2019-09
-- Draft 2020-12
+| Dialect   | Support           |
+| --------- | ----------------- |
+| Draft 4   | Not yet supported |
+| Draft 6   | Not yet supported |
+| Draft 7   | Supported         |
+| 2019-09   | Supported         |
+| 2020-12   | Supported         |
 
 Dialect detection uses `$schema`, with Draft 7 as the default fallback.
 
