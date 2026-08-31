@@ -261,11 +261,29 @@ export const oneOfSharedKeySchema = {
   required: ['kind'],
   oneOf: [
     {
-      properties: { kind: { const: 'a' }, value: { type: 'number', title: 'Branch A Value' } },
+      properties: { kind: { const: 'a' }, value: { type: 'number', title: 'Branch A Value', minimum: 10, format: 'custom-a' } },
       required: ['value'],
     },
     {
       properties: { kind: { const: 'b' }, value: { type: 'string', title: 'Branch B Value' } },
+      required: ['value'],
+    },
+  ],
+} as const
+
+export const oneOfRequiredDemotionSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    kind: { type: 'string', enum: ['opt', 'req'] },
+  },
+  required: ['kind'],
+  oneOf: [
+    {
+      properties: { kind: { const: 'opt' }, value: { type: 'string', title: 'Optional Value' } },
+    },
+    {
+      properties: { kind: { const: 'req' }, value: { type: 'string', title: 'Required Value' } },
       required: ['value'],
     },
   ],

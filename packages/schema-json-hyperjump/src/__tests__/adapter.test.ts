@@ -19,6 +19,7 @@ import {
   arrayItemsSchema,
   nullableTypeSchema,
   oneOfSharedKeySchema,
+  oneOfRequiredDemotionSchema,
   recursiveObjectRefSchema,
   specialKeySchema,
 } from './fixtures.js'
@@ -319,6 +320,24 @@ describe('createHyperjumpAdapter', () => {
       expect(value.active).toBe(true)
       expect(value.type).toBe('string')
       expect(value.annotations.title).toBe('Branch B Value')
+    })
+
+    it('does not leak inactive branch constraints or format into a shared field', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfSharedKeySchema)
+      const projection = adapter.project({ kind: 'b' })
+      const value = projection.nodes.get('/value' as JsonPointer)!
+      expect(value.type).toBe('string')
+      expect(value.constraints.minimum).toBeUndefined()
+      expect(value.format).toBeUndefined()
+    })
+
+    it('does not promote required from an inactive branch onto an existing child', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfRequiredDemotionSchema)
+      const projection = adapter.project({ kind: 'opt' })
+      const root = projection.nodes.get('' as JsonPointer)!
+      const valueChild = root.children?.find((c) => c.key === 'value')
+      expect(valueChild).toBeDefined()
+      expect(valueChild!.required).toBe(false)
     })
   })
 
