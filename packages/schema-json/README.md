@@ -39,15 +39,17 @@ console.log(validation.valid, validation.errors)
 
 The returned object implements `SchemaEvaluationPort` from `@texaryn/core`.
 
-## Supported dialects
+## JSON Schema dialect support
 
-The adapter detects the JSON Schema dialect from `$schema` and currently supports:
+| Dialect   | Support           |
+| --------- | ----------------- |
+| Draft 4   | Not yet supported |
+| Draft 6   | Not yet supported |
+| Draft 7   | Supported         |
+| 2019-09   | Supported         |
+| 2020-12   | Supported         |
 
-- Draft 7
-- Draft 2019-09
-- Draft 2020-12
-
-If `$schema` is absent or unrecognized, the adapter uses `draft-07` by default. You can override the fallback:
+The adapter detects the dialect from `$schema`. If `$schema` is absent or unrecognized, the adapter uses `draft-07` by default. You can override the fallback:
 
 ```ts
 const adapter = await createJsonSchemaAdapter(schema, {
