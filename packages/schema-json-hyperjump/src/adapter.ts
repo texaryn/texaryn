@@ -50,7 +50,7 @@ export async function createHyperjumpAdapter(
         Instance.fromJs(data as Parameters<typeof Instance.fromJs>[0]),
         BASIC,
       ) as Output
-      return mapErrors(output)
+      return mapErrors(output, schema, data)
     },
   }
 }

@@ -4,6 +4,10 @@ export function schemaFragment(schemaUri: string): string {
   return decodeURI(schemaUri.slice(hashIndex + 1))
 }
 
+export function escapeSegment(segment: string): string {
+  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+}
+
 export function instancePointerFromUri(instanceUri: string): string {
   // hyperjump format: `${baseUri}#${pointer}`, e.g. "#/name" or "#" for root.
   const hashIndex = instanceUri.indexOf('#')

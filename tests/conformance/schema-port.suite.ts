@@ -191,13 +191,9 @@ export function schemaPortConformanceSuite(name: string, factory: AdapterFactory
       expect(
         result.errors.some((e) => e.instancePointer === '/name' && e.keyword === 'minLength'),
       ).toBe(true)
-      // A missing required "email" is reported at different (both defensible)
-      // instancePointer conventions across adapters: json-schema-library points at the
-      // missing property itself ("/email"), hyperjump points at the containing object
-      // (""): so only `keyword` is asserted here, matching the port's contract that
-      // adapter-specific representational choices (like this one) are not part of what
-      // every implementation must agree on.
-      expect(result.errors.some((e) => e.keyword === 'required')).toBe(true)
+      expect(
+        result.errors.some((e) => e.instancePointer === '/email' && e.keyword === 'required'),
+      ).toBe(true)
     })
 
     it('maps nested errors through $ref', async () => {

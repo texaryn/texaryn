@@ -251,3 +251,26 @@ export const nullableTypeSchema = {
     middleName: { type: ['null', 'string'], title: 'Middle Name' },
   },
 } as const
+
+export const recursiveObjectRefSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $defs: {
+    node: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: 'Name' },
+        next: { $ref: '#/$defs/node' },
+      },
+    },
+  },
+  $ref: '#/$defs/node',
+} as const
+
+export const specialKeySchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    'a/b': { type: 'string', title: 'Slash Key' },
+    'c~d': { type: 'string', title: 'Tilde Key' },
+  },
+} as const

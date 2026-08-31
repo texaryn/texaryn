@@ -21,10 +21,14 @@ import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
  * of its own required fields, the normal state of a form mid-edit) must still
  * read as selected, and that signal would otherwise be wiped out by its own
  * incompleteness cascading through the merge-up gate all the way to the root.
- * `then`/`else` resolve through the *if* scope's validity for exactly this
- * reason; oneOf/anyOf branches use their own scope's validity directly, since
- * each branch is evaluated independently of whether the instance overall
- * satisfies "exactly one"/"at least one".
+ *
+ * `then`/`else` resolve through the *if* scope's validity.
+ *
+ * `oneOf`/`anyOf`: when exactly one branch is directly valid, it wins. When no
+ * branch is directly valid (the normal state when a user has selected a
+ * discriminator value but hasn't yet filled the branch's required fields), the
+ * branch with the most valid sub-scopes is the best match: its discriminator
+ * properties matched even though its other constraints (like `required`) didn't.
  */
 function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
   return (schemaPointer: string, instancePointer: string, suffix: string): boolean => {
@@ -32,7 +36,55 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
       const ifValid = scopeValidity.get(`${schemaPointer}/if@${instancePointer}`)
       return suffix === '/then' ? ifValid === true : ifValid === false
     }
-    return scopeValidity.get(`${schemaPointer}${suffix}@${instancePointer}`) === true
+
+    const branchKey = `${schemaPointer}${suffix}@${instancePointer}`
+    if (scopeValidity.get(branchKey) === true) return true
+
+    const match = suffix.match(/^\/(oneOf|anyOf)\/(\d+)$/)
+    if (!match) return false
+
+    const [, keyword, indexStr] = match
+    const branchIndex = parseInt(indexStr, 10)
+    const prefix = `${schemaPointer}/${keyword}/`
+    const atSuffix = `@${instancePointer}`
+
+    // If any sibling branch is directly valid, this branch lost and is inactive.
+    for (const [key, valid] of scopeValidity) {
+      if (!valid || !key.startsWith(prefix) || !key.endsWith(atSuffix)) continue
+      const segment = key.slice(prefix.length, key.length - atSuffix.length)
+      if (/^\d+$/.test(segment)) return false
+    }
+
+    // No branch is directly valid. Count valid sub-scopes per branch to find
+    // the best match (the branch whose discriminator properties matched).
+    // Sub-scope entries are keyed as `<schemaPointer>@<instancePointer>` where
+    // the instance pointer is a child of the current one (e.g. `/kind` under
+    // root `""`), so we parse at the `@` separator instead of requiring an
+    // exact instance pointer suffix match.
+    const counts = new Map<number, number>()
+    for (const [key, valid] of scopeValidity) {
+      if (!valid || !key.startsWith(prefix)) continue
+      const atIdx = key.lastIndexOf('@')
+      if (atIdx === -1) continue
+      const keyInstance = key.slice(atIdx + 1)
+      if (instancePointer === '') {
+        // root: any instance pointer is a descendant
+      } else if (keyInstance !== instancePointer && !keyInstance.startsWith(instancePointer + '/')) {
+        continue
+      }
+      const schemaRest = key.slice(prefix.length, atIdx)
+      const slashIdx = schemaRest.indexOf('/')
+      if (slashIdx === -1) continue
+      const idx = parseInt(schemaRest.slice(0, slashIdx), 10)
+      if (!isNaN(idx)) counts.set(idx, (counts.get(idx) ?? 0) + 1)
+    }
+
+    const myCount = counts.get(branchIndex) ?? 0
+    if (myCount === 0) return false
+    for (const [idx, count] of counts) {
+      if (idx !== branchIndex && count > myCount) return false
+    }
+    return true
   }
 }
 

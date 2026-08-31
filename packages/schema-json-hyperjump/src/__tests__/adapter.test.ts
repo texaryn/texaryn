@@ -18,6 +18,8 @@ import {
   draft07DependenciesSchema,
   arrayItemsSchema,
   nullableTypeSchema,
+  recursiveObjectRefSchema,
+  specialKeySchema,
 } from './fixtures.js'
 
 describe('createHyperjumpAdapter', () => {
@@ -255,7 +257,7 @@ describe('createHyperjumpAdapter', () => {
         result.errors.some((e) => e.instancePointer === '/name' && e.keyword === 'minLength'),
       ).toBe(true)
       expect(
-        result.errors.some((e) => e.instancePointer === '' && e.keyword === 'required'),
+        result.errors.some((e) => e.instancePointer === '/email' && e.keyword === 'required'),
       ).toBe(true)
     })
 
@@ -297,6 +299,54 @@ describe('createHyperjumpAdapter', () => {
       expect(projection.nodes.get('/name' as JsonPointer)!.type).toBe('string')
       const result = await adapter.validate({ name: 'Alice' })
       expect(result.valid).toBe(true)
+    })
+  })
+
+  describe('oneOf with selected-but-incomplete branch', () => {
+    it('activates the discriminated branch even when required fields are missing', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfSchema)
+      const projection = adapter.project({ kind: 'circle' })
+      expect(projection.nodes.get('/radius' as JsonPointer)?.active).toBe(true)
+      expect(projection.nodes.get('/width' as JsonPointer)?.active).toBe(false)
+      expect(projection.nodes.get('/height' as JsonPointer)?.active).toBe(false)
+    })
+  })
+
+  describe('recursive object $ref', () => {
+    it('projects one level past the instance boundary then stops', async () => {
+      const adapter = await createHyperjumpAdapter(recursiveObjectRefSchema)
+      const projection = adapter.project({ name: 'A' })
+      expect(projection.nodes.get('/name' as JsonPointer)?.type).toBe('string')
+      expect(projection.nodes.get('/next' as JsonPointer)).toBeDefined()
+      expect(projection.nodes.get('/next/name' as JsonPointer)?.type).toBe('string')
+    })
+  })
+
+  describe('JSON Pointer escaping for special property names', () => {
+    it('escapes / and ~ in property names per RFC 6901', async () => {
+      const adapter = await createHyperjumpAdapter(specialKeySchema)
+      const projection = adapter.project({})
+      expect(projection.nodes.has('/a~1b' as JsonPointer)).toBe(true)
+      expect(projection.nodes.has('/c~0d' as JsonPointer)).toBe(true)
+      expect(projection.nodes.get('/a~1b' as JsonPointer)?.annotations.title).toBe('Slash Key')
+      expect(projection.nodes.get('/c~0d' as JsonPointer)?.annotations.title).toBe('Tilde Key')
+    })
+
+    it('uses escaped pointers in validation errors for special property names', async () => {
+      const requiredSpecialSchema = {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        properties: {
+          'a/b': { type: 'string' },
+        },
+        required: ['a/b'],
+      }
+      const adapter = await createHyperjumpAdapter(requiredSpecialSchema)
+      const result = await adapter.validate({})
+      expect(result.valid).toBe(false)
+      expect(
+        result.errors.some((e) => e.instancePointer === '/a~1b' && e.keyword === 'required'),
+      ).toBe(true)
     })
   })
 

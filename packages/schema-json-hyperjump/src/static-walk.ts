@@ -7,7 +7,7 @@ import type {
   FieldConstraints,
   EnumOption,
 } from '@texaryn/core'
-import { resolveJsonPointer, schemaFragment } from './pointer-utils.js'
+import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
@@ -51,12 +51,14 @@ export function addChild(
   pointer: string,
   key: string,
   required: boolean,
+  escaped?: string,
 ): void {
   const node = ensureNode(nodes, pointer)
   node.children ??= []
   const existing = node.children.find((c) => c.key === key)
   if (!existing) {
-    node.children.push({ pointer: `${pointer}/${key}` as JsonPointer, key, required })
+    const seg = escaped ?? escapeSegment(key)
+    node.children.push({ pointer: `${pointer}/${seg}` as JsonPointer, key, required })
   } else if (required) {
     existing.required = true
   }
@@ -205,11 +207,14 @@ export function staticWalk(
 
   const ref = resolveRef(schema, rootSchema)
   if (ref) {
-    // A recursive $ref resolves to the same schema pointer at every depth; keying
-    // the visited set on schema pointer alone would suppress the second visit to
-    // a recursive $ref at a deeper instance location, capping projection depth at
-    // one level regardless of how deep the actual data goes.
-    const cycleKey = `${ref.pointer}@${pointer}`
+    // When data exists at this pointer, key on (schemaPointer, instancePointer) so
+    // the same recursive $ref can be walked at each instance depth the data provides.
+    // When data is undefined (past the instance boundary), key on schema pointer
+    // alone: a recursive $ref is projected one level past the data boundary (so its
+    // direct properties appear as unfilled fields), then stopped.
+    const cycleKey = data === undefined || data === null
+      ? ref.pointer
+      : `${ref.pointer}@${pointer}`
     if (visited.has(cycleKey)) return
     visited.add(cycleKey)
     staticWalk(ref.schema, data, pointer, ref.pointer, active, isBranchActive, nodes, visited, rootSchema)
@@ -229,13 +234,14 @@ export function staticWalk(
       Array.isArray(schema.required) ? (schema.required as string[]) : [],
     )
     for (const [key, sub] of Object.entries(schema.properties)) {
-      addChild(nodes, pointer, key, required.has(key))
+      const escaped = escapeSegment(key)
+      addChild(nodes, pointer, key, required.has(key), escaped)
       const childData = isRecord(data) ? data[key] : undefined
       staticWalk(
         sub,
         childData,
-        `${pointer}/${key}`,
-        `${schemaPointer}/properties/${key}`,
+        `${pointer}/${escaped}`,
+        `${schemaPointer}/properties/${escaped}`,
         active,
         isBranchActive,
         nodes,
