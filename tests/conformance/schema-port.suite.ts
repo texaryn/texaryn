@@ -44,8 +44,8 @@ const ifThenElseSchema = {
 // resolving the correctly-active branch's own declaration for a shared key, not merely
 // reporting active/inactive for disjoint per-branch keys. (Suppressing an *inactive*
 // branch's annotations for a key that only exists in that branch is architecture-specific
-// -- hyperjump does it structurally via its evaluation plugin, json-schema-library does
-// not -- so it is exercised in each adapter's own unit tests, not asserted here.)
+// (hyperjump does it structurally via its evaluation plugin, json-schema-library does
+// not) so it is exercised in each adapter's own unit tests, not asserted here.
 const oneOfSharedKeySchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
@@ -194,7 +194,7 @@ export function schemaPortConformanceSuite(name: string, factory: AdapterFactory
       // A missing required "email" is reported at different (both defensible)
       // instancePointer conventions across adapters: json-schema-library points at the
       // missing property itself ("/email"), hyperjump points at the containing object
-      // ("") -- so only `keyword` is asserted here, matching the port's contract that
+      // (""): so only `keyword` is asserted here, matching the port's contract that
       // adapter-specific representational choices (like this one) are not part of what
       // every implementation must agree on.
       expect(result.errors.some((e) => e.keyword === 'required')).toBe(true)

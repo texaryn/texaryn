@@ -101,6 +101,16 @@ export const draft201909Schema = {
   required: ['name'],
 } as const
 
+export const draft202012Schema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    name: { type: 'string', title: 'Name' },
+    age: { type: 'integer', title: 'Age', minimum: 0 },
+  },
+  required: ['name'],
+} as const
+
 export const ifThenElseSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',

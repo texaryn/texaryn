@@ -11,36 +11,13 @@ import {
   type DraftNode,
   type BranchChecker,
 } from './static-walk.js'
-
-const CONSTRAINT_KEYS = [
-  'minLength',
-  'maxLength',
-  'minimum',
-  'maximum',
-  'exclusiveMinimum',
-  'exclusiveMaximum',
-  'multipleOf',
-  'pattern',
-  'minItems',
-  'maxItems',
-  'uniqueItems',
-] as const
-
-const ANNOTATION_KEYS = [
-  'title',
-  'description',
-  'readOnly',
-  'writeOnly',
-  'deprecated',
-  'examples',
-  'default',
-] as const
+import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 /**
  * Reads branch selection off each construct's own local scope validity (see
  * ProjectionPlugin.scopeValidity), not off the (globally valid-gated) `records`
- * list: a `then` branch that is selected but currently incomplete -- missing one
- * of its own required fields, the normal state of a form mid-edit -- must still
+ * list: a `then` branch that is selected but currently incomplete (missing one
+ * of its own required fields, the normal state of a form mid-edit) must still
  * read as selected, and that signal would otherwise be wiped out by its own
  * incompleteness cascading through the merge-up gate all the way to the root.
  * `then`/`else` resolve through the *if* scope's validity for exactly this

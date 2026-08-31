@@ -9,6 +9,7 @@ import {
   recursiveRefSchema,
   draft07Schema,
   draft201909Schema,
+  draft202012Schema,
   ifThenElseSchema,
   oneOfSchema,
   dependentSchemasSchema,
@@ -215,6 +216,16 @@ describe('createHyperjumpAdapter', () => {
   describe('draft 2019-09 support', () => {
     it('registers with the draft-2019-09 subpath and evaluates correctly', async () => {
       const adapter = await createHyperjumpAdapter(draft201909Schema)
+      const projection = adapter.project({ name: 'Alice' })
+      expect(projection.nodes.get('/name' as JsonPointer)!.type).toBe('string')
+      const result = await adapter.validate({ name: 'Alice' })
+      expect(result.valid).toBe(true)
+    })
+  })
+
+  describe('draft 2020-12 support', () => {
+    it('registers with the draft-2020-12 subpath and evaluates correctly', async () => {
+      const adapter = await createHyperjumpAdapter(draft202012Schema)
       const projection = adapter.project({ name: 'Alice' })
       expect(projection.nodes.get('/name' as JsonPointer)!.type).toBe('string')
       const result = await adapter.validate({ name: 'Alice' })

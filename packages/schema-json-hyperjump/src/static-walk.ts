@@ -8,6 +8,7 @@ import type {
   EnumOption,
 } from '@texaryn/core'
 import { resolveJsonPointer, schemaFragment } from './pointer-utils.js'
+import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
   'string',
@@ -18,30 +19,6 @@ const VALID_TYPES = new Set<JsonSchemaType>([
   'array',
   'null',
 ])
-
-const CONSTRAINT_KEYS = [
-  'minLength',
-  'maxLength',
-  'minimum',
-  'maximum',
-  'exclusiveMinimum',
-  'exclusiveMaximum',
-  'multipleOf',
-  'pattern',
-  'minItems',
-  'maxItems',
-  'uniqueItems',
-] as const
-
-const ANNOTATION_KEYS = [
-  'title',
-  'description',
-  'readOnly',
-  'writeOnly',
-  'deprecated',
-  'examples',
-  'default',
-] as const
 
 /**
  * Working node used while a projection is under construction. `type` starts

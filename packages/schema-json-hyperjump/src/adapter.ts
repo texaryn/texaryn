@@ -42,7 +42,7 @@ export async function createHyperjumpAdapter(
     // hyperjump's async work (registerSchema -> getSchema -> compile) already happened
     // in this factory; interpret() on an already-compiled schema is a synchronous call,
     // so validate() returns a plain ValidationResult rather than a Promise. This is the
-    // inverse of json-schema-library's adapter (sync factory, sync methods) -- both
+    // inverse of json-schema-library's adapter (sync factory, sync methods): both
     // shapes satisfy the port's MaybePromise<ValidationResult> return type.
     validate(data: unknown): ValidationResult {
       const output = interpret(
