@@ -402,6 +402,8 @@ Mirror the test structure of `packages/schema-json/src/__tests__/adapter.test.ts
 - Validation: correct instancePointer and keyword for minLength, required, minimum errors
 - Validation: valid data returns `{ valid: true, errors: [] }`
 - Draft-07 schema: adapter detects dialect from `$schema` and evaluates correctly
+- Draft 2019-09 schema: adapter registers with `draft-2019-09` subpath and evaluates correctly
+- Draft 2020-12 schema: adapter registers with `draft-2020-12` subpath and evaluates correctly
 - Unique URN: two adapter instances for the same schema do not collide
 
 - [ ] **Step 10: Create the shared conformance suite**
@@ -473,9 +475,9 @@ No separate `package.json` is needed: these files live inside the existing `test
 }
 ```
 
-- [ ] **Step 11: Add conformance tests to CI**
+- [ ] **Step 11: Verify conformance tests run in CI**
 
-Verify the conformance tests run as part of `pnpm test`. The `tests/` workspace already participates in the root test command. If it does not, add `"test:conformance": "pnpm --filter @texaryn/binding-spikes test"` to the root `package.json` and wire it into the `test` script.
+Verify the conformance tests run as part of `pnpm test`. Root `pnpm test` runs `vitest run --passWithNoTests`, so the new vitest projects and includes added to `vitest.config.ts` are the integration point. No separate test script is needed.
 
 - [ ] **Step 12: Run full test suite, verify both adapters pass conformance**
 
@@ -485,7 +487,14 @@ Expected: All existing tests pass. Conformance suite passes for both adapters.
 - [ ] **Step 13: Commit**
 
 ```bash
-git add packages/schema-json-hyperjump/ tests/conformance/ tests/package.json .changeset/config.json vitest.config.ts
+git add \
+  packages/schema-json-hyperjump/ \
+  tests/conformance/ \
+  tests/package.json \
+  .changeset/config.json \
+  tsconfig.json \
+  package.json \
+  vitest.config.ts
 git commit -m "feat: add @hyperjump/json-schema adapter and shared conformance suite
 
 Implements SchemaEvaluationPort using @hyperjump/json-schema with a
@@ -1338,7 +1347,7 @@ Patch changeset for `@texaryn/core` (behavioral fix: guard against double submit
 
 **Goal / acceptance criteria:**
 
-API reference documentation is generated from source types using typedoc. A `docs/` output is gitignored but the generation command is documented. The changeset graduation path from alpha to 0.1.0 stable is verified with a dry-run. `npm dist-tag ls` confirms 0.1.0 would land on `latest` and the alpha tag is documented as needing manual cleanup. The demo app is updated to exercise P3.2-P3.4 features (live validation, error display, submission states).
+API reference documentation is generated from source types using typedoc. A `docs/` output is gitignored but the generation command is documented. The changeset graduation path from alpha to 0.1.0 stable is verified with a dry-run. Current dist-tags are inspected before release; `latest -> 0.1.0` is verified after publish. The alpha tag is documented as needing manual cleanup. The demo app is updated to exercise P3.2-P3.4 features (live validation, error display, submission states).
 
 **Packages touched:**
 - Modify: `packages/demo/` (update demo to show validation, errors, submission)
@@ -1422,7 +1431,7 @@ This modifies `.changeset/pre.json` to `"mode": "exit"`. The file is committed i
 
 - [ ] **Step 7: Verify graduation path (dry-run in disposable worktree)**
 
-The dry-run creates and discards a throwaway changeset. Running it in the real worktree risks deleting real `.changeset/*.md` files. Use a disposable git worktree instead:
+The worktree at HEAD still has `"mode": "pre"` because the `pre exit` from Step 6 is uncommitted in the real worktree. The disposable tree must run `pre exit` itself. No throwaway changeset is needed: the real pending P3.2-P3.4 changesets already in HEAD are exactly what should be tested.
 
 ```bash
 # Check current dist-tag state
@@ -1431,30 +1440,26 @@ npm dist-tag ls @texaryn/core
 # Create a temporary worktree for the dry-run (detached HEAD, no branch)
 git worktree add --detach /tmp/texaryn-graduation-test HEAD
 
-cd /tmp/texaryn-graduation-test
-pnpm install --frozen-lockfile
+(
+  cd /tmp/texaryn-graduation-test
+  pnpm install --frozen-lockfile
 
-# Create a throwaway changeset for the dry-run
-pnpm changeset
-# Select all three published packages, minor bump, message "chore: test graduation"
+  # Exit prerelease mode inside the disposable tree
+  pnpm changeset pre exit
 
-# Run changeset version (config already has commit: false)
-pnpm changeset version
+  # Use the real pending P3.2-P3.4 changesets already in HEAD
+  pnpm changeset version
 
-# Verify versions in package.json files
-node -e "
-  const pkgs = ['core', 'schema-json', 'react'];
-  for (const p of pkgs) {
-    const {version} = require('./packages/' + p + '/package.json');
-    console.log('@texaryn/' + p + ':', version);
-  }
-"
+  node -e "
+    for (const p of ['core', 'schema-json', 'react']) {
+      const { version } = require('./packages/' + p + '/package.json');
+      console.log('@texaryn/' + p + ':', version);
+    }
+  "
+)
 # Expected: all three show 0.1.0 (not 0.1.0-alpha.1)
-# If 0.1.0-alpha.1 appears, the pre exit was not committed
 
-# Return to the real worktree and discard the disposable one
-cd -
-git worktree remove /tmp/texaryn-graduation-test
+git worktree remove --force /tmp/texaryn-graduation-test
 ```
 
 Document that after the 0.1.0 publish, the alpha dist-tag needs manual cleanup:
