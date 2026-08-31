@@ -53,6 +53,7 @@ This is the library not chosen for PR #7 (the spike evaluated both and selected 
 - Modify: `.changeset/config.json` (add `@texaryn/schema-json-hyperjump` to `ignore` list)
 - Modify: `tsconfig.json` (add `{ "path": "packages/schema-json-hyperjump" }` to `references`)
 - Modify: root `package.json` `typecheck` script (add `tsc --noEmit -p packages/schema-json-hyperjump/tsconfig.typecheck.json`)
+- Modify: `vitest.config.ts` (add `@texaryn/schema-json-hyperjump` alias, add vitest project for `packages/schema-json-hyperjump`, add include for `tests/conformance/**/*.test.ts` in the existing `binding-spikes` project or a new `conformance` project)
 - Modify: `pnpm-workspace.yaml` (no change needed, `packages/*` glob already covers new package; `tests` already listed)
 
 **Public API changes:**
@@ -335,12 +336,19 @@ export function buildProjection(
 ```typescript
 import type { SchemaEvaluationPort, ValidationResult, JsonPointer } from '@texaryn/core'
 import { registerSchema as registerSchema2020 } from '@hyperjump/json-schema/draft-2020-12'
+import { registerSchema as registerSchema201909 } from '@hyperjump/json-schema/draft-2019-09'
 import { registerSchema as registerSchema07 } from '@hyperjump/json-schema/draft-07'
 import { compile, getSchema, interpret, BASIC } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { HyperjumpAdapterConfig } from './types.js'
 import { buildProjection } from './projection.js'
 import { instancePointerFromUri, keywordNameFromId } from './pointer-utils.js'
+
+const registerByDialect = {
+  'draft-07': registerSchema07,
+  '2019-09': registerSchema201909,
+  '2020-12': registerSchema2020,
+} as const
 
 export async function createHyperjumpAdapter(
   schema: Record<string, unknown>,
@@ -349,7 +357,7 @@ export async function createHyperjumpAdapter(
   const id = `urn:texaryn:${crypto.randomUUID()}`
   const dialect = detectDialect(schema, config)
 
-  const register = dialect === 'draft-07' ? registerSchema07 : registerSchema2020
+  const register = registerByDialect[dialect]
   register(schema, id)
 
   const schemaDoc = await getSchema(id)
@@ -477,7 +485,7 @@ Expected: All existing tests pass. Conformance suite passes for both adapters.
 - [ ] **Step 13: Commit**
 
 ```bash
-git add packages/schema-json-hyperjump/ tests/conformance/ tests/package.json .changeset/config.json
+git add packages/schema-json-hyperjump/ tests/conformance/ tests/package.json .changeset/config.json vitest.config.ts
 git commit -m "feat: add @hyperjump/json-schema adapter and shared conformance suite
 
 Implements SchemaEvaluationPort using @hyperjump/json-schema with a
@@ -836,7 +844,7 @@ Core defines an error display policy: a field's errors are shown when the field 
 - Create: `packages/react/src/components/FieldErrors.tsx` (inline error container with the `aria-describedby` target ID)
 - Create: `packages/react/src/components/ErrorSummary.tsx` (page-level error summary for screen readers)
 - Modify: `packages/core/src/runtime/types.ts` (add `visibleErrors` aggregate store to `FormRuntime`)
-- Modify: `tests/conformance/` (extend PR #14 conformance with ARIA assertions)
+- Modify: `packages/react/src/__tests__/conformance.test.tsx` (extend PR #14 conformance with ARIA assertions)
 
 **Public API changes:**
 
@@ -860,7 +868,7 @@ export interface FormRuntime {
 }
 export interface VisibleError {
   nodeId: NodeId
-  pointer: JsonPointer
+  pointer: JsonPointer | null  // null for non-field nodes (matches UINode.dataPointer)
   errors: ValidationError[]
 }
 
@@ -972,7 +980,7 @@ function recomputeVisibleErrors() {
       const node = currentDoc.nodes[nodeId]
       result.push({
         nodeId,
-        pointer: node?.dataPointer,
+        pointer: node?.dataPointer ?? null,
         errors: state.errors.getSnapshot(),
       })
     }
@@ -992,11 +1000,11 @@ Add the `VisibleError` type and `visibleErrors` store to `FormRuntime` in `packa
 
 ```typescript
 import { useSyncExternalStore } from 'react'
-import { useFormContext } from '../context/form-context.js'
+import { useFormContext } from '../context.js'
 import type { NodeId } from '@texaryn/core'
 
 export function FieldErrors({ nodeId }: { nodeId: NodeId }) {
-  const { runtime } = useFormContext()
+  const runtime = useFormContext()
   const state = runtime.getNodeState(nodeId)
   if (!state) return null
 
@@ -1031,10 +1039,10 @@ This component renders the element with `id="texaryn-${nodeId}-errors"` that `ar
 
 ```typescript
 import { useSyncExternalStore } from 'react'
-import { useFormContext } from '../context/form-context.js'
+import { useFormContext } from '../context.js'
 
 export function ErrorSummary() {
-  const { runtime } = useFormContext()
+  const runtime = useFormContext()
   const visibleErrors = useSyncExternalStore(
     runtime.visibleErrors.subscribe,
     runtime.visibleErrors.getSnapshot,
@@ -1060,7 +1068,7 @@ The component subscribes to the `visibleErrors` aggregate store, which the runti
 
 - [ ] **Step 9: Extend conformance suite with ARIA assertions**
 
-In `tests/conformance/`, add cases that verify:
+In `packages/react/src/__tests__/conformance.test.tsx`, add cases that verify:
 - `aria-invalid` is absent on untouched fields
 - `aria-invalid` is `true` on touched, invalid fields
 - `aria-describedby` points to the FieldErrors element's ID when errors are shown
@@ -1077,7 +1085,7 @@ Expected: All tests pass, including new ARIA conformance cases.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add packages/core/ packages/react/ tests/conformance/
+git add packages/core/ packages/react/
 git commit -m "feat: add accessible error presentation with showErrors policy
 
 Core computes showErrors (touched && invalid) per node. React prop
@@ -1412,13 +1420,19 @@ pnpm changeset pre exit
 
 This modifies `.changeset/pre.json` to `"mode": "exit"`. The file is committed in Step 9 as part of this PR. After this PR merges, the Changesets bot's next "Version Packages" PR will produce a stable 0.1.0.
 
-- [ ] **Step 7: Verify graduation path (dry-run)**
+- [ ] **Step 7: Verify graduation path (dry-run in disposable worktree)**
 
-Run the following locally to verify the stable version would be correct:
+The dry-run creates and discards a throwaway changeset. Running it in the real worktree risks deleting real `.changeset/*.md` files. Use a disposable git worktree instead:
 
 ```bash
 # Check current dist-tag state
 npm dist-tag ls @texaryn/core
+
+# Create a temporary worktree for the dry-run (detached HEAD, no branch)
+git worktree add --detach /tmp/texaryn-graduation-test HEAD
+
+cd /tmp/texaryn-graduation-test
+pnpm install --frozen-lockfile
 
 # Create a throwaway changeset for the dry-run
 pnpm changeset
@@ -1438,9 +1452,9 @@ node -e "
 # Expected: all three show 0.1.0 (not 0.1.0-alpha.1)
 # If 0.1.0-alpha.1 appears, the pre exit was not committed
 
-# Discard the throwaway changeset and version changes (keep the pre exit)
-git restore packages/*/package.json packages/*/CHANGELOG.md
-rm .changeset/*.md 2>/dev/null  # remove the throwaway changeset file
+# Return to the real worktree and discard the disposable one
+cd -
+git worktree remove /tmp/texaryn-graduation-test
 ```
 
 Document that after the 0.1.0 publish, the alpha dist-tag needs manual cleanup:
