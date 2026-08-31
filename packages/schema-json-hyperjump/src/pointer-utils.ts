@@ -1,0 +1,31 @@
+export function schemaFragment(schemaUri: string): string {
+  const hashIndex = schemaUri.indexOf('#')
+  return hashIndex === -1 ? '' : schemaUri.slice(hashIndex + 1)
+}
+
+export function instancePointerFromUri(instanceUri: string): string {
+  // hyperjump format: `${baseUri}#${pointer}`, e.g. "#/name" or "#" for root.
+  const hashIndex = instanceUri.indexOf('#')
+  const fragment = hashIndex === -1 ? '' : instanceUri.slice(hashIndex + 1)
+  return fragment === '' ? '' : decodeURI(fragment)
+}
+
+export function keywordNameFromId(keywordId: string): string {
+  return keywordId.slice(keywordId.lastIndexOf('/') + 1)
+}
+
+export function resolveJsonPointer(doc: unknown, pointer: string): unknown {
+  if (pointer === '' || pointer === '/') return doc
+  const parts = pointer
+    .split('/')
+    .slice(1)
+    .map((p) => decodeURIComponent(p).replace(/~1/g, '/').replace(/~0/g, '~'))
+  let cur: unknown = doc
+  for (const part of parts) {
+    if (cur === null || cur === undefined) return undefined
+    cur = Array.isArray(cur)
+      ? (cur as unknown[])[Number(part)]
+      : (cur as Record<string, unknown>)[part]
+  }
+  return cur
+}

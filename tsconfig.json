@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/schema-json" },
+    { "path": "packages/schema-json-hyperjump" },
     { "path": "packages/react" }
   ]
 }
