@@ -230,6 +230,13 @@ export function staticWalk(
   const node = ensureNode(nodes, pointer)
   if (active || !existed) {
     applyStaticStructure(node, schema)
+  } else if (node.type === undefined) {
+    // Inactive branch on an existing node that lacks a type: fill only the
+    // type gap so finalizeNodes keeps the node alive. Other structural fields
+    // (constraints, format, enum) stay suppressed to prevent inactive-branch
+    // metadata from contaminating an active node's structure.
+    const type = resolveType(schema)
+    if (type !== undefined) node.type = type
   }
   if (active) {
     node.active = true
@@ -339,6 +346,16 @@ export function staticWalk(
   dynamicBranches.sort((a, b) => Number(b.active) - Number(a.active))
   for (const db of dynamicBranches) {
     staticWalk(db.schema, data, pointer, db.schemaPointer, db.active, isBranchActive, nodes, visited, rootSchema)
+  }
+
+  // When the base walk entered this node with active=true (property of an active
+  // parent) but the instance has no data here AND every dynamic branch is inactive,
+  // the node is unreachable at runtime: downgrade its active flag so the projection
+  // reports the subtree as present but inactive.
+  if (dynamicBranches.length > 0 && (data === undefined || data === null)) {
+    if (!dynamicBranches.some(db => db.active)) {
+      node.active = false
+    }
   }
 
   // `items` is a single subschema in 2019-09+ (paired with `prefixItems` for the tuple

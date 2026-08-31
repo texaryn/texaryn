@@ -65,6 +65,39 @@ const oneOfSharedKeySchema = {
   ],
 }
 
+// The wrapper property ("shape") has no `type` keyword of its own; type is declared
+// only inside each oneOf branch. When no branch resolves (empty data), the wrapper
+// and all branch children must still appear in the projection (inactive), not be
+// dropped because the wrapper lacks a type.
+const nestedOneOfSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    shape: {
+      oneOf: [
+        {
+          type: 'object',
+          title: 'Circle',
+          properties: {
+            type: { const: 'circle' },
+            radius: { type: 'number', title: 'Radius' },
+          },
+          required: ['type', 'radius'],
+        },
+        {
+          type: 'object',
+          title: 'Square',
+          properties: {
+            type: { const: 'square' },
+            side: { type: 'number', title: 'Side' },
+          },
+          required: ['type', 'side'],
+        },
+      ],
+    },
+  },
+}
+
 const refSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $defs: {
@@ -146,6 +179,35 @@ export function schemaPortConformanceSuite(name: string, factory: AdapterFactory
       const value = projection.nodes.get('/value' as JsonPointer)!
       expect(value.type).toBe('string')
       expect(value.annotations.title).toBe('Branch B Value')
+    })
+
+    it('keeps a typeless nested oneOf subtree present but inactive when no branch resolves', async () => {
+      const adapter = await factory(nestedOneOfSchema)
+      const projection = adapter.project({})
+
+      const shape = projection.nodes.get('/shape' as JsonPointer)
+      expect(shape).toBeDefined()
+      expect(shape!.active).toBe(false)
+
+      const radius = projection.nodes.get('/shape/radius' as JsonPointer)
+      expect(radius).toBeDefined()
+      expect(radius!.active).toBe(false)
+
+      const side = projection.nodes.get('/shape/side' as JsonPointer)
+      expect(side).toBeDefined()
+      expect(side!.active).toBe(false)
+    })
+
+    it('resolves a nested oneOf branch when data selects it', async () => {
+      const adapter = await factory(nestedOneOfSchema)
+      const projection = adapter.project({ shape: { type: 'circle', radius: 5 } })
+
+      const shape = projection.nodes.get('/shape' as JsonPointer)
+      expect(shape).toBeDefined()
+      expect(shape!.active).toBe(true)
+      expect(shape!.type).toBe('object')
+
+      expect(projection.nodes.get('/shape/radius' as JsonPointer)?.active).toBe(true)
     })
 
     it('follows local $ref into $defs', async () => {

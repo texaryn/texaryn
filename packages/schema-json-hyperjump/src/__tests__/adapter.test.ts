@@ -20,6 +20,8 @@ import {
   nullableTypeSchema,
   oneOfSharedKeySchema,
   oneOfRequiredDemotionSchema,
+  nestedOneOfSchema,
+  oneOfAmbiguousSchema,
   recursiveObjectRefSchema,
   specialKeySchema,
 } from './fixtures.js'
@@ -338,6 +340,46 @@ describe('createHyperjumpAdapter', () => {
       const valueChild = root.children?.find((c) => c.key === 'value')
       expect(valueChild).toBeDefined()
       expect(valueChild!.required).toBe(false)
+    })
+  })
+
+  describe('nested typeless oneOf', () => {
+    it('keeps the wrapper and branch children when no branch resolves', async () => {
+      const adapter = await createHyperjumpAdapter(nestedOneOfSchema)
+      const projection = adapter.project({})
+      expect(projection.nodes.get('/shape' as JsonPointer)).toBeDefined()
+      expect(projection.nodes.get('/shape' as JsonPointer)!.active).toBe(false)
+      expect(projection.nodes.get('/shape/radius' as JsonPointer)).toBeDefined()
+      expect(projection.nodes.get('/shape/radius' as JsonPointer)!.active).toBe(false)
+      expect(projection.nodes.get('/shape/side' as JsonPointer)).toBeDefined()
+      expect(projection.nodes.get('/shape/side' as JsonPointer)!.active).toBe(false)
+    })
+
+    it('activates the selected branch when data discriminates', async () => {
+      const adapter = await createHyperjumpAdapter(nestedOneOfSchema)
+      const projection = adapter.project({ shape: { type: 'circle', radius: 5 } })
+      expect(projection.nodes.get('/shape' as JsonPointer)!.active).toBe(true)
+      expect(projection.nodes.get('/shape/radius' as JsonPointer)!.active).toBe(true)
+      expect(projection.nodes.get('/shape/side' as JsonPointer)!.active).toBe(false)
+    })
+  })
+
+  describe('ambiguous oneOf selection', () => {
+    it('selects neither branch when both are directly valid', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfAmbiguousSchema)
+      const projection = adapter.project({ v: 'hello' })
+      const v = projection.nodes.get('/v' as JsonPointer)
+      expect(v).toBeDefined()
+      expect(v!.active).toBe(false)
+    })
+
+    it('selects the unique valid branch when only one matches', async () => {
+      const adapter = await createHyperjumpAdapter(oneOfAmbiguousSchema)
+      const projection = adapter.project({ v: '' })
+      const v = projection.nodes.get('/v' as JsonPointer)
+      expect(v).toBeDefined()
+      expect(v!.active).toBe(true)
+      expect(v!.type).toBe('string')
     })
   })
 

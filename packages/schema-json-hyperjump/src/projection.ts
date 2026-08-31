@@ -38,15 +38,26 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
     }
 
     const branchKey = `${schemaPointer}${suffix}@${instancePointer}`
-    if (scopeValidity.get(branchKey) === true) return true
+    const directlyValid = scopeValidity.get(branchKey) === true
 
     const match = suffix.match(/^\/(oneOf|anyOf)\/(\d+)$/)
-    if (!match) return false
+    if (!match) return directlyValid
 
     const [, keyword, indexStr] = match
     const branchIndex = parseInt(indexStr, 10)
     const prefix = `${schemaPointer}/${keyword}/`
     const atSuffix = `@${instancePointer}`
+
+    if (directlyValid) {
+      if (keyword === 'anyOf') return true
+      // oneOf: ambiguity (multiple directly valid branches) means none selected
+      for (const [key, valid] of scopeValidity) {
+        if (!valid || !key.startsWith(prefix) || !key.endsWith(atSuffix)) continue
+        const segment = key.slice(prefix.length, key.length - atSuffix.length)
+        if (/^\d+$/.test(segment) && parseInt(segment, 10) !== branchIndex) return false
+      }
+      return true
+    }
 
     // If any sibling branch is directly valid, this branch lost and is inactive.
     for (const [key, valid] of scopeValidity) {
@@ -82,7 +93,11 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
     const myCount = counts.get(branchIndex) ?? 0
     if (myCount === 0) return false
     for (const [idx, count] of counts) {
-      if (idx !== branchIndex && count > myCount) return false
+      if (idx !== branchIndex) {
+        // oneOf: tied score is ambiguous, so no branch wins
+        // anyOf: only a strictly higher score beats this branch
+        if (keyword === 'oneOf' ? count >= myCount : count > myCount) return false
+      }
     }
     return true
   }

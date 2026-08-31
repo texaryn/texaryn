@@ -303,6 +303,48 @@ export const recursiveObjectRefSchema = {
   $ref: '#/$defs/node',
 } as const
 
+export const nestedOneOfSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    shape: {
+      oneOf: [
+        {
+          type: 'object',
+          title: 'Circle',
+          properties: {
+            type: { const: 'circle' },
+            radius: { type: 'number', title: 'Radius' },
+          },
+          required: ['type', 'radius'],
+        },
+        {
+          type: 'object',
+          title: 'Square',
+          properties: {
+            type: { const: 'square' },
+            side: { type: 'number', title: 'Side' },
+          },
+          required: ['type', 'side'],
+        },
+      ],
+    },
+  },
+} as const
+
+export const oneOfAmbiguousSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  oneOf: [
+    {
+      properties: { v: { type: 'string', title: 'Branch A' } },
+    },
+    {
+      properties: { v: { type: 'string', title: 'Branch B', minLength: 1 } },
+    },
+  ],
+} as const
+
 export const specialKeySchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
