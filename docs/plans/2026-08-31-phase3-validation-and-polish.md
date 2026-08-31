@@ -21,11 +21,11 @@
 - `ValidationError.params` shape is adapter-specific. Conformance tests assert on `instancePointer` and `keyword` only.
 - SSH for all git operations. No HTTPS pushes.
 - No `Co-Authored-By` or agent attribution in commits or branch names.
-- Plans saved to `docs/superpowers/plans/` (gitignored). Not committed.
+- The canonical plan lives at `docs/plans/2026-08-31-phase3-validation-and-polish.md` (committed, versioned).
 
 ---
 
-### Task 1: P3.1 Second SchemaEvaluationPort Adapter (PR #19)
+### Task 1: P3.1 Second SchemaEvaluationPort Adapter (PR: feat/p3.1-hyperjump-adapter)
 
 **Goal / acceptance criteria:**
 
@@ -51,6 +51,8 @@ This is the library not chosen for PR #7 (the spike evaluated both and selected 
 - Create: `packages/schema-json-hyperjump/` (new package, not published this phase)
 - Create: `tests/conformance/` directory (shared conformance suite inside the existing `tests` workspace, `@texaryn/binding-spikes`)
 - Modify: `.changeset/config.json` (add `@texaryn/schema-json-hyperjump` to `ignore` list)
+- Modify: `tsconfig.json` (add `{ "path": "packages/schema-json-hyperjump" }` to `references`)
+- Modify: root `package.json` `typecheck` script (add `tsc --noEmit -p packages/schema-json-hyperjump/tsconfig.typecheck.json`)
 - Modify: `pnpm-workspace.yaml` (no change needed, `packages/*` glob already covers new package; `tests` already listed)
 
 **Public API changes:**
@@ -138,9 +140,24 @@ Note `"private": true` since this package is not published this phase.
 Run: `pnpm install`
 Expected: Clean install. `@hyperjump/json-schema` resolves to 1.x.
 
-- [ ] **Step 3: Add to changesets ignore list**
+- [ ] **Step 3: Add to changesets ignore list and wire build/typecheck**
 
 In `.changeset/config.json`, add `"@texaryn/schema-json-hyperjump"` to the `ignore` array (alongside `@texaryn/demo`).
+
+In root `tsconfig.json`, add to `references`:
+```json
+{ "path": "packages/schema-json-hyperjump" }
+```
+
+In root `package.json`, extend the `typecheck` script to include:
+```
+tsc --noEmit -p packages/schema-json-hyperjump/tsconfig.typecheck.json
+```
+
+Create `packages/schema-json-hyperjump/tsconfig.typecheck.json` following the pattern of `packages/schema-json/tsconfig.typecheck.json`.
+
+Run: `pnpm typecheck`
+Expected: All packages typecheck, including the new one.
 
 - [ ] **Step 4: Implement pointer utilities**
 
@@ -253,7 +270,7 @@ export class ProjectionPlugin implements EvaluationPlugin<ProjectionContext> {
 
 Port and extend the static walk from `spike/hyperjump-probe.ts` (lines 337-378). Close the four spike gaps:
 
-1. **Follow `$ref`:** Resolve `$ref` pointers against `$defs` (and draft-07 `definitions`) in the raw schema document. Track visited `$ref` targets to prevent infinite recursion (a Set of schema-pointer strings).
+1. **Follow `$ref`:** Resolve `$ref` pointers against `$defs` (and draft-07 `definitions`) in the raw schema document. Track visited `$ref` targets to prevent infinite recursion using `(schemaPointer, instancePointer)` pairs as cycle keys, not schema pointers alone. Using only the schema pointer would suppress the second visit to a recursive `$ref` at a deeper instance location, preventing projection to the depth of the actual data.
 2. **Recurse into `items`/`prefixItems`:** For arrays with existing instance data, walk `items` (or `prefixItems` entries) for each existing array element. For arrays with no data, emit the array container node but not item nodes (item count is data-driven).
 3. **Keyword extraction:** Already handled by the data-driven pass; the static walk only fills gaps for unfilled fields.
 4. **Unique URN per instance:** Handled in the adapter factory (Step 8).
@@ -273,7 +290,7 @@ export function staticWalk(
 ```
 
 Key additions over the spike:
-- `$ref` resolution: when `schema.$ref` is a JSON Pointer fragment (`#/...`), resolve against `rootSchema`, push the pointer to `visited`, walk the resolved schema, then remove from `visited`.
+- `$ref` resolution: when `schema.$ref` is a JSON Pointer fragment (`#/...`), resolve against `rootSchema`. Compute the cycle key as `${refSchemaPointer}@${instancePointer}`, add it to `visited`, walk the resolved schema, then remove it from `visited`. This allows the same recursive `$ref` to be walked at different instance depths.
 - `items`/`prefixItems` for filled arrays: count items from `data` at this pointer, walk `items` subschema for each index present.
 - `definitions`/`$defs` support for draft-07 compatibility.
 
@@ -504,7 +521,7 @@ None. This is the first P3 task.
 
 ---
 
-### Task 2: P3.2 Validation Orchestrator (PR #20)
+### Task 2: P3.2 Validation Orchestrator (PR: feat/p3.2-validation-orchestrator)
 
 **Goal / acceptance criteria:**
 
@@ -805,7 +822,7 @@ None. Existing runtime infrastructure is sufficient.
 
 ---
 
-### Task 3: P3.3 Accessible Error Presentation (PR #21)
+### Task 3: P3.3 Accessible Error Presentation (PR: feat/p3.3-error-presentation)
 
 **Goal / acceptance criteria:**
 
@@ -816,7 +833,9 @@ Core defines an error display policy: a field's errors are shown when the field 
 - Modify: `packages/core/src/runtime/types.ts` (add `showErrors` to `NodeState`)
 - Modify: `packages/react/src/props/field-props.ts` (wire ARIA from showErrors)
 - Modify: `packages/react/src/hooks/use-field.ts` (expose showErrors)
-- Create: `packages/react/src/components/ErrorSummary.tsx`
+- Create: `packages/react/src/components/FieldErrors.tsx` (inline error container with the `aria-describedby` target ID)
+- Create: `packages/react/src/components/ErrorSummary.tsx` (page-level error summary for screen readers)
+- Modify: `packages/core/src/runtime/types.ts` (add `visibleErrors` aggregate store to `FormRuntime`)
 - Modify: `tests/conformance/` (extend PR #14 conformance with ARIA assertions)
 
 **Public API changes:**
@@ -834,16 +853,30 @@ export interface UseFieldReturn {
   showErrors: boolean
 }
 
-// packages/react/src/index.ts — new export
+// packages/core/src/runtime/types.ts — addition to FormRuntime
+export interface FormRuntime {
+  // ... existing stores ...
+  readonly visibleErrors: Store<VisibleError[]>
+}
+export interface VisibleError {
+  nodeId: NodeId
+  pointer: JsonPointer
+  errors: ValidationError[]
+}
+
+// packages/react/src/index.ts — new exports
+export { FieldErrors } from './components/FieldErrors.js'
 export { ErrorSummary } from './components/ErrorSummary.js'
 ```
 
 **Architecture boundaries:**
 
 - Core owns the display policy (`showErrors = touched && status === 'invalid'`). React reads it; React does not compute it.
+- Core maintains a `visibleErrors: Store<VisibleError[]>` aggregate store on `FormRuntime`. The runtime subscribes to each node's `showErrors` and `errors` stores and recomputes the aggregate when either changes. This gives `ErrorSummary` a single reactive subscription rather than reading per-node snapshots (which would miss updates since `UIDocument` structure does not change on validation).
 - Prop getters set `aria-invalid` only when `showErrors` is true. Before the field is touched, `aria-invalid` is absent (not `false`), following WAI-ARIA best practices.
 - `aria-describedby` points to the error container's ID only when `showErrors` is true and errors exist.
-- `ErrorSummary` is a React component that reads the runtime's node states and collects errors where `showErrors` is true. It renders with `role="alert"` and `aria-live="polite"`.
+- `FieldErrors` is the React component that renders the inline error container for a specific field. It renders with `id="texaryn-${nodeId}-errors"` (the target of `aria-describedby`), `role="alert"`, and `aria-live="polite"`. Without this component (or an element with that ID), the `aria-describedby` reference is dangling.
+- `ErrorSummary` is a separate page-level component that subscribes to `runtime.visibleErrors` and renders all visible errors for screen reader announcement.
 - The error ID pattern follows the existing convention: `texaryn-${nodeId}-errors`.
 
 **Implementation slices:**
@@ -924,38 +957,88 @@ export function getInputProps(node: UINode, fieldState: UseFieldReturn) {
 
 Modify `packages/react/src/hooks/use-field.ts` to subscribe to the `showErrors` store and include it in `UseFieldReturn`.
 
-- [ ] **Step 6: Implement ErrorSummary component**
+- [ ] **Step 6: Add visibleErrors aggregate store to the runtime**
+
+In `packages/core/src/runtime/runtime.ts`, create a `visibleErrors: Store<VisibleError[]>` on `FormRuntime`. The runtime subscribes to each node's `showErrors` and `errors` stores. When either fires, recompute the aggregate and set the store. This gives React components a single reactive subscription for all visible errors, avoiding the stale-read problem of calling `getSnapshot()` per node inside a render (those reads do not subscribe React to those stores, and `UIDocument` structure does not change on validation events).
+
+```typescript
+// In createFormRuntime, after creating node stores:
+const visibleErrorsStore = createStore<VisibleError[]>([])
+
+function recomputeVisibleErrors() {
+  const result: VisibleError[] = []
+  for (const [nodeId, state] of nodeStates) {
+    if (state.showErrors.getSnapshot() && state.errors.getSnapshot().length > 0) {
+      const node = currentDoc.nodes[nodeId]
+      result.push({
+        nodeId,
+        pointer: node?.dataPointer,
+        errors: state.errors.getSnapshot(),
+      })
+    }
+  }
+  visibleErrorsStore.set(result)
+}
+
+// Subscribe recomputeVisibleErrors to every node's showErrors and errors stores.
+// Wire/unwire subscriptions when nodes are added/removed during recompile.
+```
+
+Add the `VisibleError` type and `visibleErrors` store to `FormRuntime` in `packages/core/src/runtime/types.ts`.
+
+- [ ] **Step 7: Implement FieldErrors component**
+
+`packages/react/src/components/FieldErrors.tsx`:
+
+```typescript
+import { useSyncExternalStore } from 'react'
+import { useFormContext } from '../context/form-context.js'
+import type { NodeId } from '@texaryn/core'
+
+export function FieldErrors({ nodeId }: { nodeId: NodeId }) {
+  const { runtime } = useFormContext()
+  const state = runtime.getNodeState(nodeId)
+  if (!state) return null
+
+  const showErrors = useSyncExternalStore(
+    state.showErrors.subscribe,
+    state.showErrors.getSnapshot,
+  )
+  const errors = useSyncExternalStore(
+    state.errors.subscribe,
+    state.errors.getSnapshot,
+  )
+
+  if (!showErrors || errors.length === 0) return null
+
+  return (
+    <div id={`texaryn-${nodeId}-errors`} role="alert" aria-live="polite">
+      <ul>
+        {errors.map((err, i) => (
+          <li key={i}>{err.message ?? err.keyword}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+This component renders the element with `id="texaryn-${nodeId}-errors"` that `aria-describedby` on the input references. Without it (or a consumer-provided element with that ID), the ARIA reference is dangling. It subscribes reactively to `showErrors` and `errors` via `useSyncExternalStore`.
+
+- [ ] **Step 8: Implement ErrorSummary component**
 
 `packages/react/src/components/ErrorSummary.tsx`:
 
 ```typescript
 import { useSyncExternalStore } from 'react'
 import { useFormContext } from '../context/form-context.js'
-import type { NodeId, ValidationError } from '@texaryn/core'
-
-interface VisibleError {
-  nodeId: NodeId
-  errors: ValidationError[]
-}
 
 export function ErrorSummary() {
   const { runtime } = useFormContext()
-  const doc = useSyncExternalStore(
-    runtime.document.subscribe,
-    runtime.document.getSnapshot,
+  const visibleErrors = useSyncExternalStore(
+    runtime.visibleErrors.subscribe,
+    runtime.visibleErrors.getSnapshot,
   )
-
-  const visibleErrors: VisibleError[] = []
-  for (const nodeId of Object.keys(doc.nodes) as NodeId[]) {
-    const state = runtime.getNodeState(nodeId)
-    if (!state) continue
-    const show = state.showErrors.getSnapshot()
-    if (!show) continue
-    const errors = state.errors.getSnapshot()
-    if (errors.length > 0) {
-      visibleErrors.push({ nodeId, errors })
-    }
-  }
 
   if (visibleErrors.length === 0) return null
 
@@ -973,23 +1056,25 @@ export function ErrorSummary() {
 }
 ```
 
-Note: `useFormContext` is the existing context hook from `packages/react/src/context/`. The component subscribes to the document store to re-render when nodes change, then reads each node's `showErrors` and `errors` stores. Only errors from `showErrors === true` nodes appear.
+The component subscribes to the `visibleErrors` aggregate store, which the runtime keeps up to date reactively. No per-node snapshot reads at render time.
 
-- [ ] **Step 7: Extend conformance suite with ARIA assertions**
+- [ ] **Step 9: Extend conformance suite with ARIA assertions**
 
 In `tests/conformance/`, add cases that verify:
 - `aria-invalid` is absent on untouched fields
 - `aria-invalid` is `true` on touched, invalid fields
-- `aria-describedby` points to the error element ID when errors are shown
-- Error elements have `role="alert"` and `aria-live="polite"`
-- ErrorSummary collects only errors from nodes where showErrors is true
+- `aria-describedby` points to the FieldErrors element's ID when errors are shown
+- FieldErrors renders an element with `id="texaryn-${nodeId}-errors"`, `role="alert"`, and `aria-live="polite"`
+- FieldErrors renders nothing when showErrors is false
+- ErrorSummary subscribes to `visibleErrors` and renders only errors from showErrors=true nodes
+- ErrorSummary re-renders when a field transitions to touched+invalid (reactivity, not stale snapshots)
 
-- [ ] **Step 8: Run full test suite**
+- [ ] **Step 10: Run full test suite**
 
 Run: `pnpm test`
 Expected: All tests pass, including new ARIA conformance cases.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add packages/core/ packages/react/ tests/conformance/
@@ -1010,13 +1095,16 @@ reader announcement."
 - aria-invalid absent when showErrors is false
 - aria-invalid true when showErrors is true
 - aria-describedby set only when showErrors is true and errors exist
-- Error element has role="alert" and aria-live="polite"
+- FieldErrors renders element with the correct ID, role="alert", and aria-live="polite"
+- FieldErrors renders nothing when showErrors is false
+- ErrorSummary subscribes to visibleErrors aggregate store (not per-node snapshots)
 - ErrorSummary renders only errors from showErrors=true nodes
 - ErrorSummary is empty when no errors are visible
+- ErrorSummary re-renders reactively when validation state changes
 
 **Changeset impact:**
 
-Minor changeset for `@texaryn/core` (new showErrors store) and `@texaryn/react` (ErrorSummary export, prop getter updates). Fixed group bumps all three.
+Minor changeset for `@texaryn/core` (new showErrors store, visibleErrors aggregate) and `@texaryn/react` (FieldErrors, ErrorSummary exports, prop getter updates). Fixed group bumps all three.
 
 **Dependencies on previous P3 work:**
 
@@ -1029,7 +1117,7 @@ Minor changeset for `@texaryn/core` (new showErrors store) and `@texaryn/react` 
 
 ---
 
-### Task 4: P3.4 Submission Lifecycle (PR #22)
+### Task 4: P3.4 Submission Lifecycle (PR: feat/p3.4-submission-lifecycle)
 
 **Goal / acceptance criteria:**
 
@@ -1238,7 +1326,7 @@ Patch changeset for `@texaryn/core` (behavioral fix: guard against double submit
 
 ---
 
-### Task 5: P3.5 Documentation and Stable Release Readiness (PR #23)
+### Task 5: P3.5 Documentation and Stable Release Readiness (PR: docs/p3.5-stable-readiness)
 
 **Goal / acceptance criteria:**
 
@@ -1314,20 +1402,25 @@ Modify the demo to include:
 
 This demonstrates the full P3 feature set: live validation (P3.2), error display (P3.3), and submission lifecycle (P3.4).
 
-- [ ] **Step 6: Verify changeset graduation path (dry-run)**
+- [ ] **Step 6: Exit changesets prerelease mode**
 
-Run the following locally to verify the alpha-to-stable graduation works:
+The repo is currently in changesets pre mode (`.changeset/pre.json` has `"mode": "pre", "tag": "alpha"`). `changeset pre exit` only records the intent to leave; the change must be committed before the next `changeset version` run produces `0.1.0` instead of `0.1.0-alpha.1`.
 
 ```bash
-# Check current dist-tag state before the exercise
+pnpm changeset pre exit
+```
+
+This modifies `.changeset/pre.json` to `"mode": "exit"`. The file is committed in Step 9 as part of this PR. After this PR merges, the Changesets bot's next "Version Packages" PR will produce a stable 0.1.0.
+
+- [ ] **Step 7: Verify graduation path (dry-run)**
+
+Run the following locally to verify the stable version would be correct:
+
+```bash
+# Check current dist-tag state
 npm dist-tag ls @texaryn/core
 
-# If the repo is in changesets pre mode, exit pre first
-if [ -f .changeset/pre.json ]; then
-  pnpm changeset pre exit
-fi
-
-# Create a test changeset
+# Create a throwaway changeset for the dry-run
 pnpm changeset
 # Select all three published packages, minor bump, message "chore: test graduation"
 
@@ -1343,10 +1436,11 @@ node -e "
   }
 "
 # Expected: all three show 0.1.0 (not 0.1.0-alpha.1)
-# If 0.1.0-alpha.1 appears, pre mode was not exited
+# If 0.1.0-alpha.1 appears, the pre exit was not committed
 
-# Clean up (only restore changeset-affected files, not the entire tree)
-git restore .changeset packages/*/package.json packages/*/CHANGELOG.md
+# Discard the throwaway changeset and version changes (keep the pre exit)
+git restore packages/*/package.json packages/*/CHANGELOG.md
+rm .changeset/*.md 2>/dev/null  # remove the throwaway changeset file
 ```
 
 Document that after the 0.1.0 publish, the alpha dist-tag needs manual cleanup:
@@ -1359,20 +1453,21 @@ npm dist-tag rm @texaryn/react alpha
 
 (This is a manual step because `changesets publish` does not remove old dist-tags.)
 
-- [ ] **Step 7: Run full test suite and build**
+- [ ] **Step 8: Run full test suite and build**
 
 Run: `pnpm build && pnpm test`
 Expected: Clean build, all tests pass.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add typedoc.json .gitignore package.json packages/demo/
-git commit -m "docs: add typedoc configuration and update demo for P3 features
+git add typedoc.json .gitignore package.json packages/demo/ .changeset/pre.json
+git commit -m "docs: add typedoc configuration, update demo, exit prerelease mode
 
 Adds typedoc with markdown plugin for API reference generation.
 Updates demo to exercise live validation, error display, and
-submission lifecycle. Documents changeset graduation path to 0.1.0."
+submission lifecycle. Exits changesets prerelease mode so the next
+Version Packages PR produces 0.1.0 stable."
 ```
 
 **Tests / conformance cases:**
@@ -1388,7 +1483,7 @@ No changeset. This PR changes only the demo (ignored by changesets), adds docume
 - P3.2, P3.3, P3.4: the demo update exercises features from all three prior PRs.
 
 **Explicit non-goals:**
-- Publishing 0.1.0 stable. The version bump PR follows this one (PR #24, "Version Packages").
+- Publishing 0.1.0 stable. The version bump PR follows this one (automated "Version Packages" PR from changesets).
 - Hosting the generated docs (GitHub Pages, Vercel, etc.). Generation is local for now.
 - A changelog rewrite or release notes draft. The changelog is auto-generated by changesets from commit messages.
 - Publishing `@texaryn/schema-json-hyperjump`. It stays private with placeholder-publish steps documented for when it graduates.
@@ -1398,13 +1493,13 @@ No changeset. This PR changes only the demo (ignored by changesets), adds docume
 
 ## PR Sequence
 
-| PR | Task | Branch | Changeset |
-|---|---|---|---|
-| #19 | P3.1 Second adapter + conformance suite | `feat/p3.1-hyperjump-adapter` | None (new package is private) |
-| #20 | P3.2 Validation orchestrator | `feat/p3.2-validation-orchestrator` | Minor (@texaryn/core) |
-| #21 | P3.3 Accessible error presentation | `feat/p3.3-error-presentation` | Minor (@texaryn/core, @texaryn/react) |
-| #22 | P3.4 Submission lifecycle | `feat/p3.4-submission-lifecycle` | Patch (@texaryn/core) |
-| #23 | P3.5 Documentation + stable readiness | `docs/p3.5-stable-readiness` | None |
-| #24 | Version Packages (0.1.0) | `changeset-release/main` | Automated by changesets action |
+| Task | Branch | Changeset |
+|---|---|---|
+| P3.1 Second adapter + conformance suite | `feat/p3.1-hyperjump-adapter` | None (new package is private) |
+| P3.2 Validation orchestrator | `feat/p3.2-validation-orchestrator` | Minor (@texaryn/core) |
+| P3.3 Accessible error presentation | `feat/p3.3-error-presentation` | Minor (@texaryn/core, @texaryn/react) |
+| P3.4 Submission lifecycle | `feat/p3.4-submission-lifecycle` | Patch (@texaryn/core) |
+| P3.5 Documentation + stable readiness | `docs/p3.5-stable-readiness` | None (includes `changeset pre exit`) |
+| Version Packages (0.1.0) | `changeset-release/main` | Automated by changesets action |
 
-Each PR merges to `main` in order. PRs #20-#22 each carry a changeset that, combined, produce the 0.1.0 bump when `changeset version` runs.
+Each PR merges to `main` in order. P3.2 through P3.4 each carry a changeset that, combined, produce the 0.1.0 bump when `changeset version` runs. PR numbers are not predicted: the Changesets bot may consume numbers between PRs.
