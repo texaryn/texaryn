@@ -12,8 +12,10 @@ export interface SchedulerCallbacks {
 export interface ValidationScheduler {
   /** Schedule a validation run. Change triggers are debounced. */
   schedule(trigger: ValidationTrigger): void
-  /** Increment the epoch. Cancels debounce timers and invalidates in-flight results. */
+  /** Increment the epoch, invalidating in-flight and future-stale results. */
   invalidate(): void
+  /** Cancel queued debounce timers without touching the epoch. */
+  cancelScheduled(): void
   /** Clean up all timers and prevent in-flight results from calling back. */
   destroy(): void
 }
@@ -82,6 +84,11 @@ export function createValidationScheduler(
 
     invalidate(): void {
       epoch += 1
+      // No longer cancels debounce timer. The timer fires against current
+      // data and captures the current epoch, so stale results are still gated.
+    },
+
+    cancelScheduled(): void {
       clearDebounceTimer()
     },
 

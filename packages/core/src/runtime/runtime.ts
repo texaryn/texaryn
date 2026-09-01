@@ -307,6 +307,9 @@ export function createFormRuntime(
     const mutatesData = isDataMutatingCommand(command)
     if (mutatesData) {
       scheduler.invalidate()
+      if (command.type === 'Reset') {
+        scheduler.cancelScheduled()
+      }
     }
 
     const { nextState, effects } = processCommand(state, command, currentDoc)

@@ -529,6 +529,46 @@ describe('FormRuntime validation scheduling', () => {
     runtime.destroy()
   })
 
+  it("unrelated field edit does not cancel another field's queued change validation", () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '', age: 0 },
+      hints: {
+        '/name': { validationTrigger: 'change' },
+        '/age': { validationTrigger: 'blur' },
+      },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+    const ageId = findFieldNode(runtime, '/age')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    vi.advanceTimersByTime(100)
+    runtime.dispatch({ type: 'SetValue', nodeId: ageId, value: 30 })
+    vi.advanceTimersByTime(200)
+
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('Reset cancels queued change validation', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    vi.advanceTimersByTime(100)
+    runtime.dispatch({ type: 'Reset' })
+    vi.advanceTimersByTime(200)
+
+    expect(validateFn).not.toHaveBeenCalled()
+    runtime.destroy()
+  })
+
   it('destroy cancels timers and prevents callbacks', () => {
     const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
     const port = makePort(() => simpleProjection, validateFn)

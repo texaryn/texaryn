@@ -165,15 +165,16 @@ describe('createValidationScheduler', () => {
     expect(onResult).not.toHaveBeenCalled()
   })
 
-  it('invalidate() cancels queued debounce timer', () => {
-    const { callbacks, runValidation } = makeCallbacks()
+  it('invalidate() lets queued debounce timer fire with current epoch', () => {
+    const { callbacks, runValidation, onResult } = makeCallbacks()
     const scheduler = createValidationScheduler(callbacks, 300)
 
     scheduler.schedule('change')
     scheduler.invalidate()
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(300)
 
-    expect(runValidation).not.toHaveBeenCalled()
+    expect(runValidation).toHaveBeenCalledTimes(1)
+    expect(onResult).toHaveBeenCalledTimes(1)
   })
 
   it('an immediate blur/submit does not orphan a queued change debounce timer', () => {
@@ -186,13 +187,36 @@ describe('createValidationScheduler', () => {
     scheduler.schedule('blur')
     expect(runValidation).toHaveBeenCalledTimes(1)
 
-    // invalidate() must still be able to cancel the still-pending change
-    // timer; if the reference were orphaned, this would fail to clear it
-    // and the stale change validation would run once the timer fires.
+    // invalidate() no longer cancels the still-pending change timer; it
+    // fires against current data and is gated by epoch at fire time via
+    // runValidationNow, not by being cancelled here.
     scheduler.invalidate()
     vi.advanceTimersByTime(300)
 
-    expect(runValidation).toHaveBeenCalledTimes(1)
+    expect(runValidation).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancelScheduled() cancels a queued debounce timer', () => {
+    const { callbacks, runValidation } = makeCallbacks()
+    const scheduler = createValidationScheduler(callbacks, 300)
+
+    scheduler.schedule('change')
+    scheduler.cancelScheduled()
+    vi.advanceTimersByTime(1000)
+
+    expect(runValidation).not.toHaveBeenCalled()
+  })
+
+  it('invalidate() does not cancel queued debounce timer but destroy() does', () => {
+    const { callbacks, runValidation } = makeCallbacks()
+    const scheduler = createValidationScheduler(callbacks, 300)
+
+    scheduler.schedule('change')
+    scheduler.invalidate()
+    scheduler.destroy()
+    vi.advanceTimersByTime(1000)
+
+    expect(runValidation).not.toHaveBeenCalled()
   })
 
   it('destroy() prevents in-flight async result from calling back', async () => {
