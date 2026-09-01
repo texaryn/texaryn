@@ -188,6 +188,8 @@ const runtime = createFormRuntime(port, {
 
 Validation remains full-form: `port.validate(data)` is called with the entire form data, and errors are distributed to nodes by their data pointers. Synchronous validators skip the `pending` state entirely.
 
+Errors are not displayed immediately. The runtime computes a `showErrors` flag per node: a field's errors become visible only when it is both `touched` (the user has interacted with it) and `invalid`. The form-level `visibleErrors` store aggregates all currently visible errors for use in error summaries. React's `useField` hook returns `showErrors`, and `getInputProps` sets `aria-invalid` and the error ID in `aria-describedby` only when `showErrors` is true.
+
 Pass hints to `createFormRuntime()` or, in React, to `useForm()`.
 
 ## Renderer registry
