@@ -508,6 +508,7 @@ describe('FormRuntime validation scheduling', () => {
     await flushMicrotasks()
 
     expect(runtime.getNodeState(nameId)!.errors.getSnapshot()).toEqual([])
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('idle')
     runtime.destroy()
   })
 
@@ -631,5 +632,54 @@ describe('FormRuntime validation scheduling', () => {
     expect(submission.status).toBe('idle')
     expect(submission.error).toBe(error)
     runtime.destroy()
+  })
+
+  it('submit and blur validations settle independently at the same epoch', async () => {
+    const submitDeferred = deferred<ValidationResult>()
+    const blurDeferred = deferred<ValidationResult>()
+    const queue = [submitDeferred.promise, blurDeferred.promise]
+    const validateFn = vi.fn(() => queue.shift()!)
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    // Submit and SetTouched are both dispatched without any intervening data
+    // mutation, so scheduler.invalidate() never runs and both validations
+    // share the same epoch. Only the `trigger === 'submit'` guard in
+    // onValidationResult keeps the blur result from advancing submission.
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(validateFn).toHaveBeenCalledTimes(2)
+
+    blurDeferred.resolve({ valid: true, errors: [] })
+    await blurDeferred.promise
+    await flushMicrotasks()
+
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('valid')
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    submitDeferred.resolve({ valid: true, errors: [] })
+    await submitDeferred.promise
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    runtime.destroy()
+  })
+
+  it('dispatch after destroy is a no-op', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, { initialData: { name: 'Alice' } })
+
+    runtime.destroy()
+    runtime.dispatch({ type: 'Submit' })
+
+    expect(validateFn).not.toHaveBeenCalled()
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
   })
 })

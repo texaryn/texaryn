@@ -309,6 +309,28 @@ export function createFormRuntime(
       state = { ...state, submission: { status: 'idle' } }
     }
 
+    if (mutatesData) {
+      // Reset nodes stuck at pending from an invalidated in-flight validation
+      batch(() => {
+        const nextNodes = new Map(state.nodes)
+        let changed = false
+        for (const [nodeId, nrs] of nextNodes) {
+          if (nrs.validation.status === 'pending') {
+            nextNodes.set(nodeId, { ...nrs, validation: { status: 'idle', errors: [] } })
+            const bundle = nodeStores.get(nodeId)
+            if (bundle) {
+              bundle.validationStatus.set('idle')
+              bundle.errors.set([])
+            }
+            changed = true
+          }
+        }
+        if (changed) {
+          state = { ...state, nodes: nextNodes }
+        }
+      })
+    }
+
     batch(() => {
       dataStore.set(state.data)
       submissionStore.set(state.submission)
