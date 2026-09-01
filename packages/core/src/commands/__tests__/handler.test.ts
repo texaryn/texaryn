@@ -113,7 +113,7 @@ describe('processCommand', () => {
       expect(interaction.modified).toBe(true)
     })
 
-    it('emits recompile effect (not validate)', () => {
+    it('emits recompile and validate/change effects', () => {
       const state = simpleState()
       const cmd: Command = { type: 'SetValue', nodeId: nid('name'), value: 'Bob' }
       const { effects } = processCommand(state, cmd, simpleDoc)
@@ -121,7 +121,11 @@ describe('processCommand', () => {
         type: 'recompile',
         reason: 'data-changed',
       })
-      expect(effects.some((e) => e.type === 'validate')).toBe(false)
+      expect(effects).toContainEqual({
+        type: 'validate',
+        nodeIds: [nid('name')],
+        trigger: 'change',
+      })
     })
 
     it('does not mutate original state', () => {
@@ -165,6 +169,20 @@ describe('processCommand', () => {
       )
       expect(nextState.nodes.get(nid('name'))!.interaction.touched).toBe(true)
     })
+
+    it('emits validate/blur effect', () => {
+      const state = simpleState()
+      const { effects } = processCommand(
+        state,
+        { type: 'SetTouched', nodeId: nid('name') },
+        simpleDoc,
+      )
+      expect(effects).toContainEqual({
+        type: 'validate',
+        nodeIds: [nid('name')],
+        trigger: 'blur',
+      })
+    })
   })
 
   describe('Submit', () => {
@@ -176,7 +194,13 @@ describe('processCommand', () => {
         simpleDoc,
       )
       expect(nextState.submission.status).toBe('validating')
-      expect(effects.some((e) => e.type === 'validate')).toBe(true)
+      const validateEffect = effects.find((e) => e.type === 'validate')
+      expect(validateEffect).toBeDefined()
+      expect(validateEffect).toEqual({
+        type: 'validate',
+        nodeIds: expect.arrayContaining([nid('name'), nid('age')]),
+        trigger: 'submit',
+      })
     })
   })
 
@@ -227,6 +251,16 @@ describe('processCommand', () => {
         simpleDoc,
       )
       expect(effects).toContainEqual({ type: 'recompile', reason: 'data-changed' })
+    })
+
+    it('emits no validate effect', () => {
+      const state = simpleState()
+      const { effects } = processCommand(
+        state,
+        { type: 'Reset' },
+        simpleDoc,
+      )
+      expect(effects.some((e) => e.type === 'validate')).toBe(false)
     })
   })
 
@@ -325,6 +359,20 @@ describe('processCommand', () => {
       )
       expect(effects).toContainEqual({ type: 'recompile', reason: 'data-changed' })
     })
+
+    it('emits validate/change effect', () => {
+      const state = arrayState([])
+      const { effects } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('list'), index: 0, value: 'a' },
+        arrayDoc,
+      )
+      expect(effects).toContainEqual({
+        type: 'validate',
+        nodeIds: [nid('list')],
+        trigger: 'change',
+      })
+    })
   })
 
   describe('RemoveItem', () => {
@@ -357,6 +405,20 @@ describe('processCommand', () => {
       )
       expect(nextState).toBe(state)
     })
+
+    it('emits validate/change effect', () => {
+      const state = arrayState(['a', 'b', 'c'])
+      const { effects } = processCommand(
+        state,
+        { type: 'RemoveItem', containerId: nid('list'), index: 1 },
+        arrayDoc,
+      )
+      expect(effects).toContainEqual({
+        type: 'validate',
+        nodeIds: [nid('list')],
+        trigger: 'change',
+      })
+    })
   })
 
   describe('MoveItem', () => {
@@ -388,6 +450,20 @@ describe('processCommand', () => {
         arrayDoc,
       )
       expect(nextState).toBe(state)
+    })
+
+    it('emits validate/change effect', () => {
+      const state = arrayState(['a', 'b', 'c'])
+      const { effects } = processCommand(
+        state,
+        { type: 'MoveItem', containerId: nid('list'), from: 0, to: 2 },
+        arrayDoc,
+      )
+      expect(effects).toContainEqual({
+        type: 'validate',
+        nodeIds: [nid('list')],
+        trigger: 'change',
+      })
     })
   })
 

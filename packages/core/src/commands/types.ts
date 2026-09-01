@@ -11,7 +11,7 @@ export type Command =
   | { type: 'Reset'; data?: unknown }
 
 export type Effect =
-  | { type: 'validate'; nodeIds: NodeId[] }
+  | { type: 'validate'; nodeIds: NodeId[]; trigger: 'blur' | 'change' | 'submit' }
   | { type: 'recompile'; reason: 'data-changed' | 'schema-changed' }
   | { type: 'executeAction'; actionType: string; args: unknown }
   | { type: 'notify'; event: string; payload: unknown }
