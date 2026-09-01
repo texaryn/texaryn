@@ -176,6 +176,25 @@ describe('createValidationScheduler', () => {
     expect(runValidation).not.toHaveBeenCalled()
   })
 
+  it('an immediate blur/submit does not orphan a queued change debounce timer', () => {
+    const { callbacks, runValidation } = makeCallbacks()
+    const scheduler = createValidationScheduler(callbacks, 300)
+
+    // Queue a debounced change, then an immediate blur runs synchronously
+    // without touching the change timer.
+    scheduler.schedule('change')
+    scheduler.schedule('blur')
+    expect(runValidation).toHaveBeenCalledTimes(1)
+
+    // invalidate() must still be able to cancel the still-pending change
+    // timer; if the reference were orphaned, this would fail to clear it
+    // and the stale change validation would run once the timer fires.
+    scheduler.invalidate()
+    vi.advanceTimersByTime(300)
+
+    expect(runValidation).toHaveBeenCalledTimes(1)
+  })
+
   it('destroy() prevents in-flight async result from calling back', async () => {
     const def = deferred<ValidationResult>()
     const { callbacks, onResult, onError } = makeCallbacks({ runValidation: () => def.promise })

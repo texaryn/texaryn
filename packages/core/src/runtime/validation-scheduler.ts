@@ -41,7 +41,6 @@ export function createValidationScheduler(
 
   function runValidationNow(trigger: ValidationTrigger): void {
     if (destroyed) return
-    debounceTimer = null
     const capturedEpoch = epoch
 
     let result: MaybePromise<ValidationResult>
@@ -72,7 +71,10 @@ export function createValidationScheduler(
       if (destroyed) return
       if (trigger === 'change') {
         clearDebounceTimer()
-        debounceTimer = setTimeout(() => runValidationNow('change'), debounceMs)
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null
+          runValidationNow('change')
+        }, debounceMs)
       } else {
         runValidationNow(trigger)
       }
