@@ -12,6 +12,8 @@ export { FormRoot } from './components/FormRoot.js'
 export type { FormRootProps } from './components/FormRoot.js'
 export { NodeRenderer } from './components/NodeRenderer.js'
 export type { NodeRendererProps } from './components/NodeRenderer.js'
+export { FieldErrors } from './components/FieldErrors.js'
+export type { FieldErrorsProps } from './components/FieldErrors.js'
 export { useRendererContext } from './components/renderer-context.js'
 export type { WidgetComponent, RendererContextValue } from './components/renderer-context.js'
 export {
