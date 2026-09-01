@@ -233,26 +233,33 @@ export function createFormRuntime(
     })
   }
 
+  function resetPendingNodes(): void {
+    const nextNodes = new Map(state.nodes)
+    let changed = false
+    for (const [nodeId, nodeRuntimeState] of nextNodes) {
+      if (nodeRuntimeState.validation.status !== 'pending') continue
+      nextNodes.set(nodeId, {
+        ...nodeRuntimeState,
+        validation: { ...nodeRuntimeState.validation, status: 'idle' },
+      })
+      const bundle = nodeStores.get(nodeId)
+      if (bundle) bundle.validationStatus.set('idle')
+      changed = true
+    }
+    if (changed) {
+      state = { ...state, nodes: nextNodes }
+    }
+  }
+
   function onValidationError(error: unknown, trigger: ValidationTrigger): void {
     if (destroyed) return
     batch(() => {
+      resetPendingNodes()
+
       if (trigger === 'submit') {
         state = { ...state, submission: { status: 'idle', error } }
         submissionStore.set(state.submission)
-        return
       }
-
-      const nextNodes = new Map(state.nodes)
-      for (const [nodeId, nodeRuntimeState] of nextNodes) {
-        if (nodeRuntimeState.validation.status !== 'pending') continue
-        nextNodes.set(nodeId, {
-          ...nodeRuntimeState,
-          validation: { ...nodeRuntimeState.validation, status: 'idle' },
-        })
-        const bundle = nodeStores.get(nodeId)
-        if (bundle) bundle.validationStatus.set('idle')
-      }
-      state = { ...state, nodes: nextNodes }
     })
   }
 
@@ -312,22 +319,7 @@ export function createFormRuntime(
     if (mutatesData) {
       // Reset nodes stuck at pending from an invalidated in-flight validation
       batch(() => {
-        const nextNodes = new Map(state.nodes)
-        let changed = false
-        for (const [nodeId, nrs] of nextNodes) {
-          if (nrs.validation.status === 'pending') {
-            nextNodes.set(nodeId, { ...nrs, validation: { status: 'idle', errors: [] } })
-            const bundle = nodeStores.get(nodeId)
-            if (bundle) {
-              bundle.validationStatus.set('idle')
-              bundle.errors.set([])
-            }
-            changed = true
-          }
-        }
-        if (changed) {
-          state = { ...state, nodes: nextNodes }
-        }
+        resetPendingNodes()
       })
     }
 

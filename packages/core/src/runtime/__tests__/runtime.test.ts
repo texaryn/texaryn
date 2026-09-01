@@ -619,9 +619,11 @@ describe('FormRuntime validation scheduling', () => {
     const def = deferred<ValidationResult>()
     const port = makeAsyncPort(def)
     const runtime = createFormRuntime(port, { initialData: { name: 'Alice' } })
+    const nameId = findFieldNode(runtime, '/name')
 
     runtime.dispatch({ type: 'Submit' })
     expect(runtime.submission.getSnapshot().status).toBe('validating')
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('pending')
 
     const error = new Error('validation service down')
     def.reject(error)
@@ -631,6 +633,7 @@ describe('FormRuntime validation scheduling', () => {
     const submission = runtime.submission.getSnapshot()
     expect(submission.status).toBe('idle')
     expect(submission.error).toBe(error)
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('idle')
     runtime.destroy()
   })
 
