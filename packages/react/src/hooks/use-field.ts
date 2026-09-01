@@ -39,7 +39,7 @@ export function useField(nodeId: NodeId): UseFieldReturn {
   const visible = useStore(nodeState?.visible ?? FALLBACK_VISIBLE)
   const disabled = useStore(nodeState?.disabled ?? FALLBACK_DISABLED)
   const showErrors = useStore(nodeState?.showErrors ?? FALLBACK_SHOW_ERRORS)
-  // Subscribed for re-render parity with the other six node stores, even
+  // Subscribed for re-render parity with the other seven node stores, even
   // though validation status is not part of this hook's return value.
   useStore(nodeState?.validationStatus ?? FALLBACK_VALIDATION_STATUS)
 

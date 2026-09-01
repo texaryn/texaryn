@@ -53,10 +53,7 @@ export interface DescriptionProps extends Record<string, unknown> {
   id: string
 }
 
-/**
- * Generate deterministic element ID from NodeId
- */
-function makeId(nodeId: string, suffix: string): string {
+export function makeId(nodeId: string, suffix: string): string {
   return `texaryn-${nodeId}-${suffix}`
 }
 

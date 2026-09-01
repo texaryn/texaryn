@@ -1,10 +1,7 @@
 import type { VisibleError } from '@texaryn/core'
 import { useFormContext } from '../context.js'
 import { useStore } from '../hooks/use-store.js'
-
-function makeInputId(nodeId: string): string {
-  return `texaryn-${nodeId}-input`
-}
+import { makeId } from '../props/field-props.js'
 
 export function ErrorSummary() {
   const runtime = useFormContext()
@@ -19,7 +16,7 @@ export function ErrorSummary() {
       <ul>
         {visibleErrors.map((entry: VisibleError) => (
           <li key={entry.nodeId}>
-            <a href={`#${makeInputId(entry.nodeId)}`}>
+            <a href={`#${makeId(entry.nodeId, 'input')}`}>
               {entry.fieldTitle ?? entry.pointer ?? entry.nodeId}
             </a>
             {': '}
