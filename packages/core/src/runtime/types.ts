@@ -9,6 +9,7 @@ export interface FormRuntimeOptions {
   initialData?: unknown
   hints?: UIHints
   onSubmit?: (data: unknown) => MaybePromise<void>
+  validationDebounceMs?: number
 }
 
 export interface NodeState {

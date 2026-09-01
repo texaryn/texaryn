@@ -50,7 +50,10 @@ function handleSetValue(
 
   return {
     nextState: { ...state, data: newData, nodes },
-    effects: [{ type: 'recompile', reason: 'data-changed' }],
+    effects: [
+      { type: 'recompile', reason: 'data-changed' },
+      { type: 'validate', nodeIds: [cmd.nodeId], trigger: 'change' },
+    ],
   }
 }
 
@@ -70,7 +73,10 @@ function handleInsertItem(
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
-    effects: [{ type: 'recompile', reason: 'data-changed' }],
+    effects: [
+      { type: 'recompile', reason: 'data-changed' },
+      { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
+    ],
   }
 }
 
@@ -90,7 +96,10 @@ function handleRemoveItem(
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
-    effects: [{ type: 'recompile', reason: 'data-changed' }],
+    effects: [
+      { type: 'recompile', reason: 'data-changed' },
+      { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
+    ],
   }
 }
 
@@ -114,7 +123,10 @@ function handleMoveItem(
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
-    effects: [{ type: 'recompile', reason: 'data-changed' }],
+    effects: [
+      { type: 'recompile', reason: 'data-changed' },
+      { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
+    ],
   }
 }
 
@@ -130,7 +142,10 @@ function handleSetTouched(
       interaction: { ...prev.interaction, touched: true },
     })
   }
-  return { nextState: { ...state, nodes }, effects: [] }
+  return {
+    nextState: { ...state, nodes },
+    effects: [{ type: 'validate', nodeIds: [cmd.nodeId], trigger: 'blur' }],
+  }
 }
 
 function handleSubmit(state: RuntimeState): CommandResult {
@@ -140,7 +155,7 @@ function handleSubmit(state: RuntimeState): CommandResult {
       ...state,
       submission: { status: 'validating' },
     },
-    effects: [{ type: 'validate', nodeIds: allNodeIds }],
+    effects: [{ type: 'validate', nodeIds: allNodeIds, trigger: 'submit' }],
   }
 }
 
