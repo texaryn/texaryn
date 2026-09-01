@@ -1,9 +1,19 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createFormRuntime } from '../runtime.js'
 import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection } from '../../schema/port.js'
-import type { JsonPointer, NodeId, ValidationResult } from '../../types.js'
+import type { JsonPointer, NodeId, ValidationResult, MaybePromise } from '../../types.js'
 
 function toPointer(s: string): JsonPointer { return s as JsonPointer }
+
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {
+  let resolve!: (v: T) => void
+  let reject!: (e: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
 
 function makeProjection(
   entries: Array<[string, Partial<NodeProjection> & { children?: ChildProjection[] }]>,
@@ -25,12 +35,16 @@ function makeProjection(
 
 function makePort(
   projectionFn: (data: unknown) => SchemaProjection,
-  validateFn?: (data: unknown) => ValidationResult,
+  validateFn?: (data: unknown) => MaybePromise<ValidationResult>,
 ): SchemaEvaluationPort {
   return {
     project: projectionFn,
     validate: validateFn ?? (() => ({ valid: true, errors: [] })),
   }
+}
+
+function makeAsyncPort(deferred: { promise: Promise<ValidationResult> }): SchemaEvaluationPort {
+  return makePort(() => simpleProjection, () => deferred.promise)
 }
 
 const simpleProjection = makeProjection([
@@ -57,7 +71,9 @@ function findFieldNode(runtime: ReturnType<typeof createFormRuntime>, dataPointe
 // Unlike simpleProjection, this reprojects on every call so that array item
 // pointers ('/tags/0', '/tags/1', ...) exist for however many items are
 // currently in the data, letting the compiler emit a real child node per item.
-function makeArrayPort(): SchemaEvaluationPort {
+function makeArrayPort(
+  validateFn?: (data: unknown) => MaybePromise<ValidationResult>,
+): SchemaEvaluationPort {
   return makePort((data) => {
     const tags = ((data as Record<string, unknown> | undefined)?.tags as unknown[] | undefined) ?? []
     const entries: Array<[string, Partial<NodeProjection> & { children?: ChildProjection[] }]> = [
@@ -71,7 +87,13 @@ function makeArrayPort(): SchemaEvaluationPort {
       entries.push([`/tags/${i}`, { type: 'string' }])
     }
     return makeProjection(entries)
-  })
+  }, validateFn)
+}
+
+async function flushMicrotasks(times = 5): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve()
+  }
 }
 
 function findArrayContainerId(runtime: ReturnType<typeof createFormRuntime>): NodeId {
@@ -280,6 +302,334 @@ describe('FormRuntime', () => {
     const item1Id = findFieldNode(runtime, '/tags/1')
     expect(runtime.getNodeState(item1Id)!.value.getSnapshot()).toBe('c')
 
+    runtime.destroy()
+  })
+})
+
+describe('FormRuntime validation scheduling', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('blur trigger validates on SetTouched when hint is blur', () => {
+    const validateFn = vi.fn(() => ({
+      valid: false,
+      errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+    }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('invalid')
+    expect(runtime.getNodeState(nameId)!.errors.getSnapshot().length).toBe(1)
+    runtime.destroy()
+  })
+
+  it('blur trigger does not validate on SetValue', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+
+    expect(validateFn).not.toHaveBeenCalled()
+    runtime.destroy()
+  })
+
+  it('change trigger debounces multiple SetValue into one validation', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'B' })
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bo' })
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    expect(validateFn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(300)
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('change trigger validates on InsertItem', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makeArrayPort(validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { tags: ['a'] },
+      hints: { '/tags': { validationTrigger: 'change' } },
+    })
+    const arrayId = findArrayContainerId(runtime)
+
+    runtime.dispatch({ type: 'InsertItem', containerId: arrayId, index: 0, value: 'z' })
+    expect(validateFn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(300)
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('default debounce is 300ms', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    vi.advanceTimersByTime(299)
+    expect(validateFn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('custom validationDebounceMs is respected', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+      validationDebounceMs: 50,
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    vi.advanceTimersByTime(49)
+    expect(validateFn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('no hint means no automatic blur/change validation', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, { initialData: { name: '' } })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    vi.advanceTimersByTime(1000)
+
+    expect(validateFn).not.toHaveBeenCalled()
+    runtime.destroy()
+  })
+
+  it('submit always validates regardless of hints', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, { initialData: { name: 'Alice' } })
+
+    runtime.dispatch({ type: 'Submit' })
+
+    expect(validateFn).toHaveBeenCalledTimes(1)
+    runtime.destroy()
+  })
+
+  it('sync validation never publishes pending status', () => {
+    const port = makePort(() => simpleProjection, () => ({ valid: true, errors: [] }))
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+    const seenStatuses: string[] = []
+    runtime.getNodeState(nameId)!.validationStatus.subscribe(() => {
+      seenStatuses.push(runtime.getNodeState(nameId)!.validationStatus.getSnapshot())
+    })
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+
+    expect(seenStatuses).not.toContain('pending')
+    runtime.destroy()
+  })
+
+  it('async validation publishes pending then result', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('pending')
+
+    def.resolve({ valid: true, errors: [] })
+    await def.promise
+    await flushMicrotasks()
+
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('valid')
+    runtime.destroy()
+  })
+
+  it('stale async result is dropped after data mutation', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('pending')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+
+    def.resolve({
+      valid: false,
+      errors: [{ instancePointer: '/name', keyword: 'required', params: {} }],
+    })
+    await def.promise
+    await flushMicrotasks()
+
+    expect(runtime.getNodeState(nameId)!.errors.getSnapshot()).toEqual([])
+    runtime.destroy()
+  })
+
+  it('Reset invalidates queued and in-flight validation', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    runtime.dispatch({ type: 'Reset' })
+    vi.advanceTimersByTime(1000)
+
+    expect(validateFn).not.toHaveBeenCalled()
+    runtime.destroy()
+  })
+
+  it('destroy cancels timers and prevents callbacks', () => {
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    runtime.destroy()
+    vi.advanceTimersByTime(1000)
+
+    expect(validateFn).not.toHaveBeenCalled()
+  })
+
+  it('background blur/change result cannot advance submission to submitting', async () => {
+    const submitDeferred = deferred<ValidationResult>()
+    const blurDeferred = deferred<ValidationResult>()
+    const queue = [submitDeferred.promise, blurDeferred.promise]
+    const validateFn = vi.fn(() => queue.shift()!)
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+
+    blurDeferred.resolve({ valid: true, errors: [] })
+    await blurDeferred.promise
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    submitDeferred.resolve({ valid: true, errors: [] })
+    await submitDeferred.promise
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    runtime.destroy()
+  })
+
+  it('editing while async submit validation is running returns submission to idle', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    const runtime = createFormRuntime(port, { initialData: { name: 'Alice' } })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+
+    def.resolve({ valid: true, errors: [] })
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+    runtime.destroy()
+  })
+
+  it('rejected async validation does not leave nodes stuck in pending', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('pending')
+
+    def.reject(new Error('boom'))
+    await def.promise.catch(() => {})
+    await flushMicrotasks()
+
+    expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('idle')
+    runtime.destroy()
+  })
+
+  it('rejected async submit validation returns submission to idle with error', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    const runtime = createFormRuntime(port, { initialData: { name: 'Alice' } })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    const error = new Error('validation service down')
+    def.reject(error)
+    await def.promise.catch(() => {})
+    await flushMicrotasks()
+
+    const submission = runtime.submission.getSnapshot()
+    expect(submission.status).toBe('idle')
+    expect(submission.error).toBe(error)
     runtime.destroy()
   })
 })

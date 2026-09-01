@@ -8,8 +8,23 @@ import { createStore } from '../state/store.js'
 import type { WritableStore } from '../state/store.js'
 import { batch } from '../state/signal.js'
 import { getAtPointer } from '../json-pointer.js'
-import type { NodeId, ValidationError } from '../types.js'
+import type { NodeId, ValidationError, ValidationResult } from '../types.js'
 import type { FormRuntime, FormRuntimeOptions, NodeState } from './types.js'
+import { createValidationScheduler } from './validation-scheduler.js'
+import type { ValidationScheduler, ValidationTrigger } from './validation-scheduler.js'
+
+function isDataMutatingCommand(command: Command): boolean {
+  switch (command.type) {
+    case 'SetValue':
+    case 'InsertItem':
+    case 'RemoveItem':
+    case 'MoveItem':
+    case 'Reset':
+      return true
+    default:
+      return false
+  }
+}
 
 interface NodeStoreBundle {
   value: WritableStore<unknown>
@@ -142,42 +157,29 @@ export function createFormRuntime(
     }
   }
 
-  function applyValidationResult(result: { valid: boolean; errors: ValidationError[] }): void {
-    batch(() => {
-      const errorsByPointer = new Map<string, ValidationError[]>()
-      for (const error of result.errors) {
-        const list = errorsByPointer.get(error.instancePointer) ?? []
-        list.push(error)
-        errorsByPointer.set(error.instancePointer, list)
-      }
+  function applyNodeValidationResult(result: ValidationResult): void {
+    const errorsByPointer = new Map<string, ValidationError[]>()
+    for (const error of result.errors) {
+      const list = errorsByPointer.get(error.instancePointer) ?? []
+      list.push(error)
+      errorsByPointer.set(error.instancePointer, list)
+    }
 
-      const nextNodes = new Map(state.nodes)
-      for (const [nodeId, nodeRuntimeState] of nextNodes) {
-        const uiNode = currentDoc.nodes[nodeId as string]
-        if (uiNode?.dataPointer == null) continue
-        const nodeErrors = errorsByPointer.get(uiNode.dataPointer) ?? []
-        const status = nodeErrors.length > 0 ? 'invalid' : 'valid'
-        nextNodes.set(nodeId, { ...nodeRuntimeState, validation: { status, errors: nodeErrors } })
-        const bundle = nodeStores.get(nodeId)
-        if (bundle) {
-          bundle.errors.set(nodeErrors)
-          bundle.validationStatus.set(status)
-        }
+    const nextNodes = new Map(state.nodes)
+    for (const [nodeId, nodeRuntimeState] of nextNodes) {
+      const uiNode = currentDoc.nodes[nodeId as string]
+      if (uiNode?.dataPointer == null) continue
+      const nodeErrors = errorsByPointer.get(uiNode.dataPointer) ?? []
+      const status = nodeErrors.length > 0 ? 'invalid' : 'valid'
+      nextNodes.set(nodeId, { ...nodeRuntimeState, validation: { status, errors: nodeErrors } })
+      const bundle = nodeStores.get(nodeId)
+      if (bundle) {
+        bundle.errors.set(nodeErrors)
+        bundle.validationStatus.set(status)
       }
+    }
 
-      let submission = state.submission
-      const wasSubmitting = state.submission.status === 'validating'
-      if (wasSubmitting) {
-        submission = result.valid ? { status: 'submitting' } : { status: 'idle' }
-      }
-
-      state = { ...state, nodes: nextNodes, submission }
-      submissionStore.set(submission)
-
-      if (wasSubmitting && result.valid) {
-        void runOnSubmit()
-      }
-    })
+    state = { ...state, nodes: nextNodes }
   }
 
   function runOnSubmit(): Promise<void> {
@@ -198,12 +200,86 @@ export function createFormRuntime(
       })
   }
 
-  function handleValidate(): void {
-    Promise.resolve(port.validate(state.data))
-      .then((result) => {
-        if (!destroyed) applyValidationResult(result)
-      })
-      .catch(() => {})
+  function onValidationPending(): void {
+    if (destroyed) return
+    batch(() => {
+      const nextNodes = new Map(state.nodes)
+      for (const [nodeId, nodeRuntimeState] of nextNodes) {
+        nextNodes.set(nodeId, {
+          ...nodeRuntimeState,
+          validation: { ...nodeRuntimeState.validation, status: 'pending' },
+        })
+        const bundle = nodeStores.get(nodeId)
+        if (bundle) bundle.validationStatus.set('pending')
+      }
+      state = { ...state, nodes: nextNodes }
+    })
+  }
+
+  function onValidationResult(result: ValidationResult, trigger: ValidationTrigger): void {
+    if (destroyed) return
+    batch(() => {
+      applyNodeValidationResult(result)
+
+      if (trigger === 'submit' && state.submission.status === 'validating') {
+        const submission: SubmissionState = result.valid
+          ? { status: 'submitting' }
+          : { status: 'idle' }
+        state = { ...state, submission }
+        submissionStore.set(submission)
+
+        if (result.valid) void runOnSubmit()
+      }
+    })
+  }
+
+  function onValidationError(error: unknown, trigger: ValidationTrigger): void {
+    if (destroyed) return
+    batch(() => {
+      if (trigger === 'submit') {
+        state = { ...state, submission: { status: 'idle', error } }
+        submissionStore.set(state.submission)
+        return
+      }
+
+      const nextNodes = new Map(state.nodes)
+      for (const [nodeId, nodeRuntimeState] of nextNodes) {
+        if (nodeRuntimeState.validation.status !== 'pending') continue
+        nextNodes.set(nodeId, {
+          ...nodeRuntimeState,
+          validation: { ...nodeRuntimeState.validation, status: 'idle' },
+        })
+        const bundle = nodeStores.get(nodeId)
+        if (bundle) bundle.validationStatus.set('idle')
+      }
+      state = { ...state, nodes: nextNodes }
+    })
+  }
+
+  const scheduler: ValidationScheduler = createValidationScheduler(
+    {
+      runValidation: () => port.validate(state.data),
+      onPending: onValidationPending,
+      onResult: onValidationResult,
+      onError: onValidationError,
+    },
+    options.validationDebounceMs,
+  )
+
+  function hintMatchesTrigger(nodeIds: NodeId[], trigger: ValidationTrigger): boolean {
+    return nodeIds.some((nodeId) => {
+      const uiNode = currentDoc.nodes[nodeId as string]
+      const pointer = uiNode?.dataPointer
+      if (pointer == null) return false
+      return options.hints?.[pointer]?.validationTrigger === trigger
+    })
+  }
+
+  function handleValidateEffect(effect: Extract<Effect, { type: 'validate' }>): void {
+    if (effect.trigger !== 'submit' && !hintMatchesTrigger(effect.nodeIds, effect.trigger)) {
+      return
+    }
+    scheduler.schedule(effect.trigger)
   }
 
   function handleEffect(effect: Effect): void {
@@ -212,7 +288,7 @@ export function createFormRuntime(
         handleRecompile()
         break
       case 'validate':
-        handleValidate()
+        handleValidateEffect(effect)
         break
       default:
         break
@@ -221,8 +297,18 @@ export function createFormRuntime(
 
   function dispatch(command: Command): void {
     if (destroyed) return
+    const mutatesData = isDataMutatingCommand(command)
+    if (mutatesData) {
+      scheduler.invalidate()
+    }
+
     const { nextState, effects } = processCommand(state, command, currentDoc)
     state = nextState
+
+    if (mutatesData && state.submission.status === 'validating') {
+      state = { ...state, submission: { status: 'idle' } }
+    }
+
     batch(() => {
       dataStore.set(state.data)
       submissionStore.set(state.submission)
@@ -239,6 +325,7 @@ export function createFormRuntime(
 
   function destroy(): void {
     destroyed = true
+    scheduler.destroy()
     nodeStores.clear()
   }
 
