@@ -14,6 +14,7 @@ export { NodeRenderer } from './components/NodeRenderer.js'
 export type { NodeRendererProps } from './components/NodeRenderer.js'
 export { FieldErrors } from './components/FieldErrors.js'
 export type { FieldErrorsProps } from './components/FieldErrors.js'
+export { ErrorSummary } from './components/ErrorSummary.js'
 export { useRendererContext } from './components/renderer-context.js'
 export type { WidgetComponent, RendererContextValue } from './components/renderer-context.js'
 export {
