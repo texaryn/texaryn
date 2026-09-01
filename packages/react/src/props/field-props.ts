@@ -10,6 +10,7 @@ export interface FieldState {
   touched: boolean
   visible: boolean
   disabled: boolean
+  showErrors: boolean
   onChange: (value: unknown) => void
   onBlur: () => void
 }
@@ -23,7 +24,7 @@ export interface InputProps extends Record<string, unknown> {
   value: unknown
   disabled: boolean
   'aria-required': boolean
-  'aria-invalid': boolean
+  'aria-invalid'?: boolean
   'aria-describedby'?: string
   onChange: (value: unknown) => void
   onBlur: () => void
@@ -43,7 +44,6 @@ export interface LabelProps extends Record<string, unknown> {
 export interface ErrorProps extends Record<string, unknown> {
   id: string
   role: 'alert'
-  'aria-live': 'polite'
 }
 
 /**
@@ -66,29 +66,33 @@ function makeId(nodeId: string, suffix: string): string {
  */
 export function getInputProps(node: FieldNode, fieldState: FieldState): InputProps {
   const id = makeId(node.id, 'input')
-  const hasErrors = fieldState.errors.length > 0
   const hasDescription = Boolean(node.annotations?.description)
 
-  // Build aria-describedby from error and description IDs
+  // Build aria-describedby from description and error IDs, in that order
   const describedByIds: string[] = []
-  if (hasErrors) {
-    describedByIds.push(makeId(node.id, 'error'))
-  }
   if (hasDescription) {
     describedByIds.push(makeId(node.id, 'description'))
   }
+  if (fieldState.showErrors && fieldState.errors.length > 0) {
+    describedByIds.push(makeId(node.id, 'error'))
+  }
 
-  return {
+  const props: InputProps = {
     id,
     name: node.dataPointer || node.id,
     value: fieldState.value,
     disabled: fieldState.disabled,
     'aria-required': Boolean(node.constraints?.required),
-    'aria-invalid': hasErrors,
     'aria-describedby': describedByIds.length > 0 ? describedByIds.join(' ') : undefined,
     onChange: fieldState.onChange,
     onBlur: fieldState.onBlur,
   }
+
+  if (fieldState.showErrors && fieldState.errors.length > 0) {
+    props['aria-invalid'] = true
+  }
+
+  return props
 }
 
 /**
@@ -108,7 +112,6 @@ export function getErrorProps(node: FieldNode): ErrorProps {
   return {
     id: makeId(node.id, 'error'),
     role: 'alert',
-    'aria-live': 'polite',
   }
 }
 

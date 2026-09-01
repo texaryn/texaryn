@@ -116,6 +116,28 @@ describe('useField', () => {
     const { result } = renderHook(() => useField('nonexistent' as NodeId), { wrapper })
     expect(result.current.value).toBeUndefined()
     expect(result.current.errors).toEqual([])
+    expect(result.current.showErrors).toBe(false)
+    runtime.destroy()
+  })
+
+  it('returns showErrors from node state', () => {
+    const port: SchemaEvaluationPort = {
+      project: () => simpleProjection,
+      validate: () => ({
+        valid: false,
+        errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+      }),
+    }
+    const runtime = createFormRuntime(port, {
+      initialData: { name: '' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nodeId = findFieldNodeId(runtime, '/name')
+    const wrapper = createProviderWrapper(runtime)
+    const { result } = renderHook(() => useField(nodeId), { wrapper })
+    expect(result.current.showErrors).toBe(false)
+    act(() => { result.current.onBlur() })
+    expect(result.current.showErrors).toBe(true)
     runtime.destroy()
   })
 })

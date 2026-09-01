@@ -26,6 +26,7 @@ function makeFieldState(overrides?: Record<string, unknown>) {
     touched: false,
     visible: true,
     disabled: false,
+    showErrors: false,
     onChange: () => {},
     onBlur: () => {},
     ...overrides,
@@ -46,23 +47,44 @@ describe('getInputProps', () => {
     expect(props['aria-required']).toBe(true)
   })
 
-  it('sets aria-invalid when errors exist', () => {
+  it('aria-invalid is absent when showErrors is false even with errors', () => {
     const node = makeFieldNode()
     const state = makeFieldState({
       errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+      showErrors: false,
+    })
+    const props = getInputProps(node, state)
+    expect(props['aria-invalid']).toBeUndefined()
+  })
+
+  it('aria-invalid is true when showErrors is true and errors exist', () => {
+    const node = makeFieldNode()
+    const state = makeFieldState({
+      errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+      showErrors: true,
     })
     const props = getInputProps(node, state)
     expect(props['aria-invalid']).toBe(true)
   })
 
-  it('sets aria-describedby combining error and description', () => {
+  it('aria-describedby includes error ID only when showErrors is true', () => {
     const node = makeFieldNode()
     const state = makeFieldState({
       errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+      showErrors: true,
     })
     const props = getInputProps(node, state)
-    expect(props['aria-describedby']).toContain('texaryn-node_1-error')
-    expect(props['aria-describedby']).toContain('texaryn-node_1-description')
+    expect(props['aria-describedby']).toBe('texaryn-node_1-description texaryn-node_1-error')
+  })
+
+  it('aria-describedby has only description when showErrors is false with errors', () => {
+    const node = makeFieldNode()
+    const state = makeFieldState({
+      errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
+      showErrors: false,
+    })
+    const props = getInputProps(node, state)
+    expect(props['aria-describedby']).toBe('texaryn-node_1-description')
   })
 
   it('aria-describedby has only description when no errors', () => {
@@ -71,7 +93,7 @@ describe('getInputProps', () => {
     expect(props['aria-describedby']).toBe('texaryn-node_1-description')
   })
 
-  it('aria-describedby is undefined when no description and no errors', () => {
+  it('aria-describedby is undefined when no description and showErrors is false', () => {
     const node = makeFieldNode({ annotations: {} })
     const props = getInputProps(node, makeFieldState())
     expect(props['aria-describedby']).toBeUndefined()
@@ -94,12 +116,12 @@ describe('getLabelProps', () => {
 })
 
 describe('getErrorProps', () => {
-  it('returns role alert and aria-live polite', () => {
+  it('returns role alert without aria-live', () => {
     const node = makeFieldNode()
     const props = getErrorProps(node)
     expect(props.id).toBe('texaryn-node_1-error')
     expect(props.role).toBe('alert')
-    expect(props['aria-live']).toBe('polite')
+    expect(props).not.toHaveProperty('aria-live')
   })
 })
 
