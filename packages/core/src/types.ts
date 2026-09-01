@@ -24,3 +24,10 @@ export interface ValidationError {
   message?: string
   params: Record<string, unknown>
 }
+
+export interface VisibleError {
+  nodeId: NodeId
+  fieldTitle: string | undefined
+  pointer: JsonPointer | null
+  errors: ValidationError[]
+}
