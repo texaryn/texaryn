@@ -165,6 +165,29 @@ const hints = {
 }
 ```
 
+Hints can also control when validation runs:
+
+```ts
+const hints = {
+  '/email': { validationTrigger: 'blur' },
+  '/search': { validationTrigger: 'change' },
+}
+```
+
+Three triggers are supported: `blur` validates on field blur (`SetTouched`), `change` validates after a debounce on value changes (`SetValue`, array mutations), and `submit` validates only on form submission. Fields without a `validationTrigger` hint are not automatically validated on blur or change; submit always validates the entire form regardless of hints.
+
+The change debounce defaults to 300ms and can be configured:
+
+```ts
+const runtime = createFormRuntime(port, {
+  initialData,
+  hints,
+  validationDebounceMs: 500,
+})
+```
+
+Validation remains full-form: `port.validate(data)` is called with the entire form data, and errors are distributed to nodes by their data pointers. Synchronous validators skip the `pending` state entirely.
+
 Pass hints to `createFormRuntime()` or, in React, to `useForm()`.
 
 ## Renderer registry
