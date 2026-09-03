@@ -1,5 +1,5 @@
 ---
-'@texaryn/core': minor
+'@texaryn/core': patch
 ---
 
 Add submission lifecycle with snapshot semantics.
