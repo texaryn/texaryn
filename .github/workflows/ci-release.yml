@@ -66,7 +66,7 @@ jobs:
           if [[ "${{ needs.changeset.result }}" != "success" && "${{ needs.changeset.result }}" != "skipped" ]]; then exit 1; fi
 
   changesets:
-    if: github.event_name == 'push'
+    if: ${{ !cancelled() && github.event_name == 'push' && needs.ci.result == 'success' }}
     needs: ci
     runs-on: ubuntu-latest
     permissions:
@@ -83,7 +83,7 @@ jobs:
         uses: changesets/action@v2
         with:
           version-script: pnpm version-packages
-          pr-title: "Version Packages (alpha)"
+          pr-title: "Version Packages"
           commit-message: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
