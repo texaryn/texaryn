@@ -1,5 +1,11 @@
 # @texaryn/core
 
+## 0.1.2
+
+### Patch Changes
+
+- 25cb16e: Add focused npm search keywords and GitHub Sponsors funding metadata to the public packages.
+
 ## 0.1.1
 
 ### Patch Changes
