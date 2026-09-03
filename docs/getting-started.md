@@ -116,7 +116,7 @@ runtime.dispatch({ type: 'Submit' })
 
 Texaryn validates per field based on the `validationTrigger` hint:
 
-- `'blur'`: validates when the user leaves the field (default for most fields).
+- `'blur'`: validates when the user leaves the field.
 - `'change'`: validates as the user types, with debounce.
 - `'submit'`: validates only on submission.
 

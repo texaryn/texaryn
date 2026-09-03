@@ -2,7 +2,7 @@
 
 JSON Schema evaluation and validation adapter for Texaryn, backed by `json-schema-library`.
 
-> Status: early alpha. Public APIs may change before 1.0.
+> Status: pre-1.0. Public APIs may change before 1.0.
 
 ## Install
 

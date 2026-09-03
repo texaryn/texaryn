@@ -2,7 +2,7 @@
 
 React bindings, hooks, prop getters, renderer components, and default widgets for Texaryn.
 
-> Status: early alpha. Public APIs may change before 1.0.
+> Status: pre-1.0. Public APIs may change before 1.0.
 
 ## Install
 
