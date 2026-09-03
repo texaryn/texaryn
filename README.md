@@ -18,6 +18,10 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://texaryn.github.io/texaryn/"><strong>Live demo</strong></a>: paste any JSON Schema and watch the form, data and submission state update as you type.
+</p>
+
 ---
 
 > **Status: pre-1.0.** Texaryn is under active development and public APIs may change before 1.0.
