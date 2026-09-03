@@ -1024,6 +1024,39 @@ describe('submission lifecycle', () => {
     expect(onSubmitCalled).toBe(false)
     runtime.destroy()
   })
+
+  it('full Submit-validate-onSubmit-edit-blur-resolve chain', async () => {
+    let receivedData: unknown
+    const submitDef = deferred<void>()
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+      onSubmit: async (data) => {
+        receivedData = data
+        await submitDef.promise
+      },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    validateFn.mockClear()
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(validateFn).not.toHaveBeenCalled()
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Bob' })
+
+    submitDef.resolve()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    expect(receivedData).toEqual({ name: 'Alice' })
+    runtime.destroy()
+  })
 })
 
 describe('showErrors display policy', () => {
