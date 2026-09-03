@@ -56,6 +56,25 @@ afterEach(() => {
 })
 
 describe('createValidationScheduler', () => {
+  it('runValidation receives the trigger argument', () => {
+    const { callbacks, runValidation } = makeCallbacks()
+    const scheduler = createValidationScheduler(callbacks)
+
+    scheduler.schedule('submit')
+
+    expect(runValidation).toHaveBeenCalledWith('submit')
+  })
+
+  it('debounced change passes trigger to runValidation', () => {
+    const { callbacks, runValidation } = makeCallbacks()
+    const scheduler = createValidationScheduler(callbacks, 300)
+
+    scheduler.schedule('change')
+    vi.advanceTimersByTime(300)
+
+    expect(runValidation).toHaveBeenCalledWith('change')
+  })
+
   it('schedule("blur") calls runValidation and onResult synchronously for sync validators', () => {
     const { callbacks, runValidation, onResult } = makeCallbacks({
       runValidation: () => validResult,
