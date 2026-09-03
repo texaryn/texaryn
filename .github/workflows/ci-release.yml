@@ -83,7 +83,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      should-publish: ${{ steps.changesets.outputs['has-changesets'] == 'false' }}
+      should-publish: ${{ steps.changesets.outputs['has-changesets'] == 'false' && steps.registry.outputs.should-publish == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,6 +97,12 @@ jobs:
           commit-message: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # No pending changesets does not mean something is unpublished. Publish
+      # only when the registry lacks an exact package.json version, or cannot say.
+      - name: Check the registry for unpublished versions
+        id: registry
+        if: steps.changesets.outputs['has-changesets'] == 'false'
+        run: node scripts/check-unpublished-packages.mjs
 
   publish:
     if: ${{ !cancelled() && needs.changesets.result == 'success' && needs.changesets.outputs.should-publish == 'true' }}
@@ -113,6 +119,11 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           registry-url: https://registry.npmjs.org
+      # .nvmrc pins only the Node major, so the bundled npm drifts with the
+      # runner image. Trusted publishing needs npm 11.5.1 or later; npm 12
+      # changes publish behaviour and is not adopted implicitly.
+      - name: Pin npm for publishing
+        run: npm install --global npm@11.19.1
       - run: pnpm build
       - id: publish
         uses: changesets/action@v2

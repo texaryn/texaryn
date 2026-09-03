@@ -22,7 +22,11 @@ After merging:
 
 ## Publish
 
-After the Version Packages PR merges, the `changesets` job finds no pending changesets and sets `should-publish` to true, so the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
+After the Version Packages PR merges, the `changesets` job finds no pending changesets and runs `scripts/check-unpublished-packages.mjs`, which asks the registry for the exact version in each of the three public `package.json` files. Because the merge just raised those versions, they are missing, `should-publish` is true and the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
+
+The check fails open. A 404 for any package means publish. A 5xx, a timeout or any other answer the script cannot classify also means publish, so an npm outage can delay a release at the gate but can never skip one. Only three confirmed 200 responses stop the job.
+
+The `publish` job pins npm to 11.19.1 before building. `.nvmrc` pins only the Node major, so the npm bundled with the runner's Node 24 build drifts between runs; trusted publishing needs npm 11.5.1 or later, and npm 12 changes publish behaviour.
 
 Once approved, the job:
 
@@ -32,7 +36,9 @@ Once approved, the job:
 
 ## Later pushes to main
 
-Any later push to `main` with no pending changesets also sets `should-publish` to true, so the `publish` job starts and waits at the same gate even when there is nothing to release. Approving it runs `changeset publish`, which compares each package version against the registry, finds every version already published, and exits without publishing. The GitHub release steps run only when the action reports `published == 'true'`, so they do not run either. A waiting `publish` deployment on such a push is expected and is not a release signal. Approve it and let it exit, or reject it, which marks that run failed. An unreviewed deployment expires after 30 days.
+A later push to `main` with no pending changesets and all three versions already on npm stops before the gate: the registry check returns three 200s, `should-publish` is false and `publish` is skipped. No deployment waits and nothing needs reviewing.
+
+A waiting `publish` deployment on a changeset-free push therefore means one of two things: the registry does not have one of the versions (a partial publish, see Recovery) or it could not be consulted. Approve it and `changeset publish` does only what is needed, or reject it. Do not leave it waiting: the workflow's concurrency group lets one run per branch through at a time, and a run parked at the gate holds that slot, so every later push to `main` sits at "pending" until the deployment is approved or rejected.
 
 ## Post-publish
 
@@ -45,5 +51,7 @@ From a machine with an npm login:
 ## Recovery
 
 If the `changesets` or `publish` job is skipped after a push to main without its condition being evaluated, look for a skipped job upstream in the `needs` chain. The `changeset` job runs only on pull_request events, so on every push it is skipped, and GitHub propagates that skip to every downstream job whose `if` lacks a status function, even through intermediate jobs that ran. The `changesets` job needed `!cancelled()` for this in #25, and `publish` needed it in #27; between the two fixes the 0.1.0 merge ran `changesets` and skipped `publish` (run 33786185407). Any job downstream of a job that can be skipped needs a status function in its `if`, in the shape `${{ !cancelled() && needs.<job>.result == 'success' && <gate> }}`.
+
+If `publish` fails after some packages were published, the group is inconsistent: on 2026-09-03 an npm incident left `@texaryn/core@0.1.1` on the registry while `react` and `schema-json` stayed at 0.1.0 and no tags or release were created. Wait until the registry lists the published versions, then rerun the failed job (`gh run rerun <run-id> --failed`) and approve the deployment. `changeset publish` skips versions the registry already has and finishes the rest, and the tag and release steps run on the completed group. Rerunning before the registry has caught up makes `changeset publish` retry the published package and fail again.
 
 If the Version Packages PR proposes an alpha version instead of a stable one, prerelease mode was not exited on main before merging.
