@@ -2,8 +2,21 @@
   "name": "@texaryn/schema-json",
   "version": "0.1.1",
   "description": "JSON Schema evaluation and validation adapter for Texaryn",
+  "keywords": [
+    "json-schema",
+    "json-schema-form",
+    "validation",
+    "schema",
+    "forms",
+    "schema-driven",
+    "typescript"
+  ],
   "type": "module",
   "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/texaryn/texaryn.git",

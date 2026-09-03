@@ -2,8 +2,24 @@
   "name": "@texaryn/core",
   "version": "0.1.1",
   "description": "Framework-neutral UI IR, compiler, runtime, and renderer registry for schema-driven forms",
+  "keywords": [
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "headless",
+    "ui",
+    "runtime",
+    "typescript",
+    "framework-agnostic",
+    "server-driven-ui"
+  ],
   "type": "module",
   "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/texaryn/texaryn.git",
