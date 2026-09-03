@@ -2,8 +2,23 @@
   "name": "@texaryn/react",
   "version": "0.1.1",
   "description": "React bindings, hooks, prop getters, and default widgets for Texaryn",
+  "keywords": [
+    "react",
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "headless",
+    "react-forms",
+    "dynamic-forms",
+    "typescript"
+  ],
   "type": "module",
   "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/texaryn/texaryn.git",
