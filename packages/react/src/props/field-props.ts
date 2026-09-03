@@ -26,6 +26,7 @@ export interface InputProps extends Record<string, unknown> {
   'aria-required': boolean
   'aria-invalid'?: boolean
   'aria-describedby'?: string
+  placeholder?: string
   onChange: (value: unknown) => void
   onBlur: () => void
 }
@@ -87,6 +88,10 @@ export function getInputProps(node: FieldNode, fieldState: FieldState): InputPro
 
   if (fieldState.showErrors && fieldState.errors.length > 0) {
     props['aria-invalid'] = true
+  }
+
+  if (node.placeholder != null) {
+    props.placeholder = node.placeholder
   }
 
   return props

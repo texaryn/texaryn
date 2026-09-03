@@ -195,6 +195,7 @@ function compileNode(
       constraints: { ...proj.constraints, required: required ?? proj.constraints.required ?? false },
       enumValues: proj.enumValues,
       widget: fieldHints?.widget,
+      placeholder: fieldHints?.placeholder,
     }
     nodes[id] = node
   }

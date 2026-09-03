@@ -131,7 +131,7 @@ For custom widgets and design systems, Texaryn exports accessible prop helpers:
 - `getErrorProps`
 - `getDescriptionProps`
 
-They translate semantic field state into DOM-facing props without moving form behavior into React components.
+They translate semantic field state into DOM-facing props without moving form behavior into React components. `getInputProps` also carries the field's `placeholder` hint, so any widget that spreads its result onto an input shows it.
 
 ## Error display
 
