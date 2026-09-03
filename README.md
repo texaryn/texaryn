@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://texaryn.github.io/texaryn/"><strong>Live demo</strong></a>: paste any JSON Schema and watch the form, data and submission state update as you type.
+  <a href="https://texaryn.github.io/texaryn/"><strong>Live demo</strong></a>: paste a supported JSON Schema and watch the form, data and submission state update as you type.
 </p>
 
 ---
