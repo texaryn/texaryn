@@ -25,10 +25,11 @@ function errorMessage(err: unknown): string {
 type AdapterState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; port: SchemaEvaluationPort }
+  | { status: 'ready'; port: SchemaEvaluationPort; id: number }
 
 function useAdapter(schemaText: string, parseError: string | null): AdapterState {
   const [state, setState] = useState<AdapterState>({ status: 'loading' })
+  const nextId = useRef(0)
 
   useEffect(() => {
     if (parseError) {
@@ -49,7 +50,8 @@ function useAdapter(schemaText: string, parseError: string | null): AdapterState
     createJsonSchemaAdapter(parsed)
       .then((port) => {
         if (!cancelled) {
-          setState({ status: 'ready', port })
+          nextId.current += 1
+          setState({ status: 'ready', port, id: nextId.current })
         }
       })
       .catch((err: unknown) => {
@@ -145,12 +147,17 @@ function FormWorkspace({
   )
 }
 
+const CUSTOM_KEY = 'custom'
+
+const customEntry: SampleEntry = { label: 'Custom schema', schema: {} }
+
 export function App() {
   const [selectedKey, setSelectedKey] = useState('contact')
   const [schemaText, setSchemaText] = useState(() => formatSchema(contactSchema))
   const [parseError, setParseError] = useState<string | null>(null)
 
   const handleSchemaChange = useCallback((text: string) => {
+    setSelectedKey(CUSTOM_KEY)
     setSchemaText(text)
     try {
       JSON.parse(text)
@@ -170,6 +177,7 @@ export function App() {
   }, [])
 
   const adapterState = useAdapter(schemaText, parseError)
+  const entry = sampleSchemas[selectedKey] ?? customEntry
 
   return (
     <div style={styles.app}>
@@ -190,6 +198,7 @@ export function App() {
               {label}
             </option>
           ))}
+          <option value={CUSTOM_KEY}>{customEntry.label}</option>
         </select>
 
         <h2 style={styles.heading}>JSON Schema</h2>
@@ -232,9 +241,9 @@ export function App() {
         </>
       ) : (
         <FormWorkspace
-          key={schemaText}
+          key={`${selectedKey}:${adapterState.id}`}
           port={adapterState.port}
-          entry={sampleSchemas[selectedKey] ?? { label: '', schema: {} }}
+          entry={entry}
         />
       )}
     </div>

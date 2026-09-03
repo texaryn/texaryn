@@ -47,6 +47,12 @@ The interface has three main areas:
 
 Changing the schema creates a new `@texaryn/schema-json` adapter. The rendered form is driven by `useForm`, `FormRoot`, and the default React widget registry.
 
+Selecting a sample loads its schema together with the sample's UI hints and initial data. Editing or pasting into the schema editor switches the selector to "Custom schema": the form is then rendered from the editor contents alone, with no hints and empty initial data, so what you see comes from your schema and nothing else.
+
+## Live demo
+
+The demo is deployed to [texaryn.github.io/texaryn](https://texaryn.github.io/texaryn/) by `.github/workflows/pages.yml` on every push to `main`. The workflow builds the workspace packages, then runs `build:pages` (a `vite build` with `--base=/texaryn/`, the path GitHub Pages serves a project site under) and publishes `packages/demo/dist`.
+
 ## Packages exercised
 
 The demo depends on workspace versions of:
