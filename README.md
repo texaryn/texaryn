@@ -349,13 +349,13 @@ The demo lets you edit a JSON Schema and observe both the rendered form and live
 
 Texaryn is built around a few constraints:
 
-- **Framework-neutral core** — rendering frameworks stay at the edge.
-- **Schema semantics first** — presentation does not redefine data meaning.
-- **Deterministic runtime** — behavior is explicit and testable.
-- **Serializable UI** — UI definitions are data, not generated framework code.
-- **Stable identity** — dynamic arrays should not destroy component identity.
-- **Extensible rendering** — semantic nodes map to replaceable widgets.
-- **No protocol lock-in** — the core does not depend on an AI/UI transport protocol.
+- **Framework-neutral core:** rendering frameworks stay at the edge.
+- **Schema semantics first:** presentation does not redefine data meaning.
+- **Deterministic runtime:** behavior is explicit and testable.
+- **Serializable UI:** UI definitions are data, not generated framework code.
+- **Stable identity:** dynamic arrays should not destroy component identity.
+- **Extensible rendering:** semantic nodes map to replaceable widgets.
+- **No protocol lock-in:** the core does not depend on an AI/UI transport protocol.
 
 ## Roadmap
 
