@@ -1,5 +1,13 @@
 # @texaryn/react
 
+## 0.1.1
+
+### Patch Changes
+
+- 9bcc0b2: Apply the `placeholder` UI hint. The compiler now carries it onto the field node and `getInputProps` emits it, so text, number and textarea widgets render the placeholder that the hint has documented since the first alpha.
+- Updated dependencies [9bcc0b2]
+  - @texaryn/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
