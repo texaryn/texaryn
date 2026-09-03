@@ -727,6 +727,338 @@ describe('FormRuntime validation scheduling', () => {
   })
 })
 
+describe('submission lifecycle', () => {
+  it('onSubmit receives captured snapshot, not live data', async () => {
+    let receivedData: unknown
+    const submitDef = deferred<void>()
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async (data) => {
+        receivedData = data
+        await submitDef.promise
+      },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Bob' })
+    expect(receivedData).toEqual({ name: 'Alice' })
+
+    submitDef.resolve()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('duplicate Submit while validating is ignored', async () => {
+    const def = deferred<ValidationResult>()
+    const validateFn = vi.fn(() => def.promise)
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async () => {},
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+    expect(validateFn).toHaveBeenCalledTimes(1)
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(validateFn).toHaveBeenCalledTimes(1)
+
+    def.resolve({ valid: true, errors: [] })
+    await flushMicrotasks()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('duplicate Submit while submitting is ignored', async () => {
+    const submitDef = deferred<void>()
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: () => submitDef.promise,
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    validateFn.mockClear()
+    runtime.dispatch({ type: 'Submit' })
+    expect(validateFn).not.toHaveBeenCalled()
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    submitDef.resolve()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('Submit from submitted starts fresh validation cycle', async () => {
+    const validateFn = vi.fn(async () => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async () => {},
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+
+    validateFn.mockClear()
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+    expect(validateFn).toHaveBeenCalledTimes(1)
+
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('onSubmit rejection returns to idle with error', async () => {
+    const submitError = new Error('server down')
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async () => { throw submitError },
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    await vi.waitFor(() => {
+      const sub = runtime.submission.getSnapshot()
+      expect(sub.status).toBe('idle')
+      expect(sub.error).toBe(submitError)
+    })
+    runtime.destroy()
+  })
+
+  it('fresh Submit after failure clears old error', async () => {
+    const submitError = new Error('server down')
+    let callCount = 0
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async () => {
+        callCount++
+        if (callCount === 1) throw submitError
+      },
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().error).toBe(submitError)
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().error).toBeUndefined()
+
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('Reset during submitting returns to idle and ignores late resolve', async () => {
+    const submitDef = deferred<void>()
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: () => submitDef.promise,
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    runtime.dispatch({ type: 'Reset' })
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+
+    submitDef.resolve()
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+    runtime.destroy()
+  })
+
+  it('Reset during submitting ignores late rejection', async () => {
+    const submitDef = deferred<void>()
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: () => submitDef.promise,
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    runtime.dispatch({ type: 'Reset' })
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+
+    submitDef.reject(new Error('too late'))
+    await submitDef.promise.catch(() => {})
+    await flushMicrotasks()
+
+    const sub = runtime.submission.getSnapshot()
+    expect(sub.status).toBe('idle')
+    expect(sub.error).toBeUndefined()
+    runtime.destroy()
+  })
+
+  it('destroy during submitting prevents late completion', async () => {
+    const submitDef = deferred<void>()
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: () => submitDef.promise,
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    runtime.destroy()
+
+    submitDef.resolve()
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+  })
+
+  it('blur and change validation suppressed during submitting', async () => {
+    const submitDef = deferred<void>()
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+      onSubmit: () => submitDef.promise,
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+    validateFn.mockClear()
+
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(validateFn).not.toHaveBeenCalled()
+
+    submitDef.resolve()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    runtime.destroy()
+  })
+
+  it('accepted Submit cancels queued change timers', () => {
+    vi.useFakeTimers()
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'change' } },
+      validationDebounceMs: 300,
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    expect(validateFn).not.toHaveBeenCalled()
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(validateFn).toHaveBeenCalledTimes(1)
+
+    validateFn.mockClear()
+    vi.advanceTimersByTime(300)
+    expect(validateFn).not.toHaveBeenCalled()
+
+    runtime.destroy()
+    vi.useRealTimers()
+  })
+
+  it('validation rejection during submit clears attempt', async () => {
+    const def = deferred<ValidationResult>()
+    const port = makeAsyncPort(def)
+    let onSubmitCalled = false
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      onSubmit: async () => { onSubmitCalled = true },
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('validating')
+
+    const error = new Error('validation service down')
+    def.reject(error)
+    await def.promise.catch(() => {})
+    await flushMicrotasks()
+
+    expect(runtime.submission.getSnapshot().status).toBe('idle')
+    expect(runtime.submission.getSnapshot().error).toBe(error)
+    expect(onSubmitCalled).toBe(false)
+    runtime.destroy()
+  })
+
+  it('full Submit-validate-onSubmit-edit-blur-resolve chain', async () => {
+    let receivedData: unknown
+    const submitDef = deferred<void>()
+    const validateFn = vi.fn(() => ({ valid: true, errors: [] }))
+    const port = makePort(() => simpleProjection, validateFn)
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      hints: { '/name': { validationTrigger: 'blur' } },
+      onSubmit: async (data) => {
+        receivedData = data
+        await submitDef.promise
+      },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitting')
+
+    validateFn.mockClear()
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    runtime.dispatch({ type: 'SetTouched', nodeId: nameId })
+    expect(validateFn).not.toHaveBeenCalled()
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Bob' })
+
+    submitDef.resolve()
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    expect(receivedData).toEqual({ name: 'Alice' })
+    runtime.destroy()
+  })
+})
+
 describe('showErrors display policy', () => {
   it('showErrors is false when untouched and idle', () => {
     const port = makePort(() => simpleProjection)

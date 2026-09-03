@@ -192,6 +192,24 @@ Errors are not displayed immediately. The runtime computes a `showErrors` flag p
 
 Pass hints to `createFormRuntime()` or, in React, to `useForm()`.
 
+## Submission lifecycle
+
+Dispatching `Submit` captures the current form data as an immutable snapshot and triggers full-form validation against it. If validation passes, the runtime transitions to `submitting` and calls `onSubmit` with the captured data:
+
+```ts
+const runtime = createFormRuntime(port, {
+  initialData: { name: '' },
+  onSubmit: async (data) => {
+    await api.save(data)
+  },
+})
+runtime.dispatch({ type: 'Submit' })
+```
+
+The `submission` store tracks the lifecycle: `idle`, `validating`, `submitting`, `submitted`. A failed `onSubmit` returns to `idle` with the error on `submission.error`. Dispatching `Submit` while already `validating` or `submitting` is a no-op.
+
+Edits during `validating` cancel the submission attempt and return to `idle`. Edits during `submitting` update the live form data but do not alter the in-flight payload or trigger validation. A `Reset` during submission cleanly cancels via a generation counter, so late completions from abandoned attempts are ignored.
+
 ## Renderer registry
 
 The core exports a framework-neutral renderer registry:

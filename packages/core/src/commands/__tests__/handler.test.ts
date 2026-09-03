@@ -202,6 +202,50 @@ describe('processCommand', () => {
         trigger: 'submit',
       })
     })
+
+    it('Submit while validating is a no-op', () => {
+      const state: RuntimeState = {
+        ...simpleState(),
+        submission: { status: 'validating' },
+      }
+      const { nextState, effects } = processCommand(
+        state,
+        { type: 'Submit' },
+        simpleDoc,
+      )
+      expect(nextState).toBe(state)
+      expect(effects).toEqual([])
+    })
+
+    it('Submit while submitting is a no-op', () => {
+      const state: RuntimeState = {
+        ...simpleState(),
+        submission: { status: 'submitting' },
+      }
+      const { nextState, effects } = processCommand(
+        state,
+        { type: 'Submit' },
+        simpleDoc,
+      )
+      expect(nextState).toBe(state)
+      expect(effects).toEqual([])
+    })
+
+    it('Submit from submitted transitions to validating', () => {
+      const state: RuntimeState = {
+        ...simpleState(),
+        submission: { status: 'submitted' },
+      }
+      const { nextState, effects } = processCommand(
+        state,
+        { type: 'Submit' },
+        simpleDoc,
+      )
+      expect(nextState.submission.status).toBe('validating')
+      expect(effects).toContainEqual(
+        expect.objectContaining({ type: 'validate', trigger: 'submit' }),
+      )
+    })
   })
 
   describe('Reset', () => {

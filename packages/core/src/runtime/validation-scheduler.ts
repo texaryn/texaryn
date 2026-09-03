@@ -3,7 +3,7 @@ import type { MaybePromise, ValidationResult } from '../types.js'
 export type ValidationTrigger = 'blur' | 'change' | 'submit'
 
 export interface SchedulerCallbacks {
-  runValidation: () => MaybePromise<ValidationResult>
+  runValidation: (trigger: ValidationTrigger) => MaybePromise<ValidationResult>
   onPending: () => void
   onResult: (result: ValidationResult, trigger: ValidationTrigger) => void
   onError: (error: unknown, trigger: ValidationTrigger) => void
@@ -47,7 +47,7 @@ export function createValidationScheduler(
 
     let result: MaybePromise<ValidationResult>
     try {
-      result = callbacks.runValidation()
+      result = callbacks.runValidation(trigger)
     } catch (err) {
       callbacks.onError(err, trigger)
       return

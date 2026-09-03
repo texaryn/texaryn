@@ -149,6 +149,9 @@ function handleSetTouched(
 }
 
 function handleSubmit(state: RuntimeState): CommandResult {
+  if (state.submission.status === 'validating' || state.submission.status === 'submitting') {
+    return { nextState: state, effects: [] }
+  }
   const allNodeIds = [...state.nodes.keys()]
   return {
     nextState: {
