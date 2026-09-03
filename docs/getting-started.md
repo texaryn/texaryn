@@ -5,7 +5,7 @@ Texaryn turns a JSON Schema into a working form: schema evaluation, a headless r
 ## Install
 
 ```bash
-pnpm add @texaryn/core@alpha @texaryn/schema-json@alpha @texaryn/react@alpha
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
 ```
 
 React 18 or newer is required by `@texaryn/react`.

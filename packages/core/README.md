@@ -7,7 +7,7 @@ Framework-neutral UI IR, compiler, runtime, state, commands, identity, and rende
 ## Install
 
 ```bash
-pnpm add @texaryn/core@alpha
+pnpm add @texaryn/core
 ```
 
 `@texaryn/core` has no React or DOM dependency.

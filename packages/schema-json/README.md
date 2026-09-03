@@ -7,7 +7,7 @@ JSON Schema evaluation and validation adapter for Texaryn, backed by `json-schem
 ## Install
 
 ```bash
-pnpm add @texaryn/core@alpha @texaryn/schema-json@alpha
+pnpm add @texaryn/core @texaryn/schema-json
 ```
 
 ## Quick start
