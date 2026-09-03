@@ -173,7 +173,7 @@ All default widgets already render `FieldErrors` internally, so most application
 </button>
 ```
 
-`form.submission.status` moves through `idle`, `validating`, `submitting`, and `submitted`. On failure, whether from validation or a thrown `onSubmit`, the status returns to `idle` and `form.submission.error` is set:
+`form.submission.status` moves through `idle`, `validating`, `submitting`, and `submitted`. An invalid validation result returns the status to `idle` and updates node errors without setting `form.submission.error`. The error is set only when the validator throws or rejects, or when `onSubmit` throws or rejects; the status returns to `idle` in those cases too:
 
 ```tsx
 {form.submission.error != null && (

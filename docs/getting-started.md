@@ -114,11 +114,13 @@ runtime.dispatch({ type: 'Submit' })
 
 ## Validation
 
-Texaryn validates per field based on the `validationTrigger` hint:
+Validation triggers are configured per field through the `validationTrigger` hint:
 
-- `'blur'`: validates when the user leaves the field.
-- `'change'`: validates as the user types, with debounce.
-- `'submit'`: validates only on submission.
+- `'blur'`: runs when the user leaves the field.
+- `'change'`: runs as the user types, with debounce.
+- `'submit'`: runs only on submission.
+
+When a matching blur or change occurs, Texaryn currently validates the full form snapshot (`port.validate(data)`) and distributes the returned errors back to nodes by JSON Pointer. The trigger decides when validation runs, not which part of the form is validated.
 
 The runtime tracks `showErrors` per node. Errors appear only after the user has interacted with the field. React prop getters set `aria-invalid` and link `aria-describedby` to error elements automatically.
 
@@ -134,9 +136,9 @@ form.dispatch({ type: 'Submit' })
 
 The lifecycle progresses through four states: `idle`, `validating`, `submitting`, `submitted`.
 
-Submit captures the current form data as an immutable snapshot. Validation and `onSubmit` both operate on the captured snapshot. Edits during submission update the live form state but do not alter the in-flight payload.
+Submit captures the current form data as an immutable snapshot. Validation and `onSubmit` both operate on the captured snapshot. Edits during `validating` cancel the submission attempt. Once `onSubmit` is running, edits update live form data without changing the captured payload.
 
-If validation fails, the state returns to `idle` and errors become visible. If `onSubmit` throws, the state returns to `idle` with `submission.error` set. A fresh Submit after failure clears the old error and starts again.
+If validation returns invalid, submission returns to `idle` and node errors are updated. Error presentation still follows the touched + invalid display policy, so untouched fields do not show errors until the user interacts with them. `submission.error` is set only when the validator itself throws or rejects, or when `onSubmit` throws or rejects; in both cases the state returns to `idle`. A fresh Submit after failure clears the old error and starts again.
 
 Duplicate Submit while validating or submitting is a no-op.
 

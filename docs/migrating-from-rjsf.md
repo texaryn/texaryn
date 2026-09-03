@@ -26,7 +26,7 @@ This guide maps RJSF concepts to their Texaryn equivalents and lists the steps f
 
 **Stable array identity.** RJSF uses `Math.random()` for array item keys, which destroys component identity on reorder. Texaryn assigns stable identity per item using content hashing or explicit `itemKey` hints.
 
-**Validation is per-field, not whole-form.** RJSF validates the entire form on every change (with `liveValidate`) or only on submit. Texaryn validates individual fields based on `validationTrigger` hints (`'blur'`, `'change'`, or `'submit'`) with configurable debounce.
+**Validation triggers are configured per field.** RJSF validates the entire form on every change (with `liveValidate`) or only on submit. In Texaryn, each field's `validationTrigger` hint (`'blur'`, `'change'`, or `'submit'`) decides when validation runs, with configurable debounce. When a matching blur or change occurs, Texaryn currently validates the full form snapshot and distributes errors back to nodes by JSON Pointer.
 
 **Submission is a state machine.** RJSF calls `onSubmit` synchronously after validation. Texaryn models submission as a lifecycle with four states (`idle`, `validating`, `submitting`, `submitted`), with snapshot semantics and cancellation.
 
