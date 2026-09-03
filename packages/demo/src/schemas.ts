@@ -1,3 +1,5 @@
+import type { UIHints } from '@texaryn/core'
+
 export const contactSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
@@ -35,7 +37,26 @@ export const conditionalSchema = {
   },
 }
 
-export const sampleSchemas: Record<string, { label: string; schema: unknown }> = {
-  contact: { label: 'Contact Form', schema: contactSchema },
-  conditional: { label: 'Conditional Form', schema: conditionalSchema },
+export interface SampleEntry {
+  label: string
+  schema: unknown
+  hints?: UIHints
+  initialData?: unknown
+}
+
+export const sampleSchemas: Record<string, SampleEntry> = {
+  contact: {
+    label: 'Contact Form',
+    schema: contactSchema,
+    hints: {
+      '/name': { validationTrigger: 'blur' },
+      '/email': { validationTrigger: 'change', placeholder: 'you@example.com' },
+      '/bio': { widget: 'textarea' },
+    },
+    initialData: { name: '', email: '', subscribe: false },
+  },
+  conditional: {
+    label: 'Conditional Form',
+    schema: conditionalSchema,
+  },
 }

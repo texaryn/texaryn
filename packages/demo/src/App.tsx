@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { useForm, FormContext, FormRoot, createDefaultRegistry } from '@texaryn/react'
+import {
+  useForm,
+  FormContext,
+  FormRoot,
+  ErrorSummary,
+  createDefaultRegistry,
+} from '@texaryn/react'
 import { contactSchema, sampleSchemas } from './schemas.js'
+import type { SampleEntry } from './schemas.js'
 
 const registry = createDefaultRegistry()
 
@@ -59,19 +66,80 @@ function useAdapter(schemaText: string, parseError: string | null): AdapterState
   return state
 }
 
-function FormWorkspace({ port }: { port: SchemaEvaluationPort }) {
-  const form = useForm(port, {})
+function FormWorkspace({
+  port,
+  entry,
+}: {
+  port: SchemaEvaluationPort
+  entry: SampleEntry
+}) {
+  const simulateFailureRef = useRef(false)
+  const [simulateFailure, setSimulateFailure] = useState(false)
+
+  simulateFailureRef.current = simulateFailure
+
+  const form = useForm(port, {
+    initialData: entry.initialData,
+    hints: entry.hints,
+    onSubmit: async (data) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (simulateFailureRef.current) {
+        throw new Error('Simulated submission failure')
+      }
+      console.log('Submitted:', data)
+    },
+  })
 
   return (
     <>
       <div style={styles.centerPanel}>
         <FormContext.Provider value={form.runtime}>
+          <ErrorSummary />
           <FormRoot registry={registry} />
+
+          <div style={styles.submitRow}>
+            <button
+              type="button"
+              disabled={
+                form.submission.status === 'validating' ||
+                form.submission.status === 'submitting'
+              }
+              onClick={() => form.dispatch({ type: 'Submit' })}
+            >
+              {form.submission.status === 'validating'
+                ? 'Validating...'
+                : form.submission.status === 'submitting'
+                  ? 'Submitting...'
+                  : 'Submit'}
+            </button>
+
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={simulateFailure}
+                onChange={(e) => setSimulateFailure(e.target.checked)}
+              />
+              Simulate failure
+            </label>
+          </div>
+
+          {form.submission.status === 'submitted' && (
+            <p style={styles.success}>Submitted successfully.</p>
+          )}
+          {form.submission.error != null && (
+            <p style={styles.error}>
+              {form.submission.error instanceof Error
+                ? form.submission.error.message
+                : String(form.submission.error)}
+            </p>
+          )}
         </FormContext.Provider>
       </div>
       <div style={styles.rightPanel}>
         <h2 style={styles.heading}>Live Data</h2>
         <pre style={styles.pre}>{JSON.stringify(form.data, null, 2)}</pre>
+        <h2 style={styles.heading}>Submission</h2>
+        <pre style={styles.pre}>{JSON.stringify(form.submission, null, 2)}</pre>
       </div>
     </>
   )
@@ -163,7 +231,11 @@ export function App() {
           </div>
         </>
       ) : (
-        <FormWorkspace key={schemaText} port={adapterState.port} />
+        <FormWorkspace
+          key={schemaText}
+          port={adapterState.port}
+          entry={sampleSchemas[selectedKey] ?? { label: '', schema: {} }}
+        />
       )}
     </div>
   )
@@ -236,5 +308,21 @@ const styles: Record<string, CSSProperties> = {
     color: '#b00020',
     fontSize: '0.85rem',
     marginTop: '0.5rem',
+  },
+  submitRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    margin: '1rem 0',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    fontSize: '0.85rem',
+  },
+  success: {
+    color: '#2e7d32',
+    fontSize: '0.85rem',
   },
 }
