@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import React from 'react'
 import { createRendererRegistry } from '@texaryn/core'
-import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer } from '@texaryn/core'
+import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints } from '@texaryn/core'
 import { FormContext } from '../../context.js'
 import { useForm } from '../../hooks/use-form.js'
 import { FormRoot } from '../../components/FormRoot.js'
@@ -28,14 +28,14 @@ function makeProjection(
   return { nodes }
 }
 
-function renderForm(proj: SchemaProjection, data: unknown) {
+function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
   const port: SchemaEvaluationPort = {
     project: () => proj,
     validate: () => ({ valid: true, errors: [] }),
   }
 
   function TestForm() {
-    const form = useForm(port, { initialData: data })
+    const form = useForm(port, { initialData: data, hints })
     return (
       <FormContext.Provider value={form.runtime}>
         <FormRoot registry={createDefaultRegistry()} />
@@ -72,6 +72,32 @@ describe('Default widgets', () => {
     const input = screen.getByLabelText('Name') as HTMLInputElement
     expect(input).toBeTruthy()
     expect(input.value).toBe('Alice')
+  })
+
+  it('renders the placeholder hint on text, number and textarea widgets', () => {
+    const proj = makeProjection([
+      ['', { type: 'object', children: [
+        { pointer: toPointer('/email'), key: 'email', required: false },
+        { pointer: toPointer('/age'), key: 'age', required: false },
+        { pointer: toPointer('/bio'), key: 'bio', required: false },
+        { pointer: toPointer('/name'), key: 'name', required: false },
+      ] }],
+      ['/email', { type: 'string', annotations: { title: 'Email' } }],
+      ['/age', { type: 'integer', annotations: { title: 'Age' } }],
+      ['/bio', { type: 'string', annotations: { title: 'Bio' } }],
+      ['/name', { type: 'string', annotations: { title: 'Name' } }],
+    ])
+    renderForm(proj, {}, {
+      '/email': { placeholder: 'you@example.com' },
+      '/age': { placeholder: '18' },
+      '/bio': { widget: 'textarea', placeholder: 'Tell us about yourself' },
+    })
+    expect((screen.getByLabelText('Email') as HTMLInputElement).placeholder).toBe('you@example.com')
+    expect((screen.getByLabelText('Age') as HTMLInputElement).placeholder).toBe('18')
+    const bio = screen.getByLabelText('Bio') as HTMLTextAreaElement
+    expect(bio.tagName).toBe('TEXTAREA')
+    expect(bio.placeholder).toBe('Tell us about yourself')
+    expect((screen.getByLabelText('Name') as HTMLInputElement).hasAttribute('placeholder')).toBe(false)
   })
 
   it('renders a number input for integer field', () => {

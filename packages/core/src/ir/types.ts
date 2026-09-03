@@ -36,6 +36,7 @@ export interface FieldNode extends NodeBase {
   constraints: FieldConstraints
   enumValues?: EnumOption[]
   widget?: string
+  placeholder?: string
 }
 
 export type FieldType =

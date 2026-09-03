@@ -96,6 +96,12 @@
 
 ***
 
+### placeholder?
+
+> `optional` **placeholder?**: `string`
+
+***
+
 ### type
 
 > **type**: `"field"`

@@ -80,6 +80,12 @@ HTML/ARIA attributes for an input element
 
 ***
 
+### placeholder?
+
+> `optional` **placeholder?**: `string`
+
+***
+
 ### value
 
 > **value**: `unknown`

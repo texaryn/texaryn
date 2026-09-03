@@ -290,6 +290,28 @@ describe('compile', () => {
       )! as any
       expect(bioNode.widget).toBe('textarea')
     })
+
+    it('applies placeholder hint to field and leaves it undefined otherwise', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: '/email' as JsonPointer, key: 'email', required: false },
+            { pointer: '/name' as JsonPointer, key: 'name', required: false },
+          ],
+        }],
+        ['/email', { type: 'string' }],
+        ['/name', { type: 'string' }],
+      ])
+
+      const { document } = compile(projection, {}, {
+        '/email': { placeholder: 'you@example.com' },
+      })
+      const byPointer = (pointer: string) =>
+        Object.values(document.nodes).find(n => n.dataPointer === pointer)! as any
+      expect(byPointer('/email').placeholder).toBe('you@example.com')
+      expect(byPointer('/name').placeholder).toBeUndefined()
+    })
   })
 
   describe('conditional visibility', () => {

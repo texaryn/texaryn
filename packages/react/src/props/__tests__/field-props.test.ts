@@ -47,6 +47,17 @@ describe('getInputProps', () => {
     expect(props['aria-required']).toBe(true)
   })
 
+  it('passes the node placeholder through', () => {
+    const node = makeFieldNode({ placeholder: 'you@example.com' })
+    const props = getInputProps(node, makeFieldState())
+    expect(props.placeholder).toBe('you@example.com')
+  })
+
+  it('omits placeholder when the node has none', () => {
+    const props = getInputProps(makeFieldNode(), makeFieldState())
+    expect('placeholder' in props).toBe(false)
+  })
+
   it('aria-invalid is absent when showErrors is false even with errors', () => {
     const node = makeFieldNode()
     const state = makeFieldState({
