@@ -53,7 +53,7 @@ That makes the UI definition portable, inspectable, testable, and safe to transf
 ## Quick start
 
 ```bash
-pnpm add @texaryn/core@alpha @texaryn/schema-json@alpha @texaryn/react@alpha
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
 ```
 
 React 18 or newer is required by `@texaryn/react`.
