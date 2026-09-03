@@ -12,11 +12,14 @@
     "version-packages": "changeset version",
     "release": "changeset publish",
     "docs": "typedoc",
-    "docs:check": "pnpm run docs && test -z \"$(git status --porcelain -- docs/api)\""
+    "docs:check": "pnpm run docs && test -z \"$(git status --porcelain -- docs/api)\"",
+    "verify:packages": "node scripts/verify-packages.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^3.0.1",
     "fast-check": "^4.0.0",
+    "publint": "^0.3.24",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.13.0",
     "typescript": "~5.8.0",

@@ -18,11 +18,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm build
-      - name: Verify package exports
-        run: |
-          pnpm --filter @texaryn/core exec node -e "import('@texaryn/core')"
-          pnpm --filter @texaryn/schema-json exec node -e "import('@texaryn/schema-json')"
-          pnpm --filter @texaryn/react exec node -e "import('@texaryn/react')"
+      - name: Verify docs
+        run: pnpm docs:check
+      - name: Verify packages
+        run: pnpm verify:packages
 
   typecheck:
     runs-on: ubuntu-latest
