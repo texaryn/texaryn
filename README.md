@@ -5,7 +5,7 @@
 <h1 align="center">Texaryn</h1>
 
 <p align="center">
-  <strong>A framework-neutral runtime for turning JSON Schema into deterministic, renderable UI.</strong>
+  <strong>Framework-neutral runtime for schema-driven interfaces.</strong>
 </p>
 
 <p align="center">
@@ -13,18 +13,31 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@texaryn/core">
+    <img src="https://img.shields.io/npm/v/@texaryn/core" alt="npm version" />
+  </a>
   <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
     <img src="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml/badge.svg" alt="CI" />
+  </a>
+  <a href="https://codecov.io/gh/texaryn/texaryn">
+    <img src="https://codecov.io/gh/texaryn/texaryn/branch/main/graph/badge.svg" alt="coverage" />
+  </a>
+  <a href="https://www.npmjs.com/package/@texaryn/core">
+    <img src="https://img.shields.io/npm/dm/@texaryn/core" alt="npm downloads" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/texaryn/texaryn" alt="license" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://texaryn.github.io/texaryn/"><strong>Live demo</strong></a>: paste a supported JSON Schema and watch the form, data and submission state update as you type.
+  <a href="https://texaryn.github.io/texaryn/">Live Demo</a> •
+  <a href="./docs/getting-started.md">Getting Started</a> •
+  <a href="./docs/api/README.md">API Reference</a> •
+  <a href="./ROADMAP.md">Roadmap</a>
 </p>
 
 ---
-
-> **Status: pre-1.0.** Texaryn is under active development and public APIs may change before 1.0.
 
 ## Why Texaryn?
 
@@ -391,9 +404,9 @@ Texaryn is being built incrementally.
 
 See [`ROADMAP.md`](./ROADMAP.md) for the detailed implementation roadmap.
 
-## Project maturity
+## Project status
 
-Texaryn is intentionally pre-1.0.
+Texaryn is pre-1.0 and under active development. Public APIs may change before 1.0.
 
 The architecture is established, but APIs are expected to evolve as the runtime is exercised by real applications and additional renderers.
 

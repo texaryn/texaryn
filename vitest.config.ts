@@ -19,6 +19,26 @@ const alias = {
 
 export default defineConfig({
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: 'coverage',
+      include: [
+        'packages/core/src/**',
+        'packages/schema-json/src/**',
+        'packages/schema-json-hyperjump/src/**',
+        'packages/react/src/**',
+      ],
+      // Type-only modules compile to nothing executable and would report 0%.
+      exclude: [
+        '**/__tests__/**',
+        '**/*.test.*',
+        '**/index.ts',
+        '**/types.ts',
+        'packages/core/src/schema/**',
+        'packages/core/src/hints/**',
+      ],
+    },
     projects: [
       {
         resolve: { alias },
