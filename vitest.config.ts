@@ -89,6 +89,13 @@ export default defineConfig({
           include: ['conformance/**/*.test.ts'],
         },
       },
+      {
+        test: {
+          name: 'scripts',
+          root: 'scripts',
+          include: ['**/*.test.mjs'],
+        },
+      },
     ],
   },
 })
