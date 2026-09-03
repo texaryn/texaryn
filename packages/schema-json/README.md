@@ -2,7 +2,7 @@
 
 JSON Schema evaluation and validation adapter for Texaryn, backed by `json-schema-library`.
 
-> Status: early alpha. Public APIs may change before 1.0.
+> Status: pre-1.0. Public APIs may change before 1.0.
 
 ## Install
 
@@ -150,8 +150,16 @@ const adapter = await createJsonSchemaAdapter(schema, {
 
 ```ts
 interface AdapterConfig {
-  defaultDialect?: 'draft-07' | '2019-09' | '2020-12'
+  defaultDialect?: Dialect
 }
+```
+
+### `Dialect`
+
+The union of dialect identifiers the adapter recognizes:
+
+```ts
+type Dialect = 'draft-07' | '2019-09' | '2020-12'
 ```
 
 ## Architecture

@@ -2,7 +2,7 @@
 
 Framework-neutral UI IR, compiler, runtime, state, commands, identity, and renderer registry for Texaryn.
 
-> Status: early alpha. Public APIs may change before 1.0.
+> Status: pre-1.0. Public APIs may change before 1.0.
 
 ## Install
 
@@ -236,16 +236,44 @@ The core includes identity helpers used to keep dynamic array items stable acros
 
 ## Key exports
 
+### Core types
+
+- `NodeId`
+- `StableItemId`
+- `JsonPointer`
+- `MaybePromise`
+- `JsonSchemaType`
+- `ValidationResult`
+- `ValidationError`
+- `VisibleError`
+
 ### Schema and IR
 
 - `SchemaEvaluationPort`
 - `SchemaProjection`
 - `NodeProjection`
+- `ChildProjection`
+- `AnnotationSet`
 - `UIDocument`
 - `UINode`
+- `NodeBase`
+- `NodeAnnotations`
 - `FieldNode`
+- `FieldType`
+- `FieldConstraints`
+- `EnumOption`
 - `ContainerNode`
+- `ArrayMeta`
+- `TextNode`
+- `ActionNode`
+- `CompileResult`
 - `compile`
+
+### UI hints
+
+- `UIHints`
+- `FieldHints`
+- `ArrayHints`
 
 ### Runtime and state
 
@@ -253,13 +281,21 @@ The core includes identity helpers used to keep dynamic array items stable acros
 - `FormRuntime`
 - `FormRuntimeOptions`
 - `NodeState`
+- `RuntimeState`
+- `NodeRuntimeState`
+- `ValidationState`
+- `InteractionState`
+- `SubmissionState`
+- `IdentityMap`
 - `createStore`
 - `Store`
+- `WritableStore`
 
 ### Commands
 
 - `Command`
 - `Effect`
+- `CommandResult`
 - `processCommand`
 
 ### JSON Pointer helpers
@@ -268,11 +304,23 @@ The core includes identity helpers used to keep dynamic array items stable acros
 - `setAtPointer`
 - `parsePointer`
 
+### Stable array identity
+
+- `createIdentityMap`
+- `registerArray`
+- `insertItem`
+- `removeItem`
+- `moveItem`
+- `resolvePointer`
+- `reconcile`
+- `ReconcileOptions`
+
 ### Rendering
 
 - `createRendererRegistry`
 - `RendererRegistry`
 - `WidgetTester`
+- `WidgetEntry`
 
 ## Design constraints
 

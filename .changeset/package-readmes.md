@@ -1,4 +1,4 @@
 ---
 ---
 
-Add package-specific READMEs with dialect support matrix.
+Add package-specific READMEs with a dialect support matrix.
