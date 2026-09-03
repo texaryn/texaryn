@@ -133,6 +133,56 @@ For custom widgets and design systems, Texaryn exports accessible prop helpers:
 
 They translate semantic field state into DOM-facing props without moving form behavior into React components.
 
+## Error display
+
+`useField` returns `showErrors`, which is `true` only once a field is both touched and invalid. Widgets use it to decide whether to render inline errors:
+
+```tsx
+import { FieldErrors } from '@texaryn/react'
+
+<FieldErrors node={node} errors={errors} showErrors={showErrors} />
+```
+
+`ErrorSummary` reads the runtime's `visibleErrors` store and renders a jump-linked list of every currently visible error above the form:
+
+```tsx
+import { ErrorSummary } from '@texaryn/react'
+
+<FormProvider value={form.runtime}>
+  <ErrorSummary />
+  <FormRoot registry={registry} />
+</FormProvider>
+```
+
+All default widgets already render `FieldErrors` internally, so most applications only need to add `ErrorSummary`.
+
+## Submission
+
+`useForm` exposes the runtime's `submission` state and a `dispatch` function. Start a submission by dispatching `Submit`:
+
+```tsx
+<button
+  type="button"
+  disabled={
+    form.submission.status === 'validating' ||
+    form.submission.status === 'submitting'
+  }
+  onClick={() => form.dispatch({ type: 'Submit' })}
+>
+  Submit
+</button>
+```
+
+`form.submission.status` moves through `idle`, `validating`, `submitting`, and `submitted`. On failure, whether from validation or a thrown `onSubmit`, the status returns to `idle` and `form.submission.error` is set:
+
+```tsx
+{form.submission.error != null && (
+  <p>{String(form.submission.error)}</p>
+)}
+```
+
+React does not own the submission lifecycle. It only observes the `submission` store that `@texaryn/core` computes; see the [`@texaryn/core` README](../core/README.md#submission-lifecycle) for the full snapshot semantics.
+
 ## Default widgets
 
 `createDefaultRegistry()` registers the built-in React widgets:
@@ -177,8 +227,11 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 
 - `useStore`
 - `useForm`
+- `UseFormReturn`
 - `useField`
+- `UseFieldReturn`
 - `useFieldArray`
+- `UseFieldArrayReturn`
 - `useFormContext`
 
 ### Context and rendering
@@ -186,8 +239,18 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `FormContext`
 - `FormProvider`
 - `FormRoot`
+- `FormRootProps`
 - `NodeRenderer`
+- `NodeRendererProps`
 - `useRendererContext`
+- `WidgetComponent`
+- `RendererContextValue`
+
+### Error display
+
+- `FieldErrors`
+- `FieldErrorsProps`
+- `ErrorSummary`
 
 ### Prop getters
 
@@ -195,6 +258,11 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `getLabelProps`
 - `getErrorProps`
 - `getDescriptionProps`
+- `InputProps`
+- `LabelProps`
+- `ErrorProps`
+- `DescriptionProps`
+- `FieldState`
 
 ### Widgets
 

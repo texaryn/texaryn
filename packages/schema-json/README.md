@@ -150,8 +150,16 @@ const adapter = await createJsonSchemaAdapter(schema, {
 
 ```ts
 interface AdapterConfig {
-  defaultDialect?: 'draft-07' | '2019-09' | '2020-12'
+  defaultDialect?: Dialect
 }
+```
+
+### `Dialect`
+
+The union of dialect identifiers the adapter recognizes:
+
+```ts
+type Dialect = 'draft-07' | '2019-09' | '2020-12'
 ```
 
 ## Architecture

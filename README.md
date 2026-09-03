@@ -20,7 +20,7 @@
 
 ---
 
-> **Status: early alpha.** Texaryn is under active development and public APIs may change before 1.0.
+> **Status: pre-1.0.** Texaryn is under active development and public APIs may change before 1.0.
 
 ## Why Texaryn?
 
@@ -64,6 +64,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
   FormProvider,
   FormRoot,
+  ErrorSummary,
   createDefaultRegistry,
   useForm,
 } from '@texaryn/react'
@@ -101,11 +102,30 @@ function App() {
       age: 18,
       newsletter: false,
     },
+    hints: {
+      '/name': { validationTrigger: 'blur' },
+    },
+    onSubmit: async (data) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log('Submitted:', data)
+    },
   })
 
   return (
     <FormProvider value={form.runtime}>
+      <ErrorSummary />
       <FormRoot registry={registry} />
+
+      <button
+        type="button"
+        disabled={
+          form.submission.status === 'validating' ||
+          form.submission.status === 'submitting'
+        }
+        onClick={() => form.dispatch({ type: 'Submit' })}
+      >
+        {form.submission.status === 'submitting' ? 'Submitting...' : 'Submit'}
+      </button>
 
       <h2>Data</h2>
       <pre>{JSON.stringify(form.data, null, 2)}</pre>
@@ -117,6 +137,15 @@ createRoot(document.getElementById('root')!).render(<App />)
 ```
 
 The schema is evaluated independently from React. React observes the runtime and renders the resulting UI document.
+
+See [Getting started](docs/getting-started.md) for a longer walkthrough, including validation triggers and the full submission lifecycle.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [API reference](docs/api/)
+- [Migrating from RJSF](docs/migrating-from-rjsf.md)
+- [Releasing](docs/releasing.md)
 
 ## Packages
 
@@ -346,14 +375,15 @@ Texaryn is being built incrementally.
 - default React widgets
 - renderer conformance tests
 - end-to-end demo
+- validation triggers and debounce
+- display-policy-aware error presentation
+- submission lifecycle with snapshot semantics
 
 ### Next
 
-- stronger validation and submission flows
-- additional schema adapter coverage
-- renderer conformance tooling
-- second renderer to validate framework neutrality
-- further UI IR and runtime capabilities based on real usage
+- second renderer to validate framework neutrality (Vue recommended)
+- additional schema adapters
+- further runtime capabilities based on real usage
 
 See [`ROADMAP.md`](./ROADMAP.md) for the detailed implementation roadmap.
 
