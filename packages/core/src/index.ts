@@ -6,6 +6,7 @@ export type {
   JsonSchemaType,
   ValidationResult,
   ValidationError,
+  VisibleError,
 } from './types.js'
 
 export type {

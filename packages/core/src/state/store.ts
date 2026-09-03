@@ -1,4 +1,4 @@
-import { createSignal, subscribeToSignal } from './signal.js'
+import { createSignal, createComputed, subscribeToSignal } from './signal.js'
 import type { Signal } from './signal.js'
 
 export interface Store<T> {
@@ -17,5 +17,13 @@ export function createStore<T>(initialValue: T): WritableStore<T> {
     getSnapshot: () => signal.get(),
     subscribe: (listener) => subscribeToSignal(signal, listener),
     set: (value: T) => signal.set(value),
+  }
+}
+
+export function createComputedStore<T>(fn: () => T): Store<T> {
+  const computed = createComputed(fn)
+  return {
+    getSnapshot: () => computed.get(),
+    subscribe: (listener) => subscribeToSignal(computed, listener),
   }
 }

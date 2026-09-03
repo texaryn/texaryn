@@ -4,11 +4,11 @@ import type { UIDocument, UINode } from '../ir/types.js'
 import type { RuntimeState, NodeRuntimeState, SubmissionState } from '../ir/runtime-state.js'
 import { processCommand } from '../commands/handler.js'
 import type { Command, Effect } from '../commands/types.js'
-import { createStore } from '../state/store.js'
-import type { WritableStore } from '../state/store.js'
+import { createStore, createComputedStore } from '../state/store.js'
+import type { WritableStore, Store } from '../state/store.js'
 import { batch } from '../state/signal.js'
 import { getAtPointer } from '../json-pointer.js'
-import type { NodeId, ValidationError, ValidationResult } from '../types.js'
+import type { NodeId, ValidationError, ValidationResult, VisibleError } from '../types.js'
 import type { FormRuntime, FormRuntimeOptions, NodeState } from './types.js'
 import { createValidationScheduler } from './validation-scheduler.js'
 import type { ValidationScheduler, ValidationTrigger } from './validation-scheduler.js'
@@ -34,6 +34,7 @@ interface NodeStoreBundle {
   visible: WritableStore<boolean>
   disabled: WritableStore<boolean>
   validationStatus: WritableStore<'idle' | 'pending' | 'valid' | 'invalid'>
+  showErrors: Store<boolean>
 }
 
 function defaultNodeState(value: unknown): NodeRuntimeState {
@@ -45,14 +46,19 @@ function defaultNodeState(value: unknown): NodeRuntimeState {
 }
 
 function createNodeStoreBundle(nodeState: NodeRuntimeState, uiNode: UINode): NodeStoreBundle {
+  const touched = createStore(nodeState.interaction.touched)
+  const validationStatus = createStore(nodeState.validation.status)
   return {
     value: createStore(nodeState.value),
     errors: createStore(nodeState.validation.errors),
     dirty: createStore(nodeState.interaction.dirty),
-    touched: createStore(nodeState.interaction.touched),
+    touched,
     visible: createStore(uiNode.visible),
     disabled: createStore(uiNode.disabled),
-    validationStatus: createStore(nodeState.validation.status),
+    validationStatus,
+    showErrors: createComputedStore(() =>
+      touched.getSnapshot() && validationStatus.getSnapshot() === 'invalid',
+    ),
   }
 }
 
@@ -68,6 +74,7 @@ export function createFormRuntime(
   const documentStore = createStore<UIDocument>(initialCompile.document)
   const dataStore = createStore<unknown>(initialData)
   const submissionStore = createStore<SubmissionState>({ status: 'idle' })
+  const visibleErrorsStore = createStore<VisibleError[]>([])
   const nodeStores = new Map<NodeId, NodeStoreBundle>()
 
   const nodes = new Map<NodeId, NodeRuntimeState>()
@@ -100,6 +107,24 @@ export function createFormRuntime(
       bundle.errors.set(nodeRuntimeState.validation.errors)
       bundle.validationStatus.set(nodeRuntimeState.validation.status)
     }
+    refreshVisibleErrors()
+  }
+
+  function refreshVisibleErrors(): void {
+    const result: VisibleError[] = []
+    for (const [nodeId, bundle] of nodeStores) {
+      if (!bundle.showErrors.getSnapshot()) continue
+      const errors = bundle.errors.getSnapshot()
+      if (errors.length === 0) continue
+      const uiNode = currentDoc.nodes[nodeId as string]
+      result.push({
+        nodeId,
+        fieldTitle: uiNode?.annotations?.title,
+        pointer: uiNode?.dataPointer ?? null,
+        errors,
+      })
+    }
+    visibleErrorsStore.set(result)
   }
 
   function handleRecompile(): void {
@@ -155,6 +180,8 @@ export function createFormRuntime(
         nodeStores.delete(nodeId)
       }
     }
+
+    refreshVisibleErrors()
   }
 
   function applyNodeValidationResult(result: ValidationResult): void {
@@ -180,6 +207,7 @@ export function createFormRuntime(
     }
 
     state = { ...state, nodes: nextNodes }
+    refreshVisibleErrors()
   }
 
   function runOnSubmit(): Promise<void> {
@@ -213,6 +241,7 @@ export function createFormRuntime(
         if (bundle) bundle.validationStatus.set('pending')
       }
       state = { ...state, nodes: nextNodes }
+      refreshVisibleErrors()
     })
   }
 
@@ -248,6 +277,7 @@ export function createFormRuntime(
     }
     if (changed) {
       state = { ...state, nodes: nextNodes }
+      refreshVisibleErrors()
     }
   }
 
@@ -350,6 +380,7 @@ export function createFormRuntime(
     document: documentStore,
     data: dataStore,
     submission: submissionStore,
+    visibleErrors: visibleErrorsStore,
     dispatch,
     getNodeState,
     destroy,

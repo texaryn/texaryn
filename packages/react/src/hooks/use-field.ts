@@ -11,6 +11,7 @@ export interface UseFieldReturn {
   touched: boolean
   visible: boolean
   disabled: boolean
+  showErrors: boolean
   onChange(value: unknown): void
   onBlur(): void
 }
@@ -24,6 +25,7 @@ const FALLBACK_DIRTY = createStore(false)
 const FALLBACK_TOUCHED = createStore(false)
 const FALLBACK_VISIBLE = createStore(true)
 const FALLBACK_DISABLED = createStore(false)
+const FALLBACK_SHOW_ERRORS = createStore(false)
 const FALLBACK_VALIDATION_STATUS = createStore<'idle' | 'pending' | 'valid' | 'invalid'>('idle')
 
 export function useField(nodeId: NodeId): UseFieldReturn {
@@ -36,7 +38,8 @@ export function useField(nodeId: NodeId): UseFieldReturn {
   const touched = useStore(nodeState?.touched ?? FALLBACK_TOUCHED)
   const visible = useStore(nodeState?.visible ?? FALLBACK_VISIBLE)
   const disabled = useStore(nodeState?.disabled ?? FALLBACK_DISABLED)
-  // Subscribed for re-render parity with the other six node stores, even
+  const showErrors = useStore(nodeState?.showErrors ?? FALLBACK_SHOW_ERRORS)
+  // Subscribed for re-render parity with the other seven node stores, even
   // though validation status is not part of this hook's return value.
   useStore(nodeState?.validationStatus ?? FALLBACK_VALIDATION_STATUS)
 
@@ -50,5 +53,5 @@ export function useField(nodeId: NodeId): UseFieldReturn {
     [runtime, nodeId],
   )
 
-  return { value, errors, dirty, touched, visible, disabled, onChange, onBlur }
+  return { value, errors, dirty, touched, visible, disabled, showErrors, onChange, onBlur }
 }

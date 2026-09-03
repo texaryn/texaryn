@@ -3,7 +3,7 @@ import type { UIDocument } from '../ir/types.js'
 import type { UIHints } from '../hints/types.js'
 import type { Command } from '../commands/types.js'
 import type { SubmissionState } from '../ir/runtime-state.js'
-import type { NodeId, MaybePromise, ValidationError } from '../types.js'
+import type { NodeId, MaybePromise, ValidationError, VisibleError } from '../types.js'
 
 export interface FormRuntimeOptions {
   initialData?: unknown
@@ -20,12 +20,14 @@ export interface NodeState {
   readonly visible: Store<boolean>
   readonly disabled: Store<boolean>
   readonly validationStatus: Store<'idle' | 'pending' | 'valid' | 'invalid'>
+  readonly showErrors: Store<boolean>
 }
 
 export interface FormRuntime {
   readonly document: Store<UIDocument>
   readonly data: Store<unknown>
   readonly submission: Store<SubmissionState>
+  readonly visibleErrors: Store<VisibleError[]>
   dispatch(command: Command): void
   getNodeState(nodeId: NodeId): NodeState | undefined
   destroy(): void

@@ -726,3 +726,171 @@ describe('FormRuntime validation scheduling', () => {
     expect(runtime.submission.getSnapshot().status).toBe('idle')
   })
 })
+
+describe('showErrors display policy', () => {
+  it('showErrors is false when untouched and idle', () => {
+    const port = makePort(() => simpleProjection)
+    const runtime = createFormRuntime(port)
+    const nodeId = findFieldNode(runtime, '/name')
+    const nodeState = runtime.getNodeState(nodeId)!
+    expect(nodeState.showErrors.getSnapshot()).toBe(false)
+    runtime.destroy()
+  })
+
+  it('showErrors is false when touched but not invalid', () => {
+    const port = makePort(() => simpleProjection)
+    const runtime = createFormRuntime(port)
+    const nodeId = findFieldNode(runtime, '/name')
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    const nodeState = runtime.getNodeState(nodeId)!
+    expect(nodeState.showErrors.getSnapshot()).toBe(false)
+    runtime.destroy()
+  })
+
+  it('showErrors is false when invalid but not touched', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'submit' } },
+    })
+    runtime.dispatch({ type: 'Submit' })
+    const nodeId = findFieldNode(runtime, '/name')
+    const nodeState = runtime.getNodeState(nodeId)!
+    expect(nodeState.touched.getSnapshot()).toBe(false)
+    expect(nodeState.validationStatus.getSnapshot()).toBe('invalid')
+    expect(nodeState.showErrors.getSnapshot()).toBe(false)
+    runtime.destroy()
+  })
+
+  it('showErrors is true when both touched and invalid', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nodeId = findFieldNode(runtime, '/name')
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    const nodeState = runtime.getNodeState(nodeId)!
+    expect(nodeState.showErrors.getSnapshot()).toBe(true)
+    runtime.destroy()
+  })
+
+  it('showErrors transitions to false when errors clear', () => {
+    let shouldFail = true
+    const port = makePort(
+      () => simpleProjection,
+      () => shouldFail
+        ? { valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }
+        : { valid: true, errors: [] },
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nodeId = findFieldNode(runtime, '/name')
+    // 'change' triggers are debounced (see validation-scheduler.ts), so fake
+    // timers are needed to advance past the debounce window deterministically.
+    vi.useFakeTimers()
+    // Touch the field first, then trigger change validation
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    runtime.dispatch({ type: 'SetValue', nodeId, value: '' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.getNodeState(nodeId)!.showErrors.getSnapshot()).toBe(true)
+
+    shouldFail = false
+    runtime.dispatch({ type: 'SetValue', nodeId, value: 'Alice' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.getNodeState(nodeId)!.showErrors.getSnapshot()).toBe(false)
+    vi.useRealTimers()
+    runtime.destroy()
+  })
+})
+
+describe('visibleErrors aggregate', () => {
+  it('visibleErrors is empty when no errors are visible', () => {
+    const port = makePort(() => simpleProjection)
+    const runtime = createFormRuntime(port)
+    expect(runtime.visibleErrors.getSnapshot()).toEqual([])
+    runtime.destroy()
+  })
+
+  it('visibleErrors includes node when touched and invalid', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const nodeId = findFieldNode(runtime, '/name')
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    const visible = runtime.visibleErrors.getSnapshot()
+    expect(visible).toHaveLength(1)
+    expect(visible[0].nodeId).toBe(nodeId)
+    expect(visible[0].fieldTitle).toBe('Name')
+    expect(visible[0].pointer).toBe('/name')
+    expect(visible[0].errors).toHaveLength(1)
+    expect(visible[0].errors[0].keyword).toBe('required')
+    runtime.destroy()
+  })
+
+  it('visibleErrors excludes untouched invalid nodes', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'submit' } },
+    })
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.visibleErrors.getSnapshot()).toEqual([])
+    runtime.destroy()
+  })
+
+  it('visibleErrors clears when errors resolve', () => {
+    let shouldFail = true
+    const port = makePort(
+      () => simpleProjection,
+      () => shouldFail
+        ? { valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }
+        : { valid: true, errors: [] },
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nodeId = findFieldNode(runtime, '/name')
+    // 'change' triggers are debounced (see validation-scheduler.ts), so fake
+    // timers are needed to advance past the debounce window deterministically.
+    vi.useFakeTimers()
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    runtime.dispatch({ type: 'SetValue', nodeId, value: '' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.visibleErrors.getSnapshot()).toHaveLength(1)
+
+    shouldFail = false
+    runtime.dispatch({ type: 'SetValue', nodeId, value: 'Alice' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.visibleErrors.getSnapshot()).toEqual([])
+    vi.useRealTimers()
+    runtime.destroy()
+  })
+
+  it('visibleErrors is reactive (subscribe fires on change)', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'blur' } },
+    })
+    const listener = vi.fn()
+    runtime.visibleErrors.subscribe(listener)
+    const nodeId = findFieldNode(runtime, '/name')
+    runtime.dispatch({ type: 'SetTouched', nodeId })
+    expect(listener).toHaveBeenCalled()
+    runtime.destroy()
+  })
+})
