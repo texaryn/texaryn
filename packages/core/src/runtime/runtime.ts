@@ -96,6 +96,8 @@ export function createFormRuntime(
   }
 
   let destroyed = false
+  let submissionGeneration = 0
+  let currentAttempt: { generation: number; data: unknown } | null = null
 
   function syncNodeStores(): void {
     for (const [nodeId, nodeRuntimeState] of state.nodes) {
@@ -210,18 +212,20 @@ export function createFormRuntime(
     refreshVisibleErrors()
   }
 
-  function runOnSubmit(): Promise<void> {
-    return Promise.resolve(options.onSubmit?.(state.data))
+  function runOnSubmit(attempt: { generation: number; data: unknown }): Promise<void> {
+    return Promise.resolve(options.onSubmit?.(attempt.data))
       .then(() => {
-        if (destroyed) return
+        if (destroyed || attempt.generation !== submissionGeneration) return
         batch(() => {
+          currentAttempt = null
           state = { ...state, submission: { status: 'submitted' } }
           submissionStore.set(state.submission)
         })
       })
       .catch((error: unknown) => {
-        if (destroyed) return
+        if (destroyed || attempt.generation !== submissionGeneration) return
         batch(() => {
+          currentAttempt = null
           state = { ...state, submission: { status: 'idle', error } }
           submissionStore.set(state.submission)
         })
@@ -251,13 +255,18 @@ export function createFormRuntime(
       applyNodeValidationResult(result)
 
       if (trigger === 'submit' && state.submission.status === 'validating') {
-        const submission: SubmissionState = result.valid
-          ? { status: 'submitting' }
-          : { status: 'idle' }
-        state = { ...state, submission }
-        submissionStore.set(submission)
-
-        if (result.valid) void runOnSubmit()
+        const attempt = currentAttempt
+        if (result.valid && attempt) {
+          const submission: SubmissionState = { status: 'submitting' }
+          state = { ...state, submission }
+          submissionStore.set(submission)
+          void runOnSubmit(attempt)
+        } else {
+          currentAttempt = null
+          const submission: SubmissionState = { status: 'idle' }
+          state = { ...state, submission }
+          submissionStore.set(submission)
+        }
       }
     })
   }
@@ -287,6 +296,7 @@ export function createFormRuntime(
       resetPendingNodes()
 
       if (trigger === 'submit') {
+        currentAttempt = null
         state = { ...state, submission: { status: 'idle', error } }
         submissionStore.set(state.submission)
       }
@@ -295,7 +305,12 @@ export function createFormRuntime(
 
   const scheduler: ValidationScheduler = createValidationScheduler(
     {
-      runValidation: () => port.validate(state.data),
+      runValidation: (trigger) =>
+        port.validate(
+          trigger === 'submit' && currentAttempt
+            ? currentAttempt.data
+            : state.data,
+        ),
       onPending: onValidationPending,
       onResult: onValidationResult,
       onError: onValidationError,
@@ -313,6 +328,9 @@ export function createFormRuntime(
   }
 
   function handleValidateEffect(effect: Extract<Effect, { type: 'validate' }>): void {
+    if (state.submission.status === 'submitting' && effect.trigger !== 'submit') {
+      return
+    }
     if (effect.trigger !== 'submit' && !hintMatchesTrigger(effect.nodeIds, effect.trigger)) {
       return
     }
@@ -339,13 +357,25 @@ export function createFormRuntime(
       scheduler.invalidate()
       if (command.type === 'Reset') {
         scheduler.cancelScheduled()
+        submissionGeneration++
+        currentAttempt = null
       }
     }
 
     const { nextState, effects } = processCommand(state, command, currentDoc)
     state = nextState
 
+    const isAcceptedSubmit = effects.some(
+      (e) => e.type === 'validate' && e.trigger === 'submit',
+    )
+    if (isAcceptedSubmit) {
+      currentAttempt = { generation: ++submissionGeneration, data: state.data }
+      scheduler.cancelScheduled()
+    }
+
     if (mutatesData && state.submission.status === 'validating') {
+      submissionGeneration++
+      currentAttempt = null
       state = { ...state, submission: { status: 'idle' } }
     }
 
@@ -372,6 +402,8 @@ export function createFormRuntime(
 
   function destroy(): void {
     destroyed = true
+    submissionGeneration++
+    currentAttempt = null
     scheduler.destroy()
     nodeStores.clear()
   }
