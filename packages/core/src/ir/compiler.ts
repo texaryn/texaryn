@@ -196,6 +196,7 @@ function compileNode(
       enumValues: proj.enumValues,
       widget: fieldHints?.widget,
       placeholder: fieldHints?.placeholder,
+      helpText: fieldHints?.helpText,
     }
     nodes[id] = node
   }

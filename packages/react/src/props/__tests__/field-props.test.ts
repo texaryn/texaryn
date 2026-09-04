@@ -58,6 +58,18 @@ describe('getInputProps', () => {
     expect('placeholder' in props).toBe(false)
   })
 
+  it('links aria-describedby to the description when only helpText is set', () => {
+    const node = makeFieldNode({ annotations: { title: 'Bio' }, helpText: 'Tell us about yourself.' })
+    const props = getInputProps(node, makeFieldState())
+    expect(props['aria-describedby']).toBe('texaryn-node_1-description')
+  })
+
+  it('has no aria-describedby without description, helpText or visible errors', () => {
+    const node = makeFieldNode({ annotations: { title: 'Bio' } })
+    const props = getInputProps(node, makeFieldState())
+    expect(props['aria-describedby']).toBeUndefined()
+  })
+
   it('aria-invalid is absent when showErrors is false even with errors', () => {
     const node = makeFieldNode()
     const state = makeFieldState({

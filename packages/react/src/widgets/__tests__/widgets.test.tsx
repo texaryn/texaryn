@@ -100,6 +100,29 @@ describe('Default widgets', () => {
     expect((screen.getByLabelText('Name') as HTMLInputElement).hasAttribute('placeholder')).toBe(false)
   })
 
+  it('renders helpText as the field description and prefers it over the schema description', () => {
+    const proj = makeProjection([
+      ['', { type: 'object', children: [
+        { pointer: toPointer('/bio'), key: 'bio', required: false },
+        { pointer: toPointer('/nick'), key: 'nick', required: false },
+        { pointer: toPointer('/name'), key: 'name', required: false },
+      ] }],
+      ['/bio', { type: 'string', annotations: { title: 'Bio', description: 'From the schema' } }],
+      ['/nick', { type: 'string', annotations: { title: 'Nickname' } }],
+      ['/name', { type: 'string', annotations: { title: 'Name', description: 'Schema only' } }],
+    ])
+    renderForm(proj, {}, {
+      '/bio': { helpText: 'From the hint' },
+      '/nick': { helpText: 'Hint without schema description' },
+    })
+    const bio = screen.getByLabelText('Bio') as HTMLInputElement
+    expect(document.getElementById(bio.getAttribute('aria-describedby')!)!.textContent).toBe('From the hint')
+    expect(screen.queryByText('From the schema')).toBeNull()
+    const nick = screen.getByLabelText('Nickname') as HTMLInputElement
+    expect(document.getElementById(nick.getAttribute('aria-describedby')!)!.textContent).toBe('Hint without schema description')
+    expect(screen.getByText('Schema only')).toBeTruthy()
+  })
+
   it('renders a number input for integer field', () => {
     const proj = makeProjection([
       ['', { type: 'object', children: [

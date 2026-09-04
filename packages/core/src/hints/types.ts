@@ -9,7 +9,9 @@ export interface FieldHints {
   order?: number
   placeholder?: string
   helpText?: string
+  /** @deprecated Never applied. Removed or replaced once Texaryn has a layout contract. */
   colSpan?: number
+  /** Not applied yet. Visibility semantics are decided in the UI integration contract. */
   hidden?: boolean
   validationTrigger?: 'blur' | 'change' | 'submit'
 }

@@ -64,7 +64,7 @@ export function makeId(nodeId: string, suffix: string): string {
  */
 export function getInputProps(node: FieldNode, fieldState: FieldState): InputProps {
   const id = makeId(node.id, 'input')
-  const hasDescription = Boolean(node.annotations?.description)
+  const hasDescription = Boolean(node.helpText ?? node.annotations?.description)
 
   // Build aria-describedby from description and error IDs, in that order
   const describedByIds: string[] = []

@@ -15,6 +15,7 @@ function SelectImpl({ node }: WidgetProps) {
   const labelProps = getLabelProps(fieldNode)
   const descriptionProps = getDescriptionProps(fieldNode)
   const label = fieldNode.annotations.title ?? fieldNode.dataPointer ?? fieldNode.id
+  const description = fieldNode.helpText ?? fieldNode.annotations.description
   const enumValues = fieldNode.enumValues ?? []
 
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -36,8 +37,8 @@ function SelectImpl({ node }: WidgetProps) {
           </option>
         ))}
       </select>
-      {fieldNode.annotations.description ? (
-        <div {...descriptionProps}>{fieldNode.annotations.description}</div>
+      {description ? (
+        <div {...descriptionProps}>{description}</div>
       ) : null}
       <FieldErrors node={fieldNode} errors={field.errors} showErrors={field.showErrors} />
     </div>
