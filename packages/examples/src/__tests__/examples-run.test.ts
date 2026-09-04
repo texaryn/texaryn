@@ -29,16 +29,26 @@ describe.each(examples.map((example) => [example.id, example] as const))(
       runtime.destroy()
     })
 
-    it('accepts its own declared initial data', async () => {
+    it('matches its declared initial validity', async () => {
       const port = await createJsonSchemaAdapter(example.schema, {
         defaultDialect: example.dialect,
       })
 
       const result = await port.validate(example.initialData)
-      expect(
-        result.errors,
-        `${example.id} initialData violates its own schema`,
-      ).toEqual([])
+
+      if (example.startsInvalid) {
+        // Asserted rather than merely tolerated: an example that claims to
+        // demonstrate validation is broken if its data is actually valid.
+        expect(
+          result.errors.length,
+          `${example.id} declares startsInvalid but its data satisfies the schema`,
+        ).toBeGreaterThan(0)
+      } else {
+        expect(
+          result.errors,
+          `${example.id} initialData violates its own schema`,
+        ).toEqual([])
+      }
     })
   },
 )

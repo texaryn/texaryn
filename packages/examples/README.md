@@ -29,6 +29,30 @@ Only public Texaryn capabilities belong here. How a particular renderer
 implements one is renderer conformance: `accessibility.required` belongs,
 `mui-select-aria-required` does not.
 
+## Where a capability is proven
+
+Every entry declares a `verification` layer: `projection`, `runtime` or
+`renderer`. It records where the semantic proof belongs, and it names a layer
+rather than a suite on purpose, since naming a suite would tie the public
+catalog to test file names.
+
+This keeps two different guarantees apart. Example coverage answers "can
+someone select this capability in the docs or playground". The semantic proof
+answers "does Texaryn implement it correctly". Conflating them is what would
+push renderer concerns into this renderer-neutral package.
+
+Accessibility is the case that makes the distinction earn its keep. Those
+capabilities are proven at the `renderer` layer by the shared conformance
+suites across Default, Bootstrap and Material UI, while their examples stay
+plain data here. They are never exempt from needing an example: picking
+"Required semantics" and switching renderer while the same schema renders is
+among the most useful things the playground will offer.
+
+An example that deliberately starts in a state its own schema rejects sets
+`startsInvalid: true`, which is how a validation or error example shows
+anything. Tests then require those errors rather than tolerating them, so an
+accidental violation is still caught.
+
 ## Adding a capability
 
 A capability and the example that demonstrates it land together:
