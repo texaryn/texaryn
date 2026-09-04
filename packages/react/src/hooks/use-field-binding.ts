@@ -19,25 +19,17 @@ export interface DomInputBaseProps {
   onBlur(): void
 }
 
-/** Text, number, textarea and select controls. */
+/** Value-shaped surface for text, number, textarea and select controls. */
 export interface DomValueInputProps extends DomInputBaseProps {
   value: string | number
   onChange(event: { target: { value: string } }): void
 }
 
-/** Checkbox controls. */
+/** Checked-shaped surface for checkbox controls. */
 export interface DomCheckedInputProps extends DomInputBaseProps {
   checked: boolean
   onChange(event: { target: { checked: boolean } }): void
 }
-
-/**
- * Event-shaped adapter for spreading onto a native control. Its keys depend on
- * the field: boolean fields carry `checked`, everything else carries `value`.
- * The contract is the behaviour in the table of the design spec, not a shared
- * DOM prop type.
- */
-export type DomInputProps = DomValueInputProps | DomCheckedInputProps
 
 export interface FieldBinding {
   node: FieldNode
@@ -66,8 +58,11 @@ export interface FieldBinding {
   labelProps: LabelProps
   descriptionProps: DescriptionProps
   errorProps: ErrorProps
-  domInputProps: DomInputProps
+  domInputProps: DomValueInputProps
+  domCheckboxProps: DomCheckedInputProps
 }
+
+const NO_ERRORS: ValidationError[] = []
 
 type FieldKind = 'enum' | 'boolean' | 'number' | 'string'
 
@@ -110,22 +105,21 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     onBlur: input.onBlur,
   }
 
-  const domInputProps: DomInputProps =
-    kind === 'boolean'
-      ? {
-          ...base,
-          checked: Boolean(field.value),
-          onChange: (event: { target: { checked: boolean } }) =>
-            field.onChange(event.target.checked),
-        }
-      : {
-          ...base,
-          value: displayValue(kind, field.value),
-          onChange: (event: { target: { value: string } }) =>
-            field.onChange(coerce(kind, node, event.target.value)),
-        }
+  const domInputProps: DomValueInputProps = {
+    ...base,
+    value: displayValue(kind, field.value),
+    onChange: (event: { target: { value: string } }) =>
+      field.onChange(coerce(kind, node, event.target.value)),
+  }
 
-  const errors = field.showErrors ? field.errors : []
+  const domCheckboxProps: DomCheckedInputProps = {
+    ...base,
+    checked: Boolean(field.value),
+    onChange: (event: { target: { checked: boolean } }) =>
+      field.onChange(event.target.checked),
+  }
+
+  const errors = field.showErrors ? field.errors : NO_ERRORS
   const first = errors[0]
 
   return {
@@ -148,5 +142,6 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     descriptionProps: getDescriptionProps(node),
     errorProps: getErrorProps(node),
     domInputProps,
+    domCheckboxProps,
   }
 }

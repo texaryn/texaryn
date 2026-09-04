@@ -8,7 +8,6 @@ export type { UseFieldArrayReturn } from './hooks/use-field-array.js'
 export { useFieldBinding } from './hooks/use-field-binding.js'
 export type {
   FieldBinding,
-  DomInputProps,
   DomValueInputProps,
   DomCheckedInputProps,
   DomInputBaseProps,

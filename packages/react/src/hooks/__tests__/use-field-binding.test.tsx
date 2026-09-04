@@ -43,10 +43,11 @@ let captured: FieldBinding | undefined
 function Probe({ node }: { node: FieldNode }) {
   const binding = useFieldBinding(node)
   captured = binding
-  const props = binding.domInputProps
-  return 'checked' in props
-    ? <input {...props} type="checkbox" data-testid="control" />
-    : <input {...props} data-testid="control" />
+  const checkbox =
+    node.fieldType === 'boolean' && (node.enumValues == null || node.enumValues.length === 0)
+  return checkbox
+    ? <input {...binding.domCheckboxProps} type="checkbox" data-testid="control" />
+    : <input {...binding.domInputProps} data-testid="control" />
 }
 
 function mount(
@@ -185,10 +186,11 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
 
   it('boolean: exposes checked and coerces from event.target.checked', async () => {
     const { control, binding } = mount({ type: 'boolean' }, { data: { f: false } })
-    expect('checked' in binding().domInputProps).toBe(true)
+    expect(binding().domCheckboxProps.checked).toBe(false)
     expect(control.checked).toBe(false)
     await act(async () => { control.click() })
     expect(binding().value).toBe(true)
+    expect(binding().domCheckboxProps.checked).toBe(true)
     expect(control.checked).toBe(true)
   })
 
@@ -205,13 +207,13 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
     expect(binding().value).toBe('zzz')
   })
 
-  it('a boolean field with enum values is treated as an enum', () => {
+  it('a boolean field with enum values is treated as an enum, which a select style widget spreads from domInputProps', () => {
     const { binding } = mount({ type: 'boolean', enumValues: [{ value: true }, { value: false }] }, { data: { f: true } })
-    expect('checked' in binding().domInputProps).toBe(false)
-    expect('value' in binding().domInputProps).toBe(true)
+    expect(binding().domInputProps.value).toBe('true')
+    expect(binding().domCheckboxProps.checked).toBe(true)
   })
 
-  it('carries id, name, disabled, aria attributes, placeholder and onBlur from getInputProps', () => {
+  it('carries id, name, disabled, aria attributes, placeholder and onBlur from getInputProps onto both surfaces', () => {
     const { binding } = mount(
       { type: 'string', annotations: { description: 'd' } },
       { hints: { '/f': { placeholder: 'p' } } },
@@ -223,5 +225,9 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
     expect(p['aria-describedby']).toBe(`texaryn-${binding().node.id}-description`)
     expect(p.placeholder).toBe('p')
     expect(typeof p.onBlur).toBe('function')
+    const c = binding().domCheckboxProps
+    expect(c.id).toBe(p.id)
+    expect(c.name).toBe(p.name)
+    expect(c['aria-describedby']).toBe(p['aria-describedby'])
   })
 })
