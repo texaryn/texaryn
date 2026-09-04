@@ -1,5 +1,19 @@
 # @texaryn/core
 
+## 0.3.0
+
+### Minor Changes
+
+- cd13f98: The `order` field hint is now applied. It sets presentation order among siblings: lower comes first, a field without one keeps its schema position, and equal values keep schema order. Hinted and unhinted fields share one scale, so moving a field to the front means giving it a value below every schema index. It orders siblings and nothing else, and array items are unaffected because their order is their data order.
+  
+  `colSpan` and `hidden` are now marked deprecated. Both were already inert. `colSpan` needs a layout contract that does not exist, and `hidden` needs an explicit decision about whether a hidden field validates, submits, stays active and retains its data, which would otherwise conflict with the active and inactive semantics schema evaluation already provides. Neither is removed yet; both go in the next major.
+
+### Patch Changes
+
+- 3172a01: Array item identity now survives mutation at the document boundary. The command handler already maintained it, reconciling on data changes and updating it directly for insert, remove and move, but every recompile discarded that and rebuilt a positional set, so `arrayMeta.itemIds` handed renderers index semantics: removing the first of two rows moved the survivor from `item_1` to `item_0`, detaching any per-row state keyed to it. Compilation now adopts the identity the handler produced.
+  
+  `compile()` takes an optional fourth argument carrying that identity forward. It is additive and defaults to the previous behaviour, so no caller has to change.
+
 ## 0.2.0
 
 ### Patch Changes
