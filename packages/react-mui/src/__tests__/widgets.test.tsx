@@ -57,6 +57,29 @@ function renderForm(
   return render(<TestForm />)
 }
 
+function renderFormWithData(
+  proj: SchemaProjection,
+  data: unknown,
+  hints?: UIHints,
+) {
+  const dataRef = { current: data }
+  const port: SchemaEvaluationPort = {
+    project: () => proj,
+    validate: () => ({ valid: true, errors: [] }),
+  }
+  function TestForm() {
+    const form = useForm(port, { initialData: data, hints })
+    dataRef.current = form.data
+    return (
+      <FormContext.Provider value={form.runtime}>
+        <FormRoot registry={createMuiRegistry()} />
+      </FormContext.Provider>
+    )
+  }
+  const result = render(<TestForm />)
+  return { ...result, getData: () => dataRef.current }
+}
+
 const fields = makeProjection([
   [
     '',
@@ -232,14 +255,57 @@ describe('MUI field widgets', () => {
     expect(age.value).toBe('7')
   })
 
-  it('select preserves original enum values', () => {
-    renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    const trigger = screen.getByLabelText('Role')
+  it('number rendered through textarea stays numeric', async () => {
+    const proj = makeProjection([
+      [
+        '',
+        {
+          type: 'object',
+          children: [{ pointer: toPointer('/count'), key: 'count', required: false }],
+        },
+      ],
+      ['/count', { type: 'integer', annotations: { title: 'Count' } }],
+    ])
+    const { getData } = renderFormWithData(proj, { count: 10 }, { '/count': { widget: 'textarea' } })
+    const el = screen.getByLabelText('Count')
+    expect(el.tagName).toBe('TEXTAREA')
+    fireEvent.change(el, { target: { value: '7' } })
+    await waitFor(() => {
+      const data = getData() as Record<string, unknown>
+      expect(typeof data.count).toBe('number')
+      expect(data.count).toBe(7)
+    })
+  })
+
+  it('select preserves original enum values with numeric enums', async () => {
+    const proj = makeProjection([
+      [
+        '',
+        {
+          type: 'object',
+          children: [{ pointer: toPointer('/level'), key: 'level', required: false }],
+        },
+      ],
+      [
+        '/level',
+        {
+          type: 'integer',
+          enumValues: [{ value: 1 }, { value: 2 }, { value: 3 }],
+          annotations: { title: 'Level' },
+        },
+      ],
+    ])
+    const { getData } = renderFormWithData(proj, { level: 1 })
+    const trigger = screen.getByLabelText('Level')
     fireEvent.mouseDown(trigger)
     const options = screen.getAllByRole('option')
-    expect(options).toHaveLength(2)
-    expect(options[0].textContent).toBe('dev')
-    expect(options[1].textContent).toBe('pm')
+    expect(options).toHaveLength(3)
+    fireEvent.click(options[1])
+    await waitFor(() => {
+      const data = getData() as Record<string, unknown>
+      expect(typeof data.level).toBe('number')
+      expect(data.level).toBe(2)
+    })
   })
 
   it('checkbox description shown as helper text', () => {
