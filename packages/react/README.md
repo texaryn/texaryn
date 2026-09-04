@@ -183,6 +183,30 @@ All default widgets already render `FieldErrors` internally, so most application
 
 React does not own the submission lifecycle. It only observes the `submission` store that `@texaryn/core` computes; see the [`@texaryn/core` README](../core/README.md#submission-lifecycle) for the full snapshot semantics.
 
+## Custom widgets
+
+`useFieldBinding(node)` composes everything a field widget needs: the value and `setValue`, the label, description and placeholder, display-gated `errors` with a first `error` and an `invalid` flag, the ARIA prop getters, and two event-shaped adapters ready to spread onto a native control, `domInputProps` for value controls and `domCheckboxProps` for checkboxes. They own the display value and the coercion for text, number, checkbox and select controls, so a widget is markup around one hook:
+
+```tsx
+import { useFieldBinding } from '@texaryn/react'
+import type { FieldNode, UINode } from '@texaryn/core'
+
+function BootstrapTextInput({ node }: { node: UINode }) {
+  const field = useFieldBinding(node as FieldNode)
+  return (
+    <div className="mb-3">
+      <label {...field.labelProps} className="form-label">{field.label}</label>
+      <input {...field.domInputProps} type="text" className={field.invalid ? 'form-control is-invalid' : 'form-control'} />
+      {field.description ? <div {...field.descriptionProps} className="form-text">{field.description}</div> : null}
+    </div>
+  )
+}
+```
+
+`setValue(value)` is the fundamental operation; the `onChange` on the DOM surfaces is a convenience that coerces the DOM event and calls it. A component that deals in values directly uses `field.value` and `field.setValue` instead. Checkboxes spread `domCheckboxProps` (`checked`); text, number, textarea and select controls spread `domInputProps` (`value`). The lower-level `getInputProps`, `getLabelProps`, `getErrorProps` and `getDescriptionProps` remain available and unchanged.
+
+A renderer that shows either the error or the description, not both, owns `aria-describedby` for what it renders; the binding's props reference both elements because the default widgets render both.
+
 ## Default widgets
 
 `createDefaultRegistry()` registers the built-in React widgets:
@@ -232,6 +256,11 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `UseFieldReturn`
 - `useFieldArray`
 - `UseFieldArrayReturn`
+- `useFieldBinding`
+- `FieldBinding`
+- `DomValueInputProps`
+- `DomCheckedInputProps`
+- `DomInputBaseProps`
 - `useFormContext`
 
 ### Context and rendering
@@ -279,6 +308,7 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 
 - [`@texaryn/core`](../core/README.md), runtime and renderer contracts
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
+- [`@texaryn/react-bootstrap`](../react-bootstrap/README.md), Bootstrap 5 widget registry
 - [`@texaryn/demo`](../demo/README.md), repository demo application
 
 See the [repository README](../../README.md) for the complete architecture.

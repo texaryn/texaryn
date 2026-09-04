@@ -112,6 +112,10 @@ runtime.dispatch({ type: 'Submit' })
 
 `createDefaultRegistry()` includes: text input, number input, checkbox, select, textarea, object layout, and array control. Replace or extend widgets by providing a custom registry.
 
+## Use another look
+
+For Bootstrap 5 markup, install `@texaryn/react-bootstrap` alongside `bootstrap` and load Bootstrap 5.3 CSS on the page; the package renders the classes but never loads the stylesheet. Pass `createBootstrapRegistry()` to `FormRoot` in place of `createDefaultRegistry()` and nothing else about the form changes: see the [`@texaryn/react-bootstrap` README](../packages/react-bootstrap/README.md).
+
 ## Validation
 
 Validation triggers are configured per field through the `validationTrigger` hint:
@@ -145,6 +149,6 @@ Duplicate Submit while validating or submitting is a no-op.
 ## Next steps
 
 - [API reference](api/) for the full type surface
-- Package READMEs: [@texaryn/core](../packages/core/README.md), [@texaryn/schema-json](../packages/schema-json/README.md), [@texaryn/react](../packages/react/README.md)
+- Package READMEs: [@texaryn/core](../packages/core/README.md), [@texaryn/schema-json](../packages/schema-json/README.md), [@texaryn/react](../packages/react/README.md), [@texaryn/react-bootstrap](../packages/react-bootstrap/README.md)
 - [Migrating from RJSF](migrating-from-rjsf.md) if you are coming from react-jsonschema-form
 - [Release runbook](releasing.md) for maintainers

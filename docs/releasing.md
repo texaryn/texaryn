@@ -6,6 +6,9 @@ Before merging the PR that prepares a release:
 
 1. CI is green: build, typecheck, test, `docs:check`, `verify:packages`.
 2. The disposable dry run results are recorded in the PR description.
+3. For the first release that includes a new package, publish and deprecate the `0.0.0` placeholder from a machine with an npm login and add the trusted publisher (`ci-release.yml`, environment `npm-release`) before merging the Version Packages PR. OIDC cannot create a package.
+
+`@texaryn/react-bootstrap` versions independently. `.changeset/config.json` puts `@texaryn/core`, `@texaryn/schema-json` and `@texaryn/react` in one `fixed` group, so those three always move together, but `@texaryn/react-bootstrap` is outside it: a changeset naming only that package moves only that package, and its number drifts away from the group's. Its first changeset is a minor, so its first version is `0.1.0` and it needs the placeholder step above.
 
 ## Merge the PR
 
@@ -22,21 +25,21 @@ After merging:
 
 ## Publish
 
-After the Version Packages PR merges, the `changesets` job finds no pending changesets and runs `scripts/check-unpublished-packages.mjs`, which asks the registry for the exact version in each of the three public `package.json` files. Because the merge just raised those versions, they are missing, `should-publish` is true and the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
+After the Version Packages PR merges, the `changesets` job finds no pending changesets and runs `scripts/check-unpublished-packages.mjs`, which asks the registry for the exact version in each of the four public `package.json` files. Because the merge just raised those versions, they are missing, `should-publish` is true and the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
 
-The check fails open. A 404 for any package means publish. A 5xx, a timeout or any other answer the script cannot classify also means publish, so an npm outage can delay a release at the gate but can never skip one. Only three confirmed 200 responses stop the job.
+The check fails open. A 404 for any package means publish. A 5xx, a timeout or any other answer the script cannot classify also means publish, so an npm outage can delay a release at the gate but can never skip one. Only a confirmed 200 for every package stops the job.
 
 The `publish` job pins npm to 11.19.1 before building. `.nvmrc` pins only the Node major, so the npm bundled with the runner's Node 24 build drifts between runs; trusted publishing needs npm 11.5.1 or later, and npm 12 changes publish behaviour.
 
 Once approved, the job:
 
-1. Publishes the three packages with provenance to npm under the `latest` dist-tag.
+1. Publishes the packages that have a new version with provenance to npm under the `latest` dist-tag.
 2. Pushes the `@texaryn/<name>@<version>` tags and `v<version>`.
 3. Creates GitHub release `v<version>`, marked prerelease only when the version contains a hyphen.
 
 ## Later pushes to main
 
-A later push to `main` with no pending changesets and all three versions already on npm stops before the gate: the registry check returns three 200s, `should-publish` is false and `publish` is skipped. No deployment waits and nothing needs reviewing.
+A later push to `main` with no pending changesets and every version already on npm stops before the gate: the registry check returns a 200 for each package, `should-publish` is false and `publish` is skipped. No deployment waits and nothing needs reviewing.
 
 A waiting `publish` deployment on a changeset-free push therefore means one of two things: the registry does not have one of the versions (a partial publish, see Recovery) or it could not be consulted. Approve it and `changeset publish` does only what is needed, or reject it. Do not leave it waiting: the workflow's concurrency group lets one run per branch through at a time, and a run parked at the gate holds that slot, so every later push to `main` sits at "pending" until the deployment is approved or rejected.
 
