@@ -11,6 +11,7 @@ import {
 } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
+import { createMuiRegistry } from '@texaryn/react-mui'
 import { contactSchema, sampleSchemas } from './schemas.js'
 import type { SampleEntry } from './schemas.js'
 
@@ -19,6 +20,7 @@ const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/boo
 const registries = {
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
+  mui: { label: 'Material UI', registry: createMuiRegistry() },
 } as const
 
 type RendererKey = keyof typeof registries
