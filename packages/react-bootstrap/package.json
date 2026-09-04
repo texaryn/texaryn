@@ -2,18 +2,44 @@
   "name": "@texaryn/react-bootstrap",
   "version": "0.0.0",
   "description": "Bootstrap 5 widgets for Texaryn: native markup and Bootstrap classes on top of @texaryn/react",
-  "keywords": ["react", "bootstrap", "bootstrap5", "json-schema", "forms", "texaryn"],
+  "keywords": [
+    "react",
+    "bootstrap",
+    "bootstrap5",
+    "json-schema",
+    "forms",
+    "texaryn"
+  ],
   "type": "module",
   "license": "Apache-2.0",
-  "funding": { "type": "github", "url": "https://github.com/sponsors/hamzahamidi" },
-  "repository": { "type": "git", "url": "git+https://github.com/texaryn/texaryn.git", "directory": "packages/react-bootstrap" },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/react-bootstrap"
+  },
   "homepage": "https://github.com/texaryn/texaryn#readme",
-  "bugs": { "url": "https://github.com/texaryn/texaryn/issues" },
-  "publishConfig": { "access": "public" },
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist", "CHANGELOG.md"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "dependencies": {
     "@texaryn/core": "workspace:^"
   },
@@ -21,6 +47,11 @@
     "@texaryn/react": "workspace:^",
     "react": ">=18.0.0",
     "bootstrap": "^5.3"
+  },
+  "peerDependenciesMeta": {
+    "bootstrap": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",
@@ -31,5 +62,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
-  "scripts": { "build": "tsc --build" }
+  "scripts": {
+    "build": "tsc --build"
+  }
 }
