@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "typecheck": "tsc --noEmit -p packages/core/tsconfig.typecheck.json && tsc --noEmit -p packages/schema-json/tsconfig.typecheck.json && tsc --noEmit -p packages/schema-json-hyperjump/tsconfig.typecheck.json && tsc --noEmit -p packages/react/tsconfig.typecheck.json && tsc --noEmit -p packages/react-bootstrap/tsconfig.typecheck.json && tsc --noEmit -p packages/react-mui/tsconfig.typecheck.json && tsc --noEmit -p tests/tsconfig.typecheck.json",
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.typecheck.json && tsc --noEmit -p packages/schema-json/tsconfig.typecheck.json && tsc --noEmit -p packages/schema-json-hyperjump/tsconfig.typecheck.json && tsc --noEmit -p packages/react/tsconfig.typecheck.json && tsc --noEmit -p packages/react-bootstrap/tsconfig.typecheck.json && tsc --noEmit -p packages/react-mui/tsconfig.typecheck.json && tsc --noEmit -p packages/examples/tsconfig.typecheck.json && tsc --noEmit -p tests/tsconfig.typecheck.json",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:watch": "vitest",

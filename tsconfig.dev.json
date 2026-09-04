@@ -8,7 +8,8 @@
       "@texaryn/schema-json-hyperjump": ["packages/schema-json-hyperjump/src/index.ts"],
       "@texaryn/react": ["packages/react/src/index.ts"],
       "@texaryn/react-bootstrap": ["packages/react-bootstrap/src/index.ts"],
-      "@texaryn/react-mui": ["packages/react-mui/src/index.ts"]
+      "@texaryn/react-mui": ["packages/react-mui/src/index.ts"],
+      "@texaryn/examples": ["packages/examples/src/index.ts"]
     }
   }
 }
