@@ -223,9 +223,18 @@ importers:
       '@texaryn/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@texaryn/examples':
+        specifier: workspace:*
+        version: link:../packages/examples
       '@texaryn/react':
         specifier: workspace:*
         version: link:../packages/react
+      '@texaryn/react-bootstrap':
+        specifier: workspace:*
+        version: link:../packages/react-bootstrap
+      '@texaryn/react-mui':
+        specifier: workspace:*
+        version: link:../packages/react-mui
       '@texaryn/schema-json':
         specifier: workspace:*
         version: link:../packages/schema-json
@@ -233,6 +242,15 @@ importers:
         specifier: workspace:*
         version: link:../packages/schema-json-hyperjump
     devDependencies:
+      '@emotion/react':
+        specifier: ^11.14.0
+        version: 11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0)
+      '@emotion/styled':
+        specifier: ^11.14.0
+        version: 11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0)
+      '@mui/material':
+        specifier: ^9.4.0
+        version: 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@testing-library/react':
         specifier: ^16.0.0
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

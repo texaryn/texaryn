@@ -121,6 +121,15 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias },
+        test: {
+          name: 'example-conformance',
+          root: 'tests',
+          include: ['example-conformance/**/*.test.tsx'],
+          environment: 'jsdom',
+        },
+      },
+      {
         test: {
           name: 'scripts',
           root: 'scripts',

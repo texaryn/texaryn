@@ -70,6 +70,23 @@ segments where they help, and JSON Schema keywords keep their official
 casing: `schema.type.string`, `schema.composition.oneOf`,
 `schema.conditional.if-then-else`, `validation.trigger.blur`.
 
+## Every example renders under every renderer
+
+`tests/example-conformance/` runs the whole catalog against each supported
+React renderer: Default, Bootstrap and Material UI. It asks one question the
+per-layer proofs do not, namely whether every scenario this package
+advertises can actually make it through each renderer. Per example and
+renderer it checks that the form renders, that nothing reaches `console.error`
+or `console.warn`, and that the registry resolves a widget for every active
+node.
+
+It lives outside this package on purpose. These examples stay renderer-neutral
+data; the matrix is a compatibility check over that data, so importing React
+and three design systems belongs there rather than here.
+
+The semantic assertions are not repeated there. Each capability's
+`verification` layer already says where its proof lives.
+
 ## Coverage is enforced in both directions
 
 The two directions need different mechanisms:
