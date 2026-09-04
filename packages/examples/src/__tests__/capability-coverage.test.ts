@@ -17,6 +17,33 @@ describe('capability manifest', () => {
     }
   })
 
+  it('says where every capability is proven', () => {
+    for (const id of capabilityIds) {
+      expect(
+        ['projection', 'runtime', 'renderer'],
+        `${id} needs a verification layer`,
+      ).toContain(getCapability(id).verification)
+    }
+  })
+
+  // The layer is stable product metadata. Naming a suite instead would tie
+  // the public catalog to test file names and refactors.
+  it('proves accessibility at the renderer layer while keeping its examples data-only', () => {
+    const accessibility = capabilityIds.filter(
+      (id) => getCapability(id).category === 'accessibility',
+    )
+    expect(accessibility.length).toBeGreaterThan(0)
+
+    for (const id of accessibility) {
+      expect(getCapability(id).verification, `${id} is proven by a renderer`).toBe('renderer')
+      expect(
+        requiresExample(id),
+        `${id} still needs a data-only example, never an exemption`,
+      ).toBe(true)
+      expect(examplesCovering(id).length).toBeGreaterThan(0)
+    }
+  })
+
   it('requires a written reason whenever an example is waived', () => {
     for (const id of capabilityIds) {
       const capability = getCapability(id)
