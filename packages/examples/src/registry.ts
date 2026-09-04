@@ -4,12 +4,26 @@ import { arrayExamples } from './basics/arrays.js'
 import { enumAndRequiredExamples } from './basics/enums-and-required.js'
 import { objectExamples } from './basics/objects.js'
 import { primitiveExamples } from './basics/primitives.js'
+import { anyOfExamples } from './composition/any-of.js'
+import { conditionalExamples } from './composition/conditionals.js'
+import { oneOfExamples } from './composition/one-of.js'
+import { dependencyExamples } from './dependencies/index.js'
+import { dialectExamples } from './dialects/index.js'
+import { referenceExamples } from './references/local-ref.js'
+import { constraintExamples } from './validation/constraints.js'
 
 export const examples: readonly TexarynExample[] = [
   ...primitiveExamples,
   ...objectExamples,
   ...arrayExamples,
   ...enumAndRequiredExamples,
+  ...constraintExamples,
+  ...referenceExamples,
+  ...conditionalExamples,
+  ...oneOfExamples,
+  ...anyOfExamples,
+  ...dependencyExamples,
+  ...dialectExamples,
 ]
 
 export function getExample(id: string): TexarynExample | undefined {

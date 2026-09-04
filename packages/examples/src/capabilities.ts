@@ -94,6 +94,113 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
   },
+
+  'schema.constraint.minLength': {
+    title: 'minLength',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.maxLength': {
+    title: 'maxLength',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.pattern': {
+    title: 'pattern',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.minimum': {
+    title: 'minimum',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.maximum': {
+    title: 'maximum',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.minItems': {
+    title: 'minItems',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.maxItems': {
+    title: 'maxItems',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.constraint.uniqueItems': {
+    title: 'uniqueItems',
+    category: 'schema',
+    status: 'supported',
+  },
+
+  'schema.reference.local-ref': {
+    title: 'Local $ref',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.reference.reused-fragment': {
+    title: 'A $defs fragment reused by several properties',
+    category: 'schema',
+    status: 'supported',
+  },
+
+  'schema.conditional.if-then-else': {
+    title: 'if / then / else',
+    category: 'schema',
+    status: 'supported',
+  },
+
+  'schema.composition.oneOf': {
+    title: 'oneOf',
+    category: 'schema',
+    status: 'supported',
+  },
+  'schema.composition.anyOf': {
+    title: 'anyOf',
+    category: 'schema',
+    status: 'supported',
+  },
+
+  'schema.dependency.dependentSchemas': {
+    title: 'dependentSchemas',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['2019-09', '2020-12'],
+  },
+  'schema.dependency.dependentRequired': {
+    title: 'dependentRequired',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['2019-09', '2020-12'],
+  },
+  'schema.dependency.draft07-dependencies': {
+    title: 'Draft 7 dependencies',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['draft-07'],
+  },
+
+  'schema.dialect.draft-07': {
+    title: 'Draft 7',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['draft-07'],
+  },
+  'schema.dialect.2019-09': {
+    title: '2019-09',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['2019-09'],
+  },
+  'schema.dialect.2020-12': {
+    title: '2020-12',
+    category: 'schema',
+    status: 'supported',
+    dialects: ['2020-12'],
+  },
 } as const satisfies Record<string, CapabilityDefinition>
 
 export type CapabilityId = keyof typeof capabilities
