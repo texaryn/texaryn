@@ -18,9 +18,13 @@
 
 ***
 
-### colSpan?
+### ~~colSpan?~~
 
 > `optional` **colSpan?**: `number`
+
+#### Deprecated
+
+Never applied. Removed or replaced once Texaryn has a layout contract.
 
 #### Inherited from
 
@@ -41,6 +45,8 @@
 ### hidden?
 
 > `optional` **hidden?**: `boolean`
+
+Not applied yet. Visibility semantics are decided in the UI integration contract.
 
 #### Inherited from
 

@@ -312,6 +312,26 @@ describe('compile', () => {
       expect(byPointer('/email').placeholder).toBe('you@example.com')
       expect(byPointer('/name').placeholder).toBeUndefined()
     })
+
+    it('applies helpText hint to field', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: '/bio' as JsonPointer, key: 'bio', required: false },
+          ],
+        }],
+        ['/bio', { type: 'string' }],
+      ])
+
+      const { document } = compile(projection, {}, {
+        '/bio': { helpText: 'Tell us about yourself.' },
+      })
+      const bioNode = Object.values(document.nodes).find(
+        n => n.dataPointer === '/bio',
+      )! as any
+      expect(bioNode.helpText).toBe('Tell us about yourself.')
+    })
   })
 
   describe('conditional visibility', () => {

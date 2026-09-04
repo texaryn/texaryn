@@ -66,6 +66,12 @@
 
 ***
 
+### helpText?
+
+> `optional` **helpText?**: `string`
+
+***
+
 ### id
 
 > **id**: [`NodeId`](../type-aliases/NodeId.md)

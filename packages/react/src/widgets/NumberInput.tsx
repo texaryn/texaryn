@@ -15,6 +15,7 @@ function NumberInputImpl({ node }: WidgetProps) {
   const labelProps = getLabelProps(fieldNode)
   const descriptionProps = getDescriptionProps(fieldNode)
   const label = fieldNode.annotations.title ?? fieldNode.dataPointer ?? fieldNode.id
+  const description = fieldNode.helpText ?? fieldNode.annotations.description
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const raw = event.target.value
@@ -30,8 +31,8 @@ function NumberInputImpl({ node }: WidgetProps) {
         value={typeof value === 'number' ? value : value == null ? '' : String(value)}
         onChange={handleChange}
       />
-      {fieldNode.annotations.description ? (
-        <div {...descriptionProps}>{fieldNode.annotations.description}</div>
+      {description ? (
+        <div {...descriptionProps}>{description}</div>
       ) : null}
       <FieldErrors node={fieldNode} errors={field.errors} showErrors={field.showErrors} />
     </div>

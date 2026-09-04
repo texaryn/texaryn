@@ -15,6 +15,7 @@ function TextInputImpl({ node }: WidgetProps) {
   const labelProps = getLabelProps(fieldNode)
   const descriptionProps = getDescriptionProps(fieldNode)
   const label = fieldNode.annotations.title ?? fieldNode.dataPointer ?? fieldNode.id
+  const description = fieldNode.helpText ?? fieldNode.annotations.description
 
   return (
     <div>
@@ -25,8 +26,8 @@ function TextInputImpl({ node }: WidgetProps) {
         value={typeof value === 'string' ? value : value == null ? '' : String(value)}
         onChange={(event) => onChange(event.target.value)}
       />
-      {fieldNode.annotations.description ? (
-        <div {...descriptionProps}>{fieldNode.annotations.description}</div>
+      {description ? (
+        <div {...descriptionProps}>{description}</div>
       ) : null}
       <FieldErrors node={fieldNode} errors={field.errors} showErrors={field.showErrors} />
     </div>
