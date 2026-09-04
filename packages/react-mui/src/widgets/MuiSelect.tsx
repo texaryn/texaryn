@@ -26,8 +26,13 @@ function MuiSelectImpl({ node }: WidgetProps) {
       helperText={field.error ?? field.description}
       fullWidth
       slotProps={{
+        // Screen readers see the combobox div, not MUI's aria-hidden native input.
+        select: {
+          SelectDisplayProps: {
+            'aria-required': field.required || undefined,
+          },
+        },
         htmlInput: {
-          'aria-required': field.required || undefined,
           'aria-invalid': field.invalid || undefined,
         },
         formHelperText: {
