@@ -1,5 +1,14 @@
 # @texaryn/react-mui
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [cd13f98]
+- Updated dependencies [3172a01]
+  - @texaryn/core@0.3.0
+  - @texaryn/react@0.2.2
+
 ## 0.1.0
 
 ### Minor Changes

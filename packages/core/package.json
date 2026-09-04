@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Framework-neutral UI IR, compiler, runtime, and renderer registry for schema-driven forms",
   "keywords": [
     "json-schema",
