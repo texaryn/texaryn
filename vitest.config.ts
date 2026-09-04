@@ -17,6 +17,7 @@ const alias = {
   '@texaryn/react': resolve(root, 'packages/react/src/index.ts'),
   '@texaryn/react-bootstrap': resolve(root, 'packages/react-bootstrap/src/index.ts'),
   '@texaryn/react-mui': resolve(root, 'packages/react-mui/src/index.ts'),
+  '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
 }
 
 export default defineConfig({
@@ -93,6 +94,14 @@ export default defineConfig({
           root: 'packages/react-mui',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'examples',
+          root: 'packages/examples',
+          include: ['src/**/*.test.ts'],
         },
       },
       {
