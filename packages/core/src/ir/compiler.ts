@@ -12,7 +12,7 @@ import type {
   NodeAnnotations,
 } from './types.js'
 import type { CompileResult } from './compiler-types.js'
-import type { UIHints, ArrayHints } from '../hints/types.js'
+import type { UIHints, ArrayHints, FieldHints } from '../hints/types.js'
 import type { IdentityMap } from './runtime-state.js'
 import type { JsonPointer, NodeId, StableItemId } from '../types.js'
 import { createIdentityMap, registerArray, insertItem } from '../identity/index.js'
@@ -26,6 +26,14 @@ interface CompileContext {
 
 function nextId(ctx: CompileContext): NodeId {
   return `node_${++ctx.nodeCounter}` as NodeId
+}
+
+function siblingOrder(
+  hints: UIHints | undefined,
+  pointer: JsonPointer,
+  schemaIndex: number,
+): number {
+  return (hints?.[pointer] as FieldHints | undefined)?.order ?? schemaIndex
 }
 
 /**
@@ -97,8 +105,22 @@ function compileNode(
   if (proj.type === 'object') {
     const children: NodeId[] = []
     if (proj.children) {
-      for (let i = 0; i < proj.children.length; i++) {
-        const child: ChildProjection = proj.children[i]
+      // Presentation order among siblings, and nothing more. An explicit
+      // `order` hint wins; a field without one keeps its schema position, so
+      // ordering a single field does not displace everything after it. Equal
+      // values keep schema order, which makes the result deterministic rather
+      // than dependent on sort stability. Array items are excluded: their
+      // order is their data order.
+      const ordered = proj.children
+        .map((child, schemaIndex) => ({ child, schemaIndex }))
+        .sort((a, b) => {
+          const aOrder = siblingOrder(hints, a.child.pointer, a.schemaIndex)
+          const bOrder = siblingOrder(hints, b.child.pointer, b.schemaIndex)
+          return aOrder - bOrder || a.schemaIndex - b.schemaIndex
+        })
+
+      for (let i = 0; i < ordered.length; i++) {
+        const child: ChildProjection = ordered[i].child
         const childProj = projection.nodes.get(child.pointer)
         if (childProj) {
           const childId = compileNode(

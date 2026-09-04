@@ -263,9 +263,16 @@ export const capabilities = {
     status: 'supported',
     verification: 'projection',
   },
-  // `order`, `colSpan` and `hidden` are declared in the hint contract but no
-  // compiler or renderer reads them, so they are deliberately absent here
-  // rather than declared and left unproven.
+  'ui-hint.order': {
+    title: 'Sibling order',
+    category: 'ui-hint',
+    status: 'supported',
+    verification: 'projection',
+  },
+  // `colSpan` and `hidden` remain declared in the hint contract but nothing
+  // reads them, and both are deprecated rather than wired: grid semantics
+  // need a layout contract, and a second visibility concept needs a decision
+  // about validation, submission and active state first.
   'ui-hint.array.canReorder': {
     title: 'Array reordering',
     category: 'ui-hint',
