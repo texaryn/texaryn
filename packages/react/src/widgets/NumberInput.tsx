@@ -1,7 +1,6 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useField } from '../hooks/use-field.js'
-import { getInputProps, getLabelProps, getDescriptionProps } from '../props/index.js'
+import { useFieldBinding } from '../hooks/use-field-binding.js'
 import { FieldErrors } from '../components/FieldErrors.js'
 
 export interface WidgetProps {
@@ -9,32 +8,14 @@ export interface WidgetProps {
 }
 
 function NumberInputImpl({ node }: WidgetProps) {
-  const fieldNode = node as FieldNode
-  const field = useField(fieldNode.id)
-  const { value, onChange, ...inputProps } = getInputProps(fieldNode, field)
-  const labelProps = getLabelProps(fieldNode)
-  const descriptionProps = getDescriptionProps(fieldNode)
-  const label = fieldNode.annotations.title ?? fieldNode.dataPointer ?? fieldNode.id
-  const description = fieldNode.helpText ?? fieldNode.annotations.description
-
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = event.target.value
-    onChange(raw === '' ? undefined : Number(raw))
-  }
+  const field = useFieldBinding(node as FieldNode)
 
   return (
     <div>
-      <label {...labelProps}>{label}</label>
-      <input
-        {...inputProps}
-        type="number"
-        value={typeof value === 'number' ? value : value == null ? '' : String(value)}
-        onChange={handleChange}
-      />
-      {description ? (
-        <div {...descriptionProps}>{description}</div>
-      ) : null}
-      <FieldErrors node={fieldNode} errors={field.errors} showErrors={field.showErrors} />
+      <label {...field.labelProps}>{field.label}</label>
+      <input {...field.domInputProps} type="number" />
+      {field.description ? <div {...field.descriptionProps}>{field.description}</div> : null}
+      <FieldErrors node={field.node} errors={field.errors} showErrors={field.invalid} />
     </div>
   )
 }
