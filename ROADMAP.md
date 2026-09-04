@@ -408,12 +408,29 @@ actions ──┘
     |       +── @texaryn/schema-json-ajv        (backed by AJV)
     |
     +── @texaryn/react                (React binding, depends on core)
+    |       |
+    |       +── @texaryn/react-bootstrap  (Bootstrap 5 markup and classes)
+    |       +── @texaryn/react-mui        (MUI component integration)
     +── @texaryn/vue                  (Vue binding, depends on core)
     +── @texaryn/angular              (Angular binding, depends on core)
     +── @texaryn/wc                   (Web Component binding, depends on core)
     |
     +── @texaryn/test-suite           (renderer conformance tests)
 ```
+
+Styling integrations remain separate from framework bindings.
+`@texaryn/react-bootstrap` renders native HTML with Bootstrap 5 classes and
+declares `@texaryn/react`, `react`, and `bootstrap: ^5.3` as peer dependencies.
+Widgets map field state onto classes such as `form-control`, `form-label`,
+`form-select`, `form-check`, `is-invalid`, `invalid-feedback`, `btn`, and
+`btn-primary`. The package does not depend on `react-bootstrap`. It proves that
+Texaryn can integrate with a CSS and markup framework without an intermediate
+component library.
+
+`@texaryn/react-mui` tests a different boundary by wrapping a third-party React
+component system. Emotion and Tailwind remain examples of custom styling rather
+than package dependencies. These targets test three distinct integration modes:
+CSS and markup conventions, component systems, and application-owned styling.
 
 ## 5. IR Design
 
@@ -1935,6 +1952,11 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 Defer until the project has users:
 - Additional schema adapters (Zod, TypeBox)
 - Additional renderers (Angular, Svelte, Solid)
+- Bootstrap 5 integration through `@texaryn/react-bootstrap`, using native
+  markup and Bootstrap classes with no `react-bootstrap` dependency
+- MUI integration through `@texaryn/react-mui` as the third-party React
+  component system test
+- Emotion and Tailwind examples as custom styling integration tests
 - Non-form node types (tables, lists, layouts)
 - Server-driven UI tooling
 - AI generation tooling
