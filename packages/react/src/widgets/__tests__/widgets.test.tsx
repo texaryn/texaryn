@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { createRendererRegistry } from '@texaryn/core'
 import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints } from '@texaryn/core'
@@ -28,6 +28,10 @@ function makeProjection(
   return { nodes }
 }
 
+// Form data of the most recent render, so a test can assert what a change event
+// stored rather than what the control displays.
+let latestData: unknown
+
 function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
   const port: SchemaEvaluationPort = {
     project: () => proj,
@@ -36,6 +40,7 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
 
   function TestForm() {
     const form = useForm(port, { initialData: data, hints })
+    latestData = form.data
     return (
       <FormContext.Provider value={form.runtime}>
         <FormRoot registry={createDefaultRegistry()} />
@@ -51,6 +56,7 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
 // render's DOM is torn down first.
 afterEach(() => {
   cleanup()
+  latestData = undefined
 })
 
 describe('RendererRegistry (re-exported from @texaryn/core)', () => {
@@ -201,5 +207,19 @@ describe('Default widgets', () => {
     ])
     renderForm(proj, { hidden: 'x' })
     expect(screen.queryByLabelText('Hidden')).toBeNull()
+  })
+
+  it('stores a number when a number field is rendered as a textarea', () => {
+    const proj = makeProjection([
+      ['', { type: 'object', children: [
+        { pointer: toPointer('/age'), key: 'age', required: false },
+      ] }],
+      ['/age', { type: 'integer', annotations: { title: 'Age' } }],
+    ])
+    renderForm(proj, {}, { '/age': { widget: 'textarea' } })
+    const control = screen.getByLabelText('Age') as HTMLTextAreaElement
+    expect(control.tagName).toBe('TEXTAREA')
+    fireEvent.change(control, { target: { value: '42' } })
+    expect((latestData as { age?: unknown }).age).toBe(42)
   })
 })

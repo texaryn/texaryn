@@ -1,7 +1,6 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useField } from '../hooks/use-field.js'
-import { getInputProps, getLabelProps, getDescriptionProps } from '../props/index.js'
+import { useFieldBinding } from '../hooks/use-field-binding.js'
 import { FieldErrors } from '../components/FieldErrors.js'
 
 export interface WidgetProps {
@@ -9,38 +8,21 @@ export interface WidgetProps {
 }
 
 function SelectImpl({ node }: WidgetProps) {
-  const fieldNode = node as FieldNode
-  const field = useField(fieldNode.id)
-  const { value, onChange, ...inputProps } = getInputProps(fieldNode, field)
-  const labelProps = getLabelProps(fieldNode)
-  const descriptionProps = getDescriptionProps(fieldNode)
-  const label = fieldNode.annotations.title ?? fieldNode.dataPointer ?? fieldNode.id
-  const description = fieldNode.helpText ?? fieldNode.annotations.description
-  const enumValues = fieldNode.enumValues ?? []
-
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = enumValues.find((option) => String(option.value) === event.target.value)
-    onChange(selected ? selected.value : event.target.value)
-  }
+  const field = useFieldBinding(node as FieldNode)
+  const enumValues = field.node.enumValues ?? []
 
   return (
     <div>
-      <label {...labelProps}>{label}</label>
-      <select
-        {...inputProps}
-        value={value == null ? '' : String(value)}
-        onChange={handleChange}
-      >
+      <label {...field.labelProps}>{field.label}</label>
+      <select {...field.domInputProps}>
         {enumValues.map((option) => (
           <option key={String(option.value)} value={String(option.value)}>
             {option.title ?? String(option.value)}
           </option>
         ))}
       </select>
-      {description ? (
-        <div {...descriptionProps}>{description}</div>
-      ) : null}
-      <FieldErrors node={fieldNode} errors={field.errors} showErrors={field.showErrors} />
+      {field.description ? <div {...field.descriptionProps}>{field.description}</div> : null}
+      <FieldErrors node={field.node} errors={field.errors} showErrors={field.invalid} />
     </div>
   )
 }

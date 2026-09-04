@@ -4,7 +4,8 @@
   "entryPoints": [
     "packages/core",
     "packages/schema-json",
-    "packages/react"
+    "packages/react",
+    "packages/react-bootstrap"
   ],
   "plugin": ["typedoc-plugin-markdown"],
   "out": "docs/api",

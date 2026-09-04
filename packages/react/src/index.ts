@@ -5,6 +5,13 @@ export { useField } from './hooks/use-field.js'
 export type { UseFieldReturn } from './hooks/use-field.js'
 export { useFieldArray } from './hooks/use-field-array.js'
 export type { UseFieldArrayReturn } from './hooks/use-field-array.js'
+export { useFieldBinding } from './hooks/use-field-binding.js'
+export type {
+  FieldBinding,
+  DomValueInputProps,
+  DomCheckedInputProps,
+  DomInputBaseProps,
+} from './hooks/use-field-binding.js'
 export { FormContext, FormProvider, useFormContext } from './context.js'
 export { getInputProps, getLabelProps, getErrorProps, getDescriptionProps } from './props/index.js'
 export type { InputProps, LabelProps, ErrorProps, DescriptionProps, FieldState } from './props/index.js'

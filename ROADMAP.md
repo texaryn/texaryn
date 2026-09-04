@@ -1933,6 +1933,28 @@ schema library.
 20. **Documentation and first release.** API reference (generated from types).
     Getting started guide. Migration guide from RJSF. Publish 0.1.0 to npm.
 
+### Phase 3.x: UI Integration Contract (shipped before Phase 4)
+
+Proves that a third-party UI ecosystem consumes Texaryn without duplicating
+renderer glue and without core changes, so the renderer contract is exercised
+by a second consumer before the Vue renderer freezes more of it.
+
+- `useFieldBinding(node)` in `@texaryn/react`: the composition layer for field
+  widgets (value and `setValue`, label, description, placeholder, display-gated
+  errors, ARIA prop getters) with two DOM adapters, `domInputProps` for text,
+  number, textarea and select controls and `domCheckboxProps` for checkboxes.
+  The default field widgets are built on it.
+- `@texaryn/react-bootstrap`: native HTML with Bootstrap 5 classes, no
+  `react-bootstrap` dependency, no CSS loaded by the package, versioned
+  independently of the core group. It passes the renderer and ARIA conformance
+  suites unchanged; those suites now take a registry factory.
+- The demo switches between the default and Bootstrap renderers and owns the
+  stylesheet.
+- Next: the MUI spec validates the same contract against a component system
+  (controlled props, `helperText`, error state, theming). Container binding
+  primitives are added only if Bootstrap and MUI both duplicate the same
+  non-presentational composition.
+
 ### Phase 4: Second Renderer (PRs 21-25)
 
 **Goal:** Prove the "framework-neutral" claim by shipping a second renderer.
@@ -1952,10 +1974,8 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 Defer until the project has users:
 - Additional schema adapters (Zod, TypeBox)
 - Additional renderers (Angular, Svelte, Solid)
-- Bootstrap 5 integration through `@texaryn/react-bootstrap`, using native
-  markup and Bootstrap classes with no `react-bootstrap` dependency
 - MUI integration through `@texaryn/react-mui` as the third-party React
-  component system test
+  component system test (second consumer of the integration contract below)
 - Emotion and Tailwind examples as custom styling integration tests
 - Non-form node types (tables, lists, layouts)
 - Server-driven UI tooling

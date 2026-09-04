@@ -18,6 +18,11 @@ const packages = [
     dir: 'packages/react',
     expectedExport: 'useForm',
   },
+  {
+    name: '@texaryn/react-bootstrap',
+    dir: 'packages/react-bootstrap',
+    expectedExport: 'createBootstrapRegistry',
+  },
 ]
 
 const requiredFiles = [
@@ -60,6 +65,17 @@ for (const pkg of packages) {
         failed = true
       } else {
         console.log(`  ok: ${required}`)
+      }
+    }
+
+    if (pkg.name === '@texaryn/react-bootstrap') {
+      const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
+      for (const [field, dep] of [['dependencies', '@texaryn/core'], ['peerDependencies', '@texaryn/react']]) {
+        const range = manifest[field]?.[dep]
+        if (typeof range !== 'string' || !range.startsWith('^')) {
+          console.error(`${field}.${dep} should be a caret range, got ${range}`)
+          failed = true
+        }
       }
     }
 
