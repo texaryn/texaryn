@@ -23,6 +23,11 @@ const packages = [
     dir: 'packages/react-bootstrap',
     expectedExport: 'createBootstrapRegistry',
   },
+  {
+    name: '@texaryn/react-mui',
+    dir: 'packages/react-mui',
+    expectedExport: 'createMuiRegistry',
+  },
 ]
 
 const requiredFiles = [
@@ -68,7 +73,7 @@ for (const pkg of packages) {
       }
     }
 
-    if (pkg.name === '@texaryn/react-bootstrap') {
+    if (pkg.name === '@texaryn/react-bootstrap' || pkg.name === '@texaryn/react-mui') {
       const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
       for (const [field, dep] of [['dependencies', '@texaryn/core'], ['peerDependencies', '@texaryn/react']]) {
         const range = manifest[field]?.[dep]

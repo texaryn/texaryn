@@ -5,6 +5,7 @@
     { "path": "packages/schema-json" },
     { "path": "packages/schema-json-hyperjump" },
     { "path": "packages/react" },
-    { "path": "packages/react-bootstrap" }
+    { "path": "packages/react-bootstrap" },
+    { "path": "packages/react-mui" }
   ]
 }

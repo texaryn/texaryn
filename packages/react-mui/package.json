@@ -1,0 +1,66 @@
+{
+  "name": "@texaryn/react-mui",
+  "version": "0.0.0",
+  "description": "Material UI v9 widgets for Texaryn: MUI components on top of @texaryn/react",
+  "keywords": [
+    "react",
+    "material-ui",
+    "mui",
+    "json-schema",
+    "forms",
+    "texaryn"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/react-mui"
+  },
+  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "@texaryn/react": "workspace:^",
+    "@mui/material": "^9.0.0",
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.4.0",
+    "@testing-library/react": "^16.0.0",
+    "@texaryn/react": "workspace:*",
+    "@texaryn/schema-json": "workspace:*",
+    "@types/react": "^19.0.0",
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}
