@@ -100,21 +100,37 @@ describe('Default widgets', () => {
     expect((screen.getByLabelText('Name') as HTMLInputElement).hasAttribute('placeholder')).toBe(false)
   })
 
-  it('renders helpText as the field description and prefers it over the schema description', () => {
+  it('renders helpText as the field description on every default field widget, preferring it over the schema description', () => {
     const proj = makeProjection([
       ['', { type: 'object', children: [
         { pointer: toPointer('/bio'), key: 'bio', required: false },
         { pointer: toPointer('/nick'), key: 'nick', required: false },
         { pointer: toPointer('/name'), key: 'name', required: false },
+        { pointer: toPointer('/age'), key: 'age', required: false },
+        { pointer: toPointer('/agree'), key: 'agree', required: false },
+        { pointer: toPointer('/role'), key: 'role', required: false },
+        { pointer: toPointer('/notes'), key: 'notes', required: false },
       ] }],
       ['/bio', { type: 'string', annotations: { title: 'Bio', description: 'From the schema' } }],
       ['/nick', { type: 'string', annotations: { title: 'Nickname' } }],
       ['/name', { type: 'string', annotations: { title: 'Name', description: 'Schema only' } }],
+      ['/age', { type: 'integer', annotations: { title: 'Age' } }],
+      ['/agree', { type: 'boolean', annotations: { title: 'Agree' } }],
+      ['/role', { type: 'string', annotations: { title: 'Role' }, enumValues: [{ value: 'a' }, { value: 'b' }] }],
+      ['/notes', { type: 'string', annotations: { title: 'Notes' } }],
     ])
     renderForm(proj, {}, {
       '/bio': { helpText: 'From the hint' },
       '/nick': { helpText: 'Hint without schema description' },
+      '/age': { helpText: 'Number help' },
+      '/agree': { helpText: 'Checkbox help' },
+      '/role': { helpText: 'Select help' },
+      '/notes': { widget: 'textarea', helpText: 'Textarea help' },
     })
+    for (const [label, text] of [['Age', 'Number help'], ['Agree', 'Checkbox help'], ['Role', 'Select help'], ['Notes', 'Textarea help']] as const) {
+      const el = screen.getByLabelText(label)
+      expect(document.getElementById(el.getAttribute('aria-describedby')!)!.textContent).toBe(text)
+    }
     const bio = screen.getByLabelText('Bio') as HTMLInputElement
     expect(document.getElementById(bio.getAttribute('aria-describedby')!)!.textContent).toBe('From the hint')
     expect(screen.queryByText('From the schema')).toBeNull()
