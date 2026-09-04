@@ -73,10 +73,12 @@ for (const pkg of packages) {
       }
     }
 
-    if (pkg.name === '@texaryn/react-bootstrap' || pkg.name === '@texaryn/react-mui') {
-      const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
-      for (const [field, dep] of [['dependencies', '@texaryn/core'], ['peerDependencies', '@texaryn/react']]) {
-        const range = manifest[field]?.[dep]
+    // Every package versions independently, so an internal dependency has to
+    // publish as a caret range. An exact pin silently restores lockstep.
+    const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
+    for (const field of ['dependencies', 'peerDependencies']) {
+      for (const [dep, range] of Object.entries(manifest[field] ?? {})) {
+        if (!dep.startsWith('@texaryn/')) continue
         if (typeof range !== 'string' || !range.startsWith('^')) {
           console.error(`${field}.${dep} should be a caret range, got ${range}`)
           failed = true

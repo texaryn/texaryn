@@ -8,7 +8,13 @@ Before merging the PR that prepares a release:
 2. The disposable dry run results are recorded in the PR description.
 3. For the first release that includes a new package, publish and deprecate the `0.0.0` placeholder from a machine with an npm login and add the trusted publisher (`ci-release.yml`, environment `npm-release`) before merging the Version Packages PR. OIDC cannot create a package.
 
-`@texaryn/react-bootstrap` versions independently. `.changeset/config.json` puts `@texaryn/core`, `@texaryn/schema-json` and `@texaryn/react` in one `fixed` group, so those three always move together, but `@texaryn/react-bootstrap` is outside it: a changeset naming only that package moves only that package, and its number drifts away from the group's. Its first changeset is a minor, so its first version is `0.1.0` and it needs the placeholder step above.
+Every public package versions independently. `.changeset/config.json` declares no `fixed` group, so a changeset naming one package moves only that package and its number drifts away from the others. A version describes that package's own public contract: a breaking change in `@texaryn/react` does not make `@texaryn/core` a major, and a `@texaryn/core` major does not force one on the bindings when they absorb it without breaking their own API.
+
+Internal dependencies therefore publish as caret ranges (`workspace:^`), never exact pins. An exact pin makes a dependent unusable against any later version of its dependency, which restores lockstep releases through the back door. `scripts/verify-packages.mjs` fails the build when a published `@texaryn/*` dependency or peer dependency is not a caret range.
+
+Below 1.0 a caret still means "this minor only" (`^0.2.0` allows `0.2.x`, not `0.3.0`), so a `@texaryn/core` minor makes each dependent need a release to widen its range. `updateInternalDependencies` is set to `patch`, so that release is a patch rather than a version the dependent did not earn. Past 1.0 the dependents usually need no release at all.
+
+A package whose first changeset is a minor starts at `0.1.0` and needs the placeholder step above.
 
 ## Merge the PR
 
@@ -34,8 +40,12 @@ The `publish` job pins npm to 11.19.1 before building. `.nvmrc` pins only the No
 Once approved, the job:
 
 1. Publishes the packages that have a new version with provenance to npm under the `latest` dist-tag.
-2. Pushes the `@texaryn/<name>@<version>` tags and `v<version>`.
-3. Creates GitHub release `v<version>`, marked prerelease only when the version contains a hyphen.
+2. Pushes a `@texaryn/<name>@<version>` tag for each.
+3. Reconciles one GitHub release per published package, on that package's tag, marked prerelease only when the version contains a hyphen.
+
+There is no repository-wide version, so no aggregate `v<version>` release. The `v0.1.0-alpha.0` through `v0.2.0` releases predate independent versioning and stay as history; nothing creates another.
+
+Step 3 is a reconcile rather than a create, which is what makes the job safe to rerun. `scripts/release-plan.mjs` builds the plan from the `published-packages` output of the changesets action, and falls back to the package tags on the release commit when that output is empty. The fallback is the case that matters: once npm has the version, a rerun publishes nothing and reports nothing, so without the tags the plan would be empty and the missing release would never appear. Each release is then created if absent and edited if present, so a rerun converges instead of failing on a release that already exists.
 
 ## Later pushes to main
 
@@ -55,6 +65,8 @@ From a machine with an npm login:
 
 If the `changesets` or `publish` job is skipped after a push to main without its condition being evaluated, look for a skipped job upstream in the `needs` chain. The `changeset` job runs only on pull_request events, so on every push it is skipped, and GitHub propagates that skip to every downstream job whose `if` lacks a status function, even through intermediate jobs that ran. The `changesets` job needed `!cancelled()` for this in #25, and `publish` needed it in #27; between the two fixes the 0.1.0 merge ran `changesets` and skipped `publish` (run 33786185407). Any job downstream of a job that can be skipped needs a status function in its `if`, in the shape `${{ !cancelled() && needs.<job>.result == 'success' && <gate> }}`.
 
-If `publish` fails after some packages were published, the group is inconsistent: on 2026-09-03 an npm incident left `@texaryn/core@0.1.1` on the registry while `react` and `schema-json` stayed at 0.1.0 and no tags or release were created. Wait until the registry lists the published versions, then rerun the failed job (`gh run rerun <run-id> --failed`) and approve the deployment. `changeset publish` skips versions the registry already has and finishes the rest, and the tag and release steps run on the completed group. Rerunning before the registry has caught up makes `changeset publish` retry the published package and fail again.
+If `publish` fails partway, wait until the registry lists the versions that did go out, then rerun the failed job (`gh run rerun <run-id> --failed`) and approve the deployment. `changeset publish` skips versions the registry already has and finishes the rest, and the reconcile step creates whatever releases are missing. Rerunning before the registry has caught up makes `changeset publish` retry a published package and fail again.
+
+Two real failures shaped this. On 2026-09-03 an npm incident left `@texaryn/core@0.1.1` on the registry while `react` and `schema-json` stayed at 0.1.0, with no tags or release. On 2026-09-04 the first independent release, `@texaryn/react-mui@0.1.0`, published and tagged but then failed creating a release: the old script only knew the three formerly-fixed packages, so it reported their version and tried to create a `v0.2.0` release that already existed. That is why the plan now comes from what actually published and why creation is an upsert.
 
 If the Version Packages PR proposes an alpha version instead of a stable one, prerelease mode was not exited on main before merging.

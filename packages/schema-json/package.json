@@ -39,7 +39,7 @@
   },
   "files": ["dist", "CHANGELOG.md"],
   "dependencies": {
-    "@texaryn/core": "workspace:*",
+    "@texaryn/core": "workspace:^",
     "json-schema-library": "^11.6.2"
   },
   "scripts": {
