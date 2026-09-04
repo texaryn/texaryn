@@ -5,6 +5,14 @@
   "dependencies": {
     "@texaryn/core": "workspace:*",
     "@texaryn/schema-json": "workspace:*",
-    "@texaryn/schema-json-hyperjump": "workspace:*"
+    "@texaryn/schema-json-hyperjump": "workspace:*",
+    "@texaryn/react": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^19.0.0",
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

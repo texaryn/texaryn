@@ -134,12 +134,31 @@ importers:
       '@texaryn/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@texaryn/react':
+        specifier: workspace:*
+        version: link:../packages/react
       '@texaryn/schema-json':
         specifier: workspace:*
         version: link:../packages/schema-json
       '@texaryn/schema-json-hyperjump':
         specifier: workspace:*
         version: link:../packages/schema-json-hyperjump
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.18
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1(supports-color@7.2.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.8(react@19.2.8)
 
 packages:
 
