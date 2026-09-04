@@ -137,6 +137,9 @@ jobs:
       # Reconciles GitHub releases with what is published. The action output
       # only describes this execution, so a rerun after npm already succeeded
       # reports nothing; the package tags on this commit are the retry source.
+      # No release claims "latest": packages version independently, so the
+      # badge would land on whichever happened to publish last. The npm
+      # dist-tag is the authoritative latest, per package.
       - name: Reconcile GitHub releases
         env:
           GH_TOKEN: ${{ github.token }}
@@ -167,12 +170,14 @@ jobs:
               gh release edit "$tag" \
                 --title "$title" \
                 --notes-file .github-release-notes.md \
-                --prerelease="$prerelease"
+                --prerelease="$prerelease" \
+                --latest=false
             else
               echo "creating release $tag"
               gh release create "$tag" \
                 --title "$title" \
                 --notes-file .github-release-notes.md \
-                --prerelease="$prerelease"
+                --prerelease="$prerelease" \
+                --latest=false
             fi
           done

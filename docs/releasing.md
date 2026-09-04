@@ -45,6 +45,8 @@ Once approved, the job:
 
 There is no repository-wide version, so no aggregate `v<version>` release. The `v0.1.0-alpha.0` through `v0.2.0` releases predate independent versioning and stay as history; nothing creates another.
 
+No release claims GitHub's "latest" badge either, which is why the reconcile passes `--latest=false`. A single latest means nothing when packages version separately: the badge would simply follow whichever package published most recently. The authoritative latest is the npm `latest` dist-tag, per package. Treat GitHub releases as per-package changelog and history rather than an ordered global version list. GitHub also orders the release list by its own rules, so the `v*` entries can sort above newer package releases; that is display behaviour, not a defect in the pipeline.
+
 Step 3 is a reconcile rather than a create, which is what makes the job safe to rerun. `scripts/release-plan.mjs` builds the plan from the `published-packages` output of the changesets action, and falls back to the package tags on the release commit when that output is empty. The fallback is the case that matters: once npm has the version, a rerun publishes nothing and reports nothing, so without the tags the plan would be empty and the missing release would never appear. Each release is then created if absent and edited if present, so a rerun converges instead of failing on a release that already exists.
 
 ## Later pushes to main
