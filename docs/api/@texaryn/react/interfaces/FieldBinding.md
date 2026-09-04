@@ -60,7 +60,7 @@ First visible error as `message ?? keyword`.
 
 ### errors
 
-> **errors**: [`ValidationError`](../../core/interfaces/ValidationError.md)[]
+> **errors**: readonly [`ValidationError`](../../core/interfaces/ValidationError.md)[]
 
 Visible errors only: empty until the field is touched and invalid.
 

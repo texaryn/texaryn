@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { SchemaEvaluationPort } from '@texaryn/core'
+import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
   useForm,
@@ -9,6 +9,7 @@ import {
   ErrorSummary,
   createDefaultRegistry,
 } from '@texaryn/react'
+import type { WidgetComponent } from '@texaryn/react'
 import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
 import { contactSchema, sampleSchemas } from './schemas.js'
 import type { SampleEntry } from './schemas.js'
@@ -98,7 +99,7 @@ function FormWorkspace({
 }: {
   port: SchemaEvaluationPort
   entry: SampleEntry
-  registry: ReturnType<typeof createDefaultRegistry>
+  registry: RendererRegistry<WidgetComponent>
 }) {
   const simulateFailureRef = useRef(false)
   const [simulateFailure, setSimulateFailure] = useState(false)

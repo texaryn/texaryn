@@ -10,7 +10,7 @@
 
 ### errors
 
-> **errors**: [`ValidationError`](../../core/interfaces/ValidationError.md)[]
+> **errors**: readonly [`ValidationError`](../../core/interfaces/ValidationError.md)[]
 
 ***
 

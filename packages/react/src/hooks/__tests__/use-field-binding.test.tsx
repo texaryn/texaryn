@@ -82,7 +82,7 @@ afterEach(() => {
 })
 
 describe('useFieldBinding: derivations', () => {
-  it('derives label from title, then pointer, then id', () => {
+  it('derives label from title, then falls back to the pointer', () => {
     const { binding } = mount({ type: 'string', annotations: { title: 'Full Name' } })
     expect(binding().label).toBe('Full Name')
     cleanup()
@@ -153,6 +153,18 @@ describe('useFieldBinding: derivations', () => {
     expect(binding().labelProps).toEqual({ id: `texaryn-${id}-label`, htmlFor: `texaryn-${id}-input` })
     expect(binding().descriptionProps).toEqual({ id: `texaryn-${id}-description` })
     expect(binding().errorProps).toEqual({ id: `texaryn-${id}-error`, role: 'alert' })
+  })
+
+  it('passes touched, dirty, disabled, visible and onBlur through from useField', async () => {
+    const { binding } = mount({ type: 'string' }, { data: { f: 'x' } })
+    expect(binding().touched).toBe(false)
+    expect(binding().dirty).toBe(false)
+    expect(binding().disabled).toBe(false)
+    expect(binding().visible).toBe(true)
+    await act(async () => { binding().onBlur() })
+    expect(binding().touched).toBe(true)
+    await act(async () => { binding().setValue('y') })
+    expect(binding().dirty).toBe(true)
   })
 })
 

@@ -3,7 +3,7 @@ import { getErrorProps } from '../props/index.js'
 
 export interface FieldErrorsProps {
   node: FieldNode
-  errors: ValidationError[]
+  errors: readonly ValidationError[]
   showErrors: boolean
 }
 

@@ -50,7 +50,7 @@ export interface FieldBinding {
   placeholder: string | undefined
 
   /** Visible errors only: empty until the field is touched and invalid. */
-  errors: ValidationError[]
+  errors: readonly ValidationError[]
   /** First visible error as `message ?? keyword`. */
   error: string | undefined
   invalid: boolean
@@ -62,7 +62,7 @@ export interface FieldBinding {
   domCheckboxProps: DomCheckedInputProps
 }
 
-const NO_ERRORS: ValidationError[] = []
+const NO_ERRORS: readonly ValidationError[] = Object.freeze<ValidationError[]>([])
 
 type FieldKind = 'enum' | 'boolean' | 'number' | 'string'
 
