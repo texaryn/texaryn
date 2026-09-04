@@ -12,6 +12,10 @@
     "@texaryn/core": "workspace:*",
     "@texaryn/react": "workspace:*",
     "@texaryn/react-bootstrap": "workspace:*",
+    "@texaryn/react-mui": "workspace:*",
+    "@mui/material": "^9.4.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@texaryn/schema-json": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

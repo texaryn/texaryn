@@ -75,7 +75,10 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
       })
       expect((screen.getByLabelText('Age') as HTMLInputElement).getAttribute('type')).toBe('number')
       expect((screen.getByLabelText('Agree') as HTMLInputElement).getAttribute('type')).toBe('checkbox')
-      expect(screen.getByLabelText('Role').tagName).toBe('SELECT')
+      const roleElement = screen.getByLabelText('Role')
+      expect(
+        roleElement.tagName === 'SELECT' || roleElement.getAttribute('role') === 'combobox',
+      ).toBe(true)
     })
 
     it('typing in a field updates form data', async () => {

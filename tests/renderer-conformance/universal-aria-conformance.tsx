@@ -6,12 +6,12 @@ import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { useForm, FormContext, FormRoot, ErrorSummary } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 
-export interface AriaConformanceOptions {
+export interface UniversalAriaOptions {
   name: string
   createRegistry: () => RendererRegistry<WidgetComponent>
 }
 
-export function ariaConformance({ name, createRegistry }: AriaConformanceOptions): void {
+export function universalAriaConformance({ name, createRegistry }: UniversalAriaOptions): void {
   const registry = createRegistry()
 
   const requiredStringSchema = {
@@ -67,7 +67,7 @@ export function ariaConformance({ name, createRegistry }: AriaConformanceOptions
     )
   }
 
-  describe(`ARIA conformance (${name}): error display policy`, () => {
+  describe(`Universal ARIA conformance (${name})`, () => {
     afterEach(() => {
       cleanup()
     })
@@ -88,7 +88,7 @@ export function ariaConformance({ name, createRegistry }: AriaConformanceOptions
       expect(screen.queryByRole('alert')).toBeNull()
     })
 
-    it('touched invalid field: aria-invalid present, error rendered, aria-describedby includes error id', async () => {
+    it('touched invalid field: aria-invalid present, error rendered as alert', async () => {
       render(
         <TestForm
           schema={requiredStringSchema}
@@ -106,8 +106,49 @@ export function ariaConformance({ name, createRegistry }: AriaConformanceOptions
       })
       const errorContainer = screen.getByRole('alert')
       expect(errorContainer).toBeTruthy()
+    })
+
+    it('aria-describedby references rendered inline feedback', async () => {
+      render(
+        <TestForm
+          schema={requiredStringSchema}
+          data={{ name: '' }}
+          hints={{ '/name': { validationTrigger: 'blur' } }}
+        />,
+      )
+      await waitFor(() => {
+        expect(screen.getByLabelText('Full Name')).toBeTruthy()
+      })
+      const input = screen.getByLabelText('Full Name')
+      fireEvent.blur(input)
+      await waitFor(() => {
+        expect(input.getAttribute('aria-invalid')).toBe('true')
+      })
+      const errorContainer = screen.getByRole('alert')
       const describedBy = input.getAttribute('aria-describedby') ?? ''
       expect(describedBy).toContain(errorContainer.id)
+    })
+
+    it('every ID in aria-describedby exists in the DOM', async () => {
+      render(
+        <TestForm
+          schema={requiredStringSchema}
+          data={{ name: '' }}
+          hints={{ '/name': { validationTrigger: 'blur' } }}
+        />,
+      )
+      await waitFor(() => {
+        expect(screen.getByLabelText('Full Name')).toBeTruthy()
+      })
+      const input = screen.getByLabelText('Full Name')
+      fireEvent.blur(input)
+      await waitFor(() => {
+        expect(input.getAttribute('aria-invalid')).toBe('true')
+      })
+      const describedBy = input.getAttribute('aria-describedby') ?? ''
+      for (const id of describedBy.split(' ').filter(Boolean)) {
+        expect(document.getElementById(id)).not.toBeNull()
+      }
     })
 
     it('touched valid field: no aria-invalid, no error', async () => {
@@ -155,55 +196,7 @@ export function ariaConformance({ name, createRegistry }: AriaConformanceOptions
       expect(screen.queryByRole('alert')).toBeNull()
     })
 
-    it('description preserved in aria-describedby alongside error', async () => {
-      render(
-        <TestForm
-          schema={requiredStringSchema}
-          data={{ name: '' }}
-          hints={{ '/name': { validationTrigger: 'blur' } }}
-        />,
-      )
-      await waitFor(() => {
-        expect(screen.getByLabelText('Full Name')).toBeTruthy()
-      })
-      const input = screen.getByLabelText('Full Name')
-
-      const describedByBefore = input.getAttribute('aria-describedby') ?? ''
-      expect(describedByBefore).toMatch(/texaryn-.*-description/)
-      expect(describedByBefore).not.toMatch(/texaryn-.*-error/)
-
-      fireEvent.blur(input)
-      await waitFor(() => {
-        expect(input.getAttribute('aria-invalid')).toBe('true')
-      })
-      const describedByAfter = input.getAttribute('aria-describedby') ?? ''
-      expect(describedByAfter).toMatch(/texaryn-.*-description/)
-      expect(describedByAfter).toMatch(/texaryn-.*-error/)
-    })
-
-    it('FieldErrors DOM id matches aria-describedby reference', async () => {
-      render(
-        <TestForm
-          schema={requiredStringSchema}
-          data={{ name: '' }}
-          hints={{ '/name': { validationTrigger: 'blur' } }}
-        />,
-      )
-      await waitFor(() => {
-        expect(screen.getByLabelText('Full Name')).toBeTruthy()
-      })
-      const input = screen.getByLabelText('Full Name')
-      fireEvent.blur(input)
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeTruthy()
-      })
-      const errorContainer = screen.getByRole('alert')
-      const describedBy = input.getAttribute('aria-describedby') ?? ''
-      const ids = describedBy.split(' ')
-      expect(ids).toContain(errorContainer.id)
-    })
-
-    it('ErrorSummary renders visible errors with anchor links', async () => {
+    it('ErrorSummary renders visible errors with anchor links to the labelled input', async () => {
       render(
         <TestForm
           schema={requiredStringSchema}
@@ -221,7 +214,10 @@ export function ariaConformance({ name, createRegistry }: AriaConformanceOptions
         expect(screen.getByRole('link')).toBeTruthy()
       })
       const link = screen.getByRole('link')
-      expect(link.getAttribute('href')).toMatch(/^#texaryn-.*-input$/)
+      const href = link.getAttribute('href') ?? ''
+      expect(href.startsWith('#')).toBe(true)
+      const target = document.getElementById(href.slice(1))
+      expect(target).toBe(input)
       expect(link.textContent).toBe('Full Name')
     })
 

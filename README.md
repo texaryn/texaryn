@@ -172,6 +172,7 @@ See [Getting started](docs/getting-started.md) for a longer walkthrough, includi
 | `@texaryn/schema-json` | JSON Schema evaluation and validation adapter |
 | `@texaryn/react` | React bindings, hooks, prop getters, renderer, and default widgets |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
+| `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 
 The repository also contains a private `@texaryn/demo` application used to exercise the complete pipeline.
 

@@ -79,18 +79,19 @@ describe('decide', () => {
 })
 
 describe('main', () => {
-  it('reads the exact versions from the four package manifests', () => {
-    const root = fakeRepo({ '@texaryn/core': '1.2.3', '@texaryn/schema-json': '1.2.3', '@texaryn/react': '1.2.3', '@texaryn/react-bootstrap': '1.2.3' })
+  it('reads the exact versions from the five package manifests', () => {
+    const root = fakeRepo({ '@texaryn/core': '1.2.3', '@texaryn/schema-json': '1.2.3', '@texaryn/react': '1.2.3', '@texaryn/react-bootstrap': '1.2.3', '@texaryn/react-mui': '1.2.3' })
     expect(readVersions(root)).toEqual([
       { name: '@texaryn/core', version: '1.2.3' },
       { name: '@texaryn/schema-json', version: '1.2.3' },
       { name: '@texaryn/react', version: '1.2.3' },
       { name: '@texaryn/react-bootstrap', version: '1.2.3' },
+      { name: '@texaryn/react-mui', version: '1.2.3' },
     ])
   })
 
   it('returns false and logs each package when all versions exist', async () => {
-    const root = fakeRepo({ '@texaryn/core': '0.1.0', '@texaryn/schema-json': '0.1.0', '@texaryn/react': '0.1.0', '@texaryn/react-bootstrap': '0.1.0' })
+    const root = fakeRepo({ '@texaryn/core': '0.1.0', '@texaryn/schema-json': '0.1.0', '@texaryn/react': '0.1.0', '@texaryn/react-bootstrap': '0.1.0', '@texaryn/react-mui': '0.1.0' })
     const lines = []
     const result = await main({ root, fetch: fakeFetch(() => 200), log: (l) => lines.push(l) })
     expect(result).toBe(false)
@@ -99,7 +100,7 @@ describe('main', () => {
   })
 
   it('returns true when the registry answers 5xx for one package', async () => {
-    const root = fakeRepo({ '@texaryn/core': '0.1.1', '@texaryn/schema-json': '0.1.1', '@texaryn/react': '0.1.1', '@texaryn/react-bootstrap': '0.1.1' })
+    const root = fakeRepo({ '@texaryn/core': '0.1.1', '@texaryn/schema-json': '0.1.1', '@texaryn/react': '0.1.1', '@texaryn/react-bootstrap': '0.1.1', '@texaryn/react-mui': '0.1.1' })
     const lines = []
     const result = await main({
       root,
@@ -112,7 +113,7 @@ describe('main', () => {
   })
 
   it('returns true when the network fails entirely', async () => {
-    const root = fakeRepo({ '@texaryn/core': '0.1.1', '@texaryn/schema-json': '0.1.1', '@texaryn/react': '0.1.1', '@texaryn/react-bootstrap': '0.1.1' })
+    const root = fakeRepo({ '@texaryn/core': '0.1.1', '@texaryn/schema-json': '0.1.1', '@texaryn/react': '0.1.1', '@texaryn/react-bootstrap': '0.1.1', '@texaryn/react-mui': '0.1.1' })
     const result = await main({ root, fetch: fakeFetch(() => new Error('fetch failed')), log: () => {} })
     expect(result).toBe(true)
   })
