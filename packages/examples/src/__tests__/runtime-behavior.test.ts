@@ -119,14 +119,11 @@ describe('array commands change the document and the data', () => {
     runtime.destroy()
   })
 
-  // Pins the current behaviour, which is not yet the intended one. The command
-  // handler reconciles identity into `state.identities`, but the compiler
-  // rebuilds `arrayMeta.itemIds` from a fresh context on every compile, so the
-  // document hands a renderer positional ids: removing the first row moves the
-  // survivor from item_1 to item_0. That is why the capability is marked
-  // partial. This test fails, deliberately and usefully, the moment the
-  // document starts carrying the reconciled ids.
-  it('currently renumbers item ids positionally rather than preserving them', async () => {
+  // The point of stable identity: the surviving row keeps its id, so a
+  // renderer's per-row state stays attached to the item rather than sliding
+  // up to whatever now occupies that index. The core invariants live in
+  // packages/core; this checks the catalog's own fixture demonstrates it.
+  it('keeps the surviving row identity when an earlier row is removed', async () => {
     const runtime = await start(example('runtime-array-interactions'))
     const before = container(runtime.document.getSnapshot(), '/items')
     const survivor = before.arrayMeta?.itemIds[1]
@@ -134,8 +131,8 @@ describe('array commands change the document and the data', () => {
     runtime.dispatch({ type: 'RemoveItem', containerId: before.id, index: 0 })
 
     const after = container(runtime.document.getSnapshot(), '/items')
-    expect(after.arrayMeta?.itemIds[0]).not.toBe(survivor)
-    expect(after.arrayMeta?.itemIds[0]).toBe(before.arrayMeta?.itemIds[0])
+    expect(after.arrayMeta?.itemIds[0]).toBe(survivor)
+    expect(after.arrayMeta?.itemIds[0]).not.toBe(before.arrayMeta?.itemIds[0])
     runtime.destroy()
   })
 })

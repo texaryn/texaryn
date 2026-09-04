@@ -131,7 +131,7 @@ export function createFormRuntime(
 
   function handleRecompile(): void {
     const nextProjection = port.project(state.data)
-    const result = compile(nextProjection, state.data, options.hints)
+    const result = compile(nextProjection, state.data, options.hints, state.identities)
     currentDoc = result.document
     state = { ...state, identities: result.identityMap }
     documentStore.set(currentDoc)
