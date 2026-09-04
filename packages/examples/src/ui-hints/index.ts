@@ -45,6 +45,29 @@ export const placeholderAndHelpText: TexarynExample = {
   initialData: { handle: '', website: '' },
 }
 
+export const siblingOrder: TexarynExample = {
+  id: 'ui-hint-order',
+  title: 'Sibling order',
+  description:
+    'Presentation order set independently of the schema. A field without a hint keeps its schema position, so the two share one scale: moving a field to the front means giving it a value below every schema index.',
+  category: 'ui-hints',
+  covers: ['ui-hint.order', 'schema.type.string'],
+  schema: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    title: 'Ordered',
+    properties: {
+      street: { type: 'string', title: 'Street' },
+      city: { type: 'string', title: 'City' },
+      country: { type: 'string', title: 'Country' },
+    },
+  },
+  hints: {
+    '/country': { order: -1 },
+  },
+  initialData: { street: '', city: '', country: '' },
+}
+
 export const arrayHints: TexarynExample = {
   id: 'ui-hint-array',
   title: 'Array hints',
@@ -85,5 +108,6 @@ export const arrayHints: TexarynExample = {
 export const uiHintExamples = [
   widgetSelection,
   placeholderAndHelpText,
+  siblingOrder,
   arrayHints,
 ] as const

@@ -63,6 +63,17 @@ describe('UI hints reach the compiled document', () => {
     runtime.destroy()
   })
 
+  it('presents a hinted sibling ahead of its schema position', async () => {
+    const runtime = await start(example('ui-hint-order'))
+    const document = runtime.document.getSnapshot()
+
+    // Schema order is street, city, country; the hint moves country first.
+    expect(field(document, '/country').order).toBe(0)
+    expect(field(document, '/street').order).toBe(1)
+    expect(field(document, '/city').order).toBe(2)
+    runtime.destroy()
+  })
+
   it('opts an array into reordering only when the hint says so', async () => {
     const withHint = await start(example('ui-hint-array'))
     expect(container(withHint.document.getSnapshot(), '/tracks').arrayMeta?.canReorder).toBe(true)
