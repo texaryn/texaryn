@@ -41,7 +41,7 @@
   },
   "files": ["dist", "CHANGELOG.md"],
   "dependencies": {
-    "@texaryn/core": "workspace:*"
+    "@texaryn/core": "workspace:^"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

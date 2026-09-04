@@ -93,7 +93,7 @@ importers:
   packages/react:
     dependencies:
       '@texaryn/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@testing-library/react':
@@ -186,7 +186,7 @@ importers:
   packages/schema-json:
     dependencies:
       '@texaryn/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       json-schema-library:
         specifier: ^11.6.2

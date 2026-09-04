@@ -134,23 +134,45 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-      - name: Prepare GitHub release
-        if: steps.publish.outputs.published == 'true'
-        id: release
-        run: |
-          VERSION=$(node scripts/create-github-release.mjs)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-      - name: Create GitHub release
-        if: steps.publish.outputs.published == 'true'
+      # Reconciles GitHub releases with what is published. The action output
+      # only describes this execution, so a rerun after npm already succeeded
+      # reports nothing; the package tags on this commit are the retry source.
+      - name: Reconcile GitHub releases
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.release.outputs.version }}
+          PUBLISHED_PACKAGES: ${{ steps.publish.outputs.published-packages }}
         run: |
-          args=()
-          if [[ "$VERSION" == *-* ]]; then
-            args+=(--prerelease)
+          set -euo pipefail
+          RELEASE_TAGS=$(git tag --points-at "$GITHUB_SHA")
+          export RELEASE_TAGS
+          node scripts/release-plan.mjs > release-plan.json
+
+          count=$(jq 'length' release-plan.json)
+          echo "planned releases: $count"
+          # seq 0 -1 is not empty on every platform, and an out-of-range index
+          # would reach gh as the string "null".
+          if [ "$count" -eq 0 ]; then
+            echo "nothing to reconcile"
+            exit 0
           fi
-          gh release create "v$VERSION" \
-            --title "v$VERSION" \
-            --notes-file .github-release-notes.md \
-            "${args[@]}"
+
+          for i in $(seq 0 $((count - 1))); do
+            tag=$(jq -r ".[$i].tag" release-plan.json)
+            title=$(jq -r ".[$i].title" release-plan.json)
+            prerelease=$(jq -r ".[$i].prerelease" release-plan.json)
+            jq -r ".[$i].notes" release-plan.json > .github-release-notes.md
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "updating release $tag"
+              gh release edit "$tag" \
+                --title "$title" \
+                --notes-file .github-release-notes.md \
+                --prerelease="$prerelease"
+            else
+              echo "creating release $tag"
+              gh release create "$tag" \
+                --title "$title" \
+                --notes-file .github-release-notes.md \
+                --prerelease="$prerelease"
+            fi
+          done
