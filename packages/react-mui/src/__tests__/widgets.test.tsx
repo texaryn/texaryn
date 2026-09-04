@@ -222,6 +222,35 @@ describe('MUI field widgets', () => {
     expect((name as HTMLInputElement).required).toBe(false)
   })
 
+  it('required select exposes aria-required on the combobox, not the hidden input', () => {
+    const proj = makeProjection([
+      [
+        '',
+        {
+          type: 'object',
+          children: [{ pointer: toPointer('/role'), key: 'role', required: true }],
+        },
+      ],
+      [
+        '/role',
+        {
+          type: 'string',
+          enumValues: [{ value: 'dev' }, { value: 'pm' }],
+          annotations: { title: 'Role' },
+        },
+      ],
+    ])
+    renderForm(proj, { role: 'dev' })
+
+    const combobox = screen.getByLabelText('Role')
+    expect(combobox.getAttribute('role')).toBe('combobox')
+    expect(combobox.getAttribute('aria-required')).toBe('true')
+
+    const hiddenInput = document.querySelector('input')
+    expect(hiddenInput?.getAttribute('aria-hidden')).toBe('true')
+    expect(hiddenInput?.required).toBe(false)
+  })
+
   it('every aria-describedby target exists in the DOM', () => {
     renderForm(fields, { name: 'A', age: 0, bio: '', role: 'dev', agree: false })
     const name = screen.getByLabelText('Name')
