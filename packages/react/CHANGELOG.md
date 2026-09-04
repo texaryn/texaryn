@@ -1,5 +1,11 @@
 # @texaryn/react
 
+## 0.2.1
+
+### Patch Changes
+
+- 01f6065: Depend on `@texaryn/core` through a caret range rather than an exact version. The previous exact pin made each release usable only against the single `@texaryn/core` build it shipped beside, which forced all three packages to move together. They now version independently, so a version describes that package's own public contract.
+
 ## 0.2.0
 
 ### Minor Changes
