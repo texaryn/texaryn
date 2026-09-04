@@ -15,6 +15,7 @@ const alias = {
     'packages/schema-json-hyperjump/src/index.ts',
   ),
   '@texaryn/react': resolve(root, 'packages/react/src/index.ts'),
+  '@texaryn/react-bootstrap': resolve(root, 'packages/react-bootstrap/src/index.ts'),
 }
 
 export default defineConfig({
@@ -28,6 +29,7 @@ export default defineConfig({
         'packages/schema-json/src/**',
         'packages/schema-json-hyperjump/src/**',
         'packages/react/src/**',
+        'packages/react-bootstrap/src/**',
       ],
       // Type-only modules compile to nothing executable and would report 0%.
       exclude: [
@@ -69,6 +71,15 @@ export default defineConfig({
         test: {
           name: 'react',
           root: 'packages/react',
+          include: ['src/**/*.test.{ts,tsx}'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'react-bootstrap',
+          root: 'packages/react-bootstrap',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
         },
