@@ -9,10 +9,33 @@ import {
   ErrorSummary,
   createDefaultRegistry,
 } from '@texaryn/react'
+import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
 import { contactSchema, sampleSchemas } from './schemas.js'
 import type { SampleEntry } from './schemas.js'
 
-const registry = createDefaultRegistry()
+const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
+
+const registries = {
+  default: { label: 'Default', registry: createDefaultRegistry() },
+  bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
+} as const
+
+type RendererKey = keyof typeof registries
+
+// The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
+// loading it globally would restyle the Default renderer too.
+function useBootstrapStylesheet(active: boolean) {
+  useEffect(() => {
+    if (!active) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = BOOTSTRAP_CSS
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [active])
+}
 
 function formatSchema(schema: unknown): string {
   return JSON.stringify(schema, null, 2)
@@ -71,9 +94,11 @@ function useAdapter(schemaText: string, parseError: string | null): AdapterState
 function FormWorkspace({
   port,
   entry,
+  registry,
 }: {
   port: SchemaEvaluationPort
   entry: SampleEntry
+  registry: ReturnType<typeof createDefaultRegistry>
 }) {
   const simulateFailureRef = useRef(false)
   const [simulateFailure, setSimulateFailure] = useState(false)
@@ -152,9 +177,12 @@ const CUSTOM_KEY = 'custom'
 const customEntry: SampleEntry = { label: 'Custom schema', schema: {} }
 
 export function App() {
+  const [rendererKey, setRendererKey] = useState<RendererKey>('default')
   const [selectedKey, setSelectedKey] = useState('contact')
   const [schemaText, setSchemaText] = useState(() => formatSchema(contactSchema))
   const [parseError, setParseError] = useState<string | null>(null)
+
+  useBootstrapStylesheet(rendererKey === 'bootstrap')
 
   const handleSchemaChange = useCallback((text: string) => {
     setSelectedKey(CUSTOM_KEY)
@@ -183,6 +211,22 @@ export function App() {
     <div style={styles.app}>
       <div style={styles.leftPanel}>
         <h1 style={styles.title}>Texaryn Demo</h1>
+
+        <label style={styles.label} htmlFor="renderer-select">
+          Renderer
+        </label>
+        <select
+          id="renderer-select"
+          value={rendererKey}
+          onChange={(e) => setRendererKey(e.target.value as RendererKey)}
+          style={styles.select}
+        >
+          {Object.entries(registries).map(([key, { label }]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
 
         <label style={styles.label} htmlFor="schema-select">
           Sample schema
@@ -241,9 +285,10 @@ export function App() {
         </>
       ) : (
         <FormWorkspace
-          key={`${selectedKey}:${adapterState.id}`}
+          key={`${rendererKey}:${selectedKey}:${adapterState.id}`}
           port={adapterState.port}
           entry={entry}
+          registry={registries[rendererKey].registry}
         />
       )}
     </div>

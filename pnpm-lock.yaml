@@ -49,6 +49,9 @@ importers:
       '@texaryn/react':
         specifier: workspace:*
         version: link:../react
+      '@texaryn/react-bootstrap':
+        specifier: workspace:*
+        version: link:../react-bootstrap
       '@texaryn/schema-json':
         specifier: workspace:*
         version: link:../schema-json
