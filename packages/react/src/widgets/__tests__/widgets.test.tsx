@@ -56,6 +56,7 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
 // render's DOM is torn down first.
 afterEach(() => {
   cleanup()
+  latestData = undefined
 })
 
 describe('RendererRegistry (re-exported from @texaryn/core)', () => {

@@ -207,10 +207,15 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
     expect(binding().value).toBe('zzz')
   })
 
-  it('a boolean field with enum values is treated as an enum, which a select style widget spreads from domInputProps', () => {
-    const { binding } = mount({ type: 'boolean', enumValues: [{ value: true }, { value: false }] }, { data: { f: true } })
-    expect(binding().domInputProps.value).toBe('true')
+  it('a boolean field with enum values is treated as an enum, which a select style widget spreads from domInputProps', async () => {
+    const { control, binding } = mount(
+      { type: 'boolean', enumValues: [{ value: true }, { value: false }] },
+      { data: { f: true } },
+    )
     expect(binding().domCheckboxProps.checked).toBe(true)
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    await act(async () => { setter.call(control, 'false'); control.dispatchEvent(new Event('input', { bubbles: true })) })
+    expect(binding().value).toBe(false)
   })
 
   it('carries id, name, disabled, aria attributes, placeholder and onBlur from getInputProps onto both surfaces', () => {
