@@ -28,13 +28,23 @@ function nextId(ctx: CompileContext): NodeId {
   return `node_${++ctx.nodeCounter}` as NodeId
 }
 
+/**
+ * Compiles a projection into a document.
+ *
+ * `identities` carries array item identity forward from the previous
+ * document. The command handler owns identity: it maintains it directly for
+ * insert, remove and move, and reconciles it whenever data changes. Passing
+ * that map back in lets compilation adopt the result. Omitting it mints a
+ * fresh positional identity, which is only correct for a first compile.
+ */
 export function compile(
   projection: SchemaProjection,
   data: unknown,
   hints?: UIHints,
+  identities?: IdentityMap,
 ): CompileResult {
   const nodes: Record<string, UINode> = {}
-  const identityMap = createIdentityMap()
+  const identityMap = identities ?? createIdentityMap()
 
   const rootProjection = projection.nodes.get('' as JsonPointer)
   if (!rootProjection) {
@@ -125,14 +135,32 @@ function compileNode(
     const items = getAtPointer(data, pointer)
     const arrayItems = Array.isArray(items) ? items : []
 
-    // Identity map API is pure: register/insert return new maps, so we
-    // always reassign ctx.identityMap rather than mutate in place.
-    ctx.identityMap = registerArray(ctx.identityMap, id)
-    const itemStableIds: StableItemId[] = []
-    for (let i = 0; i < arrayItems.length; i++) {
-      const result = insertItem(ctx.identityMap, id, i)
-      ctx.identityMap = result.map
-      itemStableIds.push(result.itemId)
+    // Adopt the identity the handler already maintains for this array. It
+    // reconciles on data changes and updates the map directly for insert,
+    // remove and move, so regenerating here would discard that work and hand
+    // renderers positional ids: removing the first of two rows would move the
+    // survivor from item_1 to item_0, detaching whatever state a renderer had
+    // keyed to it.
+    //
+    // Identity map API is pure: register/insert return new maps, so we always
+    // reassign ctx.identityMap rather than mutate in place.
+    const carried = ctx.identityMap.arrayIdentities.get(id)
+    let itemStableIds: StableItemId[]
+
+    if (carried !== undefined && carried.length === arrayItems.length) {
+      itemStableIds = [...carried]
+    } else {
+      // No identity yet for this array, or a count the handler did not
+      // produce. Minting positional ids is right for a first compile and is
+      // the only safe fallback otherwise: reconciling here would be a second
+      // identity system competing with the handler's.
+      ctx.identityMap = registerArray(ctx.identityMap, id)
+      itemStableIds = []
+      for (let i = 0; i < arrayItems.length; i++) {
+        const result = insertItem(ctx.identityMap, id, i)
+        ctx.identityMap = result.map
+        itemStableIds.push(result.itemId)
+      }
     }
 
     for (let i = 0; i < arrayItems.length; i++) {

@@ -310,15 +310,10 @@ export const capabilities = {
     status: 'supported',
     verification: 'runtime',
   },
-  // Partial on purpose. The command handler reconciles identity in
-  // `state.identities`, but the compiler rebuilds `arrayMeta.itemIds` from a
-  // fresh context on every compile, so what the document exposes is
-  // positional and the reconciled identity never reaches a renderer. Promote
-  // this to supported once the document carries the reconciled ids.
   'runtime.array.stable-identity': {
     title: 'Stable array item identity',
     category: 'runtime',
-    status: 'partial',
+    status: 'supported',
     verification: 'runtime',
   },
 
