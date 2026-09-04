@@ -6,9 +6,15 @@
     "@texaryn/core": "workspace:*",
     "@texaryn/schema-json": "workspace:*",
     "@texaryn/schema-json-hyperjump": "workspace:*",
-    "@texaryn/react": "workspace:*"
+    "@texaryn/react": "workspace:*",
+    "@texaryn/react-bootstrap": "workspace:*",
+    "@texaryn/react-mui": "workspace:*",
+    "@texaryn/examples": "workspace:*"
   },
   "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.4.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
     "jsdom": "^25.0.0",
