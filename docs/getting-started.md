@@ -116,6 +116,8 @@ runtime.dispatch({ type: 'Submit' })
 
 For Bootstrap 5 markup, install `@texaryn/react-bootstrap` alongside `bootstrap` and load Bootstrap 5.3 CSS on the page; the package renders the classes but never loads the stylesheet. Pass `createBootstrapRegistry()` to `FormRoot` in place of `createDefaultRegistry()` and nothing else about the form changes: see the [`@texaryn/react-bootstrap` README](../packages/react-bootstrap/README.md).
 
+For Material UI, install `@texaryn/react-mui` alongside `@mui/material`, `@emotion/react` and `@emotion/styled` (MUI's own styling engine). Pass `createMuiRegistry()` to `FormRoot` in place of `createDefaultRegistry()`. The package is theme-neutral: it renders no `ThemeProvider` and no `CssBaseline`, so wrap the tree in your own `ThemeProvider` to customize the theme, or leave it out and get MUI's default theme. See the [`@texaryn/react-mui` README](../packages/react-mui/README.md).
+
 ## Validation
 
 Validation triggers are configured per field through the `validationTrigger` hint:
@@ -149,6 +151,6 @@ Duplicate Submit while validating or submitting is a no-op.
 ## Next steps
 
 - [API reference](api/) for the full type surface
-- Package READMEs: [@texaryn/core](../packages/core/README.md), [@texaryn/schema-json](../packages/schema-json/README.md), [@texaryn/react](../packages/react/README.md), [@texaryn/react-bootstrap](../packages/react-bootstrap/README.md)
+- Package READMEs: [@texaryn/core](../packages/core/README.md), [@texaryn/schema-json](../packages/schema-json/README.md), [@texaryn/react](../packages/react/README.md), [@texaryn/react-bootstrap](../packages/react-bootstrap/README.md), [@texaryn/react-mui](../packages/react-mui/README.md)
 - [Migrating from RJSF](migrating-from-rjsf.md) if you are coming from react-jsonschema-form
 - [Release runbook](releasing.md) for maintainers
