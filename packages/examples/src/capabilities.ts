@@ -1,7 +1,12 @@
 // The capability manifest is the single source of truth for what Texaryn
-// claims to support. `CapabilityId` derives from it, so an example covering
-// an identifier that is not declared here fails to compile rather than
-// failing a string comparison at test time.
+// claims and demonstrates. `CapabilityId` derives from it, so an example
+// covering an identifier that is not declared here fails to compile rather
+// than failing a string comparison at test time.
+//
+// Absence means not yet catalogued, never unsupported. The schema adapter
+// already handles more than this declares, and entries arrive with the
+// examples that demonstrate them, because declaring a capability with no
+// example fails the build. Read it as a floor, not a ceiling.
 //
 // Identifiers are `domain.category.capability`, with further segments where
 // they help, and JSON Schema keywords keep their official casing. Everything
