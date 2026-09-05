@@ -6,5 +6,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@texaryn/demo", "@texaryn/examples", "@texaryn/schema-json-hyperjump"]
+  "ignore": ["@texaryn/playground", "@texaryn/examples", "@texaryn/schema-json-hyperjump"]
 }

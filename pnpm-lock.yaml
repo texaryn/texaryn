@@ -39,9 +39,7 @@ importers:
         specifier: ^3.5.0
         version: 3.5.42(typescript@5.8.3)
 
-  packages/core: {}
-
-  packages/demo:
+  apps/playground:
     dependencies:
       '@emotion/react':
         specifier: ^11.14.0
@@ -54,22 +52,22 @@ importers:
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@types/react@19.2.18)(react@19.2.8)(supports-color@7.2.0))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@texaryn/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../packages/core
       '@texaryn/examples':
         specifier: workspace:*
-        version: link:../examples
+        version: link:../../packages/examples
       '@texaryn/react':
         specifier: workspace:*
-        version: link:../react
+        version: link:../../packages/react
       '@texaryn/react-bootstrap':
         specifier: workspace:*
-        version: link:../react-bootstrap
+        version: link:../../packages/react-bootstrap
       '@texaryn/react-mui':
         specifier: workspace:*
-        version: link:../react-mui
+        version: link:../../packages/react-mui
       '@texaryn/schema-json':
         specifier: workspace:*
-        version: link:../schema-json
+        version: link:../../packages/schema-json
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -98,6 +96,8 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.3(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/core: {}
 
   packages/examples:
     dependencies:
@@ -4477,7 +4477,7 @@ snapshots:
       debug: 4.4.3(supports-color@7.2.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.6(tsx@4.23.12)(yaml@2.9.0)
+      vite: 6.4.3(tsx@4.23.12)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
