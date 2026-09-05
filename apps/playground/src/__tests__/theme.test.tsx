@@ -90,7 +90,15 @@ describe('the theme and the renderer are independent', () => {
     await choose('dark')
     await waitFor(() => expect(documentTheme()).toBe('dark'))
 
-    for (const renderer of ['bootstrap', 'mui', 'vue', 'default']) {
+    // Read out of the selector rather than listed, for the same reason the
+    // boundary test does: a surface added later has to be covered by the test
+    // that already exists, not by remembering to extend a list.
+    const offered = within(screen.getByLabelText(/renderer/i))
+      .getAllByRole('option')
+      .map((option) => (option as HTMLOptionElement).value)
+    expect(offered.length).toBeGreaterThan(1)
+
+    for (const renderer of offered) {
       fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: renderer } })
       await waitFor(() => {
         expect((screen.getByLabelText(/renderer/i) as HTMLSelectElement).value).toBe(renderer)
