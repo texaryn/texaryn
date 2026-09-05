@@ -2,10 +2,17 @@
  * has to be themeable on its own, and borrowing the documentation theme's
  * variables would make every future docs upgrade a playground regression.
  *
- * Every colour below this block resolves to one of these, so a second set of
- * values is a complete change of appearance. Nothing further down may write a
- * colour literal. */
+ * Every colour below this block resolves to one of these, so the second set of
+ * values below is a complete change of appearance. Nothing further down may
+ * write a colour literal.
+ *
+ * The two palettes key off `data-theme`, never off `prefers-color-scheme`. A
+ * media query here would be a second authority on what theme the page is in,
+ * and it would win over an explicit Light choice on a machine set to dark.
+ * The script resolves; the stylesheet is only ever told the answer. */
 :root {
+  color-scheme: light;
+
   --tx-bg: #e8ecf1;
   --tx-surface: #f4f6f9;
   --tx-surface-raised: #ffffff;
@@ -24,6 +31,30 @@
   --tx-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
   --tx-font: system-ui, -apple-system, sans-serif;
   --tx-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Dark keeps the same surface order as light: the canvas is furthest back,
+ * the side columns sit on it, and the raised card is nearest. Inverting the
+ * lightnesses without preserving that order is what makes an automatically
+ * darkened page look wrong, and it would undo the column hierarchy. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --tx-bg: #14171c;
+  --tx-surface: #1b1f26;
+  --tx-surface-raised: #23282f;
+  --tx-border: #333a44;
+  --tx-border-strong: #4a525e;
+  --tx-text: #e6e9ee;
+  --tx-text-muted: #9aa4b2;
+  --tx-accent: #5b93f5;
+  --tx-on-accent: #10141a;
+  --tx-accent-soft: #1e3054;
+  --tx-danger: #ff8a93;
+  --tx-success: #7bd88f;
+  /* Heavier than light, because a shadow that reads on white is invisible on
+   * a dark column and the raised card would lose its lift. */
+  --tx-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 16px rgb(0 0 0 / 32%);
 }
 
 html,
@@ -126,6 +157,52 @@ body {
 .pg-header__link:hover {
   color: var(--tx-accent);
   border-bottom-color: var(--tx-accent);
+}
+
+/* Theme control, shaped like the documentation site's: a laptop glyph, a
+ * select whose own arrow is hidden behind a caret drawn to match, and a label
+ * that only a screen reader reads. */
+.pg-theme {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-theme__select {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--tx-radius);
+  padding: 0.15rem 1.2rem 0.15rem 0.3rem;
+  appearance: none;
+  cursor: pointer;
+}
+
+.pg-theme__select:hover {
+  color: var(--tx-text);
+  border-color: var(--tx-border);
+}
+
+.pg-theme__caret {
+  position: absolute;
+  right: 0.25rem;
+  pointer-events: none;
+}
+
+.pg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Renderer toolbar and the region it governs */
@@ -469,7 +546,8 @@ body {
 .pg-button:focus-visible,
 .pg-tab:focus-visible,
 .pg-examples__item:focus-visible,
-.pg-header__link:focus-visible {
+.pg-header__link:focus-visible,
+.pg-theme__select:focus-visible {
   outline: 2px solid var(--tx-accent);
   outline-offset: 2px;
 }
