@@ -35,7 +35,7 @@ describe('switching renderer', () => {
     fireEvent.change(name, { target: { value: 'Ada Lovelace' } })
     expect((name as HTMLInputElement).value).toBe('Ada Lovelace')
 
-    for (const renderer of ['bootstrap', 'mui', 'default']) {
+    for (const renderer of ['bootstrap', 'mui', 'vue', 'default']) {
       await switchRenderer(renderer)
 
       const field = await screen.findByLabelText('Name')
@@ -44,5 +44,26 @@ describe('switching renderer', () => {
         `editing was lost switching to ${renderer}`,
       ).toBe('Ada Lovelace')
     }
+  })
+})
+
+// The playground can render Vue because the package is in this repository.
+// Advertising a plain "Vue" would claim something nobody can install, and the
+// project's rule is that a capability the site advertises has to be real.
+describe('what the renderer list claims', () => {
+  it('marks Vue as preview and says the package is unpublished', async () => {
+    render(<App />)
+
+    const option = Array.from(rendererSelect().options).find((o) => o.value === 'vue')
+    expect(option?.textContent).toMatch(/preview/i)
+
+    await switchRenderer('vue')
+    expect(await screen.findByText(/not published yet/i)).toBeDefined()
+  })
+
+  it('says nothing about publication for renderers that are published', async () => {
+    render(<App />)
+    await switchRenderer('mui')
+    expect(screen.queryByText(/not published yet/i)).toBeNull()
   })
 })
