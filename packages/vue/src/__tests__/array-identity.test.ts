@@ -84,3 +84,56 @@ describe('stable array identity survives the binding', () => {
     expect(after[1]).toBe(before[1])
   })
 })
+
+// The array composable's own commands, driven through the widget rather than
+// dispatched around it. The tests above prove identity survives a command;
+// these prove the buttons a user actually presses issue the right one.
+describe('the array control issues the commands it offers', () => {
+  const buttons = (wrapper: { findAll: (s: string) => { text: () => string; trigger: (e: string) => Promise<void> }[] }, label: string) =>
+    wrapper.findAll('button').filter((b) => b.text() === label)
+
+  it('adds a row from the add button', async () => {
+    const { wrapper, form } = await mountExample('runtime-array-interactions')
+
+    await buttons(wrapper, 'Add')[0].trigger('click')
+    await settle()
+
+    expect((form.data.value as { items: unknown[] }).items).toHaveLength(3)
+    expect(inputs(wrapper).map((el) => el.value)).toEqual(['milk', 'bread', ''])
+  })
+
+  it('removes the row whose button was pressed, not the last one', async () => {
+    const { wrapper, form } = await mountExample('runtime-array-interactions')
+
+    await buttons(wrapper, 'Remove')[0].trigger('click')
+    await settle()
+
+    expect(form.data.value).toEqual({ items: ['bread'] })
+  })
+
+  // Reordering is opt in through the canReorder hint, so the control has to
+  // be absent by default and present when a schema asks for it. Getting that
+  // backwards would offer a button that dispatches a command the document
+  // says is not allowed.
+  it('offers no reorder control when the document does not allow it', async () => {
+    const { wrapper } = await mountExample('runtime-array-interactions')
+    expect(buttons(wrapper, 'Up')).toHaveLength(0)
+  })
+
+  it('moves a row up from its own button when reordering is allowed', async () => {
+    const { wrapper, form } = await mountExample('ui-hint-array')
+
+    const up = buttons(wrapper, 'Up')
+    expect(up, 'every row after the first should offer it').toHaveLength(1)
+
+    await up[0].trigger('click')
+    await settle()
+
+    expect(form.data.value).toEqual({
+      tracks: [
+        { id: 'b', name: 'Second' },
+        { id: 'a', name: 'First' },
+      ],
+    })
+  })
+})

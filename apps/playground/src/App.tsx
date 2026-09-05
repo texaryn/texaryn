@@ -304,12 +304,13 @@ export function App() {
         </select>
 
         {rendererKey === 'vue' && (
-          // The playground can render Vue because the package is in this
-          // repository. Saying "Vue" without this would advertise something
-          // nobody can install.
+          // The qualifier tracks whether npm serves something usable, not
+          // whether the name exists there. It goes when 0.1.0 publishes,
+          // which is a release rather than a merge.
           <p style={styles.note}>
-            <code>@texaryn/vue</code> is not published yet. It lives in the
-            repository and is not installable from npm.
+            <code>@texaryn/vue</code> has no usable npm release yet. A{' '}
+            <code>0.0.0</code> placeholder reserves the name; <code>0.1.0</code>{' '}
+            is prepared and pending publication.
           </p>
         )}
 

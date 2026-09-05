@@ -183,9 +183,10 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 
-`@texaryn/vue` also exists in the repository, as Vue 3 bindings over the same
-core. It is not published: the playground renders through it, but it cannot be
-installed yet.
+`@texaryn/vue` is in the repository and releasing shortly, as Vue 3 bindings
+over the same core. The playground renders through it. npm carries a `0.0.0`
+placeholder reserving the name, so `0.1.0` is the first release anyone can
+install.
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site.
 
@@ -375,7 +376,7 @@ Run the playground:
 pnpm --filter @texaryn/playground dev
 ```
 
-It browses the example catalog, renders each example through any of the three renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
+It browses the example catalog, renders each example through any of the four renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
 
 ## Principles
 
@@ -410,10 +411,10 @@ Texaryn is being built incrementally.
 - validation triggers and debounce
 - display-policy-aware error presentation
 - submission lifecycle with snapshot semantics
+- Vue renderer sharing one runtime with React, proving framework neutrality
 
 ### Next
 
-- second renderer to validate framework neutrality (Vue recommended)
 - additional schema adapters
 - further runtime capabilities based on real usage
 

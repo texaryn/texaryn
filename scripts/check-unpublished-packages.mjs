@@ -12,6 +12,7 @@ export const packages = [
   { name: '@texaryn/react', dir: 'packages/react' },
   { name: '@texaryn/react-bootstrap', dir: 'packages/react-bootstrap' },
   { name: '@texaryn/react-mui', dir: 'packages/react-mui' },
+  { name: '@texaryn/vue', dir: 'packages/vue' },
 ]
 
 export const registry = 'https://registry.npmjs.org'

@@ -3,7 +3,7 @@
 // over it. Switching renderer must not touch live data.
 //
 // If this fails, the playground is showing three separate forms rather than
-// one form through three renderers, which is the opposite of the claim.
+// one form through four renderers, which is the opposite of the claim.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { App } from '../App.js'
@@ -47,9 +47,10 @@ describe('switching renderer', () => {
   })
 })
 
-// The playground can render Vue because the package is in this repository.
-// Advertising a plain "Vue" would claim something nobody can install, and the
-// project's rule is that a capability the site advertises has to be real.
+// The qualifier tracks whether npm serves something usable, not whether the
+// name is taken there. A 0.0.0 placeholder already reserves it, and the gap
+// between merging the release preparation and 0.1.0 publishing is real time
+// during which the site would otherwise advertise something nobody can use.
 describe('what the renderer list claims', () => {
   it('marks Vue as preview and says the package is unpublished', async () => {
     render(<App />)
@@ -58,12 +59,12 @@ describe('what the renderer list claims', () => {
     expect(option?.textContent).toMatch(/preview/i)
 
     await switchRenderer('vue')
-    expect(await screen.findByText(/not published yet/i)).toBeDefined()
+    expect(await screen.findByText(/no usable npm release yet/i)).toBeDefined()
   })
 
   it('says nothing about publication for renderers that are published', async () => {
     render(<App />)
     await switchRenderer('mui')
-    expect(screen.queryByText(/not published yet/i)).toBeNull()
+    expect(screen.queryByText(/no usable npm release yet/i)).toBeNull()
   })
 })

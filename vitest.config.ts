@@ -34,6 +34,7 @@ export default defineConfig({
         'packages/react/src/**',
         'packages/react-bootstrap/src/**',
         'packages/react-mui/src/**',
+        'packages/vue/src/**',
       ],
       // Type-only modules compile to nothing executable and would report 0%.
       exclude: [
@@ -41,6 +42,7 @@ export default defineConfig({
         '**/*.test.*',
         '**/index.ts',
         '**/types.ts',
+        'packages/vue/src/widget.ts',
         'packages/core/src/schema/**',
         'packages/core/src/hints/**',
       ],
