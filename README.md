@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Compile data semantics into a UI IR, run it through a headless runtime, and render it with React, Vue, or another renderer.
+  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Vue, or another framework binding.
 </p>
 
 <p align="center">
@@ -58,7 +58,7 @@ Renderer Binding
 React / Vue / ...
 ```
 
-The core has no dependency on React, the DOM, or an AI SDK.
+The core has no dependency on React, Vue, the DOM, or an AI SDK.
 
 That makes the UI definition portable, inspectable, testable, and safe to transform without generating or evaluating framework code.
 
@@ -236,11 +236,11 @@ The IR describes **what the UI means**, not how React, Vue, or the DOM should re
 - submission state
 - stable array identity
 
-Renderers consume this state instead of owning it.
+Bindings consume this state instead of owning it.
 
-### 4. Renderer
+### 4. Renderer binding
 
-Renderers map semantic UI nodes to concrete components.
+A binding maps semantic UI nodes to concrete components.
 
 The React package provides:
 
@@ -252,6 +252,8 @@ The React package provides:
 - `NodeRenderer`
 - accessible prop getters
 - a default widget registry
+
+`@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`.
 
 The registry is extensible, so applications can replace or add widgets without modifying the runtime.
 
@@ -323,7 +325,7 @@ Schema meaning remains intact while renderers retain control over presentation.
 
 ## Headless by design
 
-`@texaryn/core` does not depend on React or the DOM.
+`@texaryn/core` does not depend on React, Vue, or the DOM.
 
 ```text
       @texaryn/schema-json
