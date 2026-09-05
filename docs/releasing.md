@@ -25,7 +25,7 @@ After merging:
 
 ## On the Version Packages branch
 
-1. Update install snippets in the root README, package READMEs, and `docs/getting-started.md`: change `@alpha` to bare package names.
+1. Update install snippets in the root README, package READMEs, and the getting started guide in `apps/docs`: change `@alpha` to bare package names.
 2. Review the generated changelogs for wording.
 3. Merge the Version Packages PR.
 

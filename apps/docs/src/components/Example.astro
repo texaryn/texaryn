@@ -1,0 +1,80 @@
+---
+// References an entry in the executable catalog by id. The documentation
+// never restates a schema: it points at an example that already has to
+// project, initialise a runtime, satisfy its own schema and render under
+// every supported renderer.
+//
+// An unknown id throws at build time, so a renamed or deleted example breaks
+// the docs build rather than leaving a page describing something that no
+// longer exists.
+import { getExample, getCapability, examples } from '@texaryn/examples'
+
+interface Props {
+  id: string
+}
+
+const { id } = Astro.props
+const example = getExample(id)
+
+if (!example) {
+  throw new Error(
+    `<Example id="${id}"> does not match any catalog entry. ` +
+      `Known ids: ${examples.map((entry) => entry.id).join(', ')}`,
+  )
+}
+
+const playgroundHref = `/texaryn/playground/${encodeURIComponent(example.id)}`
+const capabilities = example.covers.map((capability) => ({
+  id: capability,
+  title: getCapability(capability).title,
+}))
+---
+
+<div class="texaryn-example not-content">
+  <div class="texaryn-example__head">
+    <strong>{example.title}</strong>
+    <a href={playgroundHref}>Open in the playground</a>
+  </div>
+  <p class="texaryn-example__description">{example.description}</p>
+  <ul class="texaryn-example__capabilities">
+    {
+      capabilities.map((capability) => (
+        <li title={capability.id}>{capability.title}</li>
+      ))
+    }
+  </ul>
+</div>
+
+<style>
+  .texaryn-example {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  .texaryn-example__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .texaryn-example__description {
+    margin: 0.5rem 0;
+    font-size: var(--sl-text-sm);
+  }
+  .texaryn-example__capabilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .texaryn-example__capabilities li {
+    font-size: var(--sl-text-xs);
+    background: var(--sl-color-gray-6);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.4rem;
+  }
+</style>

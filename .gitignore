@@ -2,6 +2,9 @@ node_modules/
 dist/
 coverage/
 .astro/
+# Generated into the site by starlight-typedoc on every build. The committed
+# generated reference is docs/api, which docs:check gates.
+apps/docs/src/content/docs/api/
 *.tsbuildinfo
 .DS_Store
 docs/superpowers/
