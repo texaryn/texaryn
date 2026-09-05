@@ -15,6 +15,8 @@ import { createMuiRegistry } from '@texaryn/react-mui'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
 import { ExampleBrowser } from './ExampleBrowser.js'
+import { Inspector, DEFAULT_TAB } from './Inspector.js'
+import type { Tab } from './Inspector.js'
 import { formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 
@@ -102,10 +104,16 @@ function FormWorkspace({
   port,
   entry,
   registry,
+  schemaText,
+  tab,
+  onTabChange,
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   registry: RendererRegistry<WidgetComponent>
+  schemaText: string
+  tab: Tab
+  onTabChange: (tab: Tab) => void
 }) {
   const simulateFailureRef = useRef(false)
   const [simulateFailure, setSimulateFailure] = useState(false)
@@ -170,10 +178,17 @@ function FormWorkspace({
         </FormContext.Provider>
       </div>
       <div style={styles.rightPanel}>
-        <h2 style={styles.heading}>Live Data</h2>
-        <pre style={styles.pre}>{JSON.stringify(form.data, null, 2)}</pre>
-        <h2 style={styles.heading}>Submission</h2>
-        <pre style={styles.pre}>{JSON.stringify(form.submission, null, 2)}</pre>
+        <Inspector
+          runtime={form.runtime}
+          port={port}
+          data={form.data}
+          submission={form.submission}
+          document={form.document}
+          schemaText={schemaText}
+          hints={entry.hints}
+          tab={tab}
+          onTabChange={onTabChange}
+        />
       </div>
     </>
   )
@@ -198,6 +213,7 @@ export function App() {
     () => resolveExample(initial.exampleId)?.id ?? null,
   )
   const [query, setQuery] = useState('')
+  const [inspectorTab, setInspectorTab] = useState<Tab>(DEFAULT_TAB)
   const [schemaText, setSchemaText] = useState(() =>
     formatSchema(resolveExample(initial.exampleId)?.schema ?? {}),
   )
@@ -286,8 +302,11 @@ export function App() {
           <p style={styles.description}>{selectedExample.description}</p>
         )}
 
-        <h2 style={styles.heading}>JSON Schema</h2>
+        <h2 style={styles.heading} id="schema-editor-label">
+          JSON Schema
+        </h2>
         <textarea
+          aria-labelledby="schema-editor-label"
           value={schemaText}
           onChange={(e) => handleSchemaChange(e.target.value)}
           spellCheck={false}
@@ -334,6 +353,9 @@ export function App() {
           port={adapterState.port}
           entry={entry}
           registry={registries[rendererKey].registry}
+          schemaText={schemaText}
+          tab={inspectorTab}
+          onTabChange={setInspectorTab}
         />
       )}
     </div>
