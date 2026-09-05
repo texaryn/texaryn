@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { checkSite, classify, extractHrefs, targetCandidates } from './check-site-links.mjs'
 
 const BASE = '/texaryn/'
+const PLAYGROUND = `${BASE}playground/`
 
 // A minimal artifact that satisfies every positive assertion, so a test can
 // break one thing at a time.
@@ -25,10 +26,15 @@ const GUIDE = page(
   '/texaryn/playground/',
   '/texaryn/playground/basics-object',
 )
-const PLAYGROUND = page('playground/index.html', '/texaryn/')
+const PLAYGROUND_PAGE = page('playground/index.html', '/texaryn/')
 
 function check(pages, files = FILES) {
-  return checkSite({ pages, exists: (path) => files.has(path), base: BASE })
+  return checkSite({
+    pages,
+    exists: (path) => files.has(path),
+    base: BASE,
+    playground: PLAYGROUND,
+  })
 }
 
 describe('extractHrefs', () => {
@@ -88,11 +94,27 @@ describe('targetCandidates', () => {
     expect(targetCandidates('/elsewhere/', from)).toBeNull()
     expect(targetCandidates('../../../etc/passwd', from)).toBeNull()
   })
+
+  // The escape is only .. once decoded, so a containment check that ran
+  // first would hand back a target outside the artifact and call it inside.
+  it('refuses an encoded escape from the artifact', () => {
+    expect(targetCandidates('%2e%2e/%2e%2e/%2e%2e/etc/passwd', from)).toBeNull()
+    expect(targetCandidates('/texaryn/%2e%2e/secret', from)).toBeNull()
+    expect(targetCandidates('/texaryn/api/%2E%2E/%2E%2E/secret', from)).toBeNull()
+  })
+
+  it('refuses percent-encoding that decodes to nothing', () => {
+    expect(targetCandidates('/texaryn/%E0%A4%A', from)).toBeNull()
+  })
+
+  it('decodes an escaped character in a name it keeps', () => {
+    expect(targetCandidates('/texaryn/a%20b/', from)).toEqual(['a b/index.html'])
+  })
 })
 
 describe('checkSite', () => {
   it('passes a composed artifact whose links all resolve', () => {
-    const result = check([LANDING, GUIDE, PLAYGROUND])
+    const result = check([LANDING, GUIDE, PLAYGROUND_PAGE])
     expect(result.broken).toEqual([])
     expect(result.problems).toEqual([])
     expect(result.playgroundLinks).toBe(3)
@@ -125,7 +147,7 @@ describe('checkSite', () => {
 
   it('catches a landing page that offers no way into the playground', () => {
     const landing = page('index.html', '/texaryn/start/getting-started/')
-    expect(check([landing, GUIDE, PLAYGROUND]).problems).toEqual([
+    expect(check([landing, GUIDE, PLAYGROUND_PAGE]).problems).toEqual([
       'the landing page offers no link into the playground',
     ])
   })

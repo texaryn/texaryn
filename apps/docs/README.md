@@ -21,6 +21,11 @@ texaryn.github.io/texaryn/api/         generated API reference
 texaryn.github.io/texaryn/playground/  the playground application
 ```
 
+[`site.config.mjs`](../../site.config.mjs) at the repository root owns where
+the site lives and where the playground mounts inside it. This config, the
+404 redirect, the playground's Pages build, the composition step and the link
+checker all read it.
+
 `pnpm site:build` from the repository root builds both applications, composes
 them and checks the result. `.github/workflows/pages.yml` runs that one command
 and uploads `apps/docs/dist`, and the pull request build runs the same command

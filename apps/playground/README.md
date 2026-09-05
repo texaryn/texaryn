@@ -78,9 +78,13 @@ texaryn.github.io/texaryn/             documentation site
 texaryn.github.io/texaryn/playground/  this application
 ```
 
-The docs site owns the root, so this application is built with
-`--base=/texaryn/playground/` and composed into the site output under
-`playground/`.
+The docs site owns the root, so `build:pages` builds in Vite's `pages` mode,
+which takes its base from the shared topology in
+[`site.config.mjs`](../../site.config.mjs), and the result is composed into
+the site output under `playground/`. Writing that base out again here would
+be the quietest way to break the site: the composed link check reads anchors,
+so a playground built against a stale base passes every check and then fails
+to load its own assets.
 
 `build:pages` also runs `scripts/materialize-routes.mjs`, which writes a real
 entry point for every catalog example. The docs site owns the site-wide

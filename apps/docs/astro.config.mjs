@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
-import { BASE, BASE_PATH } from './site.config.mjs'
+import { BASE, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
 
 // The five published packages, matching the root typedoc.json entry points.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
@@ -39,12 +39,12 @@ export default defineConfig({
           // the mount preserves that behaviour on a cold load.
           //
           // This sits in the global head rather than the 404 page's, because
-          // the base has to be interpolated from the config: one value owns
-          // where the site lives. It is safe everywhere, since the docs site
+          // the mount has to be interpolated from the shared topology rather
+          // than written out again. It is safe everywhere, since the docs site
           // never serves a real page under /playground, so reaching this
           // condition means the 404 fallback already happened.
           tag: 'script',
-          content: `(function(){var m=${JSON.stringify(`${BASE_PATH}playground/`)};if(location.pathname.indexOf(m)===0){location.replace(m+location.search)}})();`,
+          content: `(function(){var m=${JSON.stringify(PLAYGROUND_PATH)};if(location.pathname.indexOf(m)===0){location.replace(m+location.search)}})();`,
         },
       ],
       description:
@@ -77,7 +77,7 @@ export default defineConfig({
           // by a separate build, so its routes do not exist in this site's
           // output. Excluding that one subtree scopes the checker to what this
           // build actually produces; every docs route stays checked.
-          exclude: [`${BASE_PATH}playground`, `${BASE_PATH}playground/**`],
+          exclude: [PLAYGROUND_PATH.slice(0, -1), `${PLAYGROUND_PATH}**`],
         }),
       ],
       social: [
@@ -106,7 +106,7 @@ export default defineConfig({
             // Same artifact, different application: the playground is served
             // from this site's own base, not an external address. Starlight
             // prepends the base itself, so this must not include it.
-            { label: 'Playground', link: '/playground/' },
+            { label: 'Playground', link: `/${PLAYGROUND_MOUNT}/` },
             {
               label: 'GitHub',
               link: 'https://github.com/texaryn/texaryn',

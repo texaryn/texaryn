@@ -15,7 +15,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, posix, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { BASE_PATH } from '../apps/docs/site.config.mjs'
+import { BASE_PATH, PLAYGROUND_PATH } from '../site.config.mjs'
 
 const ANCHOR = /<a\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s">]+))/gi
 
@@ -49,24 +49,35 @@ export function classify(href) {
 // file lookup, and it is the one that shipped.
 export function targetCandidates(path, { base, fromDir }) {
   const prefix = base.endsWith('/') ? base : `${base}/`
-  let rest
-  if (path.startsWith('/')) {
-    if (path === prefix || path === prefix.slice(0, -1)) rest = ''
-    else if (path.startsWith(prefix)) rest = path.slice(prefix.length)
-    else return null
-  } else {
-    rest = posix.normalize(posix.join(fromDir, path))
-    if (rest === '.') rest = ''
-    if (rest.startsWith('..')) return null
+
+  // Decoding comes before every other decision. %2e%2e is only .. once
+  // decoded, and this function's contract is that a target it returns names a
+  // file inside the artifact.
+  let decoded
+  try {
+    decoded = decodeURIComponent(path)
+  } catch {
+    return null
   }
-  rest = decodeURIComponent(rest)
-  if (rest === '' || rest.endsWith('/')) return [posix.join(rest, 'index.html')]
+
+  let rest
+  if (decoded.startsWith('/')) {
+    if (decoded === prefix || decoded === prefix.slice(0, -1)) return ['index.html']
+    if (!decoded.startsWith(prefix)) return null
+    rest = posix.normalize(decoded.slice(prefix.length))
+  } else {
+    rest = posix.join(fromDir, decoded)
+  }
+
+  if (rest === '..' || rest.startsWith('../')) return null
+  if (rest === '.' || rest === '') return ['index.html']
+  if (rest.endsWith('/')) return [posix.join(rest, 'index.html')]
   return [rest, `${rest}.html`, posix.join(rest, 'index.html')]
 }
 
-export function checkSite({ pages, exists, base }) {
+export function checkSite({ pages, exists, base, playground }) {
   const prefix = base.endsWith('/') ? base : `${base}/`
-  const mount = `${prefix}playground/`
+  const mount = playground
   const broken = []
   const playgroundLinks = []
 
@@ -96,7 +107,10 @@ export function checkSite({ pages, exists, base }) {
   const problems = []
   if (pages.length === 0) problems.push('no HTML pages found in the artifact')
 
-  const fromDocs = playgroundLinks.filter((link) => !link.page.startsWith(`playground${posix.sep}`))
+  // The playground's own pages must not satisfy assertions about the docs
+  // reaching it, so they are excluded by the same mount the links use.
+  const mountDir = mount.slice(prefix.length)
+  const fromDocs = playgroundLinks.filter((link) => !link.page.startsWith(mountDir))
   const fromLanding = fromDocs.filter((link) => link.page === 'index.html')
   const fromOtherPages = fromDocs.filter((link) => link.page !== 'index.html')
   const toExamples = fromDocs.filter((link) => link.path.length > mount.length)
@@ -133,13 +147,12 @@ function htmlPages(dir) {
 }
 
 export function main(argv, { log = console.log, error = console.error } = {}) {
-  const [dirArg, baseArg] = argv
+  const [dirArg] = argv
   if (!dirArg) {
-    error('usage: node scripts/check-site-links.mjs <artifact-dir> [base]')
+    error('usage: node scripts/check-site-links.mjs <artifact-dir>')
     return 2
   }
   const dir = resolve(dirArg)
-  const base = baseArg ?? BASE_PATH
   const result = checkSite({
     pages: htmlPages(dir),
     exists: (candidate) => {
@@ -149,7 +162,8 @@ export function main(argv, { log = console.log, error = console.error } = {}) {
         return false
       }
     },
-    base,
+    base: BASE_PATH,
+    playground: PLAYGROUND_PATH,
   })
 
   for (const link of result.broken) {

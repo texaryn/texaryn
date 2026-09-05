@@ -9,11 +9,12 @@
 import { cpSync, rmSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { PLAYGROUND_MOUNT } from '../site.config.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docs = resolve(root, 'apps', 'docs', 'dist')
 const playground = resolve(root, 'apps', 'playground', 'dist')
-const mount = resolve(docs, 'playground')
+const mount = resolve(docs, PLAYGROUND_MOUNT)
 
 function requireFile(path) {
   try {
@@ -33,4 +34,4 @@ cpSync(playground, mount, { recursive: true })
 
 requireFile(resolve(mount, 'index.html'))
 
-console.log('compose-site: playground mounted at apps/docs/dist/playground')
+console.log(`compose-site: playground mounted at apps/docs/dist/${PLAYGROUND_MOUNT}`)
