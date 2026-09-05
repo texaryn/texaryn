@@ -2,7 +2,25 @@
 // Pages it is `/texaryn/playground/`, because the docs site owns the root and
 // the playground owns that subtree.
 import { describe, it, expect } from 'vitest'
-import { formatLocation, parseLocation } from '../routing.js'
+import { docsHref, formatLocation, parseLocation } from '../routing.js'
+
+describe('docsHref', () => {
+  it('points at the parent of the mount in development', () => {
+    expect(docsHref('/playground/')).toBe('/')
+  })
+
+  it('points at the site base on Pages', () => {
+    expect(docsHref('/texaryn/playground/')).toBe('/texaryn/')
+  })
+
+  it('tolerates a mount written without its trailing slash', () => {
+    expect(docsHref('/texaryn/playground')).toBe('/texaryn/')
+  })
+
+  it('stays at the root when the playground owns it', () => {
+    expect(docsHref('/')).toBe('/')
+  })
+})
 
 const DEV = '/playground/'
 const PAGES = '/texaryn/playground/'

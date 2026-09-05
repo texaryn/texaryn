@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
@@ -17,11 +18,12 @@ import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
-import { formatLocation, parseLocation } from './routing.js'
+import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import './playground.css'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
+const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 
 // Vue carries no React registry: it is a different render surface over the
 // same runtime rather than another set of React widgets, so it is listed here
@@ -105,19 +107,42 @@ function useAdapter(schemaText: string, parseError: string | null): AdapterState
   return state
 }
 
+// The preview and inspector columns come as a pair in every state, including
+// the three where there is no form to show. Writing that pair once keeps the
+// renderer selector outside the adapter's conditional, which is where it has
+// to be: choosing a renderer while a schema is still compiling is normal.
+function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNode }) {
+  return (
+    <>
+      <section className="pg-col pg-col--preview">
+        {toolbar}
+        <div className="pg-placeholder">{children}</div>
+      </section>
+      <aside className="pg-col pg-col--inspect">
+        <h2 className="pg-heading">Live Data</h2>
+        <pre className="pg-pre">—</pre>
+      </aside>
+    </>
+  )
+}
+
 function FormWorkspace({
   port,
   entry,
   registry,
+  rendererLabel,
   schemaText,
   tab,
+  toolbar,
   onTabChange,
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   registry: RendererRegistry<WidgetComponent> | null
+  rendererLabel: string
   schemaText: string
   tab: Tab
+  toolbar: ReactNode
   onTabChange: (tab: Tab) => void
 }) {
   const simulateFailureRef = useRef(false)
@@ -139,57 +164,74 @@ function FormWorkspace({
 
   return (
     <>
-      <div className="pg-col pg-col--preview">
+      <section className="pg-col pg-col--preview">
+        {toolbar}
         <FormContext.Provider value={form.runtime}>
           <ErrorSummary />
-          {registry ? (
-            <FormRoot registry={registry} />
-          ) : (
-            // Same runtime, different framework. VueHost mounts a Vue
-            // application over this exact instance rather than building one
-            // of its own, so switching renderer keeps the form.
-            <VueHost runtime={form.runtime} />
-          )}
 
-          <div className="pg-submit-row">
-            <button
-              type="button"
-              disabled={
-                form.submission.status === 'validating' ||
-                form.submission.status === 'submitting'
-              }
-              onClick={() => form.dispatch({ type: 'Submit' })}
-            >
-              {form.submission.status === 'validating'
-                ? 'Validating...'
-                : form.submission.status === 'submitting'
-                  ? 'Submitting...'
-                  : 'Submit'}
-            </button>
+          {/* The boundary, named so it can be seen and asserted. Everything
+              inside is the chosen renderer's output; everything outside is the
+              React shell, whichever renderer is selected. */}
+          <section className="pg-surface" aria-label={`Rendered by ${rendererLabel}`}>
+            {registry ? (
+              <FormRoot registry={registry} />
+            ) : (
+              // Same runtime, different framework. VueHost mounts a Vue
+              // application over this exact instance rather than building one
+              // of its own, so switching renderer keeps the form.
+              <VueHost runtime={form.runtime} />
+            )}
+          </section>
 
-            <label className="pg-checkbox-label">
-              <input
-                type="checkbox"
-                checked={simulateFailure}
-                onChange={(e) => setSimulateFailure(e.target.checked)}
-              />
-              Simulate failure
-            </label>
-          </div>
+          {/* Inside the provider, outside the box: these read the runtime, and
+              the playground owns them rather than the renderer. */}
+          <section className="pg-controls" aria-labelledby="playground-controls">
+            <h2 className="pg-controls__title" id="playground-controls">
+              Playground controls
+            </h2>
 
-          {form.submission.status === 'submitted' && (
-            <p className="pg-success">Submitted successfully.</p>
-          )}
-          {form.submission.error != null && (
-            <p className="pg-error">
-              {form.submission.error instanceof Error
-                ? form.submission.error.message
-                : String(form.submission.error)}
-            </p>
-          )}
+            <div className="pg-submit-row">
+              <button
+                type="button"
+                className="pg-button"
+                disabled={
+                  form.submission.status === 'validating' ||
+                  form.submission.status === 'submitting'
+                }
+                onClick={() => form.dispatch({ type: 'Submit' })}
+              >
+                {form.submission.status === 'validating'
+                  ? 'Validating...'
+                  : form.submission.status === 'submitting'
+                    ? 'Submitting...'
+                    : 'Submit'}
+              </button>
+
+              <label className="pg-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={simulateFailure}
+                  onChange={(e) => setSimulateFailure(e.target.checked)}
+                />
+                Simulate failure
+              </label>
+            </div>
+
+            {form.submission.status === 'submitted' && (
+              <p className="pg-success">Submitted successfully.</p>
+            )}
+            {form.submission.error != null && (
+              <p className="pg-error">
+                {form.submission.error instanceof Error
+                  ? form.submission.error.message
+                  : String(form.submission.error)}
+              </p>
+            )}
+          </section>
         </FormContext.Provider>
-      </div>
-      <div className="pg-col pg-col--inspect">
+      </section>
+
+      <aside className="pg-col pg-col--inspect">
         <Inspector
           runtime={form.runtime}
           port={port}
@@ -201,7 +243,7 @@ function FormWorkspace({
           tab={tab}
           onTabChange={onTabChange}
         />
-      </div>
+      </aside>
     </>
   )
 }
@@ -210,6 +252,7 @@ const CUSTOM_KEY = 'custom'
 const customEntry = { initialData: undefined, hints: undefined }
 
 const BASE_URL = import.meta.env.BASE_URL ?? '/'
+const DOCS_URL = docsHref(BASE_URL)
 
 // An unknown id falls back to the first example rather than an empty screen,
 // so a stale or mistyped link still lands somewhere usable.
@@ -282,94 +325,104 @@ export function App() {
   const entry = selectedExample ?? customEntry
   const selectedKey = selectedId ?? CUSTOM_KEY
 
+  // The control sits on the region it governs, and says what that region is,
+  // because the answer is narrower than the page implies: choosing Vue swaps
+  // the form subtree and leaves the shell around it in React.
+  const toolbar = (
+    <div className="pg-toolbar">
+      <label className="pg-toolbar__label" htmlFor="renderer-select">
+        Form renderer
+      </label>
+      <select
+        id="renderer-select"
+        className="pg-select"
+        value={rendererKey}
+        onChange={(e) => setRendererKey(e.target.value as RendererKey)}
+      >
+        {Object.entries(registries).map(([key, { label }]) => (
+          <option key={key} value={key}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <p className="pg-toolbar__note">Applies to the form below. The page around it stays React.</p>
+    </div>
+  )
+
   return (
     <div className="pg-app">
-      <div className="pg-col pg-col--source">
-        <h1 className="pg-title">Texaryn Playground</h1>
+      <header className="pg-header">
+        {/* One text node and one span rather than two spans: a flex gap is a
+            layout space, not a character, so two spans read as one word. */}
+        <h1 className="pg-brand">
+          Texaryn <span className="pg-brand__sub">Playground</span>
+        </h1>
+        <nav className="pg-header__nav" aria-label="Texaryn">
+          <a className="pg-header__link" href={DOCS_URL}>
+            Docs
+          </a>
+          <a className="pg-header__link" href={REPOSITORY_URL}>
+            GitHub
+          </a>
+        </nav>
+      </header>
 
-        <label className="pg-label" htmlFor="renderer-select">
-          Renderer
-        </label>
-        <select
-          id="renderer-select"
-          className="pg-select"
-          value={rendererKey}
-          onChange={(e) => setRendererKey(e.target.value as RendererKey)}
-        >
-          {Object.entries(registries).map(([key, { label }]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
+      <div className="pg-columns">
+        <aside className="pg-col pg-col--source">
+          <ExampleBrowser
+            query={query}
+            onQueryChange={setQuery}
+            selectedId={selectedId}
+            onSelect={handleSelectExample}
+          />
 
-        <ExampleBrowser
-          query={query}
-          onQueryChange={setQuery}
-          selectedId={selectedId}
-          onSelect={handleSelectExample}
-        />
+          {selectedExample && (
+            <p className="pg-description">{selectedExample.description}</p>
+          )}
 
-        {selectedExample && (
-          <p className="pg-description">{selectedExample.description}</p>
+          <h2 className="pg-heading" id="schema-editor-label">
+            JSON Schema
+          </h2>
+          <textarea
+            aria-labelledby="schema-editor-label"
+            className="pg-schema-editor"
+            value={schemaText}
+            onChange={(e) => handleSchemaChange(e.target.value)}
+            spellCheck={false}
+          />
+          {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
+        </aside>
+
+        {parseError ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-error">Fix the schema JSON to see the form.</p>
+          </NotReady>
+        ) : adapterState.status === 'loading' ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-empty">Loading…</p>
+          </NotReady>
+        ) : adapterState.status === 'error' ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-error">{adapterState.message}</p>
+          </NotReady>
+        ) : (
+          <FormWorkspace
+            // Deliberately excludes the renderer. The runtime belongs to the
+            // selected example and its schema; the renderer is presentation
+            // over it, so switching one must not remount the form and discard
+            // live data. Changing example or schema does mean a new runtime.
+            key={`${selectedKey}:${adapterState.id}`}
+            port={adapterState.port}
+            entry={entry}
+            registry={registries[rendererKey].registry}
+            rendererLabel={registries[rendererKey].label}
+            schemaText={schemaText}
+            tab={inspectorTab}
+            toolbar={toolbar}
+            onTabChange={setInspectorTab}
+          />
         )}
-
-        <h2 className="pg-heading" id="schema-editor-label">
-          JSON Schema
-        </h2>
-        <textarea
-          aria-labelledby="schema-editor-label"
-          value={schemaText}
-          onChange={(e) => handleSchemaChange(e.target.value)}
-          className="pg-schema-editor"
-          spellCheck={false}
-        />
-        {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       </div>
-
-      {parseError ? (
-        <>
-          <div className="pg-col pg-col--preview">
-            <div className="pg-error">Fix the schema JSON to see the form.</div>
-          </div>
-          <div className="pg-col pg-col--inspect">
-            <h2 className="pg-heading">Live Data</h2>
-            <pre className="pg-pre">—</pre>
-          </div>
-        </>
-      ) : adapterState.status === 'loading' ? (
-        <>
-          <div className="pg-col pg-col--preview">Loading…</div>
-          <div className="pg-col pg-col--inspect">
-            <h2 className="pg-heading">Live Data</h2>
-            <pre className="pg-pre">—</pre>
-          </div>
-        </>
-      ) : adapterState.status === 'error' ? (
-        <>
-          <div className="pg-col pg-col--preview">
-            <div className="pg-error">{adapterState.message}</div>
-          </div>
-          <div className="pg-col pg-col--inspect">
-            <h2 className="pg-heading">Live Data</h2>
-            <pre className="pg-pre">—</pre>
-          </div>
-        </>
-      ) : (
-        <FormWorkspace
-          // Deliberately excludes the renderer. The runtime belongs to the
-          // selected example and its schema; the renderer is presentation
-          // over it, so switching one must not remount the form and discard
-          // live data. Changing example or schema does mean a new runtime.
-          key={`${selectedKey}:${adapterState.id}`}
-          port={adapterState.port}
-          entry={entry}
-          registry={registries[rendererKey].registry}
-          schemaText={schemaText}
-          tab={inspectorTab}
-          onTabChange={setInspectorTab}
-        />
-      )}
     </div>
   )
 }
