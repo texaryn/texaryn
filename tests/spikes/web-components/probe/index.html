@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Web Components spike probe</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 2rem; display: grid; gap: 2rem; grid-template-columns: 1fr 1fr; }
+      section { border: 1px solid #ccc; padding: 1rem; }
+      .texaryn-field { display: grid; gap: 0.25rem; margin-bottom: 0.75rem; }
+      .texaryn-array-item { border-left: 3px solid #999; padding-left: 0.5rem; margin-bottom: 0.5rem; }
+      [role='alert'] { color: #b00020; }
+      pre { grid-column: 1 / -1; background: #f4f4f4; padding: 1rem; }
+    </style>
+  </head>
+  <body>
+    <section>
+      <h2>Conditional reveal</h2>
+      <texaryn-form id="conditional"></texaryn-form>
+    </section>
+    <section>
+      <h2>Array move</h2>
+      <texaryn-form id="list"></texaryn-form>
+      <button id="move-up" type="button">Move row 2 up (keeps focus)</button>
+    </section>
+    <pre id="status"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
