@@ -17,8 +17,9 @@ export const FormRoot = defineComponent({
   setup(props) {
     const runtime = useFormRuntime()
     // Provided once here rather than at every node: inject walks the parent
-    // chain, so one provide reaches the whole tree.
-    provideRendererRegistry(props.registry)
+    // chain, so one provide reaches the whole tree. Passed as a getter so a
+    // changed prop re-resolves that tree instead of freezing it.
+    provideRendererRegistry(() => props.registry)
 
     const document = useStore(runtime.document, runtime.document.getSnapshot())
     const rootNode = computed(() => document.value.nodes[document.value.rootId])

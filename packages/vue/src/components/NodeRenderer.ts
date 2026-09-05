@@ -16,7 +16,7 @@ export const NodeRenderer = defineComponent({
   },
   setup(props) {
     const registry = useRendererRegistry()
-    const widget = computed(() => registry.resolve(props.node))
+    const widget = computed(() => registry.value.resolve(props.node))
 
     return () => {
       if (!props.node.visible || !widget.value) return null

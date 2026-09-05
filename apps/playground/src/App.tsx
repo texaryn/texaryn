@@ -17,18 +17,23 @@ import type { TexarynExample } from '@texaryn/examples'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
+import { VueHost } from './VueHost.js'
 import { formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 
+// Vue carries no React registry: it is a different render surface over the
+// same runtime rather than another set of React widgets, so it is listed here
+// for the selector and rendered through VueHost instead of FormRoot.
 const registries: Record<
   RendererKey,
-  { label: string; registry: RendererRegistry<WidgetComponent> }
+  { label: string; registry: RendererRegistry<WidgetComponent> | null }
 > = {
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { label: 'Material UI', registry: createMuiRegistry() },
+  vue: { label: 'Vue', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -110,7 +115,7 @@ function FormWorkspace({
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
-  registry: RendererRegistry<WidgetComponent>
+  registry: RendererRegistry<WidgetComponent> | null
   schemaText: string
   tab: Tab
   onTabChange: (tab: Tab) => void
@@ -137,7 +142,14 @@ function FormWorkspace({
       <div style={styles.centerPanel}>
         <FormContext.Provider value={form.runtime}>
           <ErrorSummary />
-          <FormRoot registry={registry} />
+          {registry ? (
+            <FormRoot registry={registry} />
+          ) : (
+            // Same runtime, different framework. VueHost mounts a Vue
+            // application over this exact instance rather than building one
+            // of its own, so switching renderer keeps the form.
+            <VueHost runtime={form.runtime} />
+          )}
 
           <div style={styles.submitRow}>
             <button
