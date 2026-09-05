@@ -1079,20 +1079,97 @@ describe('showErrors display policy', () => {
     runtime.destroy()
   })
 
-  it('showErrors is false when invalid but not touched', () => {
+  it('showErrors is false when invalid but neither touched nor submitted', () => {
     const port = makePort(
       () => simpleProjection,
       () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
     )
     const runtime = createFormRuntime(port, {
-      hints: { '/name': { validationTrigger: 'submit' } },
+      hints: { '/name': { validationTrigger: 'change' } },
     })
+    const nodeId = findFieldNode(runtime, '/name')
+    vi.useFakeTimers()
+    runtime.dispatch({ type: 'SetValue', nodeId, value: '' })
+    vi.advanceTimersByTime(300)
+    const nodeState = runtime.getNodeState(nodeId)!
+    expect(nodeState.touched.getSnapshot()).toBe(false)
+    expect(nodeState.validationStatus.getSnapshot()).toBe('invalid')
+    expect(nodeState.showErrors.getSnapshot()).toBe(false)
+    vi.useRealTimers()
+    runtime.destroy()
+  })
+
+  it('a failed Submit shows errors on fields nobody touched', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port)
     runtime.dispatch({ type: 'Submit' })
     const nodeId = findFieldNode(runtime, '/name')
     const nodeState = runtime.getNodeState(nodeId)!
     expect(nodeState.touched.getSnapshot()).toBe(false)
     expect(nodeState.validationStatus.getSnapshot()).toBe('invalid')
-    expect(nodeState.showErrors.getSnapshot()).toBe(false)
+    expect(nodeState.showErrors.getSnapshot()).toBe(true)
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'idle', attempts: 1 })
+    runtime.destroy()
+  })
+
+  it('a failed Submit with an async validator shows errors once the result lands', async () => {
+    const def = deferred<ValidationResult>()
+    const runtime = createFormRuntime(makeAsyncPort(def))
+    const nodeId = findFieldNode(runtime, '/name')
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.getNodeState(nodeId)!.showErrors.getSnapshot()).toBe(false)
+
+    def.resolve({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] })
+    await def.promise
+    await flushMicrotasks()
+    expect(runtime.getNodeState(nodeId)!.showErrors.getSnapshot()).toBe(true)
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'idle', attempts: 1 })
+    runtime.destroy()
+  })
+
+  it('Reset closes the submit gate again', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port, {
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.getNodeState(findFieldNode(runtime, '/name'))!.showErrors.getSnapshot()).toBe(true)
+
+    runtime.dispatch({ type: 'Reset' })
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'idle', attempts: 0 })
+    const nodeId = findFieldNode(runtime, '/name')
+    vi.useFakeTimers()
+    runtime.dispatch({ type: 'SetValue', nodeId, value: '' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.getNodeState(nodeId)!.validationStatus.getSnapshot()).toBe('invalid')
+    expect(runtime.getNodeState(nodeId)!.showErrors.getSnapshot()).toBe(false)
+    vi.useRealTimers()
+    runtime.destroy()
+  })
+
+  it('attempts counts every accepted Submit and survives the lifecycle', async () => {
+    let fail = true
+    const port = makePort(
+      () => simpleProjection,
+      () => (fail ? { valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] } : { valid: true, errors: [] }),
+    )
+    const runtime = createFormRuntime(port, { onSubmit: () => Promise.resolve() })
+    expect(runtime.submission.getSnapshot().attempts).toBe(0)
+    runtime.dispatch({ type: 'Submit' })
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'idle', attempts: 2 })
+
+    fail = false
+    runtime.dispatch({ type: 'Submit' })
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'submitting', attempts: 3 })
+    await flushMicrotasks()
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'submitted', attempts: 3 })
     runtime.destroy()
   })
 
@@ -1169,16 +1246,35 @@ describe('visibleErrors aggregate', () => {
     runtime.destroy()
   })
 
-  it('visibleErrors excludes untouched invalid nodes', () => {
+  it('visibleErrors includes untouched invalid nodes after a failed Submit', () => {
+    const port = makePort(
+      () => simpleProjection,
+      () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
+    )
+    const runtime = createFormRuntime(port)
+    runtime.dispatch({ type: 'Submit' })
+    const visible = runtime.visibleErrors.getSnapshot()
+    expect(visible).toHaveLength(1)
+    expect(visible[0].pointer).toBe('/name')
+    expect(visible[0].fieldTitle).toBe('Name')
+    runtime.destroy()
+  })
+
+  it('visibleErrors excludes invalid nodes that are neither touched nor submitted', () => {
     const port = makePort(
       () => simpleProjection,
       () => ({ valid: false, errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }] }),
     )
     const runtime = createFormRuntime(port, {
-      hints: { '/name': { validationTrigger: 'submit' } },
+      hints: { '/name': { validationTrigger: 'change' } },
     })
-    runtime.dispatch({ type: 'Submit' })
+    const nodeId = findFieldNode(runtime, '/name')
+    vi.useFakeTimers()
+    runtime.dispatch({ type: 'SetValue', nodeId, value: '' })
+    vi.advanceTimersByTime(300)
+    expect(runtime.getNodeState(nodeId)!.validationStatus.getSnapshot()).toBe('invalid')
     expect(runtime.visibleErrors.getSnapshot()).toEqual([])
+    vi.useRealTimers()
     runtime.destroy()
   })
 

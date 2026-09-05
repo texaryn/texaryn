@@ -29,6 +29,8 @@ export interface InteractionState {
 export interface SubmissionState {
   status: 'idle' | 'validating' | 'submitting' | 'submitted'
   error?: unknown
+  /** Accepted Submit commands since creation or the last Reset; above zero, invalid fields show their errors before they are touched. */
+  attempts: number
 }
 
 export interface IdentityMap {

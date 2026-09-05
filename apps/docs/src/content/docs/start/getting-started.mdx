@@ -142,8 +142,8 @@ validated.
 <Example id="runtime-validation-triggers" />
 
 The runtime tracks `showErrors` per node, so an error appears only once the
-field has been interacted with. The prop getters set `aria-invalid` and link
-`aria-describedby` to the error element.
+field has been interacted with or a Submit has been attempted. The prop getters
+set `aria-invalid` and link `aria-describedby` to the error element.
 
 `FieldErrors` renders inline errors per field and is included in the default
 widgets. `ErrorSummary` renders a jump-linked list of visible errors above the
@@ -166,11 +166,13 @@ and `onSubmit` operate on that snapshot. Edits during `validating` cancel the
 attempt. Once `onSubmit` is running, edits update live data without changing
 the captured payload.
 
-If validation fails, submission returns to `idle` and node errors update,
-still following the touched-and-invalid display policy. `submission.error` is
-set only when the validator or `onSubmit` throws or rejects, and the state
-returns to `idle`. A fresh Submit clears a previous error. A duplicate Submit
-while validating or submitting does nothing.
+If validation fails, submission returns to `idle` and every invalid field
+shows its errors, touched or not: a Submit attempt opens the display gate that
+blur and change validation leave closed until the user touches a field.
+`submission.attempts` counts the accepted attempts since the last Reset.
+`submission.error` is set only when the validator or `onSubmit` throws or
+rejects, and the state returns to `idle`. A fresh Submit clears a previous
+error. A duplicate Submit while validating or submitting does nothing.
 
 <Example id="runtime-submission" />
 

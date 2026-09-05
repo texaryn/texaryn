@@ -45,7 +45,11 @@ function defaultNodeState(value: unknown): NodeRuntimeState {
   }
 }
 
-function createNodeStoreBundle(nodeState: NodeRuntimeState, uiNode: UINode): NodeStoreBundle {
+function createNodeStoreBundle(
+  nodeState: NodeRuntimeState,
+  uiNode: UINode,
+  attempts: Store<number>,
+): NodeStoreBundle {
   const touched = createStore(nodeState.interaction.touched)
   const validationStatus = createStore(nodeState.validation.status)
   return {
@@ -56,8 +60,10 @@ function createNodeStoreBundle(nodeState: NodeRuntimeState, uiNode: UINode): Nod
     visible: createStore(uiNode.visible),
     disabled: createStore(uiNode.disabled),
     validationStatus,
-    showErrors: createComputedStore(() =>
-      touched.getSnapshot() && validationStatus.getSnapshot() === 'invalid',
+    showErrors: createComputedStore(
+      () =>
+        (touched.getSnapshot() || attempts.getSnapshot() > 0) &&
+        validationStatus.getSnapshot() === 'invalid',
     ),
   }
 }
@@ -73,8 +79,9 @@ export function createFormRuntime(
   let currentDoc: UIDocument = initialCompile.document
   const documentStore = createStore<UIDocument>(initialCompile.document)
   const dataStore = createStore<unknown>(initialData)
-  const submissionStore = createStore<SubmissionState>({ status: 'idle' })
+  const submissionStore = createStore<SubmissionState>({ status: 'idle', attempts: 0 })
   const visibleErrorsStore = createStore<VisibleError[]>([])
+  const attemptsStore = createStore(0)
   const nodeStores = new Map<NodeId, NodeStoreBundle>()
 
   const nodes = new Map<NodeId, NodeRuntimeState>()
@@ -84,7 +91,7 @@ export function createFormRuntime(
     const value = uiNode.dataPointer != null ? getAtPointer(initialData, uiNode.dataPointer) : undefined
     const nodeRuntimeState = defaultNodeState(value)
     nodes.set(nodeId, nodeRuntimeState)
-    nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode))
+    nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode, attemptsStore))
   }
 
   let state: RuntimeState = {
@@ -92,12 +99,17 @@ export function createFormRuntime(
     initialData,
     nodes,
     identities: initialCompile.identityMap,
-    submission: { status: 'idle' },
+    submission: { status: 'idle', attempts: 0 },
   }
 
   let destroyed = false
   let submissionGeneration = 0
   let currentAttempt: { generation: number; data: unknown } | null = null
+
+  function publishSubmission(): void {
+    submissionStore.set(state.submission)
+    attemptsStore.set(state.submission.attempts)
+  }
 
   function syncNodeStores(): void {
     for (const [nodeId, nodeRuntimeState] of state.nodes) {
@@ -170,7 +182,7 @@ export function createFormRuntime(
 
       const nodeRuntimeState = defaultNodeState(value)
       state.nodes.set(nodeId, nodeRuntimeState)
-      nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode))
+      nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode, attemptsStore))
     }
 
     // Drop entries for node ids that no longer appear in the recompiled
@@ -218,16 +230,16 @@ export function createFormRuntime(
         if (destroyed || attempt.generation !== submissionGeneration) return
         batch(() => {
           currentAttempt = null
-          state = { ...state, submission: { status: 'submitted' } }
-          submissionStore.set(state.submission)
+          state = { ...state, submission: { status: 'submitted', attempts: state.submission.attempts } }
+          publishSubmission()
         })
       })
       .catch((error: unknown) => {
         if (destroyed || attempt.generation !== submissionGeneration) return
         batch(() => {
           currentAttempt = null
-          state = { ...state, submission: { status: 'idle', error } }
-          submissionStore.set(state.submission)
+          state = { ...state, submission: { status: 'idle', error, attempts: state.submission.attempts } }
+          publishSubmission()
         })
       })
   }
@@ -257,15 +269,15 @@ export function createFormRuntime(
       if (trigger === 'submit' && state.submission.status === 'validating') {
         const attempt = currentAttempt
         if (result.valid && attempt) {
-          const submission: SubmissionState = { status: 'submitting' }
+          const submission: SubmissionState = { status: 'submitting', attempts: state.submission.attempts }
           state = { ...state, submission }
-          submissionStore.set(submission)
+          publishSubmission()
           void runOnSubmit(attempt)
         } else {
           currentAttempt = null
-          const submission: SubmissionState = { status: 'idle' }
+          const submission: SubmissionState = { status: 'idle', attempts: state.submission.attempts }
           state = { ...state, submission }
-          submissionStore.set(submission)
+          publishSubmission()
         }
       }
     })
@@ -297,8 +309,8 @@ export function createFormRuntime(
 
       if (trigger === 'submit') {
         currentAttempt = null
-        state = { ...state, submission: { status: 'idle', error } }
-        submissionStore.set(state.submission)
+        state = { ...state, submission: { status: 'idle', error, attempts: state.submission.attempts } }
+        publishSubmission()
       }
     })
   }
@@ -376,7 +388,7 @@ export function createFormRuntime(
     if (mutatesData && state.submission.status === 'validating') {
       submissionGeneration++
       currentAttempt = null
-      state = { ...state, submission: { status: 'idle' } }
+      state = { ...state, submission: { status: 'idle', attempts: state.submission.attempts } }
     }
 
     if (mutatesData) {
@@ -388,7 +400,7 @@ export function createFormRuntime(
 
     batch(() => {
       dataStore.set(state.data)
-      submissionStore.set(state.submission)
+      publishSubmission()
       syncNodeStores()
       for (const effect of effects) {
         handleEffect(effect)

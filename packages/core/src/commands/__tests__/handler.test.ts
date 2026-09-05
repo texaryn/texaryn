@@ -91,7 +91,7 @@ function simpleState(): RuntimeState {
       [nid('age'), makeNodeState(30)],
     ]),
     identities: emptyIdentities(),
-    submission: { status: 'idle' },
+    submission: { status: 'idle', attempts: 0 },
   }
 }
 
@@ -148,7 +148,7 @@ describe('processCommand', () => {
         initialData: 'old',
         nodes: new Map([[nid('root'), makeNodeState('old')]]),
         identities: emptyIdentities(),
-        submission: { status: 'idle' },
+        submission: { status: 'idle', attempts: 0 },
       }
       const { nextState } = processCommand(
         state,
@@ -193,7 +193,7 @@ describe('processCommand', () => {
         { type: 'Submit' },
         simpleDoc,
       )
-      expect(nextState.submission.status).toBe('validating')
+      expect(nextState.submission).toEqual({ status: 'validating', attempts: 1 })
       const validateEffect = effects.find((e) => e.type === 'validate')
       expect(validateEffect).toBeDefined()
       expect(validateEffect).toEqual({
@@ -206,7 +206,7 @@ describe('processCommand', () => {
     it('Submit while validating is a no-op', () => {
       const state: RuntimeState = {
         ...simpleState(),
-        submission: { status: 'validating' },
+        submission: { status: 'validating', attempts: 1 },
       }
       const { nextState, effects } = processCommand(
         state,
@@ -220,7 +220,7 @@ describe('processCommand', () => {
     it('Submit while submitting is a no-op', () => {
       const state: RuntimeState = {
         ...simpleState(),
-        submission: { status: 'submitting' },
+        submission: { status: 'submitting', attempts: 1 },
       }
       const { nextState, effects } = processCommand(
         state,
@@ -234,14 +234,14 @@ describe('processCommand', () => {
     it('Submit from submitted transitions to validating', () => {
       const state: RuntimeState = {
         ...simpleState(),
-        submission: { status: 'submitted' },
+        submission: { status: 'submitted', attempts: 1 },
       }
       const { nextState, effects } = processCommand(
         state,
         { type: 'Submit' },
         simpleDoc,
       )
-      expect(nextState.submission.status).toBe('validating')
+      expect(nextState.submission).toEqual({ status: 'validating', attempts: 2 })
       expect(effects).toContainEqual(
         expect.objectContaining({ type: 'validate', trigger: 'submit' }),
       )
@@ -249,6 +249,15 @@ describe('processCommand', () => {
   })
 
   describe('Reset', () => {
+    it('clears the attempt count', () => {
+      const state: RuntimeState = {
+        ...simpleState(),
+        submission: { status: 'idle', attempts: 2 },
+      }
+      const { nextState } = processCommand(state, { type: 'Reset' }, simpleDoc)
+      expect(nextState.submission).toEqual({ status: 'idle', attempts: 0 })
+    })
+
     it('resets to initial data when no replacement provided', () => {
       const state = simpleState()
       const r1 = processCommand(
@@ -348,7 +357,7 @@ describe('processCommand', () => {
       initialData: { items: [...items] },
       nodes: new Map(),
       identities,
-      submission: { status: 'idle' },
+      submission: { status: 'idle', attempts: 0 },
     }
   }
 

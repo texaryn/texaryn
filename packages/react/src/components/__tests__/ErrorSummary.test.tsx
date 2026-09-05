@@ -14,7 +14,7 @@ function makeMockRuntime(visibleErrors: VisibleError[]): FormRuntime {
   return {
     document: createStore<UIDocument>({ version: 1, rootId: 'node_1' as NodeId, nodes: {} }),
     data: createStore<unknown>({}),
-    submission: createStore<SubmissionState>({ status: 'idle' }),
+    submission: createStore<SubmissionState>({ status: 'idle', attempts: 0 }),
     visibleErrors: createStore<VisibleError[]>(visibleErrors),
     dispatch: () => {},
     getNodeState: () => undefined,
