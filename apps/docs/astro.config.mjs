@@ -31,6 +31,14 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Texaryn',
+      // Both halves of the theme, because they have to agree on where the
+      // preference lives. Overriding only the picker would leave the boot
+      // script reading Starlight's key and stamping the wrong mode before the
+      // picker ever runs.
+      components: {
+        ThemeProvider: './src/components/ThemeProvider.astro',
+        ThemeSelect: './src/components/ThemeSelect.astro',
+      },
       head: [
         {
           // The playground materializes a real entry point for every catalog

@@ -38,9 +38,11 @@ export function RendererSurface({
       // set and ignored, so the DOM says which one is in use.
       data-bs-theme={rendererKey === 'bootstrap' ? theme : undefined}
     >
-      {/* Default and Vue are plain HTML over the `--tx-*` variables and the
-          `color-scheme` the resolved attribute carries, so they need no
-          adapter of their own. */}
+      {/* Default and Vue carry no colour of their own: neither widget set has
+          an inline style or a colour literal in it. They inherit the text
+          colour from the page and take their control colours from the
+          `color-scheme` the resolved attribute sets, so there is nothing for
+          an adapter to tell them. */}
       {rendererKey === 'mui' ? <MuiTheme theme={theme}>{children}</MuiTheme> : children}
     </section>
   )
