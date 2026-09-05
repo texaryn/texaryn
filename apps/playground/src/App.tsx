@@ -273,7 +273,7 @@ export function App() {
   return (
     <div style={styles.app}>
       <div style={styles.leftPanel}>
-        <h1 style={styles.title}>Texaryn Demo</h1>
+        <h1 style={styles.title}>Texaryn Playground</h1>
 
         <label style={styles.label} htmlFor="renderer-select">
           Renderer

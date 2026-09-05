@@ -21,10 +21,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm build
-      - run: pnpm --filter @texaryn/demo build:pages
+      - run: pnpm --filter @texaryn/playground build:pages
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: packages/demo/dist
+          path: apps/playground/dist
 
   deploy:
     needs: build

@@ -132,8 +132,8 @@ export default defineConfig({
       {
         resolve: { alias },
         test: {
-          name: 'demo',
-          root: 'packages/demo',
+          name: 'playground',
+          root: 'apps/playground',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
         },
