@@ -1,0 +1,60 @@
+{
+  "name": "@texaryn/vue",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vue 3 bindings, composables, and default widgets for Texaryn",
+  "keywords": [
+    "vue",
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "headless",
+    "vue-forms",
+    "dynamic-forms",
+    "typescript"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/vue"
+  },
+  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "CHANGELOG.md"],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "vue": ">=3.4.0"
+  },
+  "devDependencies": {
+    "@texaryn/examples": "workspace:*",
+    "@texaryn/schema-json": "workspace:*",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^25.0.0",
+    "vue": "^3.5.0"
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}
