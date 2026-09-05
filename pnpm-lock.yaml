@@ -55,6 +55,9 @@ importers:
       '@texaryn/core':
         specifier: workspace:*
         version: link:../core
+      '@texaryn/examples':
+        specifier: workspace:*
+        version: link:../examples
       '@texaryn/react':
         specifier: workspace:*
         version: link:../react
@@ -74,6 +77,9 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.18
@@ -83,6 +89,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.0.0
         version: 4.7.0(supports-color@7.2.0)(vite@6.4.3(tsx@4.23.12)(yaml@2.9.0))
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1(supports-color@7.2.0)
       typescript:
         specifier: ~5.8.0
         version: 5.8.3

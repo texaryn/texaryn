@@ -130,6 +130,15 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias },
+        test: {
+          name: 'demo',
+          root: 'packages/demo',
+          include: ['src/**/*.test.{ts,tsx}'],
+          environment: 'jsdom',
+        },
+      },
+      {
         test: {
           name: 'scripts',
           root: 'scripts',
