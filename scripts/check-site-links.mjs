@@ -14,6 +14,7 @@
 // actually offered.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, posix, resolve, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { BASE_PATH } from '../apps/docs/site.config.mjs'
 
 const ANCHOR = /<a\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s">]+))/gi
@@ -166,6 +167,6 @@ export function main(argv, { log = console.log, error = console.error } = {}) {
   return 0
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   process.exit(main(process.argv.slice(2)))
 }
