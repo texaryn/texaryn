@@ -2,15 +2,10 @@
  * has to be themeable on its own, and borrowing the documentation theme's
  * variables would make every future docs upgrade a playground regression.
  *
- * Light values only. The theme switch redefines this same block under
- * `[data-theme]`, so nothing below this section may hardcode a colour. */
+ * Every colour below this block resolves to one of these, so a second set of
+ * values is a complete change of appearance. Nothing further down may write a
+ * colour literal. */
 :root {
-  /* Not a theme, a declaration that only one exists. A page that says nothing
-   * here is a candidate for the browser's own automatic darkening, which
-   * inverts lightness per colour and does not preserve which surface sits
-   * above which. The theme switch widens this to `light dark`. */
-  color-scheme: light;
-
   --tx-bg: #e8ecf1;
   --tx-surface: #f4f6f9;
   --tx-surface-raised: #ffffff;
@@ -148,6 +143,30 @@ body {
   margin: 0;
   font-size: 0.75rem;
   color: var(--tx-text-muted);
+}
+
+/* The error summary the React binding renders, which the playground places
+ * above the box rather than inside it: the binding produces the same markup
+ * whichever renderer is selected, so calling it the renderer's output would
+ * be false. Child combinator on purpose, so an alert a renderer emits inside
+ * the box keeps that renderer's own appearance. */
+.pg-col--preview > [role='alert'] {
+  font-size: 0.85rem;
+  color: var(--tx-danger);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-danger);
+  border-left-width: 3px;
+  border-radius: var(--tx-radius);
+  padding: 0.6rem 0.75rem;
+}
+
+.pg-col--preview > [role='alert'] ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.pg-col--preview > [role='alert'] a {
+  color: inherit;
 }
 
 .pg-surface {

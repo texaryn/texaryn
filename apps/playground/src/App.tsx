@@ -118,7 +118,7 @@ function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNo
         {toolbar}
         <div className="pg-placeholder">{children}</div>
       </section>
-      <aside className="pg-col pg-col--inspect">
+      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
         <h2 className="pg-heading">Live Data</h2>
         <pre className="pg-pre">—</pre>
       </aside>
@@ -231,7 +231,7 @@ function FormWorkspace({
         </FormContext.Provider>
       </section>
 
-      <aside className="pg-col pg-col--inspect">
+      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
         <Inspector
           runtime={form.runtime}
           port={port}
@@ -368,7 +368,7 @@ export function App() {
       </header>
 
       <div className="pg-columns">
-        <aside className="pg-col pg-col--source">
+        <aside className="pg-col pg-col--source" aria-label="Examples and schema">
           <ExampleBrowser
             query={query}
             onQueryChange={setQuery}
