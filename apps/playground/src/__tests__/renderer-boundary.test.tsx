@@ -14,10 +14,10 @@ import { App } from '../App.js'
 afterEach(cleanup)
 
 const RENDERERS = [
-  { key: 'default', name: 'Rendered by Default' },
-  { key: 'bootstrap', name: 'Rendered by Bootstrap 5' },
-  { key: 'mui', name: 'Rendered by Material UI' },
-  { key: 'vue', name: 'Rendered by Vue' },
+  { key: 'default', name: 'Rendered by React · Default' },
+  { key: 'bootstrap', name: 'Rendered by React · Bootstrap 5' },
+  { key: 'mui', name: 'Rendered by React · Material UI' },
+  { key: 'vue', name: 'Rendered by Vue · Default' },
 ] as const
 
 describe('the renderer-owned region', () => {
@@ -43,6 +43,22 @@ describe('the renderer-owned region', () => {
         within(region).queryByLabelText(/simulate failure/i),
         `Simulate failure is the playground's, not ${name}'s`,
       ).toBeNull()
+    }
+  })
+
+  // Three of the four surfaces are React and one is not. A list reading
+  // "Material UI" beside "Vue" invites reading the fourth as the only one with
+  // a framework, which is the confusion the boxed region exists to remove.
+  it('names a framework on every option, not only on the one that is not React', () => {
+    render(<App />)
+
+    const options = within(screen.getByLabelText(/renderer/i)).getAllByRole('option')
+    expect(options.length).toBeGreaterThan(1)
+    for (const option of options) {
+      expect(
+        option.textContent,
+        `"${option.textContent}" does not say which framework renders it`,
+      ).toMatch(/^(React|Vue) · .+/)
     }
   })
 

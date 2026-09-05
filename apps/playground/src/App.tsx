@@ -25,6 +25,10 @@ import './playground.css'
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 
+// Every label names its framework and its widget set, because three of these
+// are React and one is not, and a list that says `Material UI` beside `Vue`
+// invites reading the fourth as the only one with a framework.
+//
 // Vue carries no React registry: it is a different render surface over the
 // same runtime rather than another set of React widgets, so it is listed here
 // for the selector and rendered through VueHost instead of FormRoot.
@@ -32,10 +36,10 @@ const registries: Record<
   RendererKey,
   { label: string; registry: RendererRegistry<WidgetComponent> | null }
 > = {
-  default: { label: 'Default', registry: createDefaultRegistry() },
-  bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
-  mui: { label: 'Material UI', registry: createMuiRegistry() },
-  vue: { label: 'Vue', registry: null },
+  default: { label: 'React · Default', registry: createDefaultRegistry() },
+  bootstrap: { label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
+  mui: { label: 'React · Material UI', registry: createMuiRegistry() },
+  vue: { label: 'Vue · Default', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and

@@ -14,6 +14,9 @@
   --tx-text: #1b1f24;
   --tx-text-muted: #5c646d;
   --tx-accent: #2f6feb;
+  /* Text that sits on the accent, not a surface that happens to be the same
+   * colour today. A second palette moves the surfaces and leaves this one. */
+  --tx-on-accent: #ffffff;
   --tx-accent-soft: #e8f0fe;
   --tx-danger: #b00020;
   --tx-success: #2e7d32;
@@ -290,7 +293,7 @@ body {
   font-size: 0.9rem;
   font-weight: 600;
   padding: 0.4rem 1rem;
-  color: var(--tx-surface-raised);
+  color: var(--tx-on-accent);
   background: var(--tx-accent);
   border: 1px solid var(--tx-accent);
   border-radius: var(--tx-radius);
