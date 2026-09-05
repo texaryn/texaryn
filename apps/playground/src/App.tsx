@@ -18,6 +18,10 @@ import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
+import { RendererSurface } from './RendererSurface.js'
+import { ThemeSelect } from './ThemeSelect.js'
+import { useTheme } from './theme.js'
+import type { ResolvedTheme } from './theme.js'
 import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import './playground.css'
@@ -134,7 +138,9 @@ function FormWorkspace({
   port,
   entry,
   registry,
+  rendererKey,
   rendererLabel,
+  resolvedTheme,
   schemaText,
   tab,
   toolbar,
@@ -143,7 +149,9 @@ function FormWorkspace({
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   registry: RendererRegistry<WidgetComponent> | null
+  rendererKey: RendererKey
   rendererLabel: string
+  resolvedTheme: ResolvedTheme
   schemaText: string
   tab: Tab
   toolbar: ReactNode
@@ -176,7 +184,11 @@ function FormWorkspace({
           {/* The boundary, named so it can be seen and asserted. Everything
               inside is the chosen renderer's output; everything outside is the
               React shell, whichever renderer is selected. */}
-          <section className="pg-surface" aria-label={`Rendered by ${rendererLabel}`}>
+          <RendererSurface
+            rendererKey={rendererKey}
+            label={rendererLabel}
+            theme={resolvedTheme}
+          >
             {registry ? (
               <FormRoot registry={registry} />
             ) : (
@@ -185,7 +197,7 @@ function FormWorkspace({
               // of its own, so switching renderer keeps the form.
               <VueHost runtime={form.runtime} />
             )}
-          </section>
+          </RendererSurface>
 
           {/* Inside the provider, outside the box: these read the runtime, and
               the playground owns them rather than the renderer. */}
@@ -277,6 +289,7 @@ export function App() {
     formatSchema(resolveExample(initial.exampleId)?.schema ?? {}),
   )
   const [parseError, setParseError] = useState<string | null>(null)
+  const theme = useTheme()
 
   useBootstrapStylesheet(rendererKey === 'bootstrap')
 
@@ -368,6 +381,7 @@ export function App() {
           <a className="pg-header__link" href={REPOSITORY_URL}>
             GitHub
           </a>
+          <ThemeSelect preference={theme.preference} onChange={theme.setPreference} />
         </nav>
       </header>
 
@@ -419,7 +433,9 @@ export function App() {
             port={adapterState.port}
             entry={entry}
             registry={registries[rendererKey].registry}
+            rendererKey={rendererKey}
             rendererLabel={registries[rendererKey].label}
+            resolvedTheme={theme.resolved}
             schemaText={schemaText}
             tab={inspectorTab}
             toolbar={toolbar}
