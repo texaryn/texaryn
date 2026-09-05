@@ -21,10 +21,22 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm build
+      # One artifact, two applications. The documentation site owns the root
+      # and the playground owns /playground, so the playground build is
+      # composed into the docs output rather than either being merged blindly.
+      - run: pnpm --filter @texaryn/docs build
       - run: pnpm --filter @texaryn/playground build:pages
+      - name: Compose the site
+        run: |
+          set -euo pipefail
+          rm -rf apps/docs/dist/playground
+          cp -R apps/playground/dist apps/docs/dist/playground
+          test -f apps/docs/dist/index.html
+          test -f apps/docs/dist/404.html
+          test -f apps/docs/dist/playground/index.html
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: apps/playground/dist
+          path: apps/docs/dist
 
   deploy:
     needs: build

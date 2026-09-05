@@ -3,8 +3,11 @@
 // The example lives in the path and the renderer in the query, so a shared
 // link reproduces what someone was looking at. Form data stays out of the URL.
 //
-// Paths are relative to Vite's base, because Pages serves the app from
-// /texaryn/ rather than the origin root.
+// `base` is where the application is mounted, and everything after it is the
+// example id. The mount point is configuration: `/playground/` in development
+// and `/texaryn/playground/` on Pages. This parser does not know the word
+// "playground", so moving the mount is a config change rather than a code
+// change.
 
 export const RENDERER_KEYS = ['default', 'bootstrap', 'mui'] as const
 export type RendererKey = (typeof RENDERER_KEYS)[number]
@@ -35,12 +38,11 @@ export function parseLocation(
   search: string,
   base = '/',
 ): PlaygroundLocation {
-  const rest = stripBase(pathname, base)
-  const match = /^playground\/(.+?)\/?$/.exec(rest)
+  const rest = stripBase(pathname, base).replace(/\/$/, '')
   const rawRenderer = new URLSearchParams(search).get('renderer')
 
   return {
-    exampleId: match ? decodeURIComponent(match[1]) : null,
+    exampleId: rest === '' ? null : decodeURIComponent(rest),
     renderer: isRendererKey(rawRenderer) ? rawRenderer : DEFAULT_RENDERER,
   }
 }
@@ -51,7 +53,7 @@ export function formatLocation(
 ): string {
   const normalisedBase = base.endsWith('/') ? base : `${base}/`
   const path = exampleId
-    ? `${normalisedBase}playground/${encodeURIComponent(exampleId)}`
+    ? `${normalisedBase}${encodeURIComponent(exampleId)}`
     : normalisedBase
   // The default renderer is the absence of the parameter, so the common URL
   // stays clean and a shared link only carries a deliberate choice.

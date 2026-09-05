@@ -3,17 +3,25 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import { examples } from '@texaryn/examples'
 import { App } from '../App.js'
 
+// The application mount, which differs between development, Pages and the
+// test environment. Deriving it keeps these tests true wherever it is.
+const MOUNT = import.meta.env.BASE_URL
+
 function setPath(path: string, search = ''): void {
   window.history.replaceState(null, '', `${path}${search}`)
 }
 
+function at(exampleId: string): string {
+  return `${MOUNT}${exampleId}`
+}
+
 beforeEach(() => {
-  setPath('/')
+  setPath(MOUNT)
 })
 
 afterEach(() => {
   cleanup()
-  setPath('/')
+  setPath(MOUNT)
 })
 
 function nav(): HTMLElement {
@@ -78,14 +86,14 @@ describe('example selection and the URL', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'String enum' }))
 
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/playground/basics-enum-string')
+      expect(window.location.pathname).toBe(at('basics-enum-string'))
     })
     const role = await screen.findByLabelText('Role')
     expect((role as HTMLSelectElement).value).toBe('developer')
   })
 
   it('selects the example named by the URL on first load', async () => {
-    setPath('/playground/basics-boolean')
+    setPath(at('basics-boolean'))
     render(<App />)
 
     const subscribe = await screen.findByLabelText(/subscribe to the newsletter/i)
@@ -96,7 +104,7 @@ describe('example selection and the URL', () => {
   })
 
   it('reads the renderer from the query on first load', async () => {
-    setPath('/playground/basics-string', '?renderer=mui')
+    setPath(at('basics-string'), '?renderer=mui')
     render(<App />)
 
     await waitFor(() => {
@@ -114,12 +122,12 @@ describe('example selection and the URL', () => {
   })
 
   it('falls back deterministically for an unknown example id', async () => {
-    setPath('/playground/does-not-exist')
+    setPath(at('does-not-exist'))
     render(<App />)
 
     const first = examples[0]
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/playground/${first.id}`)
+      expect(window.location.pathname).toBe(at(first.id))
     })
     expect(
       within(nav()).getByRole('button', { name: first.title }).getAttribute('aria-current'),
