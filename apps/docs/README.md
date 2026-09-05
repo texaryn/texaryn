@@ -10,15 +10,21 @@ pnpm --filter @texaryn/docs build
 pnpm --filter @texaryn/docs preview
 ```
 
-## Not deployed yet
+## Deployment
 
-This is the shell: a landing page, a navigation structure and a build that CI
-runs. GitHub Pages still serves the playground, and combining the two into one
-artifact is a later change.
+This site owns the root of the GitHub Pages artifact, and the playground is
+composed into it under `playground/`:
 
-`site` and `base` are already configured for `texaryn.github.io/texaryn`, so
-generated links are correct now rather than needing rework when the deployment
-moves.
+```text
+texaryn.github.io/texaryn/             this site
+texaryn.github.io/texaryn/api/         generated API reference
+texaryn.github.io/texaryn/playground/  the playground application
+```
+
+`.github/workflows/pages.yml` builds both, copies `apps/playground/dist` into
+this site's output, and uploads the result. This site also owns the site-wide
+`404.html`, which redirects paths under the playground mount back to the
+playground so a stale example id keeps its old behaviour.
 
 ## Broken links fail the build
 
