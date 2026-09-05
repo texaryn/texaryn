@@ -135,7 +135,7 @@ They translate semantic field state into DOM-facing props without moving form be
 
 ## Error display
 
-`useField` returns `showErrors`, which is `true` only once a field is both touched and invalid. Widgets use it to decide whether to render inline errors:
+`useField` returns `showErrors`, which is `true` once a field is invalid and either touched or the form has been submitted at least once. Widgets use it to decide whether to render inline errors:
 
 ```tsx
 import { FieldErrors } from '@texaryn/react'
@@ -173,7 +173,7 @@ All default widgets already render `FieldErrors` internally, so most application
 </button>
 ```
 
-`form.submission.status` moves through `idle`, `validating`, `submitting`, and `submitted`. An invalid validation result returns the status to `idle` and updates node errors without setting `form.submission.error`. The error is set only when the validator throws or rejects, or when `onSubmit` throws or rejects; the status returns to `idle` in those cases too:
+`form.submission.status` moves through `idle`, `validating`, `submitting`, and `submitted`. An invalid validation result returns the status to `idle` and shows the errors on every invalid field, touched or not, without setting `form.submission.error`. `form.submission.attempts` counts the accepted Submit commands since the last Reset. The error is set only when the validator throws or rejects, or when `onSubmit` throws or rejects; the status returns to `idle` in those cases too:
 
 ```tsx
 {form.submission.error != null && (

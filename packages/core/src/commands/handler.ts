@@ -156,7 +156,7 @@ function handleSubmit(state: RuntimeState): CommandResult {
   return {
     nextState: {
       ...state,
-      submission: { status: 'validating' },
+      submission: { status: 'validating', attempts: state.submission.attempts + 1 },
     },
     effects: [{ type: 'validate', nodeIds: allNodeIds, trigger: 'submit' }],
   }
@@ -201,7 +201,7 @@ function handleReset(
       initialData: newData,
       nodes,
       identities,
-      submission: { status: 'idle' },
+      submission: { status: 'idle', attempts: 0 },
     },
     effects: [{ type: 'recompile', reason: 'data-changed' }],
   }

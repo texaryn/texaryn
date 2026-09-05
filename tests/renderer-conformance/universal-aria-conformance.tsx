@@ -27,11 +27,13 @@ export function universalAriaConformance({ name, createRegistry }: UniversalAria
     data,
     hints,
     showSummary,
+    showSubmit,
   }: {
     schema: unknown
     data: unknown
     hints?: Record<string, { validationTrigger?: 'blur' | 'change' | 'submit' }>
     showSummary?: boolean
+    showSubmit?: boolean
   }) {
     const [port, setPort] = React.useState<SchemaEvaluationPort | null>(null)
     React.useEffect(() => {
@@ -44,7 +46,7 @@ export function universalAriaConformance({ name, createRegistry }: UniversalAria
       }
     }, [schema])
     if (!port) return null
-    return <FormInner port={port} data={data} hints={hints} showSummary={showSummary} />
+    return <FormInner port={port} data={data} hints={hints} showSummary={showSummary} showSubmit={showSubmit} />
   }
 
   function FormInner({
@@ -52,17 +54,24 @@ export function universalAriaConformance({ name, createRegistry }: UniversalAria
     data,
     hints,
     showSummary,
+    showSubmit,
   }: {
     port: SchemaEvaluationPort
     data: unknown
     hints?: Record<string, { validationTrigger?: 'blur' | 'change' | 'submit' }>
     showSummary?: boolean
+    showSubmit?: boolean
   }) {
     const form = useForm(port, { initialData: data, hints })
     return (
       <FormContext.Provider value={form.runtime}>
         {showSummary ? <ErrorSummary /> : null}
         <FormRoot registry={registry} />
+        {showSubmit ? (
+          <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
+            Submit
+          </button>
+        ) : null}
       </FormContext.Provider>
     )
   }
@@ -86,6 +95,25 @@ export function universalAriaConformance({ name, createRegistry }: UniversalAria
       const input = screen.getByLabelText('Full Name')
       expect(input.getAttribute('aria-invalid')).toBeNull()
       expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('failed Submit: untouched invalid field gets aria-invalid, an alert and a summary link', async () => {
+      render(
+        <TestForm schema={requiredStringSchema} data={{ name: '' }} showSummary showSubmit />,
+      )
+      await waitFor(() => {
+        expect(screen.getByLabelText('Full Name')).toBeTruthy()
+      })
+      const input = screen.getByLabelText('Full Name')
+      expect(input.getAttribute('aria-invalid')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      await waitFor(() => {
+        expect(input.getAttribute('aria-invalid')).toBe('true')
+      })
+      expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
+      const link = screen.getByRole('link')
+      const href = link.getAttribute('href') ?? ''
+      expect(document.getElementById(href.slice(1))).toBe(input)
     })
 
     it('touched invalid field: aria-invalid present, error rendered as alert', async () => {

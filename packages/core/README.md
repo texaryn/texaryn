@@ -189,7 +189,7 @@ const runtime = createFormRuntime(port, {
 
 Validation remains full-form: `port.validate(data)` is called with the entire form data, and errors are distributed to nodes by their data pointers. Synchronous validators skip the `pending` state entirely.
 
-Errors are not displayed immediately. The runtime computes a `showErrors` flag per node: a field's errors become visible only when it is both `touched` (the user has interacted with it) and `invalid`. The form-level `visibleErrors` store aggregates all currently visible errors for use in error summaries. The `useField` hook in both `@texaryn/react` and `@texaryn/vue` returns `showErrors`, and the React `getInputProps` sets `aria-invalid` and the error ID in `aria-describedby` only when `showErrors` is true.
+Errors are not displayed immediately. The runtime computes a `showErrors` flag per node: a field's errors become visible once it is `invalid` and either `touched` (the user has interacted with it) or the form has been submitted, because a failed Submit has to show what blocked it, including fields the user never reached. `submission.attempts` counts the accepted Submit commands since creation or the last Reset, and the gate stays open while it is above zero. The form-level `visibleErrors` store aggregates all currently visible errors for use in error summaries. The `useField` hook in both `@texaryn/react` and `@texaryn/vue` returns `showErrors`, and the React `getInputProps` sets `aria-invalid` and the error ID in `aria-describedby` only when `showErrors` is true.
 
 Pass hints to `createFormRuntime()`, or to `useForm()` in React or Vue.
 
@@ -207,7 +207,7 @@ const runtime = createFormRuntime(port, {
 runtime.dispatch({ type: 'Submit' })
 ```
 
-The `submission` store tracks the lifecycle: `idle`, `validating`, `submitting`, `submitted`. A failed `onSubmit` returns to `idle` with the error on `submission.error`. Dispatching `Submit` while already `validating` or `submitting` is a no-op.
+The `submission` store tracks the lifecycle: `idle`, `validating`, `submitting`, `submitted`. It also carries `attempts`, the number of accepted Submit commands since creation or the last Reset. A failed validation returns to `idle` with every invalid field showing its errors; a failed `onSubmit` returns to `idle` with the error on `submission.error`. Dispatching `Submit` while already `validating` or `submitting` is a no-op.
 
 Edits during `validating` cancel the submission attempt and return to `idle`. Edits during `submitting` update the live form data but do not alter the in-flight payload or trigger validation. A `Reset` during submission cleanly cancels via a generation counter, so late completions from abandoned attempts are ignored.
 
