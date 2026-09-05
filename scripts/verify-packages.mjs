@@ -1,39 +1,9 @@
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { publishedPackages } from './packages.mjs'
 
-const packages = [
-  {
-    name: '@texaryn/core',
-    dir: 'packages/core',
-    expectedExport: 'createFormRuntime',
-  },
-  {
-    name: '@texaryn/schema-json',
-    dir: 'packages/schema-json',
-    expectedExport: 'createJsonSchemaAdapter',
-  },
-  {
-    name: '@texaryn/react',
-    dir: 'packages/react',
-    expectedExport: 'useForm',
-  },
-  {
-    name: '@texaryn/react-bootstrap',
-    dir: 'packages/react-bootstrap',
-    expectedExport: 'createBootstrapRegistry',
-  },
-  {
-    name: '@texaryn/react-mui',
-    dir: 'packages/react-mui',
-    expectedExport: 'createMuiRegistry',
-  },
-  {
-    name: '@texaryn/vue',
-    dir: 'packages/vue',
-    expectedExport: 'provideFormRuntime',
-  },
-]
+const packages = publishedPackages
 
 const requiredFiles = [
   'package/dist/index.js',

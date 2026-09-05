@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { publishedPackages } from './packages.mjs'
 import {
   extractVersionSection,
   main,
@@ -235,5 +236,32 @@ describe('main', () => {
       log: (line) => lines.push(line),
     })
     expect(JSON.parse(lines[0]).map((r) => r.tag)).toEqual(['@texaryn/react-mui@0.1.0'])
+  })
+})
+
+// The gap that let @texaryn/vue publish to npm with no GitHub release. Three
+// scripts carried their own copy of the package list, adding the package
+// reached two of them, and the planner silently dropped what it did not
+// recognise: "planned releases: 0" while npm served 0.1.0.
+describe('every published package can actually be planned', () => {
+  it('plans a release for each one, naming any it cannot', () => {
+    const readAny = (path) => {
+      const name = path.split('/').slice(-2)[0]
+      return `# pkg\n\n## 9.9.9\n\n- ${name} changed\n`
+    }
+    const planned = planReleases({
+      root: '/repo',
+      readFile: readAny,
+      publishedPackages: JSON.stringify(
+        publishedPackages.map(({ name }) => ({ name, version: '9.9.9' })),
+      ),
+      tags: [],
+    })
+
+    const missing = publishedPackages
+      .map(({ name }) => name)
+      .filter((name) => !planned.some((release) => release.tag === `${name}@9.9.9`))
+
+    expect(missing, 'these packages publish but would get no GitHub release').toEqual([])
   })
 })

@@ -9,14 +9,9 @@
 // that, which is what makes a retry able to finish the job.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import { publishedPackages } from './packages.mjs'
 
-export const packages = [
-  { name: '@texaryn/core', dir: 'packages/core' },
-  { name: '@texaryn/schema-json', dir: 'packages/schema-json' },
-  { name: '@texaryn/react', dir: 'packages/react' },
-  { name: '@texaryn/react-bootstrap', dir: 'packages/react-bootstrap' },
-  { name: '@texaryn/react-mui', dir: 'packages/react-mui' },
-]
+export const packages = publishedPackages
 
 const directoryByName = new Map(packages.map(({ name, dir }) => [name, dir]))
 
