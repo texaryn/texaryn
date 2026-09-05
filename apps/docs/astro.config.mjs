@@ -107,17 +107,13 @@ export default defineConfig({
           items: [{ label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' }],
         },
         typeDocSidebarGroup,
-        // Placeholders for the surfaces this site will eventually own. They
-        // point at where each thing lives today rather than at pages that do
-        // not exist, so the link checker stays meaningful.
         {
-          label: 'Elsewhere for now',
+          label: 'Try it',
           items: [
-            {
-              label: 'Playground',
-              link: 'https://texaryn.github.io/texaryn/',
-              attrs: { target: '_blank' },
-            },
+            // Same artifact, different application: the playground is served
+            // from this site's own base, not an external address. Starlight
+            // prepends the base itself, so this must not include it.
+            { label: 'Playground', link: '/playground/' },
             {
               label: 'GitHub',
               link: 'https://github.com/texaryn/texaryn',
