@@ -1,0 +1,111 @@
+---
+title: Migrating from RJSF
+description: Mapping react-jsonschema-form concepts to Texaryn, and the steps for porting an existing form.
+---
+
+import Example from '../../../components/Example.astro'
+
+This guide maps [react-jsonschema-form](https://rjsf-team.github.io/react-jsonschema-form/)
+concepts to their Texaryn equivalents and lists the steps for porting a form.
+
+It describes Texaryn's behaviour precisely and compares against RJSF's public
+concepts. It deliberately does not document RJSF's internals, which are theirs
+to change.
+
+## Concept map
+
+| RJSF | Texaryn |
+| --- | --- |
+| `schema` prop | `createJsonSchemaAdapter(schema)` |
+| `uiSchema` | UI hints keyed by JSON Pointer |
+| `formData` / `onChange` | `initialData` option, `data` store |
+| widgets, templates, fields | renderer registry, `WidgetComponent`, `NodeRenderer` |
+| array rendering | `useFieldArray` with stable item identity |
+| `validate`, `customValidate`, `liveValidate` | schema adapter validation, `validationTrigger` hints |
+| `onSubmit` | `onSubmit` option plus the submission lifecycle |
+| `showErrorList` / `ErrorList` | `visibleErrors` store, `ErrorSummary` component |
+| `transformErrors` | no equivalent |
+
+## Key differences
+
+**Schema evaluation is separate from the runtime.** In RJSF, `Form` processes
+the schema, manages state and renders. In Texaryn a schema adapter produces a
+`SchemaEvaluationPort` that the runtime consumes, the runtime owns state, and
+the renderer maps UI nodes to components. Those three concerns are
+independent, which is what allows a second schema language or a second
+framework without touching the others.
+
+**The core is framework neutral.** `@texaryn/core` does not depend on React.
+`@texaryn/react` is one binding over it. RJSF is React only.
+
+**State is reactive rather than a single mutable object.** Renderers subscribe
+to stores, and edits produce new snapshots rather than mutating in place.
+
+**Array items keep a stable identity.** Texaryn assigns each item an identity
+that follows the item rather than its index, so removing the first row does
+not hand its identity to the second, and per-row component state stays
+attached to the right row.
+
+By default two items are considered the same when `Object.is` matches, and for
+objects when their JSON serialization matches. That means two structurally
+identical rows are indistinguishable, which is exactly when you want the
+`itemKey` hint: it names a property that identifies a row, so identity follows
+that value instead.
+
+<Example id="runtime-array-interactions" />
+
+**Validation triggers are per field.** Each field's `validationTrigger` hint
+(`'blur'`, `'change'` or `'submit'`) decides when validation runs, with
+configurable debounce. When a matching blur or change occurs, Texaryn
+validates the full form snapshot and distributes errors back to nodes by JSON
+Pointer.
+
+<Example id="runtime-validation-triggers" />
+
+**Submission is a state machine.** Submission moves through `idle`,
+`validating`, `submitting` and `submitted`, with snapshot semantics and
+cancellation, rather than calling a handler straight after validation.
+
+<Example id="runtime-submission" />
+
+## Migration checklist
+
+1. **Inventory your `uiSchema`.** Map each `ui:` key to a Texaryn hint at the
+   matching JSON Pointer. `uiSchema: { email: { 'ui:placeholder': '...' } }`
+   becomes `hints: { '/email': { placeholder: '...' } }`.
+
+2. **Register custom widgets.** Implement RJSF widgets or templates as
+   `WidgetComponent` entries in a renderer registry. `NodeRenderer` dispatches
+   to the registry by semantic type and widget hint.
+
+3. **Replace `formData` plumbing.** Drop the `formData` prop and `onChange`
+   handler. Pass `initialData` to `useForm` or `createFormRuntime`, and read
+   live data from `form.data` or `runtime.data`.
+
+4. **Port validation.** Remove `validate`, `customValidate` and `liveValidate`.
+   Set `validationTrigger` per field. The schema adapter handles standard JSON
+   Schema validation; validation beyond the schema has no equivalent yet.
+
+5. **Port submission.** Replace the `onSubmit` prop with the `onSubmit` option,
+   dispatch `{ type: 'Submit' }` from a button, and read
+   `form.submission.status` and `form.submission.error` for feedback.
+
+6. **Review array identity.** Test reordering and removal. Reach for the
+   `itemKey` hint when rows are structurally similar.
+
+7. **Review accessibility.** The prop getters (`getInputProps`,
+   `getLabelProps`, `getErrorProps`, `getDescriptionProps`) set `aria-invalid`
+   and `aria-describedby` for you. Remove manual ARIA attributes from custom
+   widgets rather than duplicating them.
+
+## What has no equivalent
+
+- `transformErrors`: error message customization is not available.
+- `extraErrors`: injecting server-side errors after validation is not
+  supported.
+- `formContext`: use React context or component props directly.
+- `ObjectFieldTemplate` and `ArrayFieldTemplate`: use a renderer registry with
+  `WidgetComponent` entries instead.
+
+See [Getting started](/texaryn/start/getting-started/) for a complete working
+example.

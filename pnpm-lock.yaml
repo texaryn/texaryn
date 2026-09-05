@@ -44,6 +44,9 @@ importers:
       '@astrojs/starlight':
         specifier: ^0.42.0
         version: 0.42.0(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)(typescript@5.8.3)
+      '@texaryn/examples':
+        specifier: workspace:*
+        version: link:../../packages/examples
       astro:
         specifier: ^7.3.1
         version: 7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0)
@@ -51,6 +54,15 @@ importers:
       starlight-links-validator:
         specifier: ^0.26.0
         version: 0.26.0(@astrojs/starlight@0.42.0(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)
+      starlight-typedoc:
+        specifier: ^0.23.1
+        version: 0.23.1(@astrojs/starlight@0.42.0(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3))
+      typedoc:
+        specifier: ^0.28.20
+        version: 0.28.20(typescript@5.8.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.13.0
+        version: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
 
   apps/playground:
     dependencies:
@@ -3356,6 +3368,15 @@ packages:
     peerDependencies:
       '@astrojs/starlight': '>=0.42.0'
       astro: '>=7.2.10'
+
+  starlight-typedoc@0.23.1:
+    resolution: {integrity: sha512-H45Mxv4mZ1xUMhUNjTR4CwKDgKKHZboQA5v5+vTVMdjlCX02Xo7veTB7+F/ivmMHPmQ7SV5auF2BTlU/EpQIoQ==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@astrojs/starlight': '>=0.39.0'
+      astro: '>=6.0.0'
+      typedoc: '>=0.28.0'
+      typedoc-plugin-markdown: '>=4.6.0'
 
   std-env@3.10.0:
     resolution: {integrity: sha512-5GS12FdOZNliM5mAOxFRg7Ir0pWz8MdpYm6AY6VPkGpbA7ZzmbzNcBJQ0GPvvyWgcY7QAhCgf9Uy89I03faLkg==}
@@ -7222,6 +7243,14 @@ snapshots:
       yaml: 2.9.0
     transitivePeerDependencies:
       - supports-color
+
+  starlight-typedoc@0.23.1(@astrojs/starlight@0.42.0(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3)):
+    dependencies:
+      '@astrojs/starlight': 0.42.0(astro@7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0))(supports-color@10.2.2)(typescript@5.8.3)
+      astro: 7.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.3)(tsx@4.23.12)(yaml@2.9.0)
+      github-slugger: 2.0.0
+      typedoc: 0.28.20(typescript@5.8.3)
+      typedoc-plugin-markdown: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
 
   std-env@3.10.0: {}
 

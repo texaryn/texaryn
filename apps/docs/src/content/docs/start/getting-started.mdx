@@ -1,0 +1,183 @@
+---
+title: Getting started
+description: Turn a JSON Schema into a working form with schema evaluation, a headless runtime and a React renderer.
+---
+
+import Example from '../../../components/Example.astro'
+
+Texaryn turns a JSON Schema into a working form: schema evaluation, a headless
+runtime, and a renderer.
+
+## Install
+
+```bash
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
+```
+
+`@texaryn/react` requires React 18 or newer.
+
+## Create the adapter
+
+A schema adapter implements the `SchemaEvaluationPort` the runtime consumes:
+
+```ts
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+
+const schema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  title: 'Contact form',
+  properties: {
+    name: { type: 'string', title: 'Full name', minLength: 1 },
+    email: { type: 'string', title: 'Email', format: 'email' },
+    age: { type: 'integer', title: 'Age', minimum: 0, maximum: 150 },
+    subscribe: { type: 'boolean', title: 'Subscribe to newsletter' },
+    bio: { type: 'string', title: 'Bio', maxLength: 500 },
+  },
+  required: ['name', 'email'],
+}
+
+const adapter = await createJsonSchemaAdapter(schema)
+```
+
+The dialect is detected from `$schema`. Draft 7, 2019-09 and 2020-12 are
+supported.
+
+## Create the form
+
+`useForm` creates the runtime and subscribes to its stores:
+
+```tsx
+import {
+  useForm,
+  FormProvider,
+  FormRoot,
+  ErrorSummary,
+  createDefaultRegistry,
+} from '@texaryn/react'
+
+const registry = createDefaultRegistry()
+
+function App() {
+  const form = useForm(adapter, {
+    initialData: { name: '', email: '', subscribe: false },
+    hints: {
+      '/name': { validationTrigger: 'blur' },
+      '/email': { validationTrigger: 'change', placeholder: 'you@example.com' },
+      '/bio': { widget: 'textarea' },
+    },
+    onSubmit: async (data) => {
+      await save(data)
+    },
+  })
+
+  return (
+    <FormProvider value={form.runtime}>
+      <ErrorSummary />
+      <FormRoot registry={registry} />
+
+      <button
+        type="button"
+        disabled={
+          form.submission.status === 'validating' ||
+          form.submission.status === 'submitting'
+        }
+        onClick={() => form.dispatch({ type: 'Submit' })}
+      >
+        Submit
+      </button>
+    </FormProvider>
+  )
+}
+```
+
+Outside React, use `createFormRuntime` from `@texaryn/core` directly:
+
+```ts
+import { createFormRuntime } from '@texaryn/core'
+
+const runtime = createFormRuntime(adapter, { initialData, hints, onSubmit })
+runtime.dispatch({ type: 'Submit' })
+```
+
+## Render
+
+`FormProvider` makes the runtime available to the tree. `FormRoot` walks the
+UI document and renders each node through the registry.
+
+`createDefaultRegistry()` covers text input, number input, checkbox, select,
+textarea, object layout and array control. Replace or extend widgets with a
+custom registry.
+
+<Example id="basics-object" />
+
+## Use another look
+
+The renderer is presentation over the same runtime, so changing it changes
+markup and nothing else.
+
+For **Bootstrap 5**, install `@texaryn/react-bootstrap` alongside `bootstrap`
+and load Bootstrap 5.3 CSS on the page; the package renders the classes but
+never loads the stylesheet. Pass `createBootstrapRegistry()` to `FormRoot`.
+
+For **Material UI**, install `@texaryn/react-mui` alongside `@mui/material`,
+`@emotion/react` and `@emotion/styled`. Pass `createMuiRegistry()` to
+`FormRoot`. The package is theme neutral: it renders no `ThemeProvider` and no
+`CssBaseline`, so wrap the tree in your own theme or take MUI's default.
+
+## Validation
+
+Validation timing is configured per field through the `validationTrigger`
+hint:
+
+- `'blur'` runs when the field loses focus.
+- `'change'` runs as the user types, with debounce.
+- `'submit'` runs only on submission.
+
+When a matching blur or change occurs, Texaryn validates the full form
+snapshot and distributes the returned errors back to nodes by JSON Pointer.
+The trigger decides *when* validation runs, not which part of the form is
+validated.
+
+<Example id="runtime-validation-triggers" />
+
+The runtime tracks `showErrors` per node, so an error appears only once the
+field has been interacted with. The prop getters set `aria-invalid` and link
+`aria-describedby` to the error element.
+
+`FieldErrors` renders inline errors per field and is included in the default
+widgets. `ErrorSummary` renders a jump-linked list of visible errors above the
+form.
+
+<Example id="accessibility-error-association" />
+
+## Submit
+
+Dispatch a `Submit` command to start the lifecycle:
+
+```ts
+form.dispatch({ type: 'Submit' })
+```
+
+It moves through `idle`, `validating`, `submitting` and `submitted`.
+
+Submit captures the current data as an immutable snapshot, and both validation
+and `onSubmit` operate on that snapshot. Edits during `validating` cancel the
+attempt. Once `onSubmit` is running, edits update live data without changing
+the captured payload.
+
+If validation fails, submission returns to `idle` and node errors update,
+still following the touched-and-invalid display policy. `submission.error` is
+set only when the validator or `onSubmit` throws or rejects, and the state
+returns to `idle`. A fresh Submit clears a previous error. A duplicate Submit
+while validating or submitting does nothing.
+
+<Example id="runtime-submission" />
+
+## Next
+
+- The [API reference](/texaryn/api/) for the full type surface
+- [Migrating from RJSF](/texaryn/guides/migrating-from-rjsf/) if you are
+  porting an existing form
+- [Architecture](/texaryn/concepts/architecture/) for how the packages divide
+  the work
