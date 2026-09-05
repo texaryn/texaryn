@@ -309,6 +309,7 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - [`@texaryn/core`](../core/README.md), runtime and renderer contracts
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
 - [`@texaryn/react-bootstrap`](../react-bootstrap/README.md), Bootstrap 5 widget registry
+- [`@texaryn/react-mui`](../react-mui/README.md), Material UI v9 widget registry
 - [`@texaryn/playground`](../../apps/playground/README.md), repository playground application
 
 See the [repository README](../../README.md) for the complete architecture.
