@@ -33,7 +33,7 @@ const registries: Record<
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { label: 'Material UI', registry: createMuiRegistry() },
-  vue: { label: 'Vue (preview)', registry: null },
+  vue: { label: 'Vue', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -303,17 +303,6 @@ export function App() {
           ))}
         </select>
 
-        {rendererKey === 'vue' && (
-          // The qualifier tracks whether npm serves something usable, not
-          // whether the name exists there. It goes when 0.1.0 publishes,
-          // which is a release rather than a merge.
-          <p style={styles.note}>
-            <code>@texaryn/vue</code> has no usable npm release yet. A{' '}
-            <code>0.0.0</code> placeholder reserves the name; <code>0.1.0</code>{' '}
-            is prepared and pending publication.
-          </p>
-        )}
-
         <ExampleBrowser
           query={query}
           onQueryChange={setQuery}
@@ -458,12 +447,6 @@ const styles: Record<string, CSSProperties> = {
     color: '#555',
     lineHeight: 1.4,
     margin: '0.75rem 0 0 0',
-  },
-  note: {
-    fontSize: '0.75rem',
-    color: '#666',
-    lineHeight: 1.4,
-    margin: '0.5rem 0 0 0',
   },
   submitRow: {
     display: 'flex',
