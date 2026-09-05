@@ -47,10 +47,10 @@ describe('switching renderer', () => {
   })
 })
 
-// The qualifier tracks npm rather than this repository. Making the package
-// publishable is not the same as it being installable, and the gap between
-// merging the release preparation and the release landing is real time during
-// which the site would otherwise advertise something nobody can install.
+// The qualifier tracks whether npm serves something usable, not whether the
+// name is taken there. A 0.0.0 placeholder already reserves it, and the gap
+// between merging the release preparation and 0.1.0 publishing is real time
+// during which the site would otherwise advertise something nobody can use.
 describe('what the renderer list claims', () => {
   it('marks Vue as preview and says the package is unpublished', async () => {
     render(<App />)
@@ -59,12 +59,12 @@ describe('what the renderer list claims', () => {
     expect(option?.textContent).toMatch(/preview/i)
 
     await switchRenderer('vue')
-    expect(await screen.findByText(/not published yet/i)).toBeDefined()
+    expect(await screen.findByText(/no usable npm release yet/i)).toBeDefined()
   })
 
   it('says nothing about publication for renderers that are published', async () => {
     render(<App />)
     await switchRenderer('mui')
-    expect(screen.queryByText(/not published yet/i)).toBeNull()
+    expect(screen.queryByText(/no usable npm release yet/i)).toBeNull()
   })
 })

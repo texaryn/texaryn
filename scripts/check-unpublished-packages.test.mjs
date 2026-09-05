@@ -79,7 +79,7 @@ describe('decide', () => {
 })
 
 describe('main', () => {
-  it('reads the exact versions from the five package manifests', () => {
+  it('reads the exact versions from every package manifest', () => {
     const root = fakeRepo({ '@texaryn/core': '1.2.3', '@texaryn/schema-json': '1.2.3', '@texaryn/react': '1.2.3', '@texaryn/react-bootstrap': '1.2.3', '@texaryn/react-mui': '1.2.3', '@texaryn/vue': '1.2.3' })
     expect(readVersions(root)).toEqual([
       { name: '@texaryn/core', version: '1.2.3' },

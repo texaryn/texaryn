@@ -42,7 +42,7 @@ export default defineConfig({
         '**/*.test.*',
         '**/index.ts',
         '**/types.ts',
-        '**/widget.ts',
+        'packages/vue/src/widget.ts',
         'packages/core/src/schema/**',
         'packages/core/src/hints/**',
       ],

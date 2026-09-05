@@ -3,8 +3,8 @@
 Vue 3 bindings for Texaryn: composables, provide/inject context, a renderer
 and a small set of native widgets.
 
-Not on npm yet. This package is prepared for release; `0.1.0` is what makes
-it installable.
+A `0.0.0` placeholder exists on npm to reserve the name. The first usable
+release will be `0.1.0`.
 
 ```vue
 <script setup lang="ts">

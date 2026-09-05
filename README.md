@@ -184,8 +184,9 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 
 `@texaryn/vue` is in the repository and releasing shortly, as Vue 3 bindings
-over the same core. The playground renders through it, and until `0.1.0`
-reaches npm it cannot be installed.
+over the same core. The playground renders through it. npm carries a `0.0.0`
+placeholder reserving the name, so `0.1.0` is the first release anyone can
+install.
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site.
 
