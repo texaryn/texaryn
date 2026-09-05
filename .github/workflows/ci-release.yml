@@ -22,11 +22,14 @@ jobs:
         run: pnpm docs:check
       - name: Verify packages
         run: pnpm verify:packages
-      # Builds the documentation site but deploys nothing. The site's link
-      # checker fails the build on a broken internal link, so this is the gate
-      # that keeps the docs honest while they are still being written.
-      - name: Build documentation site
-        run: pnpm --filter @texaryn/docs build
+      # Builds and composes the site but deploys nothing. Two checkers run
+      # over it: the docs build fails on a broken link within its own pages,
+      # and check-site-links fails on a link between the two applications,
+      # which is the seam neither build can see on its own. It runs here
+      # rather than only in the Pages workflow because that one is post-merge,
+      # so a broken link would already be live by the time it spoke.
+      - name: Build and check the site
+        run: pnpm site:build
 
   typecheck:
     runs-on: ubuntu-latest

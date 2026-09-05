@@ -14,6 +14,7 @@
     "release": "changeset publish",
     "docs": "typedoc",
     "docs:check": "pnpm run docs && test -z \"$(git status --porcelain -- docs/api)\"",
+    "site:build": "pnpm --filter @texaryn/docs build && pnpm --filter @texaryn/playground build:pages && node scripts/compose-site.mjs && node scripts/check-site-links.mjs apps/docs/dist",
     "verify:packages": "node scripts/verify-packages.mjs"
   },
   "devDependencies": {

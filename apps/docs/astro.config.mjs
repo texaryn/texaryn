@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
+import { BASE, BASE_PATH } from './site.config.mjs'
 
 // The five published packages, matching the root typedoc.json entry points.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
@@ -19,17 +20,9 @@ const API_ENTRY_POINTS = [
   '../../packages/react-mui',
 ]
 
-// The site is destined for texaryn.github.io/texaryn. Setting site and base
-// now means every generated link is already correct, rather than the whole
-// navigation needing rework when the deployment lands.
-//
-// Nothing here is deployed yet. The playground keeps the Pages artifact, and
-// combining the two is its own change.
-// One constant owns the site base. The 404 page's redirect needs it at
-// runtime and cannot read the Astro config, so it is published as a meta tag
-// rather than hardcoded a second time.
-const BASE = '/texaryn'
-const BASE_PATH = `${BASE}/`
+// The site is served from texaryn.github.io/texaryn, with the playground
+// composed into the same artifact under /playground. `site` and `base` are
+// what make every generated link carry the prefix.
 
 export default defineConfig({
   site: 'https://texaryn.github.io',
