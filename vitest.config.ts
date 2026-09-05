@@ -140,6 +140,9 @@ export default defineConfig({
           root: 'apps/playground',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
+          // jsdom here has no `matchMedia` and a `localStorage` getter that
+          // returns undefined. The theme controller uses both.
+          setupFiles: ['src/test-setup.ts'],
         },
       },
       {

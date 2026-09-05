@@ -1,0 +1,65 @@
+---
+// Starlight's own provider boots from `starlight-theme`, and its resolution is
+// `stored || matchMedia(light)` then `=== 'light' ? 'light' : 'dark'`. Storing
+// the literal `auto` that this site's contract uses would make that read dark
+// on every load, so the boot is replaced rather than wrapped.
+//
+// The script itself is not written here: it is generated from the same
+// function the playground's build injects, so the two applications resolve the
+// preference identically or not at all.
+import { Icon } from '@astrojs/starlight/components'
+import {
+  DEFAULT_THEME_PREFERENCE,
+  THEME_PREFERENCES,
+  THEME_STORAGE_KEY,
+  themeBootScript,
+} from '../../../../theme.config.mjs'
+---
+
+{/* Inline and first, so the theme is on the document before anything paints. */}
+<script is:inline set:html={themeBootScript()} />
+
+{/* Starlight's `ThemeSelect` calls this global to keep the picker and its icon
+    in step with the stored preference. Kept with the same name and shape, and
+    reading this site's key, because a Starlight component finding it missing
+    is a ReferenceError rather than a degraded picker. */}
+<script
+  is:inline
+  define:vars={{
+    storageKey: THEME_STORAGE_KEY,
+    preferences: THEME_PREFERENCES,
+    fallback: DEFAULT_THEME_PREFERENCE,
+  }}
+>
+  window.StarlightThemeProvider = (() => {
+    let stored
+    try {
+      stored = localStorage.getItem(storageKey)
+    } catch (e) {
+      stored = null
+    }
+    if (preferences.indexOf(stored) < 0) stored = fallback
+    return {
+      updatePickers(theme = stored) {
+        document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+          const select = picker.querySelector('select')
+          if (select) select.value = theme
+          const tmpl = document.querySelector('#theme-icons')
+          const newIcon = tmpl && tmpl.content.querySelector('.' + theme)
+          if (newIcon) {
+            const oldIcon = picker.querySelector('svg.label-icon')
+            if (oldIcon) {
+              oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes)
+            }
+          }
+        })
+      },
+    }
+  })()
+</script>
+
+<template id="theme-icons">
+  <Icon name="sun" class="light" />
+  <Icon name="moon" class="dark" />
+  <Icon name="laptop" class="auto" />
+</template>

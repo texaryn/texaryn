@@ -1,6 +1,22 @@
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { PLAYGROUND_PATH } from '../../site.config.mjs'
+import { themeBootScript } from '../../theme.config.mjs'
+
+// The theme has to be on the document before the first paint, which means an
+// inline script in the head rather than anything the application bundle can
+// do. Injecting it here keeps `index.html` free of a hand written copy of the
+// storage key and the resolution rule: the documentation site's own boot
+// script is generated from the same function.
+function themeBoot(): Plugin {
+  return {
+    name: 'texaryn-theme-boot',
+    transformIndexHtml() {
+      return [{ tag: 'script', children: themeBootScript(), injectTo: 'head-prepend' }]
+    },
+  }
+}
 
 // Two mounts, because the application runs in two topologies. On its own it
 // owns the site root and sits at /playground/; in the Pages artifact the
@@ -22,5 +38,5 @@ import { PLAYGROUND_PATH } from '../../site.config.mjs'
 // server can resolve them.
 export default defineConfig(({ mode }) => ({
   base: mode === 'pages' ? PLAYGROUND_PATH : '/playground/',
-  plugins: [react()],
+  plugins: [themeBoot(), react()],
 }))

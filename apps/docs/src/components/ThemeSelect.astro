@@ -1,0 +1,85 @@
+---
+// Starlight's control, unchanged: the same `Select`, the same three options in
+// the same order, the same translated strings. Only what it reads and writes
+// moves, from `starlight-theme` to the key the playground shares.
+//
+// Wrapping rather than reimplementing means a Starlight upgrade that restyles
+// this picker restyles it here too. The custom element keeps Starlight's name
+// because the markup and `updatePickers` both address it by that name.
+import Select from '@astrojs/starlight/components/Select.astro'
+---
+
+<starlight-theme-select>
+  <Select
+    icon="laptop"
+    label={Astro.locals.t('themeSelect.accessibleLabel')}
+    options={[
+      { label: Astro.locals.t('themeSelect.dark'), selected: false, value: 'dark' },
+      { label: Astro.locals.t('themeSelect.light'), selected: false, value: 'light' },
+      { label: Astro.locals.t('themeSelect.auto'), selected: true, value: 'auto' },
+    ]}
+    width="6.25em"
+  />
+</starlight-theme-select>
+
+{/* Inline, so the picker never shows Auto for a beat before correcting. */}
+<script is:inline>
+  StarlightThemeProvider.updatePickers()
+</script>
+
+<script>
+  import {
+    DARK_QUERY,
+    THEME_ATTRIBUTE,
+    THEME_STORAGE_KEY,
+    parseThemePreference,
+    resolveTheme,
+  } from '../../../../theme.config.mjs'
+
+  function loadPreference() {
+    try {
+      return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))
+    } catch {
+      return parseThemePreference(null)
+    }
+  }
+
+  function storePreference(preference: string) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, preference)
+    } catch {
+      // The choice still applies to this page.
+    }
+  }
+
+  /** The attribute carries the resolved mode; the key carries the preference. */
+  function apply(preference: 'auto' | 'light' | 'dark') {
+    StarlightThemeProvider.updatePickers(preference)
+    document.documentElement.setAttribute(
+      THEME_ATTRIBUTE,
+      resolveTheme(preference, window.matchMedia(DARK_QUERY).matches),
+    )
+    storePreference(preference)
+  }
+
+  // Starlight asks for `(prefers-color-scheme: light)`. This asks the same
+  // question the playground asks, so a machine that states no preference lands
+  // on the same answer in both applications rather than on opposite ones.
+  window.matchMedia(DARK_QUERY).addEventListener('change', () => {
+    if (loadPreference() === 'auto') apply('auto')
+  })
+
+  class TexarynThemeSelect extends HTMLElement {
+    constructor() {
+      super()
+      apply(loadPreference())
+      this.querySelector('select')?.addEventListener('change', (event) => {
+        if (event.currentTarget instanceof HTMLSelectElement) {
+          apply(parseThemePreference(event.currentTarget.value))
+        }
+      })
+    }
+  }
+
+  customElements.define('starlight-theme-select', TexarynThemeSelect)
+</script>
