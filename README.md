@@ -9,24 +9,18 @@
 </p>
 
 <p align="center">
-  Compile data semantics into a UI IR, run it through a headless runtime, and render it with React or another renderer.
+  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Vue, or another framework binding.
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@texaryn/core">
-    <img src="https://img.shields.io/npm/v/@texaryn/core" alt="npm version" />
-  </a>
   <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
-    <img src="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml/badge.svg" alt="CI" />
+    <img src="https://img.shields.io/github/actions/workflow/status/texaryn/texaryn/ci-release.yml?branch=main&label=CI" alt="CI" />
   </a>
   <a href="https://codecov.io/gh/texaryn/texaryn">
-    <img src="https://codecov.io/gh/texaryn/texaryn/branch/main/graph/badge.svg" alt="coverage" />
-  </a>
-  <a href="https://www.npmjs.com/package/@texaryn/core">
-    <img src="https://img.shields.io/npm/dm/@texaryn/core" alt="npm downloads" />
+    <img src="https://img.shields.io/codecov/c/github/texaryn/texaryn?label=coverage" alt="coverage" />
   </a>
   <a href="./LICENSE">
-    <img src="https://img.shields.io/github/license/texaryn/texaryn" alt="license" />
+    <img src="https://img.shields.io/github/license/texaryn/texaryn?label=license" alt="license" />
   </a>
 </p>
 
@@ -59,12 +53,12 @@ UIDocument
     ↓
 Deterministic Runtime
     ↓
-Renderer
+Renderer Binding
     ↓
-React / Web / ...
+React / Vue / ...
 ```
 
-The core has no dependency on React, the DOM, or an AI SDK.
+The core has no dependency on React, Vue, the DOM, or an AI SDK.
 
 That makes the UI definition portable, inspectable, testable, and safe to transform without generating or evaluating framework code.
 
@@ -175,13 +169,13 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 
 ## Packages
 
-| Package | Purpose |
-| --- | --- |
-| `@texaryn/core` | UI IR, compiler, runtime, state, commands, identity, renderer registry |
-| `@texaryn/schema-json` | JSON Schema evaluation and validation adapter |
-| `@texaryn/react` | React bindings, hooks, prop getters, renderer, and default widgets |
-| `@texaryn/react-bootstrap` | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
-| `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
+| Package | Version | Purpose |
+| --- | --- | --- |
+| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI IR, compiler, runtime, state, commands, identity, renderer registry |
+| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
+| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
+| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
+| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 
 `@texaryn/vue` is in the repository and releasing shortly, as Vue 3 bindings
 over the same core. The playground renders through it. npm carries a `0.0.0`
@@ -242,11 +236,11 @@ The IR describes **what the UI means**, not how React, Vue, or the DOM should re
 - submission state
 - stable array identity
 
-Renderers consume this state instead of owning it.
+Bindings consume this state instead of owning it.
 
-### 4. Renderer
+### 4. Renderer binding
 
-Renderers map semantic UI nodes to concrete components.
+A binding maps semantic UI nodes to concrete components.
 
 The React package provides:
 
@@ -258,6 +252,8 @@ The React package provides:
 - `NodeRenderer`
 - accessible prop getters
 - a default widget registry
+
+`@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`.
 
 The registry is extensible, so applications can replace or add widgets without modifying the runtime.
 
@@ -329,19 +325,19 @@ Schema meaning remains intact while renderers retain control over presentation.
 
 ## Headless by design
 
-`@texaryn/core` does not depend on React or the DOM.
+`@texaryn/core` does not depend on React, Vue, or the DOM.
 
 ```text
-@texaryn/schema-json
-        ↓
-   @texaryn/core
-        ↑
-   @texaryn/react
+      @texaryn/schema-json
+               ↓
+         @texaryn/core
+          ↑         ↑
+@texaryn/react   @texaryn/vue
 ```
 
 Framework packages are consumers of the core contracts.
 
-React is the first maintained renderer, not part of the runtime architecture itself.
+React and Vue are framework bindings over the same runtime contracts, not part of the runtime architecture itself. Neither is privileged: the core has no import of either.
 
 ## Designed for dynamic UI
 
