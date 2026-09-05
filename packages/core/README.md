@@ -10,7 +10,7 @@ Framework-neutral UI IR, compiler, runtime, state, commands, identity, and rende
 pnpm add @texaryn/core
 ```
 
-`@texaryn/core` has no React or DOM dependency.
+`@texaryn/core` has no React, Vue or DOM dependency.
 
 ## What it does
 
@@ -108,6 +108,7 @@ A `FormRuntime` exposes stores for:
 - `document`, the current `UIDocument`
 - `data`, the current form data
 - `submission`, the current submission state
+- `visibleErrors`, every error currently shown across the form
 
 It also exposes:
 
@@ -188,9 +189,9 @@ const runtime = createFormRuntime(port, {
 
 Validation remains full-form: `port.validate(data)` is called with the entire form data, and errors are distributed to nodes by their data pointers. Synchronous validators skip the `pending` state entirely.
 
-Errors are not displayed immediately. The runtime computes a `showErrors` flag per node: a field's errors become visible only when it is both `touched` (the user has interacted with it) and `invalid`. The form-level `visibleErrors` store aggregates all currently visible errors for use in error summaries. React's `useField` hook returns `showErrors`, and `getInputProps` sets `aria-invalid` and the error ID in `aria-describedby` only when `showErrors` is true.
+Errors are not displayed immediately. The runtime computes a `showErrors` flag per node: a field's errors become visible only when it is both `touched` (the user has interacted with it) and `invalid`. The form-level `visibleErrors` store aggregates all currently visible errors for use in error summaries. The `useField` hook in both `@texaryn/react` and `@texaryn/vue` returns `showErrors`, and the React `getInputProps` sets `aria-invalid` and the error ID in `aria-describedby` only when `showErrors` is true.
 
-Pass hints to `createFormRuntime()` or, in React, to `useForm()`.
+Pass hints to `createFormRuntime()`, or to `useForm()` in React or Vue.
 
 ## Submission lifecycle
 
@@ -326,7 +327,7 @@ The core includes identity helpers used to keep dynamic array items stable acros
 
 `@texaryn/core` intentionally does not depend on:
 
-- React
+- React, Vue or any other rendering framework
 - the DOM
 - a JSON Schema implementation
 - an AI SDK or transport protocol
@@ -337,6 +338,7 @@ That boundary is what allows the same runtime model to support different schema 
 
 - [`@texaryn/schema-json`](../schema-json/README.md), primary JSON Schema adapter
 - [`@texaryn/react`](../react/README.md), React bindings and default renderer
+- [`@texaryn/vue`](../vue/README.md), Vue 3 bindings and default renderer
 
 See the [repository README](../../README.md) and [ROADMAP](../../ROADMAP.md) for the full architecture.
 

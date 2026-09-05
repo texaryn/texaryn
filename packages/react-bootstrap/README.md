@@ -10,7 +10,7 @@ Bootstrap 5 widgets for Texaryn: native HTML with Bootstrap classes, on top of `
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/react @texaryn/react-bootstrap react react-dom bootstrap
 ```
 
-`bootstrap` is a peer dependency (`^5.3`), and so are `@texaryn/react` and `react` (18 or newer). The package reads no Bootstrap JavaScript and imports no stylesheet: the page loads Bootstrap 5.3 CSS itself, from the installed `bootstrap` package or from a CDN link.
+`@texaryn/react` and `react` (18 or newer) are peer dependencies. `bootstrap` is an optional peer (`^5.3`) that records the compatible Bootstrap line: the package reads no Bootstrap JavaScript and imports no stylesheet, so the page loads Bootstrap 5.3 CSS itself, either from the installed `bootstrap` package as the quick start does, or from a CDN link, in which case `bootstrap` can be left out of the install.
 
 ## Quick start
 
@@ -97,6 +97,7 @@ registry.register({ test: (n) => n.type === 'field' && n.format === 'email', ran
 ## Related packages
 
 - [`@texaryn/react`](../react/README.md), React bindings, hooks and default widgets
+- [`@texaryn/react-mui`](../react-mui/README.md), Material UI v9 widgets
 - [`@texaryn/core`](../core/README.md), runtime and renderer contracts
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
 

@@ -73,16 +73,16 @@ casing: `schema.type.string`, `schema.composition.oneOf`,
 ## Every example renders under every renderer
 
 `tests/example-conformance/` runs the whole catalog against each supported
-React renderer: Default, Bootstrap and Material UI. It asks one question the
-per-layer proofs do not, namely whether every scenario this package
-advertises can actually make it through each renderer. Per example and
-renderer it checks that the form renders, that nothing reaches `console.error`
-or `console.warn`, and that the registry resolves a widget for every active
-node.
+renderer: the React Default, Bootstrap and Material UI registries, and the
+Vue default registry. It asks one question the per-layer proofs do not,
+namely whether every scenario this package advertises can actually make it
+through each renderer. Per example and renderer it checks that the form
+renders, that nothing reaches `console.error` or `console.warn`, and that the
+registry resolves a widget for every active node.
 
 It lives outside this package on purpose. These examples stay renderer-neutral
-data; the matrix is a compatibility check over that data, so importing React
-and three design systems belongs there rather than here.
+data; the matrix is a compatibility check over that data, so importing React,
+Vue and the widget packages belongs there rather than here.
 
 The semantic assertions are not repeated there. Each capability's
 `verification` layer already says where its proof lives.

@@ -3,16 +3,22 @@
 Vue 3 bindings for Texaryn: composables, provide/inject context, a renderer
 and a small set of native widgets.
 
+> Status: pre-1.0. Public APIs may change before 1.0.
+
+## Install
+
 ```bash
-npm install @texaryn/vue @texaryn/core @texaryn/schema-json vue
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue vue
 ```
 
-Vue 3.4 or newer is required as a peer dependency.
+`@texaryn/vue` requires Vue 3.4 or newer.
+
+## Quick start
 
 ```vue
 <script setup lang="ts">
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
+import { FormRoot, useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
 
 const schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -21,7 +27,7 @@ const schema = {
   required: ['name'],
 }
 
-const port = await createJsonSchemaAdapter(schema, {})
+const port = await createJsonSchemaAdapter(schema)
 const form = useForm(port, { initialData: { name: '' } })
 provideFormRuntime(form.runtime)
 
@@ -92,3 +98,15 @@ The package ships plain TypeScript with render functions, so it builds with
 the same `tsc --build` as every other package in the workspace and needs no
 Vue-specific toolchain to compile. Consumers are free to use SFCs; nothing
 here requires them to.
+
+## Related packages
+
+- [`@texaryn/core`](../core/README.md), runtime and renderer contracts
+- [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
+- [`@texaryn/react`](../react/README.md), the React binding over the same runtime
+
+See the [repository README](../../README.md) for the complete architecture.
+
+## License
+
+Apache-2.0

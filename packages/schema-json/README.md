@@ -187,6 +187,7 @@ That boundary allows additional implementations to satisfy the same port without
 
 - [`@texaryn/core`](../core/README.md), runtime and framework-neutral contracts
 - [`@texaryn/react`](../react/README.md), React bindings and renderer
+- [`@texaryn/vue`](../vue/README.md), Vue bindings and renderer
 - [`@texaryn/schema-json-hyperjump`](../schema-json-hyperjump/README.md), private alternate adapter used to validate the port abstraction
 
 See the [repository README](../../README.md) for a complete example.

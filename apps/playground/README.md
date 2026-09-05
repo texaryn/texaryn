@@ -14,7 +14,7 @@ It exercises the complete pipeline against the executable example catalog:
 @texaryn/core runtime
         |
         v
-@texaryn/react + a renderer registry
+@texaryn/react or @texaryn/vue + a renderer registry
         |
         v
 rendered form, live data and the inspector
@@ -108,6 +108,7 @@ which redirects paths under the playground mount back to it.
 - `@texaryn/react`
 - `@texaryn/react-bootstrap`
 - `@texaryn/react-mui`
+- `@texaryn/vue`
 - `@texaryn/examples`
 
 It exists for development, manual exploration and end-to-end verification
@@ -118,6 +119,7 @@ rather than as a reusable package.
 - [`@texaryn/core`](../../packages/core/README.md)
 - [`@texaryn/schema-json`](../../packages/schema-json/README.md)
 - [`@texaryn/react`](../../packages/react/README.md)
+- [`@texaryn/vue`](../../packages/vue/README.md)
 - [`@texaryn/examples`](../../packages/examples/README.md)
 - [Repository README](../../README.md)
 - [Roadmap](../../ROADMAP.md)

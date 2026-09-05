@@ -21,7 +21,7 @@ artifact.
 ## Two API references, on purpose
 
 `docs/api` is the drift gate described above. The documentation site generates
-its own reference from the same five entry points, so readers get one
+its own reference from the same six entry points, so readers get one
 integrated with the guides and navigation.
 
 They are separate deliberately: changing generation and presentation at once
