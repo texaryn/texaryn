@@ -21,24 +21,37 @@ texaryn.github.io/texaryn/api/         generated API reference
 texaryn.github.io/texaryn/playground/  the playground application
 ```
 
-`.github/workflows/pages.yml` builds both, copies `apps/playground/dist` into
-this site's output, and uploads the result. This site also owns the site-wide
-`404.html`, which redirects paths under the playground mount back to the
-playground so a stale example id keeps its old behaviour.
+[`site.config.mjs`](../../site.config.mjs) at the repository root owns where
+the site lives and where the playground mounts inside it. This config, the
+404 redirect, the playground's Pages build, the composition step and the link
+checker all read it.
 
-## Broken links fail the build
+`pnpm site:build` from the repository root builds both applications, composes
+them and checks the result. `.github/workflows/pages.yml` runs that one command
+and uploads `apps/docs/dist`, and the pull request build runs the same command
+without deploying, so what ships is the artifact that was checked. This site
+also owns the site-wide `404.html`, which redirects paths under the playground
+mount back to the playground so a stale example id keeps its old behaviour.
+
+## Two link checks, at two different seams
 
 `starlight-links-validator` runs on every build and exits non-zero on a broken
 internal link. That is on from the first commit deliberately: switching it on
 after a site has content means starting with a backlog and learning to ignore
-the warnings.
+the warnings. It cannot see the playground, which belongs to the other build,
+so `/playground` is excluded from it.
 
-## What lives where, for now
+That exclusion is a seam, and a link across it shipped: every "Open in the
+playground" link pointed at `/texarynplayground/<id>` while this build
+reported all internal links valid. `scripts/check-site-links.mjs` runs over
+the composed artifact, where the two applications are one site and nothing
+needs excluding. It asserts that every anchor resolves to a file the artifact
+can serve, and that the routes into the playground are offered at all: a page
+that exists but that nothing links to is broken from a reader's side.
 
-The authored guides, ADRs and release documentation are still under the
-repository's `docs/` directory, and the API reference is still generated there
-by TypeDoc via `pnpm docs`. Neither is affected by this application.
+## What lives where
 
-Migrating that content here is a separate change, and an intentional one:
-`docs/plans/` and much of `docs/adr/` are engineering history rather than
-product documentation, so the move is a curation decision rather than a copy.
+Guides, concepts and the generated API reference live here. The repository's
+[`docs/`](../../docs/README.md) directory holds maintainer material: the
+release runbook, design records, implementation plans, and the separate
+`docs/api` artifact that gates type surface drift.
