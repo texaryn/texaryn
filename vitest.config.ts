@@ -127,7 +127,7 @@ export default defineConfig({
         test: {
           name: 'example-conformance',
           root: 'tests',
-          include: ['example-conformance/**/*.test.tsx'],
+          include: ['example-conformance/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
         },
       },

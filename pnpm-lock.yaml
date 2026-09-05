@@ -297,6 +297,9 @@ importers:
       '@texaryn/schema-json-hyperjump':
         specifier: workspace:*
         version: link:../packages/schema-json-hyperjump
+      '@texaryn/vue':
+        specifier: workspace:*
+        version: link:../packages/vue
     devDependencies:
       '@emotion/react':
         specifier: ^11.14.0
@@ -313,6 +316,9 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.18
+      '@vue/test-utils':
+        specifier: ^2.4.6
+        version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@5.8.3))
       jsdom:
         specifier: ^25.0.0
         version: 25.0.1(supports-color@10.2.2)
@@ -322,6 +328,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.42(typescript@5.8.3)
 
 packages:
 
