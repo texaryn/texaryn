@@ -1,0 +1,96 @@
+---
+title: JSON Schema support
+description: Supported JSON Schema drafts, form generation capabilities and validation limits in Texaryn.
+---
+
+Texaryn's `@texaryn/schema-json` adapter supports **Draft 7, 2019-09 and
+2020-12**, with automatic dialect detection. Draft support identifies the
+schema dialect used by the adapter; it is not a claim that every keyword
+produces a form control or that Texaryn provides full specification compliance.
+
+## Supported dialects
+
+| Draft | `$schema` value | Status |
+| --- | --- | --- |
+| Draft 7 | `http://json-schema.org/draft-07/schema#` | Supported |
+| 2019-09 | `https://json-schema.org/draft/2019-09/schema` | Supported |
+| 2020-12 | `https://json-schema.org/draft/2020-12/schema` | Supported |
+| Draft 4 and Draft 6 | | Not supported |
+
+The adapter reads `$schema`. A missing or unrecognized value falls back to
+Draft 7, rather than rejecting the schema. Set `defaultDialect` to change
+that fallback; it does not override a recognized `$schema` value.
+
+```ts
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+
+const adapter = await createJsonSchemaAdapter(schema, {
+  defaultDialect: '2020-12',
+})
+```
+
+Use an explicit `$schema` value when sharing schemas so that the intended
+dialect is clear.
+
+## Form generation capabilities
+
+The adapter projects schemas and current data into fields, constraints and
+annotations for the renderer. The following describes that projection scope,
+separately from validation.
+
+| Capability | Draft 7 | 2019-09 | 2020-12 | Form behavior |
+| --- | --- | --- | --- | --- |
+| Objects and fields | `type`, `properties`, `required` | Same | Same | Declared properties appear even before data is entered. |
+| Local references | `$ref`, `definitions` | `$ref`, `$defs` | `$ref`, `$defs` | Referenced field schemas are resolved locally. |
+| Composition | `allOf`, `anyOf`, `oneOf` | Same | Same | Object branches contribute fields; active branches depend on current data. |
+| Conditionals | `if`, `then`, `else` | Same | Same | Inactive branch fields remain in the projection with `active: false`. |
+| Dependencies | `dependencies` | `dependentSchemas`, `dependentRequired` | Same as 2019-09 | Present trigger properties activate dependent fields or required flags. |
+| Homogeneous arrays | Schema-valued `items` | Same | Same | Item fields are projected for entries present in the data. |
+| Choices | `enum` | Same | Same | Enum values become options for the renderer. |
+| String constraints | `minLength`, `maxLength`, `pattern` | Same | Same | Constraints are exposed to widgets. |
+| Numeric constraints | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Same | Same | Constraints are exposed to widgets. |
+| Array constraints | `minItems`, `maxItems`, `uniqueItems` | Same | Same | Constraints are exposed in the projection. |
+| Field metadata | `title`, `description`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | Same, plus `deprecated` | Same as 2019-09 | Metadata is passed to the runtime and widgets; it does not guarantee a dedicated control. |
+
+Projection has these limits:
+
+- Tuple arrays (array-valued `items` in older drafts or `prefixItems` in
+  2020-12) do not have a dedicated projection path. Use homogeneous arrays
+  for generated item controls.
+- `patternProperties` and `additionalProperties` do not generate fields for
+  arbitrary object keys. Declare editable fields in `properties`.
+- Boolean schemas and schemas without a resolvable type do not produce
+  ordinary field nodes. For a `type` array, projection uses the first
+  recognized type rather than creating a type selector.
+- Unresolved `oneOf` object branches can remain inactive. The fallback does
+  not cover unresolved primitive alternatives; a union is not automatically
+  a branch picker.
+- Remote schema loading, `$recursiveRef` and `$dynamicRef` are outside the
+  documented form projection scope. Use local `$ref` for reusable fields.
+
+## Validation scope
+
+`validate(data)` delegates to `json-schema-library` using the selected draft,
+then normalizes errors to JSON Pointer locations and keyword names. Validation
+can enforce constraints that have no corresponding form control, such as
+`const`, `not`, `contains` or restrictions on additional properties.
+Newer draft keywords such as `minContains`, `maxContains`,
+`unevaluatedProperties` and `unevaluatedItems` are delegated to that library;
+they are not an independent Texaryn compliance guarantee.
+
+For **2020-12**, the adapter explicitly disables `format` assertions. A value
+such as `format: 'email'` remains available as field metadata but does not
+make an invalid email fail validation. Draft 7 and 2019-09 use the validation
+library's default format behavior. The adapter does not expose a format
+assertion configuration option.
+
+`validateAt(data, pointer)` validates the full instance and filters errors to
+the requested pointer and its descendants. It does not compile or validate an
+isolated subschema.
+
+These capabilities describe the public `@texaryn/schema-json` adapter. The
+private Hyperjump adapter is used to test the schema port abstraction and is
+not the adapter installed by the getting started guide.
+
+Continue with [Getting started](/texaryn/start/getting-started/) to create a
+form, or try schemas in the [playground](/texaryn/playground/).
