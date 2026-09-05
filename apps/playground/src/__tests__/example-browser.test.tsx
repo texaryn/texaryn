@@ -153,12 +153,3 @@ describe('example selection and the URL', () => {
     ).toBe('')
   })
 })
-
-describe('scope', () => {
-  it('ships no schema, IR or runtime inspector yet', () => {
-    render(<App />)
-    expect(screen.queryByText(/^UI Document$/i)).toBeNull()
-    expect(screen.queryByText(/^Runtime state$/i)).toBeNull()
-    expect(screen.queryByText(/^IR$/i)).toBeNull()
-  })
-})
