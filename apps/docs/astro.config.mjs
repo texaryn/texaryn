@@ -25,12 +25,35 @@ const API_ENTRY_POINTS = [
 //
 // Nothing here is deployed yet. The playground keeps the Pages artifact, and
 // combining the two is its own change.
+// One constant owns the site base. The 404 page's redirect needs it at
+// runtime and cannot read the Astro config, so it is published as a meta tag
+// rather than hardcoded a second time.
+const BASE = '/texaryn'
+const BASE_PATH = `${BASE}/`
+
 export default defineConfig({
   site: 'https://texaryn.github.io',
-  base: '/texaryn',
+  base: BASE,
   integrations: [
     starlight({
       title: 'Texaryn',
+      head: [
+        {
+          // The playground materializes a real entry point for every catalog
+          // example, so a valid id never reaches a 404. An id that does is
+          // stale or mistyped, and the playground already handles that: fall
+          // back to the first example and canonicalize the URL. Sending it to
+          // the mount preserves that behaviour on a cold load.
+          //
+          // This sits in the global head rather than the 404 page's, because
+          // the base has to be interpolated from the config: one value owns
+          // where the site lives. It is safe everywhere, since the docs site
+          // never serves a real page under /playground, so reaching this
+          // condition means the 404 fallback already happened.
+          tag: 'script',
+          content: `(function(){var m=${JSON.stringify(`${BASE_PATH}playground/`)};if(location.pathname.indexOf(m)===0){location.replace(m+location.search)}})();`,
+        },
+      ],
       description:
         'A framework-neutral runtime for schema-driven interfaces. JSON Schema in, any renderer out.',
       // A broken link fails the build from the first commit. Turning this on
@@ -55,7 +78,14 @@ export default defineConfig({
             excludeInternal: true,
           },
         }),
-        starlightLinksValidator({ errorOnRelativeLinks: false }),
+        starlightLinksValidator({
+          errorOnRelativeLinks: false,
+          // The playground owns /playground and is composed into the artifact
+          // by a separate build, so its routes do not exist in this site's
+          // output. Excluding that one subtree scopes the checker to what this
+          // build actually produces; every docs route stays checked.
+          exclude: [`${BASE_PATH}playground`, `${BASE_PATH}playground/**`],
+        }),
       ],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/texaryn/texaryn' },

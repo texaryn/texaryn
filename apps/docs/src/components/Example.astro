@@ -23,7 +23,9 @@ if (!example) {
   )
 }
 
-const playgroundHref = `/texaryn/playground/${encodeURIComponent(example.id)}`
+// The Astro config owns the site base. Repeating it here would mean two
+// places to change when the site moves.
+const playgroundHref = `${import.meta.env.BASE_URL}playground/${encodeURIComponent(example.id)}`
 const capabilities = example.covers.map((capability) => ({
   id: capability,
   title: getCapability(capability).title,
