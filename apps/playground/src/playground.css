@@ -1,0 +1,525 @@
+/* Texaryn owns these names. They are not Starlight's `--sl-*`: the playground
+ * has to be themeable on its own, and borrowing the documentation theme's
+ * variables would make every future docs upgrade a playground regression.
+ *
+ * Every colour below this block resolves to one of these, so a second set of
+ * values is a complete change of appearance. Nothing further down may write a
+ * colour literal. */
+:root {
+  --tx-bg: #e8ecf1;
+  --tx-surface: #f4f6f9;
+  --tx-surface-raised: #ffffff;
+  --tx-border: #d7dbe0;
+  --tx-border-strong: #b9c0c8;
+  --tx-text: #1b1f24;
+  --tx-text-muted: #5c646d;
+  --tx-accent: #2f6feb;
+  /* Text that sits on the accent, not a surface that happens to be the same
+   * colour today. A second palette moves the surfaces and leaves this one. */
+  --tx-on-accent: #ffffff;
+  --tx-accent-soft: #e8f0fe;
+  --tx-danger: #b00020;
+  --tx-success: #2e7d32;
+  --tx-radius: 6px;
+  --tx-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
+  --tx-font: system-ui, -apple-system, sans-serif;
+  --tx-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--tx-bg);
+  color: var(--tx-text);
+  font-family: var(--tx-font);
+}
+
+/* Layout */
+
+.pg-app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  box-sizing: border-box;
+  background: var(--tx-bg);
+  color: var(--tx-text);
+  font-family: var(--tx-font);
+}
+
+/* The middle column is the point of the page, so it gets the most room and
+ * the only raised surface. The two beside it are how you got there and what
+ * came out, and they read as supporting material. */
+.pg-columns {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.7fr) minmax(16rem, 1fr);
+  min-height: 0;
+}
+
+.pg-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.pg-col--source {
+  border-right: 1px solid var(--tx-border);
+  background: var(--tx-surface);
+}
+
+.pg-col--preview {
+  padding: 1.25rem 1.5rem;
+  gap: 0.75rem;
+}
+
+.pg-col--inspect {
+  border-left: 1px solid var(--tx-border);
+  background: var(--tx-surface);
+}
+
+/* Header */
+
+.pg-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--tx-border);
+  background: var(--tx-surface-raised);
+}
+
+.pg-brand {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pg-brand__sub {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-header__nav {
+  margin-left: auto;
+  display: flex;
+  gap: 1rem;
+}
+
+.pg-header__link {
+  font-size: 0.85rem;
+  color: var(--tx-text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.pg-header__link:hover {
+  color: var(--tx-accent);
+  border-bottom-color: var(--tx-accent);
+}
+
+/* Renderer toolbar and the region it governs */
+
+.pg-toolbar {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pg-toolbar__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pg-toolbar__note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+}
+
+/* The error summary the React binding renders, which the playground places
+ * above the box rather than inside it: the binding produces the same markup
+ * whichever renderer is selected, so calling it the renderer's output would
+ * be false. Child combinator on purpose, so an alert a renderer emits inside
+ * the box keeps that renderer's own appearance. */
+.pg-col--preview > [role='alert'] {
+  font-size: 0.85rem;
+  color: var(--tx-danger);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-danger);
+  border-left-width: 3px;
+  border-radius: var(--tx-radius);
+  padding: 0.6rem 0.75rem;
+}
+
+.pg-col--preview > [role='alert'] ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.pg-col--preview > [role='alert'] a {
+  color: inherit;
+}
+
+.pg-surface {
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  box-shadow: var(--tx-shadow);
+  padding: 1.25rem;
+}
+
+/* Dashed, because the difference from the box above is ownership rather than
+ * hierarchy: these controls are the playground's in every renderer. */
+.pg-controls {
+  border-top: 1px dashed var(--tx-border-strong);
+  padding-top: 0.5rem;
+}
+
+.pg-controls__title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tx-text-muted);
+  margin: 0;
+}
+
+.pg-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 8rem;
+  border: 1px dashed var(--tx-border-strong);
+  border-radius: var(--tx-radius);
+}
+
+/* Typography */
+
+.pg-heading {
+  font-size: 0.95rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.pg-subheading {
+  font-size: 0.8rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.pg-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.pg-description {
+  font-size: 0.8rem;
+  color: var(--tx-text-muted);
+  line-height: 1.4;
+  margin: 0.75rem 0 0;
+}
+
+.pg-note {
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+  line-height: 1.4;
+  margin: 0 0 0.5rem;
+}
+
+.pg-empty {
+  font-size: 0.85rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-error {
+  color: var(--tx-danger);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.pg-success {
+  color: var(--tx-success);
+  font-size: 0.85rem;
+}
+
+.pg-pre {
+  font-family: var(--tx-font-mono);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* Controls */
+
+.pg-select,
+.pg-search,
+.pg-schema-editor {
+  font-size: 0.9rem;
+  padding: 0.4rem;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  box-sizing: border-box;
+}
+
+.pg-search {
+  margin-bottom: 0.75rem;
+}
+
+.pg-schema-editor {
+  flex: 1 1 auto;
+  min-height: 300px;
+  font-family: var(--tx-font-mono);
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.pg-button {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  color: var(--tx-on-accent);
+  background: var(--tx-accent);
+  border: 1px solid var(--tx-accent);
+  border-radius: var(--tx-radius);
+  cursor: pointer;
+}
+
+.pg-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.pg-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.pg-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.pg-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+/* Example browser */
+
+.pg-examples {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pg-examples__nav {
+  overflow: auto;
+  min-height: 0;
+}
+
+.pg-examples__category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tx-text-muted);
+  margin: 0.75rem 0 0.25rem;
+}
+
+.pg-examples__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pg-examples__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: var(--tx-radius);
+  background: none;
+  cursor: pointer;
+}
+
+.pg-examples__item:hover {
+  background: var(--tx-surface-raised);
+  border-color: var(--tx-border);
+}
+
+/* The selection already lives in the accessibility tree, so it is read from
+ * there rather than carried a second time as a class that could disagree. */
+.pg-examples__item[aria-current='true'] {
+  background: var(--tx-accent-soft);
+  border-color: var(--tx-accent);
+  font-weight: 600;
+}
+
+/* Inspector */
+
+.pg-inspector {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.pg-inspector__pipeline {
+  font-size: 0.7rem;
+  color: var(--tx-text-muted);
+  font-family: var(--tx-font-mono);
+  margin-bottom: 0.5rem;
+}
+
+.pg-inspector__body {
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.pg-inspector .pg-pre {
+  font-size: 0.75rem;
+}
+
+.pg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.pg-tab {
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: inherit;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  background: var(--tx-surface-raised);
+  cursor: pointer;
+}
+
+.pg-tab:hover {
+  border-color: var(--tx-border-strong);
+}
+
+.pg-tab[aria-selected='true'] {
+  background: var(--tx-accent-soft);
+  border-color: var(--tx-accent);
+  font-weight: 600;
+}
+
+.pg-pointers {
+  font-size: 0.7rem;
+  color: var(--tx-text-muted);
+  font-family: var(--tx-font-mono);
+  word-break: break-word;
+  margin: 0 0 0.5rem;
+}
+
+.pg-table {
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.pg-table th {
+  text-align: left;
+  border-bottom: 1px solid var(--tx-border);
+  padding: 0.2rem 0.3rem;
+  font-weight: 600;
+}
+
+.pg-table td {
+  border-bottom: 1px solid var(--tx-border);
+  padding: 0.2rem 0.3rem;
+  font-family: var(--tx-font-mono);
+}
+
+/* Focus, listed one control at a time rather than as a descendant rule. A
+ * blanket `.pg-app :focus-visible` would reach inside the renderer-owned box
+ * and repaint Bootstrap's and MUI's own focus rings, which is the opposite of
+ * showing what a renderer produces. */
+.pg-select:focus-visible,
+.pg-search:focus-visible,
+.pg-schema-editor:focus-visible,
+.pg-button:focus-visible,
+.pg-tab:focus-visible,
+.pg-examples__item:focus-visible,
+.pg-header__link:focus-visible {
+  outline: 2px solid var(--tx-accent);
+  outline-offset: 2px;
+}
+
+/* Responsive. The inspector folds under the pair first, then the source
+ * column, because reading the schema beside the form matters more than
+ * reading the runtime beside it. */
+
+@media (max-width: 1100px) {
+  .pg-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  }
+
+  .pg-col--inspect {
+    grid-column: 1 / -1;
+    border-left: none;
+    border-top: 1px solid var(--tx-border);
+  }
+}
+
+@media (max-width: 760px) {
+  /* The columns are stacked now, so the page has to scroll as a whole rather
+   * than each column scrolling inside a viewport-tall shell. */
+  .pg-app {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .pg-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-col {
+    overflow: visible;
+  }
+
+  .pg-col--source {
+    border-right: none;
+    border-bottom: 1px solid var(--tx-border);
+  }
+
+  .pg-col--preview {
+    padding: 1rem;
+  }
+
+  .pg-toolbar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .pg-toolbar__note {
+    grid-column: 1 / -1;
+  }
+}

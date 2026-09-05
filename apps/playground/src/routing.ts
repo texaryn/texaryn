@@ -47,6 +47,21 @@ export function parseLocation(
   }
 }
 
+/**
+ * Where the documentation site sits, relative to where the playground is
+ * mounted. The docs own the directory the playground lives under, so the
+ * parent of the mount is the answer in both topologies, and neither value has
+ * to be written down a second time.
+ *
+ * The composed link check reads anchors out of built HTML and cannot see one
+ * React renders, so this is guarded by test rather than by that checker.
+ */
+export function docsHref(base = '/'): string {
+  const normalisedBase = base.endsWith('/') ? base : `${base}/`
+  const parent = normalisedBase.replace(/[^/]+\/$/, '')
+  return parent === '' ? '/' : parent
+}
+
 export function formatLocation(
   { exampleId, renderer }: PlaygroundLocation,
   base = '/',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { ReactNode } from 'react'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
@@ -18,11 +18,17 @@ import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
-import { formatLocation, parseLocation } from './routing.js'
+import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
+import './playground.css'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
+const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 
+// Every label names its framework and its widget set, because three of these
+// are React and one is not, and a list that says `Material UI` beside `Vue`
+// invites reading the fourth as the only one with a framework.
+//
 // Vue carries no React registry: it is a different render surface over the
 // same runtime rather than another set of React widgets, so it is listed here
 // for the selector and rendered through VueHost instead of FormRoot.
@@ -30,10 +36,10 @@ const registries: Record<
   RendererKey,
   { label: string; registry: RendererRegistry<WidgetComponent> | null }
 > = {
-  default: { label: 'Default', registry: createDefaultRegistry() },
-  bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
-  mui: { label: 'Material UI', registry: createMuiRegistry() },
-  vue: { label: 'Vue', registry: null },
+  default: { label: 'React · Default', registry: createDefaultRegistry() },
+  bootstrap: { label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
+  mui: { label: 'React · Material UI', registry: createMuiRegistry() },
+  vue: { label: 'Vue · Default', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -105,19 +111,42 @@ function useAdapter(schemaText: string, parseError: string | null): AdapterState
   return state
 }
 
+// The preview and inspector columns come as a pair in every state, including
+// the three where there is no form to show. Writing that pair once keeps the
+// renderer selector outside the adapter's conditional, which is where it has
+// to be: choosing a renderer while a schema is still compiling is normal.
+function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNode }) {
+  return (
+    <>
+      <section className="pg-col pg-col--preview">
+        {toolbar}
+        <div className="pg-placeholder">{children}</div>
+      </section>
+      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
+        <h2 className="pg-heading">Live Data</h2>
+        <pre className="pg-pre">—</pre>
+      </aside>
+    </>
+  )
+}
+
 function FormWorkspace({
   port,
   entry,
   registry,
+  rendererLabel,
   schemaText,
   tab,
+  toolbar,
   onTabChange,
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   registry: RendererRegistry<WidgetComponent> | null
+  rendererLabel: string
   schemaText: string
   tab: Tab
+  toolbar: ReactNode
   onTabChange: (tab: Tab) => void
 }) {
   const simulateFailureRef = useRef(false)
@@ -139,57 +168,74 @@ function FormWorkspace({
 
   return (
     <>
-      <div style={styles.centerPanel}>
+      <section className="pg-col pg-col--preview">
+        {toolbar}
         <FormContext.Provider value={form.runtime}>
           <ErrorSummary />
-          {registry ? (
-            <FormRoot registry={registry} />
-          ) : (
-            // Same runtime, different framework. VueHost mounts a Vue
-            // application over this exact instance rather than building one
-            // of its own, so switching renderer keeps the form.
-            <VueHost runtime={form.runtime} />
-          )}
 
-          <div style={styles.submitRow}>
-            <button
-              type="button"
-              disabled={
-                form.submission.status === 'validating' ||
-                form.submission.status === 'submitting'
-              }
-              onClick={() => form.dispatch({ type: 'Submit' })}
-            >
-              {form.submission.status === 'validating'
-                ? 'Validating...'
-                : form.submission.status === 'submitting'
-                  ? 'Submitting...'
-                  : 'Submit'}
-            </button>
+          {/* The boundary, named so it can be seen and asserted. Everything
+              inside is the chosen renderer's output; everything outside is the
+              React shell, whichever renderer is selected. */}
+          <section className="pg-surface" aria-label={`Rendered by ${rendererLabel}`}>
+            {registry ? (
+              <FormRoot registry={registry} />
+            ) : (
+              // Same runtime, different framework. VueHost mounts a Vue
+              // application over this exact instance rather than building one
+              // of its own, so switching renderer keeps the form.
+              <VueHost runtime={form.runtime} />
+            )}
+          </section>
 
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={simulateFailure}
-                onChange={(e) => setSimulateFailure(e.target.checked)}
-              />
-              Simulate failure
-            </label>
-          </div>
+          {/* Inside the provider, outside the box: these read the runtime, and
+              the playground owns them rather than the renderer. */}
+          <section className="pg-controls" aria-labelledby="playground-controls">
+            <h2 className="pg-controls__title" id="playground-controls">
+              Playground controls
+            </h2>
 
-          {form.submission.status === 'submitted' && (
-            <p style={styles.success}>Submitted successfully.</p>
-          )}
-          {form.submission.error != null && (
-            <p style={styles.error}>
-              {form.submission.error instanceof Error
-                ? form.submission.error.message
-                : String(form.submission.error)}
-            </p>
-          )}
+            <div className="pg-submit-row">
+              <button
+                type="button"
+                className="pg-button"
+                disabled={
+                  form.submission.status === 'validating' ||
+                  form.submission.status === 'submitting'
+                }
+                onClick={() => form.dispatch({ type: 'Submit' })}
+              >
+                {form.submission.status === 'validating'
+                  ? 'Validating...'
+                  : form.submission.status === 'submitting'
+                    ? 'Submitting...'
+                    : 'Submit'}
+              </button>
+
+              <label className="pg-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={simulateFailure}
+                  onChange={(e) => setSimulateFailure(e.target.checked)}
+                />
+                Simulate failure
+              </label>
+            </div>
+
+            {form.submission.status === 'submitted' && (
+              <p className="pg-success">Submitted successfully.</p>
+            )}
+            {form.submission.error != null && (
+              <p className="pg-error">
+                {form.submission.error instanceof Error
+                  ? form.submission.error.message
+                  : String(form.submission.error)}
+              </p>
+            )}
+          </section>
         </FormContext.Provider>
-      </div>
-      <div style={styles.rightPanel}>
+      </section>
+
+      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
         <Inspector
           runtime={form.runtime}
           port={port}
@@ -201,7 +247,7 @@ function FormWorkspace({
           tab={tab}
           onTabChange={onTabChange}
         />
-      </div>
+      </aside>
     </>
   )
 }
@@ -210,6 +256,7 @@ const CUSTOM_KEY = 'custom'
 const customEntry = { initialData: undefined, hints: undefined }
 
 const BASE_URL = import.meta.env.BASE_URL ?? '/'
+const DOCS_URL = docsHref(BASE_URL)
 
 // An unknown id falls back to the first example rather than an empty screen,
 // so a stale or mistyped link still lands somewhere usable.
@@ -282,186 +329,104 @@ export function App() {
   const entry = selectedExample ?? customEntry
   const selectedKey = selectedId ?? CUSTOM_KEY
 
-  return (
-    <div style={styles.app}>
-      <div style={styles.leftPanel}>
-        <h1 style={styles.title}>Texaryn Playground</h1>
-
-        <label style={styles.label} htmlFor="renderer-select">
-          Renderer
-        </label>
-        <select
-          id="renderer-select"
-          value={rendererKey}
-          onChange={(e) => setRendererKey(e.target.value as RendererKey)}
-          style={styles.select}
-        >
-          {Object.entries(registries).map(([key, { label }]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-
-        <ExampleBrowser
-          query={query}
-          onQueryChange={setQuery}
-          selectedId={selectedId}
-          onSelect={handleSelectExample}
-        />
-
-        {selectedExample && (
-          <p style={styles.description}>{selectedExample.description}</p>
-        )}
-
-        <h2 style={styles.heading} id="schema-editor-label">
-          JSON Schema
-        </h2>
-        <textarea
-          aria-labelledby="schema-editor-label"
-          value={schemaText}
-          onChange={(e) => handleSchemaChange(e.target.value)}
-          spellCheck={false}
-          style={styles.textarea}
-        />
-        {parseError && <div style={styles.error}>Invalid JSON: {parseError}</div>}
-      </div>
-
-      {parseError ? (
-        <>
-          <div style={styles.centerPanel}>
-            <div style={styles.error}>Fix the schema JSON to see the form.</div>
-          </div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
-          </div>
-        </>
-      ) : adapterState.status === 'loading' ? (
-        <>
-          <div style={styles.centerPanel}>Loading…</div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
-          </div>
-        </>
-      ) : adapterState.status === 'error' ? (
-        <>
-          <div style={styles.centerPanel}>
-            <div style={styles.error}>{adapterState.message}</div>
-          </div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
-          </div>
-        </>
-      ) : (
-        <FormWorkspace
-          // Deliberately excludes the renderer. The runtime belongs to the
-          // selected example and its schema; the renderer is presentation
-          // over it, so switching one must not remount the form and discard
-          // live data. Changing example or schema does mean a new runtime.
-          key={`${selectedKey}:${adapterState.id}`}
-          port={adapterState.port}
-          entry={entry}
-          registry={registries[rendererKey].registry}
-          schemaText={schemaText}
-          tab={inspectorTab}
-          onTabChange={setInspectorTab}
-        />
-      )}
+  // The control sits on the region it governs, and says what that region is,
+  // because the answer is narrower than the page implies: choosing Vue swaps
+  // the form subtree and leaves the shell around it in React.
+  const toolbar = (
+    <div className="pg-toolbar">
+      <label className="pg-toolbar__label" htmlFor="renderer-select">
+        Form renderer
+      </label>
+      <select
+        id="renderer-select"
+        className="pg-select"
+        value={rendererKey}
+        onChange={(e) => setRendererKey(e.target.value as RendererKey)}
+      >
+        {Object.entries(registries).map(([key, { label }]) => (
+          <option key={key} value={key}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <p className="pg-toolbar__note">Applies to the form below. The page around it stays React.</p>
     </div>
   )
-}
 
-const styles: Record<string, CSSProperties> = {
-  app: {
-    display: 'flex',
-    flexDirection: 'row',
-    height: '100vh',
-    width: '100vw',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    boxSizing: 'border-box',
-  },
-  leftPanel: {
-    flex: '1 1 0',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '1rem',
-    borderRight: '1px solid #ddd',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  centerPanel: {
-    flex: '1 1 0',
-    padding: '1rem',
-    borderRight: '1px solid #ddd',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  rightPanel: {
-    flex: '1 1 0',
-    padding: '1rem',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  title: {
-    fontSize: '1.25rem',
-    margin: '0 0 1rem 0',
-  },
-  heading: {
-    fontSize: '0.95rem',
-    margin: '1rem 0 0.5rem 0',
-  },
-  label: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    marginBottom: '0.25rem',
-  },
-  select: {
-    padding: '0.4rem',
-    fontSize: '0.9rem',
-  },
-  textarea: {
-    flex: '1 1 auto',
-    minHeight: '300px',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '0.85rem',
-    padding: '0.5rem',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-  },
-  pre: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '0.85rem',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-  },
-  error: {
-    color: '#b00020',
-    fontSize: '0.85rem',
-    marginTop: '0.5rem',
-  },
-  description: {
-    fontSize: '0.8rem',
-    color: '#555',
-    lineHeight: 1.4,
-    margin: '0.75rem 0 0 0',
-  },
-  submitRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    margin: '1rem 0',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem',
-    fontSize: '0.85rem',
-  },
-  success: {
-    color: '#2e7d32',
-    fontSize: '0.85rem',
-  },
+  return (
+    <div className="pg-app">
+      <header className="pg-header">
+        {/* One text node and one span rather than two spans: a flex gap is a
+            layout space, not a character, so two spans read as one word. */}
+        <h1 className="pg-brand">
+          Texaryn <span className="pg-brand__sub">Playground</span>
+        </h1>
+        <nav className="pg-header__nav" aria-label="Texaryn">
+          <a className="pg-header__link" href={DOCS_URL}>
+            Docs
+          </a>
+          <a className="pg-header__link" href={REPOSITORY_URL}>
+            GitHub
+          </a>
+        </nav>
+      </header>
+
+      <div className="pg-columns">
+        <aside className="pg-col pg-col--source" aria-label="Examples and schema">
+          <ExampleBrowser
+            query={query}
+            onQueryChange={setQuery}
+            selectedId={selectedId}
+            onSelect={handleSelectExample}
+          />
+
+          {selectedExample && (
+            <p className="pg-description">{selectedExample.description}</p>
+          )}
+
+          <h2 className="pg-heading" id="schema-editor-label">
+            JSON Schema
+          </h2>
+          <textarea
+            aria-labelledby="schema-editor-label"
+            className="pg-schema-editor"
+            value={schemaText}
+            onChange={(e) => handleSchemaChange(e.target.value)}
+            spellCheck={false}
+          />
+          {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
+        </aside>
+
+        {parseError ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-error">Fix the schema JSON to see the form.</p>
+          </NotReady>
+        ) : adapterState.status === 'loading' ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-empty">Loading…</p>
+          </NotReady>
+        ) : adapterState.status === 'error' ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-error">{adapterState.message}</p>
+          </NotReady>
+        ) : (
+          <FormWorkspace
+            // Deliberately excludes the renderer. The runtime belongs to the
+            // selected example and its schema; the renderer is presentation
+            // over it, so switching one must not remount the form and discard
+            // live data. Changing example or schema does mean a new runtime.
+            key={`${selectedKey}:${adapterState.id}`}
+            port={adapterState.port}
+            entry={entry}
+            registry={registries[rendererKey].registry}
+            rendererLabel={registries[rendererKey].label}
+            schemaText={schemaText}
+            tab={inspectorTab}
+            toolbar={toolbar}
+            onTabChange={setInspectorTab}
+          />
+        )}
+      </div>
+    </div>
+  )
 }
