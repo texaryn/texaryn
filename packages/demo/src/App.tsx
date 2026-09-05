@@ -12,18 +12,22 @@ import {
 import type { WidgetComponent } from '@texaryn/react'
 import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
 import { createMuiRegistry } from '@texaryn/react-mui'
-import { contactSchema, sampleSchemas } from './schemas.js'
-import type { SampleEntry } from './schemas.js'
+import { examples, getExample } from '@texaryn/examples'
+import type { TexarynExample } from '@texaryn/examples'
+import { ExampleBrowser } from './ExampleBrowser.js'
+import { formatLocation, parseLocation } from './routing.js'
+import type { RendererKey } from './routing.js'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 
-const registries = {
+const registries: Record<
+  RendererKey,
+  { label: string; registry: RendererRegistry<WidgetComponent> }
+> = {
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { label: 'Material UI', registry: createMuiRegistry() },
-} as const
-
-type RendererKey = keyof typeof registries
+}
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
 // loading it globally would restyle the Default renderer too.
@@ -100,7 +104,7 @@ function FormWorkspace({
   registry,
 }: {
   port: SchemaEvaluationPort
-  entry: SampleEntry
+  entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   registry: RendererRegistry<WidgetComponent>
 }) {
   const simulateFailureRef = useRef(false)
@@ -176,19 +180,60 @@ function FormWorkspace({
 }
 
 const CUSTOM_KEY = 'custom'
+const customEntry = { initialData: undefined, hints: undefined }
 
-const customEntry: SampleEntry = { label: 'Custom schema', schema: {} }
+const BASE_URL = import.meta.env.BASE_URL ?? '/'
+
+// An unknown id falls back to the first example rather than an empty screen,
+// so a stale or mistyped link still lands somewhere usable.
+function resolveExample(id: string | null): TexarynExample | undefined {
+  if (id === null) return examples[0]
+  return getExample(id) ?? examples[0]
+}
 
 export function App() {
-  const [rendererKey, setRendererKey] = useState<RendererKey>('default')
-  const [selectedKey, setSelectedKey] = useState('contact')
-  const [schemaText, setSchemaText] = useState(() => formatSchema(contactSchema))
+  const initial = parseLocation(window.location.pathname, window.location.search, BASE_URL)
+  const [rendererKey, setRendererKey] = useState<RendererKey>(initial.renderer)
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => resolveExample(initial.exampleId)?.id ?? null,
+  )
+  const [query, setQuery] = useState('')
+  const [schemaText, setSchemaText] = useState(() =>
+    formatSchema(resolveExample(initial.exampleId)?.schema ?? {}),
+  )
   const [parseError, setParseError] = useState<string | null>(null)
 
   useBootstrapStylesheet(rendererKey === 'bootstrap')
 
+  // The URL follows the visible state. Data is deliberately not in it: a
+  // shared link reproduces what someone was looking at, not what they typed.
+  useEffect(() => {
+    const url = formatLocation(
+      { exampleId: selectedId === CUSTOM_KEY ? null : selectedId, renderer: rendererKey },
+      BASE_URL,
+    )
+    if (`${window.location.pathname}${window.location.search}` !== url) {
+      window.history.replaceState(null, '', url)
+    }
+  }, [selectedId, rendererKey])
+
+  useEffect(() => {
+    function onPopState() {
+      const next = parseLocation(window.location.pathname, window.location.search, BASE_URL)
+      const example = resolveExample(next.exampleId)
+      setRendererKey(next.renderer)
+      if (example) {
+        setSelectedId(example.id)
+        setSchemaText(formatSchema(example.schema))
+        setParseError(null)
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const handleSchemaChange = useCallback((text: string) => {
-    setSelectedKey(CUSTOM_KEY)
+    setSelectedId(CUSTOM_KEY)
     setSchemaText(text)
     try {
       JSON.parse(text)
@@ -198,17 +243,16 @@ export function App() {
     }
   }, [])
 
-  const handleSelectChange = useCallback((key: string) => {
-    setSelectedKey(key)
-    const entry = sampleSchemas[key]
-    if (entry) {
-      setSchemaText(formatSchema(entry.schema))
-      setParseError(null)
-    }
+  const handleSelectExample = useCallback((example: TexarynExample) => {
+    setSelectedId(example.id)
+    setSchemaText(formatSchema(example.schema))
+    setParseError(null)
   }, [])
 
   const adapterState = useAdapter(schemaText, parseError)
-  const entry = sampleSchemas[selectedKey] ?? customEntry
+  const selectedExample = selectedId === null ? undefined : getExample(selectedId)
+  const entry = selectedExample ?? customEntry
+  const selectedKey = selectedId ?? CUSTOM_KEY
 
   return (
     <div style={styles.app}>
@@ -231,22 +275,16 @@ export function App() {
           ))}
         </select>
 
-        <label style={styles.label} htmlFor="schema-select">
-          Sample schema
-        </label>
-        <select
-          id="schema-select"
-          value={selectedKey}
-          onChange={(e) => handleSelectChange(e.target.value)}
-          style={styles.select}
-        >
-          {Object.entries(sampleSchemas).map(([key, { label }]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-          <option value={CUSTOM_KEY}>{customEntry.label}</option>
-        </select>
+        <ExampleBrowser
+          query={query}
+          onQueryChange={setQuery}
+          selectedId={selectedId}
+          onSelect={handleSelectExample}
+        />
+
+        {selectedExample && (
+          <p style={styles.description}>{selectedExample.description}</p>
+        )}
 
         <h2 style={styles.heading}>JSON Schema</h2>
         <textarea
@@ -288,7 +326,11 @@ export function App() {
         </>
       ) : (
         <FormWorkspace
-          key={`${rendererKey}:${selectedKey}:${adapterState.id}`}
+          // Deliberately excludes the renderer. The runtime belongs to the
+          // selected example and its schema; the renderer is presentation
+          // over it, so switching one must not remount the form and discard
+          // live data. Changing example or schema does mean a new runtime.
+          key={`${selectedKey}:${adapterState.id}`}
           port={adapterState.port}
           entry={entry}
           registry={registries[rendererKey].registry}
@@ -365,6 +407,12 @@ const styles: Record<string, CSSProperties> = {
     color: '#b00020',
     fontSize: '0.85rem',
     marginTop: '0.5rem',
+  },
+  description: {
+    fontSize: '0.8rem',
+    color: '#555',
+    lineHeight: 1.4,
+    margin: '0.75rem 0 0 0',
   },
   submitRow: {
     display: 'flex',
