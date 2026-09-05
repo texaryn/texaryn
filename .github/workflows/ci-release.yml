@@ -22,6 +22,11 @@ jobs:
         run: pnpm docs:check
       - name: Verify packages
         run: pnpm verify:packages
+      # Builds the documentation site but deploys nothing. The site's link
+      # checker fails the build on a broken internal link, so this is the gate
+      # that keeps the docs honest while they are still being written.
+      - name: Build documentation site
+        run: pnpm --filter @texaryn/docs build
 
   typecheck:
     runs-on: ubuntu-latest
