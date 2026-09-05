@@ -6,7 +6,8 @@
     "packages/schema-json",
     "packages/react",
     "packages/react-bootstrap",
-    "packages/react-mui"
+    "packages/react-mui",
+    "packages/vue"
   ],
   "plugin": ["typedoc-plugin-markdown"],
   "out": "docs/api",

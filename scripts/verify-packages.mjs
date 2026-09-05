@@ -28,6 +28,11 @@ const packages = [
     dir: 'packages/react-mui',
     expectedExport: 'createMuiRegistry',
   },
+  {
+    name: '@texaryn/vue',
+    dir: 'packages/vue',
+    expectedExport: 'provideFormRuntime',
+  },
 ]
 
 const requiredFiles = [

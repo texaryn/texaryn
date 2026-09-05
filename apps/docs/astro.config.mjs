@@ -4,7 +4,7 @@ import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
 import { BASE, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
 
-// The five published packages, matching the root typedoc.json entry points.
+// The published packages, matching the root typedoc.json entry points.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
 // release gate, and moving both systems at once would make a drift failure
 // hard to attribute.
@@ -18,6 +18,7 @@ const API_ENTRY_POINTS = [
   '../../packages/react',
   '../../packages/react-bootstrap',
   '../../packages/react-mui',
+  '../../packages/vue',
 ]
 
 // The site is served from texaryn.github.io/texaryn, with the playground

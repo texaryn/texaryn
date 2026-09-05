@@ -33,7 +33,7 @@ const registries: Record<
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { label: 'Material UI', registry: createMuiRegistry() },
-  vue: { label: 'Vue (preview)', registry: null },
+  vue: { label: 'Vue', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -303,16 +303,6 @@ export function App() {
           ))}
         </select>
 
-        {rendererKey === 'vue' && (
-          // The playground can render Vue because the package is in this
-          // repository. Saying "Vue" without this would advertise something
-          // nobody can install.
-          <p style={styles.note}>
-            <code>@texaryn/vue</code> is not published yet. It lives in the
-            repository and is not installable from npm.
-          </p>
-        )}
-
         <ExampleBrowser
           query={query}
           onQueryChange={setQuery}
@@ -457,12 +447,6 @@ const styles: Record<string, CSSProperties> = {
     color: '#555',
     lineHeight: 1.4,
     margin: '0.75rem 0 0 0',
-  },
-  note: {
-    fontSize: '0.75rem',
-    color: '#666',
-    lineHeight: 1.4,
-    margin: '0.5rem 0 0 0',
   },
   submitRow: {
     display: 'flex',

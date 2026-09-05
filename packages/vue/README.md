@@ -3,9 +3,6 @@
 Vue 3 bindings for Texaryn: composables, provide/inject context, a renderer
 and a small set of native widgets.
 
-Not published yet. It becomes public once the `0.0.0` placeholder is on npm,
-which is a manual step because OIDC cannot perform a package's first publish.
-
 ```vue
 <script setup lang="ts">
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'

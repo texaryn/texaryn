@@ -182,10 +182,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | `@texaryn/react` | React bindings, hooks, prop getters, renderer, and default widgets |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
-
-`@texaryn/vue` also exists in the repository, as Vue 3 bindings over the same
-core. It is not published: the playground renders through it, but it cannot be
-installed yet.
+| `@texaryn/vue` | Vue 3 bindings, composables, renderer, and default widgets |
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site.
 
@@ -410,10 +407,10 @@ Texaryn is being built incrementally.
 - validation triggers and debounce
 - display-policy-aware error presentation
 - submission lifecycle with snapshot semantics
+- Vue renderer sharing one runtime with React, proving framework neutrality
 
 ### Next
 
-- second renderer to validate framework neutrality (Vue recommended)
 - additional schema adapters
 - further runtime capabilities based on real usage
 
