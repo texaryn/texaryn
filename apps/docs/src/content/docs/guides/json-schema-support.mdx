@@ -42,7 +42,7 @@ separately from validation.
 | --- | --- | --- | --- | --- |
 | Objects and fields | `type`, `properties`, `required` | Same | Same | Declared properties appear even before data is entered. |
 | Local references | `$ref`, `definitions` | `$ref`, `$defs` | `$ref`, `$defs` | Referenced field schemas are resolved locally. |
-| Composition | `allOf`, `anyOf`, `oneOf` | Same | Same | Object branches contribute fields; active branches depend on current data. |
+| Composition | `allOf`, `anyOf`, `oneOf` | Same | Same | `allOf` contributes all branches; `anyOf`/`oneOf` selection depends on current data. |
 | Conditionals | `if`, `then`, `else` | Same | Same | Inactive branch fields remain in the projection with `active: false`. |
 | Dependencies | `dependencies` | `dependentSchemas`, `dependentRequired` | Same as 2019-09 | Present trigger properties activate dependent fields or required flags. |
 | Homogeneous arrays | Schema-valued `items` | Same | Same | Item fields are projected for entries present in the data. |
