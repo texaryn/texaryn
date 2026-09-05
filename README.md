@@ -182,7 +182,10 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | `@texaryn/react` | React bindings, hooks, prop getters, renderer, and default widgets |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | `@texaryn/react-mui` | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
-| `@texaryn/vue` | Vue 3 bindings, composables, renderer, and default widgets |
+
+`@texaryn/vue` is in the repository and releasing shortly, as Vue 3 bindings
+over the same core. The playground renders through it, and until `0.1.0`
+reaches npm it cannot be installed.
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site.
 
@@ -372,7 +375,7 @@ Run the playground:
 pnpm --filter @texaryn/playground dev
 ```
 
-It browses the example catalog, renders each example through any of the three renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
+It browses the example catalog, renders each example through any of the four renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
 
 ## Principles
 
