@@ -3,8 +3,11 @@
 Vue 3 bindings for Texaryn: composables, provide/inject context, a renderer
 and a small set of native widgets.
 
-A `0.0.0` placeholder exists on npm to reserve the name. The first usable
-release will be `0.1.0`.
+```bash
+npm install @texaryn/vue @texaryn/core @texaryn/schema-json vue
+```
+
+Vue 3.4 or newer is required as a peer dependency.
 
 ```vue
 <script setup lang="ts">

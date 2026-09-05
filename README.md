@@ -176,11 +176,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
 | [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
-
-`@texaryn/vue` is in the repository and releasing shortly, as Vue 3 bindings
-over the same core. The playground renders through it. npm carries a `0.0.0`
-placeholder reserving the name, so `0.1.0` is the first release anyone can
-install.
+| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site.
 
