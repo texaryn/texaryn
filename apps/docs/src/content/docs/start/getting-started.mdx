@@ -41,7 +41,9 @@ const adapter = await createJsonSchemaAdapter(schema)
 ```
 
 The dialect is detected from `$schema`. Draft 7, 2019-09 and 2020-12 are
-supported.
+supported. If `$schema` is missing or unrecognized, the default is Draft 7.
+See [JSON Schema support](/texaryn/guides/json-schema-support/) for dialect
+configuration, supported form capabilities and validation limits.
 
 ## Create the form
 

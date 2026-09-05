@@ -13,6 +13,11 @@
 </p>
 
 <p align="center">
+  Supports JSON Schema Draft 7, 2019-09 and 2020-12, with automatic dialect detection.
+  See <a href="https://texaryn.github.io/texaryn/guides/json-schema-support/">JSON Schema support</a> for form generation capabilities and validation limits.
+</p>
+
+<p align="center">
   <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/texaryn/texaryn/ci-release.yml?branch=main&label=CI" alt="CI" />
   </a>
@@ -158,6 +163,7 @@ Product documentation is published at
 [texaryn.github.io/texaryn](https://texaryn.github.io/texaryn/):
 
 - [Getting started](https://texaryn.github.io/texaryn/start/getting-started/)
+- [JSON Schema support](https://texaryn.github.io/texaryn/guides/json-schema-support/)
 - [Architecture](https://texaryn.github.io/texaryn/concepts/architecture/)
 - [Migrating from RJSF](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/)
 - [API reference](https://texaryn.github.io/texaryn/api/)

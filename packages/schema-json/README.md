@@ -49,6 +49,8 @@ The returned object implements `SchemaEvaluationPort` from `@texaryn/core`.
 | 2019-09   | Supported         |
 | 2020-12   | Supported         |
 
+Dialect support does not mean every keyword generates a form control or that Texaryn provides full specification compliance. See the [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/) for the capability matrix, projection limits and validation behavior, including disabled `format` assertions for 2020-12.
+
 The adapter detects the dialect from `$schema`. If `$schema` is absent or unrecognized, the adapter uses `draft-07` by default. You can override the fallback:
 
 ```ts

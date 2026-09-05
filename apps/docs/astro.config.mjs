@@ -106,7 +106,10 @@ export default defineConfig({
         },
         {
           label: 'Guides',
-          items: [{ label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' }],
+          items: [
+            { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
+            { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
+          ],
         },
         typeDocSidebarGroup,
         {
