@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
@@ -20,6 +19,7 @@ import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
 import { formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
+import './playground.css'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 
@@ -139,7 +139,7 @@ function FormWorkspace({
 
   return (
     <>
-      <div style={styles.centerPanel}>
+      <div className="pg-col pg-col--preview">
         <FormContext.Provider value={form.runtime}>
           <ErrorSummary />
           {registry ? (
@@ -151,7 +151,7 @@ function FormWorkspace({
             <VueHost runtime={form.runtime} />
           )}
 
-          <div style={styles.submitRow}>
+          <div className="pg-submit-row">
             <button
               type="button"
               disabled={
@@ -167,7 +167,7 @@ function FormWorkspace({
                   : 'Submit'}
             </button>
 
-            <label style={styles.checkboxLabel}>
+            <label className="pg-checkbox-label">
               <input
                 type="checkbox"
                 checked={simulateFailure}
@@ -178,10 +178,10 @@ function FormWorkspace({
           </div>
 
           {form.submission.status === 'submitted' && (
-            <p style={styles.success}>Submitted successfully.</p>
+            <p className="pg-success">Submitted successfully.</p>
           )}
           {form.submission.error != null && (
-            <p style={styles.error}>
+            <p className="pg-error">
               {form.submission.error instanceof Error
                 ? form.submission.error.message
                 : String(form.submission.error)}
@@ -189,7 +189,7 @@ function FormWorkspace({
           )}
         </FormContext.Provider>
       </div>
-      <div style={styles.rightPanel}>
+      <div className="pg-col pg-col--inspect">
         <Inspector
           runtime={form.runtime}
           port={port}
@@ -283,18 +283,18 @@ export function App() {
   const selectedKey = selectedId ?? CUSTOM_KEY
 
   return (
-    <div style={styles.app}>
-      <div style={styles.leftPanel}>
-        <h1 style={styles.title}>Texaryn Playground</h1>
+    <div className="pg-app">
+      <div className="pg-col pg-col--source">
+        <h1 className="pg-title">Texaryn Playground</h1>
 
-        <label style={styles.label} htmlFor="renderer-select">
+        <label className="pg-label" htmlFor="renderer-select">
           Renderer
         </label>
         <select
           id="renderer-select"
+          className="pg-select"
           value={rendererKey}
           onChange={(e) => setRendererKey(e.target.value as RendererKey)}
-          style={styles.select}
         >
           {Object.entries(registries).map(([key, { label }]) => (
             <option key={key} value={key}>
@@ -311,48 +311,48 @@ export function App() {
         />
 
         {selectedExample && (
-          <p style={styles.description}>{selectedExample.description}</p>
+          <p className="pg-description">{selectedExample.description}</p>
         )}
 
-        <h2 style={styles.heading} id="schema-editor-label">
+        <h2 className="pg-heading" id="schema-editor-label">
           JSON Schema
         </h2>
         <textarea
           aria-labelledby="schema-editor-label"
           value={schemaText}
           onChange={(e) => handleSchemaChange(e.target.value)}
+          className="pg-schema-editor"
           spellCheck={false}
-          style={styles.textarea}
         />
-        {parseError && <div style={styles.error}>Invalid JSON: {parseError}</div>}
+        {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       </div>
 
       {parseError ? (
         <>
-          <div style={styles.centerPanel}>
-            <div style={styles.error}>Fix the schema JSON to see the form.</div>
+          <div className="pg-col pg-col--preview">
+            <div className="pg-error">Fix the schema JSON to see the form.</div>
           </div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
+          <div className="pg-col pg-col--inspect">
+            <h2 className="pg-heading">Live Data</h2>
+            <pre className="pg-pre">—</pre>
           </div>
         </>
       ) : adapterState.status === 'loading' ? (
         <>
-          <div style={styles.centerPanel}>Loading…</div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
+          <div className="pg-col pg-col--preview">Loading…</div>
+          <div className="pg-col pg-col--inspect">
+            <h2 className="pg-heading">Live Data</h2>
+            <pre className="pg-pre">—</pre>
           </div>
         </>
       ) : adapterState.status === 'error' ? (
         <>
-          <div style={styles.centerPanel}>
-            <div style={styles.error}>{adapterState.message}</div>
+          <div className="pg-col pg-col--preview">
+            <div className="pg-error">{adapterState.message}</div>
           </div>
-          <div style={styles.rightPanel}>
-            <h2 style={styles.heading}>Live Data</h2>
-            <pre style={styles.pre}>—</pre>
+          <div className="pg-col pg-col--inspect">
+            <h2 className="pg-heading">Live Data</h2>
+            <pre className="pg-pre">—</pre>
           </div>
         </>
       ) : (
@@ -372,96 +372,4 @@ export function App() {
       )}
     </div>
   )
-}
-
-const styles: Record<string, CSSProperties> = {
-  app: {
-    display: 'flex',
-    flexDirection: 'row',
-    height: '100vh',
-    width: '100vw',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    boxSizing: 'border-box',
-  },
-  leftPanel: {
-    flex: '1 1 0',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '1rem',
-    borderRight: '1px solid #ddd',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  centerPanel: {
-    flex: '1 1 0',
-    padding: '1rem',
-    borderRight: '1px solid #ddd',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  rightPanel: {
-    flex: '1 1 0',
-    padding: '1rem',
-    overflow: 'auto',
-    boxSizing: 'border-box',
-  },
-  title: {
-    fontSize: '1.25rem',
-    margin: '0 0 1rem 0',
-  },
-  heading: {
-    fontSize: '0.95rem',
-    margin: '1rem 0 0.5rem 0',
-  },
-  label: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    marginBottom: '0.25rem',
-  },
-  select: {
-    padding: '0.4rem',
-    fontSize: '0.9rem',
-  },
-  textarea: {
-    flex: '1 1 auto',
-    minHeight: '300px',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '0.85rem',
-    padding: '0.5rem',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-  },
-  pre: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '0.85rem',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-  },
-  error: {
-    color: '#b00020',
-    fontSize: '0.85rem',
-    marginTop: '0.5rem',
-  },
-  description: {
-    fontSize: '0.8rem',
-    color: '#555',
-    lineHeight: 1.4,
-    margin: '0.75rem 0 0 0',
-  },
-  submitRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    margin: '1rem 0',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem',
-    fontSize: '0.85rem',
-  },
-  success: {
-    color: '#2e7d32',
-    fontSize: '0.85rem',
-  },
 }

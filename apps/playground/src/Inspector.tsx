@@ -5,7 +5,6 @@
 // The one computed value is the projection: the runtime does not expose the
 // projection it used, so this calls port.project(data) for the current data.
 // It is labelled as exactly that rather than implying a hidden snapshot.
-import type { CSSProperties } from 'react'
 import type {
   FormRuntime,
   SchemaEvaluationPort,
@@ -61,12 +60,12 @@ export function Inspector({
   const setTab = onTabChange
 
   return (
-    <div style={styles.panel}>
-      <div style={styles.pipeline} title="The stages each tab shows">
+    <div className="pg-inspector">
+      <div className="pg-inspector__pipeline" title="The stages each tab shows">
         {PIPELINE}
       </div>
 
-      <div role="tablist" aria-label="Inspector" style={styles.tabs}>
+      <div role="tablist" aria-label="Inspector" className="pg-tabs">
         {TABS.map((name) => (
           <button
             key={name}
@@ -74,24 +73,24 @@ export function Inspector({
             role="tab"
             aria-selected={tab === name}
             onClick={() => setTab(name)}
-            style={{ ...styles.tab, ...(tab === name ? styles.tabActive : null) }}
+            className="pg-tab"
           >
             {name}
           </button>
         ))}
       </div>
 
-      <div role="tabpanel" aria-label={tab} style={styles.body}>
-        {tab === 'Data' && <pre style={styles.pre}>{inspect(data)}</pre>}
+      <div role="tabpanel" aria-label={tab} className="pg-inspector__body">
+        {tab === 'Data' && <pre className="pg-pre">{inspect(data)}</pre>}
         {tab === 'Validation' && <ValidationPane runtime={runtime} />}
         {tab === 'Projection' && <ProjectionPane port={port} data={data} />}
         {tab === 'IR' && <IrPane document={document} />}
         {tab === 'Runtime' && (
           <RuntimePane runtime={runtime} document={document} submission={submission} />
         )}
-        {tab === 'Schema' && <pre style={styles.pre}>{schemaText}</pre>}
+        {tab === 'Schema' && <pre className="pg-pre">{schemaText}</pre>}
         {tab === 'Hints' && (
-          <pre style={styles.pre}>{hints ? inspect(hints) : 'No hints for this example.'}</pre>
+          <pre className="pg-pre">{hints ? inspect(hints) : 'No hints for this example.'}</pre>
         )}
       </div>
     </div>
@@ -105,9 +104,9 @@ function ValidationPane({ runtime }: { runtime: FormRuntime }) {
   const visibleErrors = useStore(runtime.visibleErrors)
 
   if (visibleErrors.length === 0) {
-    return <p style={styles.empty}>No visible errors.</p>
+    return <p className="pg-empty">No visible errors.</p>
   }
-  return <pre style={styles.pre}>{inspect(visibleErrors)}</pre>
+  return <pre className="pg-pre">{inspect(visibleErrors)}</pre>
 }
 
 function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
@@ -116,12 +115,12 @@ function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unkn
 
   return (
     <>
-      <p style={styles.note}>
+      <p className="pg-note">
         The projection for the current data. Recomputed here for inspection, not read
         from the runtime.
       </p>
-      <p style={styles.pointers}>{pointers.length} pointers: {pointers.join(', ')}</p>
-      <pre style={styles.pre}>{inspect(projection)}</pre>
+      <p className="pg-pointers">{pointers.length} pointers: {pointers.join(', ')}</p>
+      <pre className="pg-pre">{inspect(projection)}</pre>
     </>
   )
 }
@@ -130,29 +129,29 @@ function IrPane({ document }: { document: UIDocument }) {
   const nodes = Object.values(document.nodes)
   return (
     <>
-      <p style={styles.note}>
+      <p className="pg-note">
         The UIDocument the renderer consumes. Each node carries the pointer it came
         from, so a field can be followed from schema semantics into the compiled node.
       </p>
-      <table style={styles.table}>
+      <table className="pg-table">
         <thead>
           <tr>
-            <th style={styles.th}>Node</th>
-            <th style={styles.th}>Type</th>
-            <th style={styles.th}>Pointer</th>
+            <th>Node</th>
+            <th>Type</th>
+            <th>Pointer</th>
           </tr>
         </thead>
         <tbody>
           {nodes.map((node) => (
             <tr key={node.id}>
-              <td style={styles.td}>{node.id}</td>
-              <td style={styles.td}>{node.type}</td>
-              <td style={styles.td}>{node.dataPointer ?? '—'}</td>
+              <td>{node.id}</td>
+              <td>{node.type}</td>
+              <td>{node.dataPointer ?? '—'}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <pre style={styles.pre}>{inspect(document)}</pre>
+      <pre className="pg-pre">{inspect(document)}</pre>
     </>
   )
 }
@@ -170,18 +169,18 @@ function RuntimePane({
 
   return (
     <>
-      <h3 style={styles.subheading}>Submission</h3>
-      <pre style={styles.pre}>{inspect(submission)}</pre>
+      <h3 className="pg-subheading">Submission</h3>
+      <pre className="pg-pre">{inspect(submission)}</pre>
 
-      <h3 style={styles.subheading}>Per-node state</h3>
-      <table style={styles.table}>
+      <h3 className="pg-subheading">Per-node state</h3>
+      <table className="pg-table">
         <thead>
           <tr>
-            <th style={styles.th}>Pointer</th>
-            <th style={styles.th}>Dirty</th>
-            <th style={styles.th}>Touched</th>
-            <th style={styles.th}>Status</th>
-            <th style={styles.th}>Shows errors</th>
+            <th>Pointer</th>
+            <th>Dirty</th>
+            <th>Touched</th>
+            <th>Status</th>
+            <th>Shows errors</th>
           </tr>
         </thead>
         <tbody>
@@ -217,97 +216,11 @@ function NodeStateRowInner({
 
   return (
     <tr>
-      <td style={styles.td}>{pointer}</td>
-      <td style={styles.td}>{String(dirty)}</td>
-      <td style={styles.td}>{String(touched)}</td>
-      <td style={styles.td}>{status}</td>
-      <td style={styles.td}>{String(showErrors)}</td>
+      <td>{pointer}</td>
+      <td>{String(dirty)}</td>
+      <td>{String(touched)}</td>
+      <td>{status}</td>
+      <td>{String(showErrors)}</td>
     </tr>
   )
-}
-
-const styles: Record<string, CSSProperties> = {
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: 0,
-    height: '100%',
-  },
-  pipeline: {
-    fontSize: '0.7rem',
-    color: '#666',
-    marginBottom: '0.5rem',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  },
-  tabs: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.25rem',
-    marginBottom: '0.5rem',
-  },
-  tab: {
-    padding: '0.25rem 0.5rem',
-    fontSize: '0.8rem',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: '#ccc',
-    borderRadius: '3px',
-    background: '#fff',
-    cursor: 'pointer',
-  },
-  tabActive: {
-    background: '#e8f0fe',
-    borderColor: '#a8c7fa',
-    fontWeight: 600,
-  },
-  body: {
-    overflow: 'auto',
-    minHeight: 0,
-    flex: '1 1 auto',
-  },
-  subheading: {
-    fontSize: '0.8rem',
-    margin: '0.75rem 0 0.25rem 0',
-  },
-  note: {
-    fontSize: '0.75rem',
-    color: '#666',
-    margin: '0 0 0.5rem 0',
-    lineHeight: 1.4,
-  },
-  pointers: {
-    fontSize: '0.7rem',
-    color: '#444',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    wordBreak: 'break-word',
-    margin: '0 0 0.5rem 0',
-  },
-  empty: {
-    fontSize: '0.85rem',
-    color: '#666',
-  },
-  pre: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '0.75rem',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    margin: 0,
-  },
-  table: {
-    borderCollapse: 'collapse',
-    fontSize: '0.75rem',
-    width: '100%',
-    marginBottom: '0.75rem',
-  },
-  th: {
-    textAlign: 'left',
-    borderBottom: '1px solid #ddd',
-    padding: '0.2rem 0.3rem',
-    fontWeight: 600,
-  },
-  td: {
-    borderBottom: '1px solid #f0f0f0',
-    padding: '0.2rem 0.3rem',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  },
 }
