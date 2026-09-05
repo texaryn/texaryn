@@ -9,17 +9,19 @@
     "build:pages": "vite build --mode pages && node scripts/materialize-routes.mjs"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.4.0",
     "@texaryn/core": "workspace:*",
+    "@texaryn/examples": "workspace:*",
     "@texaryn/react": "workspace:*",
     "@texaryn/react-bootstrap": "workspace:*",
     "@texaryn/react-mui": "workspace:*",
-    "@mui/material": "^9.4.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
     "@texaryn/schema-json": "workspace:*",
-    "@texaryn/examples": "workspace:*",
+    "@texaryn/vue": "workspace:*",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "vue": "^3.5.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",

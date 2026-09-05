@@ -1,10 +1,10 @@
-import { inject, provide } from 'vue'
-import type { InjectionKey } from 'vue'
+import { computed, inject, provide, toValue } from 'vue'
+import type { ComputedRef, InjectionKey, MaybeRefOrGetter } from 'vue'
 import type { FormRuntime, RendererRegistry } from '@texaryn/core'
 import type { WidgetComponent } from './widget.js'
 
 export const FormRuntimeKey: InjectionKey<FormRuntime> = Symbol('texaryn.runtime')
-export const RendererRegistryKey: InjectionKey<RendererRegistry<WidgetComponent>> =
+export const RendererRegistryKey: InjectionKey<ComputedRef<RendererRegistry<WidgetComponent>>> =
   Symbol('texaryn.registry')
 
 export function provideFormRuntime(runtime: FormRuntime): void {
@@ -19,8 +19,20 @@ export function useFormRuntime(): FormRuntime {
   return runtime
 }
 
-export function provideRendererRegistry(registry: RendererRegistry<WidgetComponent>): void {
-  provide(RendererRegistryKey, registry)
+/**
+ * The registry is provided as a computed rather than a value, so a caller
+ * that swaps renderers re-resolves the tree it already has.
+ *
+ * Providing the value itself would freeze the tree on whichever renderer was
+ * selected when it mounted. React gets this free by re-providing on every
+ * render; Vue provides once, so the reactivity has to be in what is provided.
+ * The playground switches renderer without remounting the form, because the
+ * runtime belongs to the example rather than to the presentation over it.
+ */
+export function provideRendererRegistry(
+  registry: MaybeRefOrGetter<RendererRegistry<WidgetComponent>>,
+): void {
+  provide(RendererRegistryKey, computed(() => toValue(registry)))
 }
 
 /**
@@ -32,7 +44,7 @@ export function provideRendererRegistry(registry: RendererRegistry<WidgetCompone
  * every widget however deeply nested, and repeating it per node would create
  * an injection scope per node for no gain.
  */
-export function useRendererRegistry(): RendererRegistry<WidgetComponent> {
+export function useRendererRegistry(): ComputedRef<RendererRegistry<WidgetComponent>> {
   const registry = inject(RendererRegistryKey, null)
   if (!registry) {
     throw new Error('useRendererRegistry must be used inside a FormRoot tree')

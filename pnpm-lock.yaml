@@ -93,12 +93,18 @@ importers:
       '@texaryn/schema-json':
         specifier: workspace:*
         version: link:../../packages/schema-json
+      '@texaryn/vue':
+        specifier: workspace:*
+        version: link:../../packages/vue
       react:
         specifier: ^19.0.0
         version: 19.2.8
       react-dom:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.42(typescript@5.8.3)
     devDependencies:
       '@testing-library/react':
         specifier: ^16.0.0

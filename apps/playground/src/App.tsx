@@ -17,18 +17,23 @@ import type { TexarynExample } from '@texaryn/examples'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
+import { VueHost } from './VueHost.js'
 import { formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 
 const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 
+// Vue carries no React registry: it is a different render surface over the
+// same runtime rather than another set of React widgets, so it is listed here
+// for the selector and rendered through VueHost instead of FormRoot.
 const registries: Record<
   RendererKey,
-  { label: string; registry: RendererRegistry<WidgetComponent> }
+  { label: string; registry: RendererRegistry<WidgetComponent> | null }
 > = {
   default: { label: 'Default', registry: createDefaultRegistry() },
   bootstrap: { label: 'Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { label: 'Material UI', registry: createMuiRegistry() },
+  vue: { label: 'Vue (preview)', registry: null },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -110,7 +115,7 @@ function FormWorkspace({
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
-  registry: RendererRegistry<WidgetComponent>
+  registry: RendererRegistry<WidgetComponent> | null
   schemaText: string
   tab: Tab
   onTabChange: (tab: Tab) => void
@@ -137,7 +142,14 @@ function FormWorkspace({
       <div style={styles.centerPanel}>
         <FormContext.Provider value={form.runtime}>
           <ErrorSummary />
-          <FormRoot registry={registry} />
+          {registry ? (
+            <FormRoot registry={registry} />
+          ) : (
+            // Same runtime, different framework. VueHost mounts a Vue
+            // application over this exact instance rather than building one
+            // of its own, so switching renderer keeps the form.
+            <VueHost runtime={form.runtime} />
+          )}
 
           <div style={styles.submitRow}>
             <button
@@ -291,6 +303,16 @@ export function App() {
           ))}
         </select>
 
+        {rendererKey === 'vue' && (
+          // The playground can render Vue because the package is in this
+          // repository. Saying "Vue" without this would advertise something
+          // nobody can install.
+          <p style={styles.note}>
+            <code>@texaryn/vue</code> is not published yet. It lives in the
+            repository and is not installable from npm.
+          </p>
+        )}
+
         <ExampleBrowser
           query={query}
           onQueryChange={setQuery}
@@ -435,6 +457,12 @@ const styles: Record<string, CSSProperties> = {
     color: '#555',
     lineHeight: 1.4,
     margin: '0.75rem 0 0 0',
+  },
+  note: {
+    fontSize: '0.75rem',
+    color: '#666',
+    lineHeight: 1.4,
+    margin: '0.5rem 0 0 0',
   },
   submitRow: {
     display: 'flex',
