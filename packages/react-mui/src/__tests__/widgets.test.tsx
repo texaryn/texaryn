@@ -251,6 +251,45 @@ describe('MUI field widgets', () => {
     expect(hiddenInput?.required).toBe(false)
   })
 
+  // The invalid state has to reach the combobox, which is the element a
+  // screen reader interacts with. MUI derives it from the `error` prop, so no
+  // slotProps override is involved, and it must stay that way.
+  it('select exposes aria-invalid on the combobox once invalid', async () => {
+    const proj = makeProjection([
+      [
+        '',
+        {
+          type: 'object',
+          children: [{ pointer: toPointer('/role'), key: 'role', required: true }],
+        },
+      ],
+      [
+        '/role',
+        {
+          type: 'string',
+          enumValues: [{ value: 'dev' }, { value: 'pm' }],
+          annotations: { title: 'Role' },
+        },
+      ],
+    ])
+    const invalid: ValidationResult = {
+      valid: false,
+      errors: [{ instancePointer: '/role', keyword: 'enum', message: 'Pick one', params: {} }],
+    }
+    renderForm(proj, { role: 'dev' }, { '/role': { validationTrigger: 'blur' } }, () => invalid)
+
+    const combobox = screen.getByLabelText('Role')
+    // Valid: the attribute is absent rather than "false", so nothing is
+    // announced as invalid before the field has been touched.
+    expect(combobox.hasAttribute('aria-invalid')).toBe(false)
+
+    fireEvent.blur(combobox)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Role').getAttribute('aria-invalid')).toBe('true')
+    })
+  })
+
   it('every aria-describedby target exists in the DOM', () => {
     renderForm(fields, { name: 'A', age: 0, bio: '', role: 'dev', agree: false })
     const name = screen.getByLabelText('Name')

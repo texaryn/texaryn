@@ -26,14 +26,18 @@ function MuiSelectImpl({ node }: WidgetProps) {
       helperText={field.error ?? field.description}
       fullWidth
       slotProps={{
-        // Screen readers see the combobox div, not MUI's aria-hidden native input.
+        // Screen readers see the combobox div, not MUI's aria-hidden native
+        // input, so the required state goes on the display element.
+        //
+        // aria-invalid needs nothing here: for a Select, MUI puts it on that
+        // same combobox from the `error` prop, and omits it entirely when
+        // valid. The other widgets override it on htmlInput because a plain
+        // TextField input always renders aria-invalid="false", which is a
+        // different problem.
         select: {
           SelectDisplayProps: {
             'aria-required': field.required || undefined,
           },
-        },
-        htmlInput: {
-          'aria-invalid': field.invalid || undefined,
         },
         formHelperText: {
           role: field.invalid ? 'alert' : undefined,
