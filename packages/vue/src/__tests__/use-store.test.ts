@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defineComponent, h, nextTick, shallowRef } from 'vue'
+import { defineComponent, effectScope, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createStore } from '@texaryn/core'
 import type { Store } from '@texaryn/core'
@@ -27,6 +27,36 @@ function countingStore<T>(initial: T) {
 function mountWith(setup: () => Record<string, unknown>) {
   return mount(defineComponent({ setup, render: () => h('div') }))
 }
+
+// A composable that owns a subscription and returns only a Ref cannot hand
+// teardown back to its caller. Requiring a scope is what makes the ownership
+// real rather than documented.
+describe('useStore is bound to the scope that calls it', () => {
+  it('refuses to run without one, before subscribing to anything', () => {
+    const counting = countingStore(0)
+    expect(() => useStore(counting.store)).toThrow(/effectScope/)
+    expect(counting.listeners, 'nothing should have been subscribed').toBe(0)
+  })
+
+  it('works inside a bare effect scope, with no component involved', () => {
+    const counting = countingStore('start')
+    const scope = effectScope()
+    let value!: ReturnType<typeof useStore<string>>
+
+    scope.run(() => { value = useStore(counting.store, '') })
+    expect(value.value).toBe('start')
+    expect(counting.listeners).toBe(1)
+
+    counting.set('moved')
+    expect(value.value).toBe('moved')
+
+    scope.stop()
+    expect(counting.listeners, 'stopping the scope should unsubscribe').toBe(0)
+
+    counting.set('after')
+    expect(value.value, 'a stopped scope should stop tracking').toBe('moved')
+  })
+})
 
 describe('useStore', () => {
   it('reads the current snapshot without waiting for a notification', () => {

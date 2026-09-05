@@ -22,6 +22,16 @@ export function useStore<T>(
   source: Store<T> | (() => Store<T> | undefined),
   fallback?: T,
 ): Ref<T | undefined> {
+  // Checked before anything is created, so a misuse cannot leak the thing it
+  // was about to subscribe to. This composable owns a subscription it never
+  // hands back, so an owner that will eventually stop it is a requirement
+  // rather than a convention: without a scope there is nobody to unsubscribe.
+  if (!getCurrentScope()) {
+    throw new Error(
+      'useStore must be called inside setup() or an active effectScope, which owns its subscription',
+    )
+  }
+
   const getStore = typeof source === 'function' ? source : () => source
   // Presence of a store decides the fallback, never the snapshot's value. A
   // field holding null or undefined is a real value, not an absent store.
@@ -44,13 +54,7 @@ export function useStore<T>(
     { immediate: true },
   )
 
-  // A composable is normally called from `setup`, where the component's scope
-  // owns teardown. Called outside one, `onScopeDispose` would warn and the
-  // subscription would leak, so the caller gets the responsibility instead:
-  // `watch` returns its own stop handle.
-  if (getCurrentScope()) {
-    onScopeDispose(stop)
-  }
+  onScopeDispose(stop)
 
   return state
 }

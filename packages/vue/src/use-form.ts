@@ -29,7 +29,8 @@ export interface UseFormReturn {
  *
  * React needs a ref plus an effect to avoid recreating the runtime on every
  * render. `setup` runs once, so the runtime is simply a local, and the whole
- * question disappears rather than being solved differently.
+ * question disappears rather than being solved differently. What replaces it
+ * is the requirement of a scope: the runtime's lifetime is the scope's.
  *
  * Providing is deliberately not folded in here. React's equivalent is a
  * component in the template, `<FormProvider value={form.runtime}>`, and Vue's
@@ -37,11 +38,17 @@ export interface UseFormReturn {
  * step rather than a side effect of construction.
  */
 export function useForm(port: SchemaEvaluationPort, options?: FormRuntimeOptions): UseFormReturn {
-  const runtime = createFormRuntime(port, options)
-
-  if (getCurrentScope()) {
-    onScopeDispose(() => { runtime.destroy() })
+  // Before the runtime exists, so a misuse cannot leak one. A FormRuntime
+  // holds validation timers and subscriptions and is only released by
+  // `destroy`, so an owner that will eventually call it is a requirement.
+  if (!getCurrentScope()) {
+    throw new Error(
+      'useForm must be called inside setup() or an active effectScope, which owns the runtime',
+    )
   }
+
+  const runtime = createFormRuntime(port, options)
+  onScopeDispose(() => { runtime.destroy() })
 
   return {
     runtime,

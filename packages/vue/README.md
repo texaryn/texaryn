@@ -6,20 +6,48 @@ and a small set of native widgets.
 Not published yet. It becomes public once the `0.0.0` placeholder is on npm,
 which is a manual step because OIDC cannot perform a package's first publish.
 
-```ts
+```vue
+<script setup lang="ts">
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { useForm, provideFormRuntime, FormRoot, createDefaultRegistry } from '@texaryn/vue'
+import { useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
 
-const form = useForm(port, { initialData })
+const schema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: { name: { type: 'string', title: 'Name' } },
+  required: ['name'],
+}
+
+const port = await createJsonSchemaAdapter(schema, {})
+const form = useForm(port, { initialData: { name: '' } })
 provideFormRuntime(form.runtime)
-// then render <FormRoot :registry="createDefaultRegistry()" /> in a descendant
+
+const registry = createDefaultRegistry()
+</script>
+
+<template>
+  <!-- FormRoot has to be a descendant, not this component itself -->
+  <FormRoot :registry="registry" />
+</template>
 ```
 
 `useForm` creates the runtime and ties it to the calling scope. Providing is a
 separate call rather than a side effect of construction: React's equivalent is
-`<FormProvider>` in the template, and Vue's is a setup call. Note that a
-component cannot inject what it provided itself, so `FormRoot` and anything
-using `useField` has to be a descendant.
+`<FormProvider>` in the template, and Vue's is a setup call.
+
+A component cannot inject what it provided itself, so `FormRoot` and anything
+calling `useField` has to be a descendant of whichever component called
+`provideFormRuntime`.
+
+## Lifetime is a requirement, not a convention
+
+`useForm` and `useStore` throw when called outside `setup()` or an active
+`effectScope`. Both own something that only teardown releases, a runtime with
+live validation timers and a store subscription, and neither returns a handle
+the caller could stop. Requiring a scope is what makes that ownership real:
+the check runs before anything is created, so a misuse cannot leak the thing
+it was about to allocate. Stopping the scope destroys the runtime and
+unsubscribes.
 
 ## What it does not depend on
 

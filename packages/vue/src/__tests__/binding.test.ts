@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, effectScope, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { mountExample, example, settle } from './harness.js'
@@ -225,6 +225,32 @@ describe('the runtime is owned by the component that made it', () => {
 
     expect(destroy).not.toHaveBeenCalled()
     wrapper.unmount()
+    expect(destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses to build a runtime with nothing to own it', async () => {
+    const ex = example('basics-string')
+    const port = await createJsonSchemaAdapter(ex.schema, {})
+    // A leaked FormRuntime keeps validation timers and subscriptions alive
+    // with no way left to reach its destroy, so this has to fail loudly
+    // rather than quietly work.
+    expect(() => useForm(port, { initialData: ex.initialData })).toThrow(/effectScope/)
+  })
+
+  it('destroys the runtime when a bare effect scope stops', async () => {
+    const ex = example('basics-string')
+    const port = await createJsonSchemaAdapter(ex.schema, {})
+    const scope = effectScope()
+    const destroy = vi.fn()
+
+    scope.run(() => {
+      const form = useForm(port, { initialData: ex.initialData })
+      const original = form.runtime.destroy.bind(form.runtime)
+      form.runtime.destroy = () => { destroy(); original() }
+    })
+
+    expect(destroy).not.toHaveBeenCalled()
+    scope.stop()
     expect(destroy).toHaveBeenCalledTimes(1)
   })
 
