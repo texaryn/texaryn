@@ -1,5 +1,5 @@
 {
-  "name": "@texaryn/binding-spikes",
+  "name": "@texaryn/conformance-tests",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -9,7 +9,8 @@
     "@texaryn/react": "workspace:*",
     "@texaryn/react-bootstrap": "workspace:*",
     "@texaryn/react-mui": "workspace:*",
-    "@texaryn/examples": "workspace:*"
+    "@texaryn/examples": "workspace:*",
+    "@texaryn/vue": "workspace:*"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",
@@ -17,8 +18,10 @@
     "@mui/material": "^9.4.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
+    "@vue/test-utils": "^2.4.6",
     "jsdom": "^25.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "vue": "^3.5.0"
   }
 }

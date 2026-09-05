@@ -74,6 +74,15 @@ resolves the bundle so a recompile re-resolves it.
 
 Both are covered by tests that fail when the behaviour is removed.
 
+## Conformance
+
+`tests/example-conformance/vue.test.ts` runs the whole catalog through this
+package and makes the same two claims the React renderers make: every example
+mounts without a console error or warning, and every active node in every
+example resolves a widget. The framework-neutral half of that harness is
+shared; mounting is not, because the two frameworks do not share a mounting
+model.
+
 ## No single file components
 
 The package ships plain TypeScript with render functions, so it builds with
