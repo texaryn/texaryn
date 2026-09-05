@@ -1,4 +1,4 @@
-import { copyFileSync } from 'node:fs'
+import { copyFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -21,7 +21,16 @@ function pagesSpaFallback() {
     },
     closeBundle() {
       const dist = resolve(root, outDir)
-      copyFileSync(resolve(dist, 'index.html'), resolve(dist, '404.html'))
+      const index = resolve(dist, 'index.html')
+      if (!existsSync(index)) {
+        // Usually means the workspace packages were never built, so nothing
+        // resolved and no HTML was emitted. Say that rather than surfacing a
+        // copyfile ENOENT that points at the wrong problem.
+        throw new Error(
+          `pages-spa-fallback: ${index} was not emitted. Run \`pnpm build\` before building the demo.`,
+        )
+      }
+      copyFileSync(index, resolve(dist, '404.html'))
     },
   }
 }
