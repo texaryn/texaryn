@@ -31,7 +31,7 @@ After merging:
 
 ## Publish
 
-After the Version Packages PR merges, the `changesets` job finds no pending changesets and runs `scripts/check-unpublished-packages.mjs`, which asks the registry for the exact version in each of the four public `package.json` files. Because the merge just raised those versions, they are missing, `should-publish` is true and the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
+After the Version Packages PR merges, the `changesets` job finds no pending changesets and runs `scripts/check-unpublished-packages.mjs`, which asks the registry for the exact version in each of the six public `package.json` files, the list `scripts/packages.mjs` owns. Because the merge just raised those versions, they are missing, `should-publish` is true and the `publish` job starts. It targets the protected `npm-release` GitHub environment and waits there until a required reviewer approves the deployment: open the run for the merge commit in the Actions tab and use "Review deployments". Nothing reaches npm before that approval. The release is not live until the deployment is approved.
 
 The check fails open. A 404 for any package means publish. A 5xx, a timeout or any other answer the script cannot classify also means publish, so an npm outage can delay a release at the gate but can never skip one. Only a confirmed 200 for every package stops the job.
 
