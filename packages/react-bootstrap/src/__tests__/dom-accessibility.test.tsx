@@ -4,5 +4,5 @@ import { createBootstrapRegistry } from '../index.js'
 
 rendererDomAccessibilityContract({
   adapter: reactAdapter('react-bootstrap', createBootstrapRegistry),
-  knownGaps: ['duplicate-id', 'cross-instance-reference', 'missing-named-group'],
+  knownGaps: ['missing-named-group'],
 })

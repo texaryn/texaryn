@@ -2,6 +2,7 @@ import { computed, inject, provide, toValue } from 'vue'
 import type { ComputedRef, InjectionKey, MaybeRefOrGetter } from 'vue'
 import type { FormRuntime, RendererRegistry } from '@texaryn/core'
 import type { WidgetComponent } from './widget.js'
+import { provideIdPrefix } from './id-prefix.js'
 
 export const FormRuntimeKey: InjectionKey<FormRuntime> = Symbol('texaryn.runtime')
 export const RendererRegistryKey: InjectionKey<ComputedRef<RendererRegistry<WidgetComponent>>> =
@@ -9,6 +10,7 @@ export const RendererRegistryKey: InjectionKey<ComputedRef<RendererRegistry<Widg
 
 export function provideFormRuntime(runtime: FormRuntime): void {
   provide(FormRuntimeKey, runtime)
+  provideIdPrefix()
 }
 
 export function useFormRuntime(): FormRuntime {

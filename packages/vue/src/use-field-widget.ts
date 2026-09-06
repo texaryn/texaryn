@@ -5,6 +5,7 @@ import type { FieldNode, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
 import { fieldAria, fieldLabel, makeId } from './field-props.js'
 import type { FieldAria } from './field-props.js'
+import { useFormIdPrefix } from './id-prefix.js'
 
 const NO_ERRORS: readonly ValidationError[] = Object.freeze<ValidationError[]>([])
 
@@ -61,6 +62,7 @@ export interface FieldWidget {
 export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWidget {
   const node = computed(() => toValue(nodeSource))
   const field = useField(() => node.value.id)
+  const idPrefix = useFormIdPrefix()
   const kind = computed(() => fieldKind(node.value))
 
   const errors = computed(() => (field.showErrors.value ? field.errors.value : NO_ERRORS))
@@ -73,15 +75,19 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
     display: computed(() => displayValue(kind.value, field.value.value)),
     label: computed(() => fieldLabel(node.value)),
     description: computed(() => node.value.helpText ?? node.value.annotations.description),
-    descriptionId: computed(() => makeId(node.value.id, 'description')),
-    errorId: computed(() => makeId(node.value.id, 'error')),
-    labelFor: computed(() => makeId(node.value.id, 'input')),
+    descriptionId: computed(() => makeId(idPrefix, node.value.id, 'description')),
+    errorId: computed(() => makeId(idPrefix, node.value.id, 'error')),
+    labelFor: computed(() => makeId(idPrefix, node.value.id, 'input')),
     aria: computed(() =>
-      fieldAria(node.value, {
-        disabled: field.disabled.value,
-        showErrors: field.showErrors.value,
-        errors: field.errors.value,
-      }),
+      fieldAria(
+        node.value,
+        {
+          disabled: field.disabled.value,
+          showErrors: field.showErrors.value,
+          errors: field.errors.value,
+        },
+        idPrefix,
+      ),
     ),
     errors,
     invalid,

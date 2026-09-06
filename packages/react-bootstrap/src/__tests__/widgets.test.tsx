@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints, ValidationResult } from '@texaryn/core'
-import { FormContext, FormRoot, useForm } from '@texaryn/react'
+import { FormProvider, FormRoot, useForm } from '@texaryn/react'
 import { createBootstrapRegistry } from '../index.js'
 
 function toPointer(s: string): JsonPointer { return s as JsonPointer }
@@ -28,9 +28,9 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints, vali
   function TestForm() {
     const form = useForm(port, { initialData: data, hints })
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={createBootstrapRegistry()} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
   return render(<TestForm />)

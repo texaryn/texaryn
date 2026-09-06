@@ -11,7 +11,7 @@ import type {
   UIHints,
   ValidationResult,
 } from '@texaryn/core'
-import { FormContext } from '../../context.js'
+import { FormProvider } from '../../context.js'
 import { useForm } from '../use-form.js'
 import { useFieldBinding } from '../use-field-binding.js'
 import type { FieldBinding } from '../use-field-binding.js'
@@ -66,9 +66,9 @@ function mount(
     const form = useForm(port, { initialData: options.data ?? {}, hints: options.hints })
     const node = Object.values(form.document.nodes).find((n) => n.dataPointer === '/f') as FieldNode
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <Probe node={node} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
   render(<Host />)
@@ -150,9 +150,13 @@ describe('useFieldBinding: derivations', () => {
   it('returns the three prop getters unchanged', () => {
     const { binding } = mount({ type: 'string', annotations: { description: 'd' } })
     const id = binding().node.id
-    expect(binding().labelProps).toEqual({ id: `texaryn-${id}-label`, htmlFor: `texaryn-${id}-input` })
-    expect(binding().descriptionProps).toEqual({ id: `texaryn-${id}-description` })
-    expect(binding().errorProps).toEqual({ id: `texaryn-${id}-error`, role: 'alert' })
+    // The prefix belongs to the provider instance, so the claim is that the
+    // four getters agree on one namespace, not what that namespace is.
+    const prefix = binding().labelProps.id.replace(`-${id}-label`, '')
+    expect(prefix).toMatch(/^texaryn-[0-9a-z_]+$/)
+    expect(binding().labelProps).toEqual({ id: `${prefix}-${id}-label`, htmlFor: `${prefix}-${id}-input` })
+    expect(binding().descriptionProps).toEqual({ id: `${prefix}-${id}-description` })
+    expect(binding().errorProps).toEqual({ id: `${prefix}-${id}-error`, role: 'alert' })
   })
 
   it('passes touched, dirty, disabled, visible and onBlur through from useField', async () => {
@@ -236,10 +240,12 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
       { hints: { '/f': { placeholder: 'p' } } },
     )
     const p = binding().domInputProps
-    expect(p.id).toBe(`texaryn-${binding().node.id}-input`)
+    const nodeId = binding().node.id
+    const prefix = binding().labelProps.htmlFor.replace(`-${nodeId}-input`, '')
+    expect(p.id).toBe(`${prefix}-${nodeId}-input`)
     expect(p.name).toBe('/f')
     expect(p.disabled).toBe(false)
-    expect(p['aria-describedby']).toBe(`texaryn-${binding().node.id}-description`)
+    expect(p['aria-describedby']).toBe(`${prefix}-${nodeId}-description`)
     expect(p.placeholder).toBe('p')
     expect(typeof p.onBlur).toBe('function')
     const c = binding().domCheckboxProps

@@ -11,7 +11,7 @@ and a small set of native widgets.
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue vue
 ```
 
-`@texaryn/vue` requires Vue 3.4 or newer.
+`@texaryn/vue` requires Vue 3.5 or newer, for `useId`.
 
 ## Quick start
 
@@ -47,6 +47,12 @@ separate call rather than a side effect of construction: React's equivalent is
 A component cannot inject what it provided itself, so `FormRoot` and anything
 calling `useField` has to be a descendant of whichever component called
 `provideFormRuntime`.
+
+That call also opens the DOM id namespace for the form, which is why it sits
+there rather than in `FormRoot`: a sibling added later shares the same scope.
+Generated ids are opaque relationship identifiers rather than styling hooks, so
+use classes or data attributes for CSS. Uniqueness is per Vue application, so
+two independent apps on one page need distinct `app.config.idPrefix` values.
 
 ## Lifetime is a requirement, not a convention
 

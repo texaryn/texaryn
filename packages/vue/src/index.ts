@@ -19,6 +19,7 @@ export { useFieldWidget } from './use-field-widget.js'
 export type { FieldKind, FieldWidget } from './use-field-widget.js'
 
 export { fieldAria, fieldLabel, makeId } from './field-props.js'
+export { useFormIdPrefix } from './id-prefix.js'
 export type { FieldAria } from './field-props.js'
 
 export type { WidgetComponent } from './widget.js'

@@ -6,9 +6,13 @@
 
 # Function: makeId()
 
-> **makeId**(`nodeId`, `suffix`): `string`
+> **makeId**(`idPrefix`, `nodeId`, `suffix`): `string`
 
 ## Parameters
+
+### idPrefix
+
+`string`
 
 ### nodeId
 

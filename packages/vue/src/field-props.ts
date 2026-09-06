@@ -21,26 +21,27 @@ export interface FieldAria {
   placeholder?: string
 }
 
-export function makeId(nodeId: string, suffix: string): string {
-  return `texaryn-${nodeId}-${suffix}`
+export function makeId(idPrefix: string, nodeId: string, suffix: string): string {
+  return `${idPrefix}-${nodeId}-${suffix}`
 }
 
 export function fieldAria(
   node: FieldNode,
   state: { disabled: boolean; showErrors: boolean; errors: readonly ValidationError[] },
+  idPrefix: string,
 ): FieldAria {
   const describedBy: string[] = []
   if (node.helpText ?? node.annotations?.description) {
-    describedBy.push(makeId(node.id, 'description'))
+    describedBy.push(makeId(idPrefix, node.id, 'description'))
   }
 
   const invalid = state.showErrors && state.errors.length > 0
   if (invalid) {
-    describedBy.push(makeId(node.id, 'error'))
+    describedBy.push(makeId(idPrefix, node.id, 'error'))
   }
 
   return {
-    id: makeId(node.id, 'input'),
+    id: makeId(idPrefix, node.id, 'input'),
     name: node.dataPointer || node.id,
     disabled: state.disabled,
     'aria-required': Boolean(node.constraints?.required),

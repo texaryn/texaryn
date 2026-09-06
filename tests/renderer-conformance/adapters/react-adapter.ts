@@ -1,7 +1,7 @@
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { RendererRegistry } from '@texaryn/core'
-import { FormContext, FormRoot } from '@texaryn/react'
+import { FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 import type { DomAccessibilityAdapter } from '../renderer-dom-accessibility-contract.js'
 
@@ -23,7 +23,7 @@ export function reactAdapter(
       await act(async () => {
         root.render(
           createElement(
-            FormContext.Provider,
+            FormProvider,
             { value: runtime },
             createElement(FormRoot, { registry }),
           ),

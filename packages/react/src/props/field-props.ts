@@ -54,25 +54,29 @@ export interface DescriptionProps extends Record<string, unknown> {
   id: string
 }
 
-export function makeId(nodeId: string, suffix: string): string {
-  return `texaryn-${nodeId}-${suffix}`
+export function makeId(idPrefix: string, nodeId: string, suffix: string): string {
+  return `${idPrefix}-${nodeId}-${suffix}`
 }
 
 /**
  * getInputProps: Returns ARIA-correct props for an input element
  * Includes id, name, value, disabled, aria-required, aria-invalid, aria-describedby
  */
-export function getInputProps(node: FieldNode, fieldState: FieldState): InputProps {
-  const id = makeId(node.id, 'input')
+export function getInputProps(
+  node: FieldNode,
+  fieldState: FieldState,
+  idPrefix: string,
+): InputProps {
+  const id = makeId(idPrefix, node.id, 'input')
   const hasDescription = Boolean(node.helpText ?? node.annotations?.description)
 
   // Build aria-describedby from description and error IDs, in that order
   const describedByIds: string[] = []
   if (hasDescription) {
-    describedByIds.push(makeId(node.id, 'description'))
+    describedByIds.push(makeId(idPrefix, node.id, 'description'))
   }
   if (fieldState.showErrors && fieldState.errors.length > 0) {
-    describedByIds.push(makeId(node.id, 'error'))
+    describedByIds.push(makeId(idPrefix, node.id, 'error'))
   }
 
   const props: InputProps = {
@@ -100,19 +104,19 @@ export function getInputProps(node: FieldNode, fieldState: FieldState): InputPro
 /**
  * getLabelProps: Returns ARIA-correct props for a label element
  */
-export function getLabelProps(node: FieldNode): LabelProps {
+export function getLabelProps(node: FieldNode, idPrefix: string): LabelProps {
   return {
-    id: makeId(node.id, 'label'),
-    htmlFor: makeId(node.id, 'input'),
+    id: makeId(idPrefix, node.id, 'label'),
+    htmlFor: makeId(idPrefix, node.id, 'input'),
   }
 }
 
 /**
  * getErrorProps: Returns ARIA-correct props for an error container
  */
-export function getErrorProps(node: FieldNode): ErrorProps {
+export function getErrorProps(node: FieldNode, idPrefix: string): ErrorProps {
   return {
-    id: makeId(node.id, 'error'),
+    id: makeId(idPrefix, node.id, 'error'),
     role: 'alert',
   }
 }
@@ -120,8 +124,8 @@ export function getErrorProps(node: FieldNode): ErrorProps {
 /**
  * getDescriptionProps: Returns ARIA-correct props for a description element
  */
-export function getDescriptionProps(node: FieldNode): DescriptionProps {
+export function getDescriptionProps(node: FieldNode, idPrefix: string): DescriptionProps {
   return {
-    id: makeId(node.id, 'description'),
+    id: makeId(idPrefix, node.id, 'description'),
   }
 }

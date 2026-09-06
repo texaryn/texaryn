@@ -6,7 +6,7 @@
 
 # Function: getLabelProps()
 
-> **getLabelProps**(`node`): [`LabelProps`](../interfaces/LabelProps.md)
+> **getLabelProps**(`node`, `idPrefix`): [`LabelProps`](../interfaces/LabelProps.md)
 
 getLabelProps: Returns ARIA-correct props for a label element
 
@@ -15,6 +15,10 @@ getLabelProps: Returns ARIA-correct props for a label element
 ### node
 
 [`FieldNode`](../../core/interfaces/FieldNode.md)
+
+### idPrefix
+
+`string`
 
 ## Returns
 
