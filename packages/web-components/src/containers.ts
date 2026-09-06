@@ -75,12 +75,24 @@ function childKey(node: UINode): string {
   return index >= 0 ? pointer.slice(index + 1) : pointer
 }
 
+/** The root object is the form itself, so only a nested titled object names a group. */
+function groupTitle(node: UINode): string | undefined {
+  return node.parentId === null ? undefined : node.annotations.title
+}
+
 export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
-  const root = document.createElement('div')
+  const titled = groupTitle(initial) !== undefined
+  const root = document.createElement(titled ? 'fieldset' : 'div')
   root.className = 'texaryn-object'
+  const legend = titled ? document.createElement('legend') : null
+  if (legend) root.append(legend)
+  // Children live in their own element so the legend is never a candidate for reorder.
+  const body = titled ? document.createElement('div') : root
+  if (body !== root) root.append(body)
   const bindings = new Map<string, NodeBinding>()
 
   function reconcile(node: ContainerNode): void {
+    if (legend) legend.textContent = groupTitle(node) ?? ''
     const nodes = currentNodes(ctx)
     const wanted = node.children.map((id) => nodes[id]).filter((n): n is UINode => n != null)
     const keep = new Set<string>()
@@ -103,7 +115,7 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
       binding.element.remove()
       bindings.delete(key)
     }
-    reorder(root, elements)
+    reorder(body, elements)
   }
 
   reconcile(initial as ContainerNode)
