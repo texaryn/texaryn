@@ -118,6 +118,15 @@ It also exposes:
 
 Node state is kept outside the UI IR and includes value, validation, dirty/touched state, visibility, and disabled state.
 
+Read-only is not node state: it comes from the schema, so it lives on the
+compiled node as `readOnly` and is resolved rather than raw. A read-only object
+or array makes everything beneath it read-only too, because editing a
+descendant changes the ancestor's value. The runtime refuses `SetValue`,
+`InsertItem`, `RemoveItem` and `MoveItem` on a read-only node, so a renderer
+cannot write past it. `Reset` is deliberately exempt: it is the owning
+authority replacing state wholesale rather than a user edit, and it is how a
+server-owned value legitimately changes.
+
 ## Commands
 
 The runtime currently understands:

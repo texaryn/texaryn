@@ -27,6 +27,7 @@ function MuiTextareaImpl({ node }: WidgetProps) {
       fullWidth
       slotProps={{
         htmlInput: {
+          readOnly: field.readOnly,
           'aria-required': field.required || undefined,
           'aria-invalid': field.invalid || undefined,
         },

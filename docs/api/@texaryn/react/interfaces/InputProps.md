@@ -86,6 +86,12 @@ HTML/ARIA attributes for an input element
 
 ***
 
+### readOnly
+
+> **readOnly**: `boolean`
+
+***
+
 ### value
 
 > **value**: `unknown`

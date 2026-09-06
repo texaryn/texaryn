@@ -34,6 +34,20 @@ Checked-shaped surface for checkbox controls.
 
 ***
 
+### aria-readonly?
+
+> `optional` **aria-readonly?**: `true`
+
+Set only where HTML has no native `readonly`, which is every control but
+text, number and textarea. Those carry the native attribute instead, on
+the value surface below.
+
+#### Inherited from
+
+[`DomInputBaseProps`](DomInputBaseProps.md).[`aria-readonly`](DomInputBaseProps.md#aria-readonly)
+
+***
+
 ### aria-required
 
 > **aria-required**: `boolean`

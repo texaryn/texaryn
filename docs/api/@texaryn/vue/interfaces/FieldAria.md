@@ -30,6 +30,14 @@ consumer, not from this file existing.
 
 ***
 
+### aria-readonly?
+
+> `optional` **aria-readonly?**: `true`
+
+Set instead where HTML has no native read-only, so select and checkbox.
+
+***
+
 ### aria-required
 
 > **aria-required**: `boolean`
@@ -57,3 +65,11 @@ consumer, not from this file existing.
 ### placeholder?
 
 > `optional` **placeholder?**: `string`
+
+***
+
+### readonly?
+
+> `optional` **readonly?**: `boolean`
+
+Native `readonly`, which HTML honours on text, number and textarea only.

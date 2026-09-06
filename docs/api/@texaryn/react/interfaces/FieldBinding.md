@@ -96,6 +96,12 @@ Visible errors only: empty until the field is touched and invalid.
 
 ***
 
+### readOnly
+
+> **readOnly**: `boolean`
+
+***
+
 ### required
 
 > **required**: `boolean`

@@ -37,6 +37,7 @@ function MuiSelectImpl({ node }: WidgetProps) {
         select: {
           SelectDisplayProps: {
             'aria-required': field.required || undefined,
+            'aria-readonly': field.readOnly || undefined,
           },
         },
         formHelperText: {

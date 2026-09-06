@@ -299,8 +299,10 @@ describe('MUI field widgets', () => {
     }
   })
 
-  it('disabled state propagates', () => {
-    const disabledFields = makeProjection([
+  // MUI does not pass readOnly through to the DOM the way it passes disabled,
+  // so this pins the slot the mapping actually goes through.
+  it('renders a readOnly field as read only rather than disabled', () => {
+    const readOnlyField = makeProjection([
       [
         '',
         {
@@ -310,9 +312,10 @@ describe('MUI field widgets', () => {
       ],
       ['/name', { type: 'string', annotations: { title: 'Name', readOnly: true } }],
     ])
-    renderForm(disabledFields, { name: '' })
+    renderForm(readOnlyField, { name: 'set by the server' })
     const name = screen.getByLabelText('Name') as HTMLInputElement
-    expect(name.disabled).toBe(true)
+    expect(name.readOnly).toBe(true)
+    expect(name.disabled).toBe(false)
   })
 
   it('number rendered through number input stays numeric', () => {
@@ -504,5 +507,46 @@ describe('MUI theming', () => {
     }
     render(<TestForm />)
     expect(screen.getByLabelText('Name')).toBeTruthy()
+  })
+})
+
+// MUI routes both through slots rather than spreading DOM props, so the
+// mapping is worth pinning separately from the other React widget sets.
+describe('MUI read-only controls', () => {
+  const readOnlyProjection = makeProjection([
+    [
+      '',
+      {
+        type: 'object',
+        children: [
+          { pointer: toPointer('/role'), key: 'role', required: false },
+          { pointer: toPointer('/agree'), key: 'agree', required: false },
+        ],
+      },
+    ],
+    [
+      '/role',
+      {
+        type: 'string',
+        enumValues: [{ value: 'dev' }, { value: 'pm' }],
+        annotations: { title: 'Role', readOnly: true },
+      },
+    ],
+    ['/agree', { type: 'boolean', annotations: { title: 'Agree', readOnly: true } }],
+  ])
+
+  it('marks the combobox and the checkbox read only without disabling them', () => {
+    renderForm(readOnlyProjection, { role: 'dev', agree: false })
+    const combobox = screen.getByRole('combobox', { name: 'Role' })
+    const checkbox = screen.getByLabelText('Agree') as HTMLInputElement
+    expect(combobox.getAttribute('aria-readonly')).toBe('true')
+    expect(checkbox.getAttribute('aria-readonly')).toBe('true')
+    expect(checkbox.disabled).toBe(false)
+  })
+
+  it('refuses a checkbox toggle', () => {
+    renderForm(readOnlyProjection, { role: 'dev', agree: false })
+    fireEvent.click(screen.getByLabelText('Agree'))
+    expect((screen.getByLabelText('Agree') as HTMLInputElement).checked).toBe(false)
   })
 })

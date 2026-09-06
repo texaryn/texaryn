@@ -29,6 +29,7 @@ function MuiCheckboxImpl({ node }: WidgetProps) {
                 id: field.domCheckboxProps.id,
                 name: field.domCheckboxProps.name,
                 'aria-required': field.required || undefined,
+                'aria-readonly': field.readOnly || undefined,
                 'aria-invalid': field.invalid || undefined,
                 'aria-describedby': feedback ? helperId : undefined,
               },

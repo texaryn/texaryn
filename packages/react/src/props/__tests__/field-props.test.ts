@@ -13,6 +13,7 @@ function makeFieldNode(overrides?: Partial<FieldNode>): FieldNode {
     order: 0,
     visible: true,
     disabled: false,
+    readOnly: false,
     annotations: { title: 'Full Name', description: 'Enter your name' },
     fieldType: 'string',
     constraints: {},

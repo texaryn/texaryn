@@ -75,6 +75,14 @@ const kindsSchema = {
   },
 }
 
+const readOnlySchema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', title: 'Code', readOnly: true },
+    name: { type: 'string', title: 'Name' },
+  },
+}
+
 const groupedSchema = {
   type: 'object',
   properties: {
@@ -282,6 +290,18 @@ export function rendererDomAccessibilityContract({
         runtime.dispatch({ type: 'Submit' })
       })
       expect(input.getAttribute('aria-invalid')).toBe('true')
+    })
+
+    // Read-only and disabled are different states: a read-only control stays
+    // focusable and selectable. Enforcement is the runtime's job and is proven
+    // in core; what every renderer owes is saying which state this is.
+    it('exposes a read-only field as read only rather than disabled', async () => {
+      const { q } = await mount(readOnlySchema, { code: 'abc', name: '' })
+      const readOnly = q.getByRole('textbox', { name: 'Code' }) as HTMLInputElement
+      const editable = q.getByRole('textbox', { name: 'Name' }) as HTMLInputElement
+      expect(readOnly.readOnly).toBe(true)
+      expect(readOnly.disabled).toBe(false)
+      expect(editable.readOnly).toBe(false)
     })
 
     it('exposes a titled nested object as a named group', async () => {

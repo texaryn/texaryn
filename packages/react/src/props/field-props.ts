@@ -23,6 +23,7 @@ export interface InputProps extends Record<string, unknown> {
   name: string
   value: unknown
   disabled: boolean
+  readOnly: boolean
   'aria-required': boolean
   'aria-invalid'?: boolean
   'aria-describedby'?: string
@@ -84,6 +85,7 @@ export function getInputProps(
     name: node.dataPointer || node.id,
     value: fieldState.value,
     disabled: fieldState.disabled,
+    readOnly: node.readOnly,
     'aria-required': Boolean(node.constraints?.required),
     'aria-describedby': describedByIds.length > 0 ? describedByIds.join(' ') : undefined,
     onChange: fieldState.onChange,

@@ -49,6 +49,13 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
   const commit = (): void => {
     // Read the node at event time, never captured: a stale id after a move
     // would write into the row that took this one's place.
+    if (node.readOnly) {
+      // The runtime refuses the write anyway. Re-rendering puts the control
+      // back, which native readonly does for a text field but not for a
+      // select or a checkbox the user just toggled.
+      render()
+      return
+    }
     const value =
       control instanceof HTMLInputElement && kind === 'boolean'
         ? control.checked
@@ -100,6 +107,14 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
       if (control.value !== text) control.value = text
     }
     control.disabled = state.disabled
+    // Native readonly covers text and number; a select or checkbox can only
+    // say so through ARIA, and is put back by commit above.
+    if (control instanceof HTMLInputElement && kind !== 'boolean') control.readOnly = node.readOnly
+    if (node.readOnly && (kind === 'boolean' || kind === 'enum')) {
+      control.setAttribute('aria-readonly', 'true')
+    } else {
+      control.removeAttribute('aria-readonly')
+    }
     if (node.placeholder && !(control instanceof HTMLSelectElement)) control.placeholder = node.placeholder
     if (node.constraints.required) control.setAttribute('aria-required', 'true')
     else control.removeAttribute('aria-required')

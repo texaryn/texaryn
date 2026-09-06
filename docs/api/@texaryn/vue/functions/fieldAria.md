@@ -6,7 +6,7 @@
 
 # Function: fieldAria()
 
-> **fieldAria**(`node`, `state`, `idPrefix`): [`FieldAria`](../interfaces/FieldAria.md)
+> **fieldAria**(`node`, `state`, `idPrefix`, `nativeReadOnly?`): [`FieldAria`](../interfaces/FieldAria.md)
 
 ## Parameters
 
@@ -31,6 +31,10 @@ readonly [`ValidationError`](../../core/interfaces/ValidationError.md)[]
 ### idPrefix
 
 `string`
+
+### nativeReadOnly?
+
+`boolean` = `true`
 
 ## Returns
 
