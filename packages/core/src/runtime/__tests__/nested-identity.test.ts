@@ -94,6 +94,18 @@ describe('nested array identity', () => {
     runtime.destroy()
   })
 
+  it('rows with equal tag counts do not swap inner identities on a move', () => {
+    const equal: Data = { rows: [{ name: 'A', tags: ['a1', 'a2'] }, { name: 'B', tags: ['b1', 'b2'] }] }
+    const runtime = createFormRuntime(port(), { initialData: equal })
+    const before = arrays(runtime)
+    expect(before['/rows/0/tags']).not.toEqual(before['/rows/1/tags'])
+    runtime.dispatch({ type: 'MoveItem', containerId: nodeAt(runtime, '/rows'), from: 1, to: 0 })
+    const after = arrays(runtime)
+    expect(after['/rows/0/tags']).toEqual(before['/rows/1/tags'])
+    expect(after['/rows/1/tags']).toEqual(before['/rows/0/tags'])
+    runtime.destroy()
+  })
+
   it('inner identities survive an insert and a remove above them', () => {
     const runtime = createFormRuntime(port(), { initialData: initial })
     const before = arrays(runtime)
