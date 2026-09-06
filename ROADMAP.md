@@ -661,8 +661,9 @@ Three kinds of identity serve three purposes:
 
 | Identity | Purpose | Example | Lifetime |
 |---|---|---|---|
-| `NodeId` | Identify a node in the IR | `"node_abc123"` | Stable across recompilation |
-| `StableItemId` | Identify an array item | `"item_xyz789"` | Stable across move/insert/remove |
+| `NodeId` | Identify a node in the IR | `"node_12"` | Positional: reassigned when the structure before it changes |
+| `StableItemId` | Identify an array item | `"item_7"` | Stable across move/insert/remove |
+| `IdentityKey` | Address an array container across recompiles | `"p=rows/i=item_1/p=tags"` | Stable for the logical container's lifetime |
 | JSON Pointer | Address data | `"/address/street"` | Changes when array items move |
 
 ### The Problem
@@ -684,13 +685,22 @@ The runtime maintains a parallel identity map:
 
 ```typescript
 interface IdentityMap {
-  // For each array container, maps stable item IDs to current indices
-  arrayIdentities: Map<NodeId, StableItemId[]>
+  // For each array container, addressed by its IdentityKey, the stable item IDs in order
+  arrayIdentities: Map<IdentityKey, StableItemId[]>
 
-  // Reverse lookup: stable item ID to its container and current index
-  itemLookup: Map<StableItemId, { containerId: NodeId; index: number }>
+  // Reverse lookup: stable item ID to its container key and current index
+  itemLookup: Map<StableItemId, { containerKey: IdentityKey; index: number }>
 }
 ```
+
+An `IdentityKey` is built from the property names and `StableItemId`s on the
+path to the array (`p=rows/i=item_1/p=tags`), never from a positional node id,
+so it does not move when rows above it are reordered and a nested array keeps
+its item identities when its row moves. It is exposed as
+`ArrayMeta.identityKey`, stable for the logical container's lifetime and
+otherwise opaque. The compiler returns identity only for the arrays it
+visited, so an array that leaves the document is minted afresh when it
+returns, while an inactive one is still compiled and keeps its ids.
 
 When the runtime processes an `InsertItem` command:
 
@@ -718,7 +728,13 @@ When data arrives from outside (server push, undo, reset):
    The hint lives in runtime configuration or UI hints, not in the JSON Schema
    itself (identity is Texaryn behavior, not data semantics).
 3. Matched items keep their `StableItemId`. Unmatched items get new IDs.
-4. This is the one case where identity can change, and it is explicit.
+4. This is the one case where identity can change, and it is explicit. `Reset`
+   is wholesale state replacement, not a structural edit: `InsertItem`,
+   `RemoveItem` and `MoveItem` preserve the identity of everything they do not
+   touch, while a `Reset` re-establishes it by matching, so the nested arrays
+   under a row that changed position may be minted afresh. This is revisited
+   only if a binding starts using `Reset` for routine parent-driven value
+   synchronisation, where re-minting would cost focus and widget state.
 
 ### JSON Pointer Mapping
 
@@ -735,8 +751,9 @@ function resolveItemId(pointer: string, containerId: NodeId): StableItemId
 
 The JSON Pointer is stored in the IR snapshot (`NodeBase.dataPointer`) but can
 change between snapshots when items above it are inserted or removed. The
-`NodeId` and `StableItemId` remain constant across recompilation; the pointer
-does not.
+`StableItemId` remains constant across recompilation; the pointer does not, and
+neither does the positional `NodeId`, which is why renderers key rows by
+`StableItemId` and object children by property name.
 
 ## 7. State and Reactivity Model
 

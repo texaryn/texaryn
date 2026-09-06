@@ -106,6 +106,17 @@ describe('nested array identity', () => {
     runtime.destroy()
   })
 
+  it('Reset re-establishes identity and may mint nested arrays afresh', () => {
+    const runtime = createFormRuntime(port(), { initialData: initial })
+    const before = arrays(runtime)
+    runtime.dispatch({ type: 'Reset', data: { rows: [initial.rows[1], initial.rows[0]] } })
+    const after = arrays(runtime)
+    expect(after['/rows']).toEqual([before['/rows'][1], before['/rows'][0]])
+    expect(after['/rows/0/tags']).toHaveLength(1)
+    expect(before['/rows/1/tags']).not.toContain(after['/rows/0/tags'][0])
+    runtime.destroy()
+  })
+
   it('inner identities survive an insert and a remove above them', () => {
     const runtime = createFormRuntime(port(), { initialData: initial })
     const before = arrays(runtime)
