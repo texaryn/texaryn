@@ -75,24 +75,38 @@ function childKey(node: UINode): string {
   return index >= 0 ? pointer.slice(index + 1) : pointer
 }
 
-/** The root object is the form itself, so only a nested titled object names a group. */
-function groupTitle(node: UINode): string | undefined {
-  return node.parentId === null ? undefined : node.annotations.title
-}
-
 export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
-  const titled = groupTitle(initial) !== undefined
-  const root = document.createElement(titled ? 'fieldset' : 'div')
+  // Whether a node is nested is fixed for its lifetime, but its title is not:
+  // a conditional subschema can add or drop one on any recompile, and this
+  // widget survives that. So the element is chosen once and the grouping
+  // semantics are re-derived from the node on every reconcile.
+  const nested = initial.parentId !== null
+  const root = document.createElement(nested ? 'fieldset' : 'div')
   root.className = 'texaryn-object'
-  const legend = titled ? document.createElement('legend') : null
-  if (legend) root.append(legend)
+  const legend = nested ? document.createElement('legend') : null
   // Children live in their own element so the legend is never a candidate for reorder.
-  const body = titled ? document.createElement('div') : root
+  const body = nested ? document.createElement('div') : root
   if (body !== root) root.append(body)
   const bindings = new Map<string, NodeBinding>()
 
+  /** The root object is the form itself, so only a nested titled object names a group. */
+  function applyGrouping(node: UINode): void {
+    if (!legend) return
+    const title = node.annotations.title
+    if (title === undefined) {
+      legend.remove()
+      // An unnamed group is noise, so the fieldset stops being one.
+      root.setAttribute('role', 'none')
+      return
+    }
+    legend.textContent = title
+    // A legend names its fieldset only as the first child.
+    if (root.firstChild !== legend) root.prepend(legend)
+    root.removeAttribute('role')
+  }
+
   function reconcile(node: ContainerNode): void {
-    if (legend) legend.textContent = groupTitle(node) ?? ''
+    applyGrouping(node)
     const nodes = currentNodes(ctx)
     const wanted = node.children.map((id) => nodes[id]).filter((n): n is UINode => n != null)
     const keep = new Set<string>()

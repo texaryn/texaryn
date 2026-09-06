@@ -66,6 +66,27 @@ export function webComponentsAriaConformance({
     },
   }
 
+  // A conditional subschema can add or drop a title on a recompile, and the
+  // widget survives that, so grouping has to follow the node rather than the
+  // node it first mounted with.
+  const conditionalTitleSchema = {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', title: 'Mode' },
+      address: { type: 'object', properties: { city: { type: 'string', title: 'City' } } },
+    },
+    if: { properties: { mode: { const: 'b' } }, required: ['mode'] },
+    then: {
+      properties: {
+        address: {
+          type: 'object',
+          title: 'Address',
+          properties: { city: { type: 'string', title: 'City' } },
+        },
+      },
+    },
+  }
+
   const runtimes: FormRuntime[] = []
 
   async function mount(
@@ -252,6 +273,33 @@ export function webComponentsAriaConformance({
       const element = await mount(groupedSchema, { address: { city: 'Paris' } })
       const group = within(element).getByRole('group', { name: 'Address' })
       expect(within(group).getByRole('textbox', { name: 'City' })).toBeTruthy()
+    })
+
+    it('grouping follows the node when a title appears and disappears on recompile', async () => {
+      const element = await mount(conditionalTitleSchema, {
+        mode: 'a',
+        address: { city: 'Paris' },
+      })
+      const q = within(element)
+      const runtime = runtimes[runtimes.length - 1]
+      const modeId = Object.values(runtime.document.getSnapshot().nodes).find(
+        (n) => n.dataPointer === '/mode',
+      )!.id
+      const city = (): HTMLElement => q.getByRole('textbox', { name: 'City' })
+
+      const cityBefore = city()
+      expect(q.queryByRole('group')).toBeNull()
+
+      runtime.dispatch({ type: 'SetValue', nodeId: modeId, value: 'b' })
+      await flush()
+      const group = q.getByRole('group', { name: 'Address' })
+      expect(within(group).getByRole('textbox', { name: 'City' })).toBe(cityBefore)
+
+      runtime.dispatch({ type: 'SetValue', nodeId: modeId, value: 'a' })
+      await flush()
+      expect(q.queryByRole('group')).toBeNull()
+      // The grouping change must not rebuild what it wraps.
+      expect(city()).toBe(cityBefore)
     })
 
     it('two instances with equivalent schemas share no ids and make no cross-instance references', async () => {
