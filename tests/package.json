@@ -10,10 +10,12 @@
     "@texaryn/react-bootstrap": "workspace:*",
     "@texaryn/react-mui": "workspace:*",
     "@texaryn/examples": "workspace:*",
-    "@texaryn/vue": "workspace:*"
+    "@texaryn/vue": "workspace:*",
+    "@texaryn/web-components": "workspace:*"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",
+    "@testing-library/dom": "^10.4.1",
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^9.4.0",
     "@testing-library/react": "^16.0.0",
