@@ -1,4 +1,4 @@
-export { TexarynFormElement } from './element.js'
+export type { TexarynFormElement } from './element.js'
 export { defineTexarynForm } from './define.js'
 export { mountForm } from './mount.js'
 export type { Mount } from './mount.js'

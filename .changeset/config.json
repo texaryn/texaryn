@@ -9,7 +9,6 @@
   "ignore": [
     "@texaryn/playground",
     "@texaryn/examples",
-    "@texaryn/schema-json-hyperjump",
-    "@texaryn/web-components"
+    "@texaryn/schema-json-hyperjump"
   ]
 }
