@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/react",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "React bindings, hooks, prop getters, and default widgets for Texaryn",
   "keywords": [
     "react",
