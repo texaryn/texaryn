@@ -184,7 +184,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 | [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
 
-The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Two private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, and `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port.
+The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Three private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port, and `@texaryn/web-components`, a `<texaryn-form>` custom element over the same runtime that is not released yet.
 
 ## Architecture
 
