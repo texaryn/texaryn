@@ -285,6 +285,63 @@ describe('FormRuntime', () => {
     runtime.destroy()
   })
 
+  /**
+   * Known defect, kept executable so it turns red once the runtime is fixed:
+   * https://github.com/texaryn/texaryn/issues/89. Recompilation re-derives
+   * `value` for a node id whose index now holds a different logical item but
+   * keeps that id's interaction and validation history, so a reorder leaves
+   * dirty, touched, errors and status behind at the position. `dirty` and
+   * `touched` are interaction history and cannot be recomputed from data, so
+   * nothing later corrects them. Remove the `.fails` with the fix.
+   */
+  it.fails('keeps interaction and validation state with the logical item across MoveItem', async () => {
+    const port = makeArrayPort((data) => {
+      const tags = (((data as { tags?: unknown[] }).tags ?? []) as string[])
+      const errors = tags.flatMap((tag, index) =>
+        tag.length >= 2
+          ? []
+          : [{ instancePointer: `/tags/${index}`, keyword: 'minLength', params: {} }],
+      )
+      return { valid: errors.length === 0, errors }
+    })
+    const runtime = createFormRuntime(port, { initialData: { tags: ['aa', 'b'] } })
+    const arrayId = findArrayContainerId(runtime)
+
+    // Only the second tag is too short, and only it is touched and edited.
+    const shortId = findFieldNode(runtime, '/tags/1')
+    runtime.dispatch({ type: 'SetTouched', nodeId: shortId })
+    runtime.dispatch({ type: 'SetValue', nodeId: shortId, value: 'b' })
+    runtime.dispatch({ type: 'Submit' })
+    await flushMicrotasks()
+
+    const before = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
+    expect(before.value.getSnapshot()).toBe('b')
+    expect(before.errors.getSnapshot()).toHaveLength(1)
+    expect(before.validationStatus.getSnapshot()).toBe('invalid')
+    expect(before.touched.getSnapshot()).toBe(true)
+    expect(before.dirty.getSnapshot()).toBe(true)
+
+    runtime.dispatch({ type: 'MoveItem', containerId: arrayId, from: 1, to: 0 })
+    await flushMicrotasks()
+
+    // The short tag is at index 0 now, so its history belongs to index 0 and
+    // the untouched tag at index 1 should carry none of it.
+    const moved = runtime.getNodeState(findFieldNode(runtime, '/tags/0'))!
+    const untouched = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
+    expect(moved.value.getSnapshot()).toBe('b')
+    expect(moved.errors.getSnapshot()).toHaveLength(1)
+    expect(moved.validationStatus.getSnapshot()).toBe('invalid')
+    expect(moved.touched.getSnapshot()).toBe(true)
+    expect(moved.dirty.getSnapshot()).toBe(true)
+
+    expect(untouched.value.getSnapshot()).toBe('aa')
+    expect(untouched.errors.getSnapshot()).toEqual([])
+    expect(untouched.touched.getSnapshot()).toBe(false)
+    expect(untouched.dirty.getSnapshot()).toBe(false)
+
+    runtime.destroy()
+  })
+
   it('drops stale node stores after RemoveItem shrinks the array', () => {
     const port = makeArrayPort()
     const runtime = createFormRuntime(port, { initialData: { tags: ['a', 'b', 'c'] } })
