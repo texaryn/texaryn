@@ -285,16 +285,7 @@ describe('FormRuntime', () => {
     runtime.destroy()
   })
 
-  /**
-   * Known defect, kept executable so it turns red once the runtime is fixed:
-   * https://github.com/texaryn/texaryn/issues/89. Recompilation re-derives
-   * `value` for a node id whose index now holds a different logical item but
-   * keeps that id's interaction and validation history, so a reorder leaves
-   * dirty, touched, errors and status behind at the position. `dirty` and
-   * `touched` are interaction history and cannot be recomputed from data, so
-   * nothing later corrects them. Remove the `.fails` with the fix.
-   */
-  it.fails('keeps interaction and validation state with the logical item across MoveItem', async () => {
+  it('carries interaction history with the logical item across MoveItem', async () => {
     const port = makeArrayPort((data) => {
       const tags = (((data as { tags?: unknown[] }).tags ?? []) as string[])
       const errors = tags.flatMap((tag, index) =>
@@ -324,21 +315,60 @@ describe('FormRuntime', () => {
     runtime.dispatch({ type: 'MoveItem', containerId: arrayId, from: 1, to: 0 })
     await flushMicrotasks()
 
-    // The short tag is at index 0 now, so its history belongs to index 0 and
-    // the untouched tag at index 1 should carry none of it.
+    // The short tag is at index 0 now and its interaction history came with
+    // it, while the untouched tag at index 1 carries none of it.
     const moved = runtime.getNodeState(findFieldNode(runtime, '/tags/0'))!
     const untouched = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
     expect(moved.value.getSnapshot()).toBe('b')
-    expect(moved.errors.getSnapshot()).toHaveLength(1)
-    expect(moved.validationStatus.getSnapshot()).toBe('invalid')
     expect(moved.touched.getSnapshot()).toBe(true)
     expect(moved.dirty.getSnapshot()).toBe(true)
-
     expect(untouched.value.getSnapshot()).toBe('aa')
-    expect(untouched.errors.getSnapshot()).toEqual([])
     expect(untouched.touched.getSnapshot()).toBe(false)
     expect(untouched.dirty.getSnapshot()).toBe(false)
 
+    // Neither keeps a validation result: a schema can apply per index, so a
+    // result produced at the old position says nothing about the new one.
+    // Reporting nothing is honest; reporting the old row's error is not.
+    for (const node of [moved, untouched]) {
+      expect(node.errors.getSnapshot()).toEqual([])
+      expect(node.validationStatus.getSnapshot()).toBe('idle')
+    }
+
+    // Validating again puts the error on the row that actually fails.
+    runtime.dispatch({ type: 'Submit' })
+    await flushMicrotasks()
+    const revalidated = runtime.getNodeState(findFieldNode(runtime, '/tags/0'))!
+    const other = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
+    expect(revalidated.errors.getSnapshot()).toHaveLength(1)
+    expect(revalidated.errors.getSnapshot()[0].instancePointer).toBe('/tags/0')
+    expect(revalidated.validationStatus.getSnapshot()).toBe('invalid')
+    expect(other.errors.getSnapshot()).toEqual([])
+    expect(other.validationStatus.getSnapshot()).toBe('valid')
+
+    runtime.destroy()
+  })
+
+  it('publishes the document before the per-node stores', () => {
+    const port = makeArrayPort()
+    const runtime = createFormRuntime(port, { initialData: { tags: ['a', 'b'] } })
+    const arrayId = findArrayContainerId(runtime)
+    const firstId = findFieldNode(runtime, '/tags/0')
+
+    const order: string[] = []
+    const offDocument = runtime.document.subscribe(() => order.push('document'))
+    const offValue = runtime.getNodeState(firstId)!.value.subscribe(() => order.push('value'))
+
+    runtime.dispatch({ type: 'MoveItem', containerId: arrayId, from: 1, to: 0 })
+
+    // Batched notifications fire in the order the stores were set. A renderer
+    // re-points its widgets when the document changes, so hearing the new
+    // values first would write one row's value into another row's control.
+    expect(order).toContain('document')
+    expect(order).toContain('value')
+    expect(order.indexOf('document')).toBeLessThan(order.indexOf('value'))
+
+    offDocument()
+    offValue()
     runtime.destroy()
   })
 
