@@ -1,10 +1,16 @@
-import type { UIDocument } from '../ir/types.js'
+import type { UIDocument, UINode } from '../ir/types.js'
 import type { RuntimeState, NodeRuntimeState } from '../ir/runtime-state.js'
 import type { Command, CommandResult } from './types.js'
 import type { NodeId } from '../types.js'
+import type { IdentityKey } from '../identity/key.js'
 import { getAtPointer, setAtPointer } from '../json-pointer.js'
 import { insertItem, removeItem, moveItem } from '../identity/map.js'
 import { reconcile } from '../identity/reconcile.js'
+
+/** Only an array container owns identity; anything else cannot be inserted into, removed from or reordered. */
+function identityKeyOf(node: UINode | undefined): IdentityKey | undefined {
+  return node?.type === 'container' ? node.arrayMeta?.identityKey : undefined
+}
 
 export function processCommand(
   state: RuntimeState,
@@ -63,13 +69,14 @@ function handleInsertItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (container?.dataPointer == null) return { nextState: state, effects: [] }
+  const key = identityKeyOf(container)
+  if (container?.dataPointer == null || key === undefined) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   if (cmd.index < 0 || cmd.index > arr.length) return { nextState: state, effects: [] }
   const newArr = [...arr.slice(0, cmd.index), cmd.value ?? null, ...arr.slice(cmd.index)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
-  const { map: newIdentities } = insertItem(state.identities, cmd.containerId, cmd.index)
+  const { map: newIdentities } = insertItem(state.identities, key, cmd.index)
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
@@ -86,13 +93,14 @@ function handleRemoveItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (container?.dataPointer == null) return { nextState: state, effects: [] }
+  const key = identityKeyOf(container)
+  if (container?.dataPointer == null || key === undefined) return { nextState: state, effects: [] }
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   if (cmd.index < 0 || cmd.index >= arr.length) return { nextState: state, effects: [] }
   const newArr = [...arr.slice(0, cmd.index), ...arr.slice(cmd.index + 1)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
-  const { map: newIdentities } = removeItem(state.identities, cmd.containerId, cmd.index)
+  const { map: newIdentities } = removeItem(state.identities, key, cmd.index)
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
@@ -109,7 +117,8 @@ function handleMoveItem(
   document: UIDocument,
 ): CommandResult {
   const container = document.nodes[cmd.containerId as string]
-  if (container?.dataPointer == null) return { nextState: state, effects: [] }
+  const key = identityKeyOf(container)
+  if (container?.dataPointer == null || key === undefined) return { nextState: state, effects: [] }
 
   const source = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   if (cmd.from < 0 || cmd.from >= source.length || cmd.to < 0 || cmd.to >= source.length) {
@@ -119,7 +128,7 @@ function handleMoveItem(
   const [item] = arr.splice(cmd.from, 1)
   arr.splice(cmd.to, 0, item)
   const newData = setAtPointer(state.data, container.dataPointer, arr)
-  const newIdentities = moveItem(state.identities, cmd.containerId, cmd.from, cmd.to)
+  const newIdentities = moveItem(state.identities, key, cmd.from, cmd.to)
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
@@ -180,16 +189,16 @@ function handleReset(
   let identities = state.identities
   for (const node of Object.values(document.nodes)) {
     if (node.type !== 'container' || node.containerType !== 'array') continue
-    if (node.dataPointer == null) continue
+    if (node.dataPointer == null || node.arrayMeta === undefined) continue
     const oldItems = getAtPointer(state.data, node.dataPointer)
     const newItems = getAtPointer(newData, node.dataPointer)
     if (Array.isArray(oldItems) && Array.isArray(newItems)) {
       identities = reconcile(
         identities,
-        node.id,
+        node.arrayMeta.identityKey,
         oldItems,
         newItems,
-        node.arrayMeta?.itemKey ? { itemKey: node.arrayMeta.itemKey } : undefined,
+        node.arrayMeta.itemKey ? { itemKey: node.arrayMeta.itemKey } : undefined,
       )
     }
   }

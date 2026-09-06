@@ -225,7 +225,7 @@ Framework packages can register concrete widget components without adding framew
 
 ## Stable array identity
 
-The core includes identity helpers used to keep dynamic array items stable across inserts, removals, moves, and recompilation:
+The core includes identity helpers used to keep dynamic array items stable across inserts, removals, moves, and recompilation. Arrays are addressed by `ArrayMeta.identityKey`, an opaque key for the logical container that stays the same when rows above it move or change shape, so a nested array keeps its item identities when its parent row moves:
 
 - `createIdentityMap`
 - `registerArray`
@@ -315,6 +315,10 @@ The core includes identity helpers used to keep dynamic array items stable acros
 - `resolvePointer`
 - `reconcile`
 - `ReconcileOptions`
+- `identityKey`
+- `ROOT_IDENTITY_KEY`
+- `IdentityKey`
+- `IdentitySegment`
 
 ### Rendering
 

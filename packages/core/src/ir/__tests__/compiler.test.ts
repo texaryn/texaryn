@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { compile } from '../compiler.js'
+import type { CompileResult } from '../compiler-types.js'
+import type { ContainerNode } from '../types.js'
 import type { SchemaProjection, NodeProjection } from '../../schema/port.js'
 import type { JsonPointer } from '../../types.js'
+import { identityKey } from '../../identity/key.js'
 
 function makeProjection(
   entries: Array<[string, Partial<NodeProjection> & { type: NodeProjection['type'] }]>,
@@ -238,12 +241,12 @@ describe('compile', () => {
         ['/items/1', { type: 'string' }],
       ])
 
-      const { identityMap } = compile(projection, { items: ['a', 'b'] })
-      // Identity map keys by NodeId (the array container's id), not pointer.
-      // Verify that the map has an entry for the items array container.
+      const result = compile(projection, { items: ['a', 'b'] })
+      const { identityMap } = result
       expect(identityMap.arrayIdentities.size).toBe(1)
-      const [, itemIds] = [...identityMap.arrayIdentities.entries()][0]
+      const [key, itemIds] = [...identityMap.arrayIdentities.entries()][0]
       expect(itemIds.length).toBe(2)
+      expect(arrayNodes(result)[0].arrayMeta!.identityKey).toBe(key)
     })
 
     it('sets canAdd false when at maxItems', () => {
@@ -372,5 +375,84 @@ describe('compile', () => {
       )!
       expect(shownNode.visible).toBe(true)
     })
+  })
+})
+
+function nestedProjection(rows: Array<{ tags: string[] }>): SchemaProjection {
+  const nodes = new Map<JsonPointer, NodeProjection>()
+  const node = (p: string, n: Partial<NodeProjection> & { type: NodeProjection['type'] }): void => {
+    nodes.set(p as JsonPointer, {
+      type: n.type,
+      constraints: n.constraints ?? {},
+      children: n.children,
+      active: n.active ?? true,
+      annotations: n.annotations ?? {},
+    })
+  }
+  node('', {
+    type: 'object',
+    children: [{ pointer: '/rows' as JsonPointer, key: 'rows', required: false }],
+  })
+  node('/rows', { type: 'array' })
+  rows.forEach((row, i) => {
+    node(`/rows/${i}`, {
+      type: 'object',
+      children: [{ pointer: `/rows/${i}/tags` as JsonPointer, key: 'tags', required: false }],
+    })
+    node(`/rows/${i}/tags`, { type: 'array' })
+    row.tags.forEach((_, j) => node(`/rows/${i}/tags/${j}`, { type: 'string' }))
+  })
+  return { nodes }
+}
+
+function arrayNodes(result: CompileResult): ContainerNode[] {
+  return Object.values(result.document.nodes).filter(
+    (n): n is ContainerNode => n.type === 'container' && n.containerType === 'array',
+  )
+}
+
+describe('identity keys', () => {
+  it('stamps every array with a segment key built from property names and item ids', () => {
+    const data = { rows: [{ tags: ['a'] }] }
+    const result = compile(nestedProjection(data.rows), data)
+    const outer = arrayNodes(result).find((n) => n.dataPointer === '/rows')!
+    const inner = arrayNodes(result).find((n) => n.dataPointer === '/rows/0/tags')!
+    expect(outer.arrayMeta!.identityKey).toBe(identityKey([{ kind: 'property', name: 'rows' }]))
+    expect(inner.arrayMeta!.identityKey).toBe(
+      identityKey([
+        { kind: 'property', name: 'rows' },
+        { kind: 'item', id: outer.arrayMeta!.itemIds[0] },
+        { kind: 'property', name: 'tags' },
+      ]),
+    )
+    expect(result.identityMap.arrayIdentities.has(inner.arrayMeta!.identityKey)).toBe(true)
+  })
+
+  it('drops arrays that were not visited in this compile', () => {
+    const two = { rows: [{ tags: ['a'] }, { tags: ['b'] }] }
+    const first = compile(nestedProjection(two.rows), two)
+    expect(first.identityMap.arrayIdentities.size).toBe(3)
+    const one = { rows: [{ tags: ['a'] }] }
+    const shrunk = compile(nestedProjection(one.rows), one, undefined, first.identityMap)
+    expect(shrunk.identityMap.arrayIdentities.size).toBe(2)
+    for (const entry of shrunk.identityMap.itemLookup.values()) {
+      expect(shrunk.identityMap.arrayIdentities.has(entry.containerKey)).toBe(true)
+    }
+  })
+
+  it('leaves the input map untouched when compilation throws', () => {
+    const data = { rows: [{ tags: ['a'] }] }
+    const first = compile(nestedProjection(data.rows), data)
+    const before = JSON.stringify([...first.identityMap.arrayIdentities])
+    const source = nestedProjection(data.rows).nodes
+    class Throwing extends Map<JsonPointer, NodeProjection> {
+      override get(k: JsonPointer): NodeProjection | undefined {
+        if (k === '/rows/0/tags') throw new Error('boom')
+        return source.get(k)
+      }
+    }
+    const throwing: SchemaProjection = { nodes: new Throwing(source) }
+    expect(() => compile(throwing, data, undefined, first.identityMap)).toThrow('boom')
+    expect(JSON.stringify([...first.identityMap.arrayIdentities])).toBe(before)
   })
 })

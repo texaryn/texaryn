@@ -6,7 +6,7 @@
 
 # Function: removeItem()
 
-> **removeItem**(`map`, `containerId`, `index`): `object`
+> **removeItem**(`map`, `containerKey`, `index`): `object`
 
 ## Parameters
 
@@ -14,9 +14,9 @@
 
 [`IdentityMap`](../interfaces/IdentityMap.md)
 
-### containerId
+### containerKey
 
-[`NodeId`](../type-aliases/NodeId.md)
+[`IdentityKey`](../type-aliases/IdentityKey.md)
 
 ### index
 

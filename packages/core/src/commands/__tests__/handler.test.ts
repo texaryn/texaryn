@@ -11,6 +11,7 @@ import type {
 } from '../../index.js'
 import { processCommand, registerArray, insertItem } from '../../index.js'
 import type { Command } from '../types.js'
+import { identityKey } from '../../identity/key.js'
 
 const nid = (s: string) => s as NodeId
 const jp = (s: string) => s as JsonPointer
@@ -40,7 +41,7 @@ function makeContainerNode(
   children: string[],
   containerType: 'object' | 'array' = 'object',
 ): ContainerNode {
-  return {
+  const node: ContainerNode = {
     id: nid(id),
     type: 'container',
     parentId: null,
@@ -52,6 +53,16 @@ function makeContainerNode(
     containerType,
     children: children.map(nid),
   }
+  if (containerType === 'array') {
+    node.arrayMeta = {
+      itemIds: [],
+      identityKey: identityKey([{ kind: 'property', name: pointer.slice(1) }]),
+      canAdd: true,
+      canRemove: true,
+      canReorder: true,
+    }
+  }
+  return node
 }
 
 function makeNodeState(value: unknown): NodeRuntimeState {
@@ -347,10 +358,12 @@ describe('processCommand', () => {
     },
   }
 
+  const listKey = identityKey([{ kind: 'property', name: 'items' }])
+
   function arrayState(items: unknown[]): RuntimeState {
-    let identities = registerArray(emptyIdentities(), nid('list'))
+    let identities = registerArray(emptyIdentities(), listKey)
     for (let i = 0; i < items.length; i++) {
-      identities = insertItem(identities, nid('list'), i).map
+      identities = insertItem(identities, listKey, i).map
     }
     return {
       data: { items },
@@ -379,7 +392,7 @@ describe('processCommand', () => {
         { type: 'InsertItem', containerId: nid('list'), index: 1, value: 'b' },
         arrayDoc,
       )
-      const ids = nextState.identities.arrayIdentities.get(nid('list'))!
+      const ids = nextState.identities.arrayIdentities.get(listKey)!
       expect(ids).toHaveLength(2)
     })
 
@@ -520,6 +533,39 @@ describe('processCommand', () => {
     })
   })
 
+  describe('containers without array metadata', () => {
+    it('ignores array commands for a container that carries no identity', () => {
+      const stripped: UIDocument = {
+        ...arrayDoc,
+        nodes: {
+          ...arrayDoc.nodes,
+          [nid('list') as string]: { ...(arrayDoc.nodes[nid('list') as string] as ContainerNode), arrayMeta: undefined },
+        },
+      }
+      const state = arrayState(['a', 'b'])
+      for (const command of [
+        { type: 'InsertItem', containerId: nid('list'), index: 0, value: 'x' },
+        { type: 'RemoveItem', containerId: nid('list'), index: 0 },
+        { type: 'MoveItem', containerId: nid('list'), from: 0, to: 1 },
+      ] as Command[]) {
+        const { nextState, effects } = processCommand(state, command, stripped)
+        expect(nextState).toBe(state)
+        expect(effects).toEqual([])
+      }
+    })
+
+    it('ignores array commands aimed at a field', () => {
+      const state = simpleState()
+      const { nextState, effects } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('name'), index: 0, value: 'x' },
+        simpleDoc,
+      )
+      expect(nextState).toBe(state)
+      expect(effects).toEqual([])
+    })
+  })
+
   describe('Reset identity reconciliation', () => {
     it('reconciles array identities when data changes', () => {
       const state = arrayState(['a', 'b'])
@@ -528,7 +574,7 @@ describe('processCommand', () => {
         { type: 'InsertItem', containerId: nid('list'), index: 0, value: 'x' },
         arrayDoc,
       )
-      const idsBeforeReset = r1.nextState.identities.arrayIdentities.get(nid('list'))!
+      const idsBeforeReset = r1.nextState.identities.arrayIdentities.get(listKey)!
       expect(idsBeforeReset).toHaveLength(3)
 
       const { nextState } = processCommand(
@@ -536,7 +582,7 @@ describe('processCommand', () => {
         { type: 'Reset', data: { items: ['b', 'a'] } },
         arrayDoc,
       )
-      const idsAfterReset = nextState.identities.arrayIdentities.get(nid('list'))!
+      const idsAfterReset = nextState.identities.arrayIdentities.get(listKey)!
       expect(idsAfterReset).toHaveLength(2)
     })
 
@@ -547,7 +593,7 @@ describe('processCommand', () => {
         { type: 'InsertItem', containerId: nid('list'), index: 2, value: 'c' },
         arrayDoc,
       )
-      const idsBefore = r1.nextState.identities.arrayIdentities.get(nid('list'))!
+      const idsBefore = r1.nextState.identities.arrayIdentities.get(listKey)!
       const idForA = idsBefore[0]
       const idForB = idsBefore[1]
 
@@ -556,9 +602,31 @@ describe('processCommand', () => {
         { type: 'Reset', data: { items: ['b', 'a'] } },
         arrayDoc,
       )
-      const idsAfter = nextState.identities.arrayIdentities.get(nid('list'))!
+      const idsAfter = nextState.identities.arrayIdentities.get(listKey)!
       expect(idsAfter[0]).toBe(idForB)
       expect(idsAfter[1]).toBe(idForA)
+    })
+
+    it('matches by itemKey when the container declares one', () => {
+      const list = arrayDoc.nodes[nid('list') as string] as ContainerNode
+      const keyed: UIDocument = {
+        ...arrayDoc,
+        nodes: {
+          [nid('list') as string]: {
+            ...list,
+            arrayMeta: { ...list.arrayMeta!, itemKey: jp('/id') },
+          },
+        },
+      }
+      const state = arrayState([{ id: 'a', n: 1 }, { id: 'b', n: 2 }])
+      const [idForA, idForB] = state.identities.arrayIdentities.get(listKey)!
+
+      const { nextState } = processCommand(
+        state,
+        { type: 'Reset', data: { items: [{ id: 'b', n: 3 }, { id: 'a', n: 4 }] } },
+        keyed,
+      )
+      expect(nextState.identities.arrayIdentities.get(listKey)).toEqual([idForB, idForA])
     })
   })
 })

@@ -52,12 +52,18 @@
 - [Command](type-aliases/Command.md)
 - [Effect](type-aliases/Effect.md)
 - [FieldType](type-aliases/FieldType.md)
+- [IdentityKey](type-aliases/IdentityKey.md)
+- [IdentitySegment](type-aliases/IdentitySegment.md)
 - [JsonPointer](type-aliases/JsonPointer.md)
 - [JsonSchemaType](type-aliases/JsonSchemaType.md)
 - [MaybePromise](type-aliases/MaybePromise.md)
 - [NodeId](type-aliases/NodeId.md)
 - [StableItemId](type-aliases/StableItemId.md)
 - [UINode](type-aliases/UINode.md)
+
+## Variables
+
+- [ROOT\_IDENTITY\_KEY](variables/ROOT_IDENTITY_KEY.md)
 
 ## Functions
 
@@ -67,6 +73,7 @@
 - [createRendererRegistry](functions/createRendererRegistry.md)
 - [createStore](functions/createStore.md)
 - [getAtPointer](functions/getAtPointer.md)
+- [identityKey](functions/identityKey.md)
 - [insertItem](functions/insertItem.md)
 - [moveItem](functions/moveItem.md)
 - [parsePointer](functions/parsePointer.md)

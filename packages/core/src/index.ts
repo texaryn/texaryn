@@ -62,8 +62,10 @@ export {
   moveItem,
   resolvePointer,
   reconcile,
+  identityKey,
+  ROOT_IDENTITY_KEY,
 } from './identity/index.js'
-export type { ReconcileOptions } from './identity/index.js'
+export type { ReconcileOptions, IdentityKey, IdentitySegment } from './identity/index.js'
 
 export type { WidgetTester, WidgetEntry, RendererRegistry } from './renderer/index.js'
 export { createRendererRegistry } from './renderer/index.js'
