@@ -8,6 +8,7 @@
     { "path": "packages/react-bootstrap" },
     { "path": "packages/react-mui" },
     { "path": "packages/vue" },
+    { "path": "packages/web-components" },
     { "path": "packages/examples" }
   ]
 }

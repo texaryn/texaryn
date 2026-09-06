@@ -1,0 +1,53 @@
+{
+  "name": "@texaryn/web-components",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A <texaryn-form> custom element over the Texaryn runtime, with native default widgets",
+  "keywords": [
+    "web-components",
+    "custom-elements",
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "dynamic-forms",
+    "typescript"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/web-components"
+  },
+  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "CHANGELOG.md"],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@texaryn/schema-json": "workspace:*",
+    "jsdom": "^25.0.0"
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}
