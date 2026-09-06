@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
+import type { ComponentType, ReactNode } from 'react'
+import type { FormRuntime, RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
   useForm,
@@ -18,6 +18,7 @@ import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
+import { WcHost } from './WcHost.js'
 import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
 import { useTheme } from './theme.js'
@@ -30,20 +31,23 @@ const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/boo
 const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 
 // Every label names its framework and its widget set, because three of these
-// are React and one is not, and a list that says `Material UI` beside `Vue`
-// invites reading the fourth as the only one with a framework.
+// are React and two are not, and a list that says `Material UI` beside `Vue`
+// invites reading the others as the only ones with a framework.
 //
-// Vue carries no React registry: it is a different render surface over the
-// same runtime rather than another set of React widgets, so it is listed here
-// for the selector and rendered through VueHost instead of FormRoot.
-const registries: Record<
-  RendererKey,
-  { label: string; registry: RendererRegistry<WidgetComponent> | null }
-> = {
-  default: { label: 'React · Default', registry: createDefaultRegistry() },
-  bootstrap: { label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
-  mui: { label: 'React · Material UI', registry: createMuiRegistry() },
-  vue: { label: 'Vue · Default', registry: null },
+// Two of these are not React registries at all: they are different render
+// surfaces over the same runtime, mounted by a host that borrows the runtime
+// rather than by FormRoot. The discriminant says which, so the table stays the
+// one place a renderer is declared and no combination of the two is possible.
+type RendererSpec =
+  | { kind: 'react'; label: string; registry: RendererRegistry<WidgetComponent> }
+  | { kind: 'host'; label: string; Host: ComponentType<{ runtime: FormRuntime }> }
+
+const renderers: Record<RendererKey, RendererSpec> = {
+  default: { kind: 'react', label: 'React · Default', registry: createDefaultRegistry() },
+  bootstrap: { kind: 'react', label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
+  mui: { kind: 'react', label: 'React · Material UI', registry: createMuiRegistry() },
+  vue: { kind: 'host', label: 'Vue · Default', Host: VueHost },
+  wc: { kind: 'host', label: 'Web Components · Default', Host: WcHost },
 }
 
 // The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
@@ -137,9 +141,8 @@ function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNo
 function FormWorkspace({
   port,
   entry,
-  registry,
+  renderer,
   rendererKey,
-  rendererLabel,
   resolvedTheme,
   schemaText,
   tab,
@@ -148,9 +151,8 @@ function FormWorkspace({
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
-  registry: RendererRegistry<WidgetComponent> | null
+  renderer: RendererSpec
   rendererKey: RendererKey
-  rendererLabel: string
   resolvedTheme: ResolvedTheme
   schemaText: string
   tab: Tab
@@ -186,16 +188,17 @@ function FormWorkspace({
               React shell, whichever renderer is selected. */}
           <RendererSurface
             rendererKey={rendererKey}
-            label={rendererLabel}
+            label={renderer.label}
             theme={resolvedTheme}
           >
-            {registry ? (
-              <FormRoot registry={registry} />
+            {renderer.kind === 'react' ? (
+              <FormRoot registry={renderer.registry} />
             ) : (
-              // Same runtime, different framework. VueHost mounts a Vue
-              // application over this exact instance rather than building one
-              // of its own, so switching renderer keeps the form.
-              <VueHost runtime={form.runtime} />
+              // Same runtime, different framework. The host mounts a Vue
+              // application or a custom element over this exact instance
+              // rather than building one of its own, so switching renderer
+              // keeps the form.
+              <renderer.Host runtime={form.runtime} />
             )}
           </RendererSurface>
 
@@ -356,7 +359,7 @@ export function App() {
         value={rendererKey}
         onChange={(e) => setRendererKey(e.target.value as RendererKey)}
       >
-        {Object.entries(registries).map(([key, { label }]) => (
+        {Object.entries(renderers).map(([key, { label }]) => (
           <option key={key} value={key}>
             {label}
           </option>
@@ -432,9 +435,8 @@ export function App() {
             key={`${selectedKey}:${adapterState.id}`}
             port={adapterState.port}
             entry={entry}
-            registry={registries[rendererKey].registry}
+            renderer={renderers[rendererKey]}
             rendererKey={rendererKey}
-            rendererLabel={registries[rendererKey].label}
             resolvedTheme={theme.resolved}
             schemaText={schemaText}
             tab={inspectorTab}
