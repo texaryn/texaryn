@@ -16,6 +16,7 @@ one can be understood without reading the others.
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets over the React binding |
 | `@texaryn/react-mui` | Material UI v9 widgets over the React binding |
 | `@texaryn/vue` | The Vue 3 binding: composables, provide and inject context, and the default widgets |
+| `@texaryn/web-components` | The custom element binding: `<texaryn-form>` and native widgets in light DOM |
 
 ## The schema port
 

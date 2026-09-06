@@ -30,7 +30,7 @@ Deterministic runtime
           ↓
 Renderer binding
           ↓
-React, Vue
+React, Vue, Web Components
           ↓
 Default, Bootstrap, Material UI
 ```

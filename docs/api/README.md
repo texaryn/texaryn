@@ -12,3 +12,4 @@
 - [@texaryn/react-mui](@texaryn/react-mui/README.md)
 - [@texaryn/schema-json](@texaryn/schema-json/README.md)
 - [@texaryn/vue](@texaryn/vue/README.md)
+- [@texaryn/web-components](@texaryn/web-components/README.md)
