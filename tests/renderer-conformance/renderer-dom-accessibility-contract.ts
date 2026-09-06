@@ -211,10 +211,10 @@ export function rendererDomAccessibilityContract({
     it('exposes required state, and does not claim it for an optional field', async () => {
       const { q } = await mount(requiredSchema, { name: '', nickname: '' })
       expect(q.getByRole('textbox', { name: 'Full Name' }).getAttribute('aria-required')).toBe('true')
-      // Absent and an explicit "false" both say not required, so the outcome is
-      // asserted rather than which of the two a binding chooses.
-      expect(q.getByRole('textbox', { name: 'Nickname' }).getAttribute('aria-required')).not.toBe(
-        'true',
+      // Absent and an explicit "false" both say not required, so either is
+      // accepted; anything else is not a valid way to say it.
+      expect([null, 'false']).toContain(
+        q.getByRole('textbox', { name: 'Nickname' }).getAttribute('aria-required'),
       )
     })
 
@@ -327,8 +327,13 @@ export function rendererDomAccessibilityContract({
         ]
 
         expect(idsIn(first.surface.root).length).toBeGreaterThan(0)
+        // Each diagnosis is asserted on its own, so a declaration excuses one
+        // and nothing else. Folding them together let a declared duplicate id
+        // silently swallow an unrelated cross-instance reference.
         expectGapOr('duplicate-id', duplicates, () => {
           expect(duplicates.map((v) => v.detail)).toEqual([])
+        })
+        expectGapOr('cross-instance-reference', crossed, () => {
           expect(crossed.map((v) => v.detail)).toEqual([])
         })
       })

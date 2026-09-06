@@ -6,5 +6,5 @@ rendererDomAccessibilityContract({
   adapter: reactAdapter('react-default', createDefaultRegistry),
   // Cross-binding defects this suite exists to expose; Vue has them too.
   // Remove each declaration with the fix that closes it.
-  knownGaps: ['duplicate-id', 'missing-named-group'],
+  knownGaps: ['duplicate-id', 'cross-instance-reference', 'missing-named-group'],
 })
