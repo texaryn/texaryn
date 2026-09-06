@@ -350,9 +350,15 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.5(@types/react@19.2.18)
       '@vue/test-utils':
         specifier: ^2.4.6
         version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@5.8.3))
+      dom-accessibility-api:
+        specifier: ^0.7.0
+        version: 0.7.1
       jsdom:
         specifier: ^25.0.0
         version: 25.0.1(supports-color@10.2.2)
@@ -2374,6 +2380,9 @@ packages:
 
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
+
+  dom-accessibility-api@0.7.1:
+    resolution: {integrity: sha512-vdnCeZD+3wZ+8h8xXL/ZtBlvvoobOFyPzSiIfO6sGOZDqjFx4aLMAjZhl4rawj5xYz3UwP6Tgvyh0iH4IOCVnQ==}
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
@@ -6060,6 +6069,8 @@ snapshots:
   direction@2.0.1: {}
 
   dom-accessibility-api@0.5.16: {}
+
+  dom-accessibility-api@0.7.1: {}
 
   dom-helpers@5.2.1:
     dependencies:
