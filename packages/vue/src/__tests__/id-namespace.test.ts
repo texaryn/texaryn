@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { createSSRApp, defineComponent, h, nextTick } from 'vue'
+import { renderToString } from '@vue/server-renderer'
 import { mount } from '@vue/test-utils'
 import { createFormRuntime } from '@texaryn/core'
 import type { FormRuntime, SchemaEvaluationPort } from '@texaryn/core'
@@ -142,5 +143,46 @@ describe('id namespace', () => {
 
   it('refuses to render a field with no provided scope', () => {
     expect(() => mount(FormRoot, { props: { registry } })).toThrow(/provideFormRuntime/)
+  })
+
+  // The peer floor moved to 3.5 for useId precisely because a counter cannot
+  // survive hydration, so the claim is proven rather than asserted.
+  it('hydrates a server render of two scopes without changing ids', async () => {
+    const port = await makePort()
+    const a = makeRuntime(port)
+    const b = makeRuntime(port)
+    const Root = defineComponent({
+      setup() {
+        return () =>
+          h('div', [
+            h('section', { 'data-testid': 'a' }, [h(formComponent(a))]),
+            h('section', { 'data-testid': 'b' }, [h(formComponent(b))]),
+          ])
+      },
+    })
+
+    const html = await renderToString(createSSRApp(Root))
+    const host = document.createElement('div')
+    host.innerHTML = html
+    document.body.appendChild(host)
+    const serverIds = idsIn(host)
+    expect(serverIds.length).toBeGreaterThan(0)
+
+    const warnings: unknown[] = []
+    const originalWarn = console.warn
+    const originalError = console.error
+    console.warn = (...args: unknown[]) => { warnings.push(args) }
+    console.error = (...args: unknown[]) => { warnings.push(args) }
+    const app = createSSRApp(Root)
+    app.mount(host)
+    await nextTick()
+    console.warn = originalWarn
+    console.error = originalError
+
+    expect(warnings).toEqual([])
+    expect(idsIn(host)).toEqual(serverIds)
+
+    app.unmount()
+    host.remove()
   })
 })
