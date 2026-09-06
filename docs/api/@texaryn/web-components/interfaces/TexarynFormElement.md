@@ -4,7 +4,7 @@
 
 [Documentation](../../../README.md) / [@texaryn/web-components](../README.md) / TexarynFormElement
 
-# Class: TexarynFormElement
+# Interface: TexarynFormElement
 
 `runtime` is the primitive input: an external runtime the element renders
 and never destroys. `port` plus `options` is the managed mode, where the
@@ -14,20 +14,6 @@ sources are mutually exclusive.
 ## Extends
 
 - `HTMLElement`
-
-## Constructors
-
-### Constructor
-
-> **new TexarynFormElement**(): `TexarynFormElement`
-
-#### Returns
-
-`TexarynFormElement`
-
-#### Inherited from
-
-`HTMLElement.constructor`
 
 ## Properties
 
@@ -1040,6 +1026,12 @@ Returns the value of element's id content attribute. Can be set to change it.
 #### Inherited from
 
 `HTMLElement.id`
+
+***
+
+### idPrefix
+
+> `readonly` **idPrefix**: `string`
 
 ***
 
@@ -2913,6 +2905,14 @@ This is a legacy alias of `ontransitionend`.
 
 ***
 
+### options
+
+> **options**: [`FormRuntimeOptions`](../../core/interfaces/FormRuntimeOptions.md)
+
+Read when the managed runtime is created, so set it before `port`.
+
+***
+
 ### outerHTML
 
 > **outerHTML**: `string`
@@ -2991,6 +2991,14 @@ Returns the parent.
 
 ***
 
+### port
+
+> **port**: [`SchemaEvaluationPort`](../../core/interfaces/SchemaEvaluationPort.md) \| `null`
+
+Managed: the element builds a runtime from this and destroys it on removal.
+
+***
+
 ### prefix
 
 > `readonly` **prefix**: `string` \| `null`
@@ -3045,6 +3053,12 @@ node is a ProcessingInstruction node.
 
 ***
 
+### registry
+
+> **registry**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\> \| `null`
+
+***
+
 ### role
 
 > **role**: `string` \| `null`
@@ -3052,6 +3066,14 @@ node is a ProcessingInstruction node.
 #### Inherited from
 
 `HTMLElement.role`
+
+***
+
+### runtime
+
+> **runtime**: [`FormRuntime`](../../core/interfaces/FormRuntime.md) \| `null`
+
+Borrowed: assigned from outside, rendered, and never destroyed by the element.
 
 ***
 
@@ -3263,48 +3285,6 @@ Allows for manipulation of element's class content attribute as a set of whitesp
 
 ***
 
-### idPrefix
-
-#### Get Signature
-
-> **get** **idPrefix**(): `string`
-
-The element's own id when it has one on first use, else an allocated `texaryn-<n>`; fixed for the element's lifetime.
-
-##### Returns
-
-`string`
-
-***
-
-### options
-
-#### Get Signature
-
-> **get** **options**(): [`FormRuntimeOptions`](../../core/interfaces/FormRuntimeOptions.md)
-
-##### Returns
-
-[`FormRuntimeOptions`](../../core/interfaces/FormRuntimeOptions.md)
-
-#### Set Signature
-
-> **set** **options**(`options`): `void`
-
-Read when the managed runtime is created; setting it afterwards changes nothing until `port` is set again.
-
-##### Parameters
-
-###### options
-
-[`FormRuntimeOptions`](../../core/interfaces/FormRuntimeOptions.md)
-
-##### Returns
-
-`void`
-
-***
-
 ### part
 
 #### Get Signature
@@ -3334,84 +3314,6 @@ Read when the managed runtime is created; setting it afterwards changes nothing 
 #### Inherited from
 
 `HTMLElement.part`
-
-***
-
-### port
-
-#### Get Signature
-
-> **get** **port**(): [`SchemaEvaluationPort`](../../core/interfaces/SchemaEvaluationPort.md) \| `null`
-
-##### Returns
-
-[`SchemaEvaluationPort`](../../core/interfaces/SchemaEvaluationPort.md) \| `null`
-
-#### Set Signature
-
-> **set** **port**(`port`): `void`
-
-##### Parameters
-
-###### port
-
-[`SchemaEvaluationPort`](../../core/interfaces/SchemaEvaluationPort.md) \| `null`
-
-##### Returns
-
-`void`
-
-***
-
-### registry
-
-#### Get Signature
-
-> **get** **registry**(): [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\> \| `null`
-
-##### Returns
-
-[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\> \| `null`
-
-#### Set Signature
-
-> **set** **registry**(`registry`): `void`
-
-##### Parameters
-
-###### registry
-
-[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\> \| `null`
-
-##### Returns
-
-`void`
-
-***
-
-### runtime
-
-#### Get Signature
-
-> **get** **runtime**(): [`FormRuntime`](../../core/interfaces/FormRuntime.md) \| `null`
-
-##### Returns
-
-[`FormRuntime`](../../core/interfaces/FormRuntime.md) \| `null`
-
-#### Set Signature
-
-> **set** **runtime**(`runtime`): `void`
-
-##### Parameters
-
-###### runtime
-
-[`FormRuntime`](../../core/interfaces/FormRuntime.md) \| `null`
-
-##### Returns
-
-`void`
 
 ***
 
@@ -3903,16 +3805,6 @@ Returns a bitmask indicating the position of other relative to node.
 
 ***
 
-### connectedCallback()
-
-> **connectedCallback**(): `void`
-
-#### Returns
-
-`void`
-
-***
-
 ### contains()
 
 > **contains**(`other`): `boolean`
@@ -3934,16 +3826,6 @@ Returns true if other is an inclusive descendant of node, and false otherwise.
 #### Inherited from
 
 `HTMLElement.contains`
-
-***
-
-### disconnectedCallback()
-
-> **disconnectedCallback**(): `void`
-
-#### Returns
-
-`void`
 
 ***
 

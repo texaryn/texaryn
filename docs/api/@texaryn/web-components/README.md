@@ -6,16 +6,13 @@
 
 # @texaryn/web-components
 
-## Classes
-
-- [TexarynFormElement](classes/TexarynFormElement.md)
-
 ## Interfaces
 
 - [DomWidget](interfaces/DomWidget.md)
 - [Mount](interfaces/Mount.md)
 - [NodeBinding](interfaces/NodeBinding.md)
 - [RenderContext](interfaces/RenderContext.md)
+- [TexarynFormElement](interfaces/TexarynFormElement.md)
 
 ## Type Aliases
 
@@ -32,5 +29,6 @@
 - [numberInput](functions/numberInput.md)
 - [objectLayout](functions/objectLayout.md)
 - [select](functions/select.md)
+- [texarynFormElementClass](functions/texarynFormElementClass.md)
 - [textarea](functions/textarea.md)
 - [textInput](functions/textInput.md)

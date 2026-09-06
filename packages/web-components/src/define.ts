@@ -1,7 +1,10 @@
-import { TexarynFormElement } from './element.js'
+import { texarynFormElementClass } from './element.js'
 
-/** Registers the element once; a second call for the same tag is a no-op that returns the class. */
-export function defineTexarynForm(tagName = 'texaryn-form'): typeof TexarynFormElement {
-  if (!customElements.get(tagName)) customElements.define(tagName, TexarynFormElement)
-  return TexarynFormElement
+/** Registers the element once; a second call for the same tag returns what is already registered. */
+export function defineTexarynForm(tagName = 'texaryn-form'): CustomElementConstructor {
+  const existing = customElements.get(tagName)
+  if (existing) return existing
+  const constructor = texarynFormElementClass()
+  customElements.define(tagName, constructor)
+  return constructor
 }

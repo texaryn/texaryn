@@ -6,9 +6,9 @@
 
 # Function: defineTexarynForm()
 
-> **defineTexarynForm**(`tagName?`): *typeof* [`TexarynFormElement`](../classes/TexarynFormElement.md)
+> **defineTexarynForm**(`tagName?`): `CustomElementConstructor`
 
-Registers the element once; a second call for the same tag is a no-op that returns the class.
+Registers the element once; a second call for the same tag returns what is already registered.
 
 ## Parameters
 
@@ -18,4 +18,4 @@ Registers the element once; a second call for the same tag is a no-op that retur
 
 ## Returns
 
-*typeof* [`TexarynFormElement`](../classes/TexarynFormElement.md)
+`CustomElementConstructor`
