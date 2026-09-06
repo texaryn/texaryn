@@ -29,6 +29,5 @@
 - [numberInput](functions/numberInput.md)
 - [objectLayout](functions/objectLayout.md)
 - [select](functions/select.md)
-- [texarynFormElementClass](functions/texarynFormElementClass.md)
 - [textarea](functions/textarea.md)
 - [textInput](functions/textInput.md)
