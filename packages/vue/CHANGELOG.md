@@ -1,5 +1,12 @@
 # @texaryn/vue
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [8b20b6e]
+  - @texaryn/core@0.5.0
+
 ## 0.1.1
 
 ### Patch Changes

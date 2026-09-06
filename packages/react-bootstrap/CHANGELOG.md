@@ -1,5 +1,13 @@
 # @texaryn/react-bootstrap
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [8b20b6e]
+  - @texaryn/core@0.5.0
+  - @texaryn/react@0.2.4
+
 ## 0.1.2
 
 ### Patch Changes
