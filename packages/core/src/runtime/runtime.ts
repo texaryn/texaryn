@@ -7,7 +7,9 @@ import type { Command, Effect } from '../commands/types.js'
 import { createStore, createComputedStore } from '../state/store.js'
 import type { WritableStore, Store } from '../state/store.js'
 import { batch } from '../state/signal.js'
-import { getAtPointer } from '../json-pointer.js'
+import { getAtPointer, parsePointer } from '../json-pointer.js'
+import { identityKey } from '../identity/key.js'
+import type { IdentityKey, IdentitySegment } from '../identity/key.js'
 import type { NodeId, ValidationError, ValidationResult, VisibleError } from '../types.js'
 import type { FormRuntime, FormRuntimeOptions, NodeState } from './types.js'
 import { createValidationScheduler } from './validation-scheduler.js'
@@ -35,6 +37,87 @@ interface NodeStoreBundle {
   disabled: WritableStore<boolean>
   validationStatus: WritableStore<'idle' | 'pending' | 'valid' | 'invalid'>
   showErrors: Store<boolean>
+}
+
+interface CarriedNode {
+  node: UINode
+  state: NodeRuntimeState | undefined
+}
+
+interface LogicalIndex {
+  byKey: Map<IdentityKey, CarriedNode>
+  keyOf: Map<NodeId, IdentityKey>
+}
+
+function propertyName(node: UINode): string | undefined {
+  if (node.dataPointer == null) return undefined
+  const segments = parsePointer(node.dataPointer)
+  return segments[segments.length - 1]
+}
+
+/**
+ * Addresses every node by the path that survives an array mutation: property
+ * names for object members and `StableItemId`s for array items, in the same
+ * segment form array containers already use. Node ids cannot serve, because
+ * they are assigned by traversal order and so change hands when items move.
+ */
+function indexByLogicalKey(
+  doc: UIDocument,
+  nodes?: Map<NodeId, NodeRuntimeState>,
+): LogicalIndex {
+  const byKey = new Map<IdentityKey, CarriedNode>()
+  const keyOf = new Map<NodeId, IdentityKey>()
+
+  function visit(nodeId: NodeId, segments: readonly IdentitySegment[]): void {
+    const node = doc.nodes[nodeId as string]
+    if (!node) return
+    const key = identityKey(segments)
+    // Two nodes sharing an address would hand one control another's history,
+    // which is the failure this addressing exists to prevent.
+    if (byKey.has(key)) throw new Error(`Duplicate logical node address: ${key}`)
+    byKey.set(key, { node, state: nodes?.get(nodeId) })
+    keyOf.set(nodeId, key)
+
+    if (node.type !== 'container') return
+    const itemIds = node.containerType === 'array' ? node.arrayMeta?.itemIds : undefined
+    node.children.forEach((childId, index) => {
+      if (doc.nodes[childId as string] === undefined) return
+      if (itemIds) {
+        const id = itemIds[index]
+        if (id !== undefined) visit(childId, [...segments, { kind: 'item', id }])
+        return
+      }
+      const name = propertyName(doc.nodes[childId as string])
+      if (name !== undefined) visit(childId, [...segments, { kind: 'property', name }])
+    })
+  }
+
+  visit(doc.rootId, [])
+  return { byKey, keyOf }
+}
+
+/**
+ * Carries one logical node's history onto the node that now represents it.
+ * Errors are recorded against the pointer they were produced for and matched
+ * back by exact pointer, so a moved item's errors are rebased or they would
+ * stop belonging to it.
+ */
+function carryNodeState(
+  previous: CarriedNode,
+  to: UINode,
+  value: unknown,
+): NodeRuntimeState {
+  const carried: NodeRuntimeState = { ...previous.state!, value }
+  const pointer = to.dataPointer
+  if (pointer == null || previous.node.dataPointer === pointer) return carried
+  if (carried.validation.errors.length === 0) return carried
+  return {
+    ...carried,
+    validation: {
+      ...carried.validation,
+      errors: carried.validation.errors.map((error) => ({ ...error, instancePointer: pointer })),
+    },
+  }
 }
 
 function defaultNodeState(value: unknown): NodeRuntimeState {
@@ -142,57 +225,66 @@ export function createFormRuntime(
   }
 
   function handleRecompile(): void {
+    // Addressed from the outgoing document on purpose: the command handler has
+    // already advanced `state.identities`, so that map no longer describes the
+    // ordering the current positional node ids were built from.
+    const previous = indexByLogicalKey(currentDoc, state.nodes)
+
     const nextProjection = port.project(state.data)
     const result = compile(nextProjection, state.data, options.hints, state.identities)
-    currentDoc = result.document
-    state = { ...state, identities: result.identityMap }
-    documentStore.set(currentDoc)
+    const nextDoc = result.document
+    const next = indexByLogicalKey(nextDoc)
 
-    const seenNodeIds = new Set<NodeId>()
-
-    for (const key of Object.keys(currentDoc.nodes)) {
+    const nextNodes = new Map<NodeId, NodeRuntimeState>()
+    for (const key of Object.keys(nextDoc.nodes)) {
       const nodeId = key as NodeId
-      seenNodeIds.add(nodeId)
-      const uiNode = currentDoc.nodes[key]
+      const uiNode = nextDoc.nodes[key]
       const value = uiNode.dataPointer != null ? getAtPointer(state.data, uiNode.dataPointer) : undefined
-      const bundle = nodeStores.get(nodeId)
-
-      if (bundle) {
-        // A node id can end up representing a different array position after
-        // an insert/remove/move shifts indices, since ids are assigned by
-        // traversal order rather than tracked per logical item. Re-derive
-        // `value` from the freshly recompiled data so the bundle reflects
-        // whatever this id now points at, while keeping the id's own
-        // interaction/validation history (dirty, touched, errors, status).
-        const previous = state.nodes.get(nodeId)
-        const nodeRuntimeState: NodeRuntimeState = previous
-          ? { ...previous, value }
-          : defaultNodeState(value)
-        state.nodes.set(nodeId, nodeRuntimeState)
-
-        bundle.value.set(nodeRuntimeState.value)
-        bundle.dirty.set(nodeRuntimeState.interaction.dirty)
-        bundle.touched.set(nodeRuntimeState.interaction.touched)
-        bundle.errors.set(nodeRuntimeState.validation.errors)
-        bundle.validationStatus.set(nodeRuntimeState.validation.status)
-        bundle.visible.set(uiNode.visible)
-        bundle.disabled.set(uiNode.disabled)
-        continue
-      }
-
-      const nodeRuntimeState = defaultNodeState(value)
-      state.nodes.set(nodeId, nodeRuntimeState)
-      nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode, attemptsStore))
+      const logicalKey = next.keyOf.get(nodeId)
+      const carried = logicalKey === undefined ? undefined : previous.byKey.get(logicalKey)
+      // History belongs to the logical item, so it is adopted by address. A
+      // node whose address is new to this document starts fresh, which is what
+      // an inserted item and a re-minted array both need.
+      nextNodes.set(
+        nodeId,
+        carried?.state ? carryNodeState(carried, uiNode, value) : defaultNodeState(value),
+      )
     }
 
-    // Drop entries for node ids that no longer appear in the recompiled
-    // document (e.g. the trailing item after an array shrinks), so both
-    // maps don't grow without bound across the form's lifetime.
-    for (const nodeId of state.nodes.keys()) {
-      if (!seenNodeIds.has(nodeId)) {
-        state.nodes.delete(nodeId)
-        nodeStores.delete(nodeId)
+    // State is adopted in full before anything is published. Recompiles run
+    // inside `batch`, so subscribers all read the finished state whatever
+    // order the stores were set in.
+    state = { ...state, nodes: nextNodes, identities: result.identityMap }
+    currentDoc = nextDoc
+
+    // The document is published before the per-node stores on purpose. Batched
+    // notifications fire in the order stores were first set, and a renderer
+    // has to re-point its widgets at their new nodes before it is told those
+    // nodes' values, or it writes one row's value into another row's control
+    // and moves the caret of whatever is focused.
+    documentStore.set(nextDoc)
+
+    for (const [nodeId, nodeRuntimeState] of nextNodes) {
+      const uiNode = nextDoc.nodes[nodeId as string]
+      const bundle = nodeStores.get(nodeId)
+      if (!bundle) {
+        nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode, attemptsStore))
+        continue
       }
+      bundle.value.set(nodeRuntimeState.value)
+      bundle.dirty.set(nodeRuntimeState.interaction.dirty)
+      bundle.touched.set(nodeRuntimeState.interaction.touched)
+      bundle.errors.set(nodeRuntimeState.validation.errors)
+      bundle.validationStatus.set(nodeRuntimeState.validation.status)
+      bundle.visible.set(uiNode.visible)
+      bundle.disabled.set(uiNode.disabled)
+    }
+
+    // Drop stores for node ids the recompiled document no longer contains
+    // (the trailing item after an array shrinks), so the map does not grow
+    // without bound across the form's lifetime.
+    for (const nodeId of [...nodeStores.keys()]) {
+      if (!nextNodes.has(nodeId)) nodeStores.delete(nodeId)
     }
 
     refreshVisibleErrors()

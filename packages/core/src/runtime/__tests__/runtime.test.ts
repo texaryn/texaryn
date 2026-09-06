@@ -285,16 +285,7 @@ describe('FormRuntime', () => {
     runtime.destroy()
   })
 
-  /**
-   * Known defect, kept executable so it turns red once the runtime is fixed:
-   * https://github.com/texaryn/texaryn/issues/89. Recompilation re-derives
-   * `value` for a node id whose index now holds a different logical item but
-   * keeps that id's interaction and validation history, so a reorder leaves
-   * dirty, touched, errors and status behind at the position. `dirty` and
-   * `touched` are interaction history and cannot be recomputed from data, so
-   * nothing later corrects them. Remove the `.fails` with the fix.
-   */
-  it.fails('keeps interaction and validation state with the logical item across MoveItem', async () => {
+  it('keeps interaction and validation state with the logical item across MoveItem', async () => {
     const port = makeArrayPort((data) => {
       const tags = (((data as { tags?: unknown[] }).tags ?? []) as string[])
       const errors = tags.flatMap((tag, index) =>
@@ -333,12 +324,39 @@ describe('FormRuntime', () => {
     expect(moved.validationStatus.getSnapshot()).toBe('invalid')
     expect(moved.touched.getSnapshot()).toBe(true)
     expect(moved.dirty.getSnapshot()).toBe(true)
+    // The error was recorded against the old pointer and validation matches
+    // errors back by exact pointer, so it has to be rebased onto the new one.
+    expect(moved.errors.getSnapshot()[0].instancePointer).toBe('/tags/0')
 
     expect(untouched.value.getSnapshot()).toBe('aa')
     expect(untouched.errors.getSnapshot()).toEqual([])
     expect(untouched.touched.getSnapshot()).toBe(false)
     expect(untouched.dirty.getSnapshot()).toBe(false)
 
+    runtime.destroy()
+  })
+
+  it('publishes the document before the per-node stores', () => {
+    const port = makeArrayPort()
+    const runtime = createFormRuntime(port, { initialData: { tags: ['a', 'b'] } })
+    const arrayId = findArrayContainerId(runtime)
+    const firstId = findFieldNode(runtime, '/tags/0')
+
+    const order: string[] = []
+    const offDocument = runtime.document.subscribe(() => order.push('document'))
+    const offValue = runtime.getNodeState(firstId)!.value.subscribe(() => order.push('value'))
+
+    runtime.dispatch({ type: 'MoveItem', containerId: arrayId, from: 1, to: 0 })
+
+    // Batched notifications fire in the order the stores were set. A renderer
+    // re-points its widgets when the document changes, so hearing the new
+    // values first would write one row's value into another row's control.
+    expect(order).toContain('document')
+    expect(order).toContain('value')
+    expect(order.indexOf('document')).toBeLessThan(order.indexOf('value'))
+
+    offDocument()
+    offValue()
     runtime.destroy()
   })
 
