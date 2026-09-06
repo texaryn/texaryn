@@ -6,7 +6,7 @@
 
 # Function: reconcile()
 
-> **reconcile**(`map`, `containerId`, `oldItems`, `newItems`, `options?`): [`IdentityMap`](../interfaces/IdentityMap.md)
+> **reconcile**(`map`, `containerKey`, `oldItems`, `newItems`, `options?`): [`IdentityMap`](../interfaces/IdentityMap.md)
 
 ## Parameters
 
@@ -14,9 +14,9 @@
 
 [`IdentityMap`](../interfaces/IdentityMap.md)
 
-### containerId
+### containerKey
 
-[`NodeId`](../type-aliases/NodeId.md)
+[`IdentityKey`](../type-aliases/IdentityKey.md)
 
 ### oldItems
 

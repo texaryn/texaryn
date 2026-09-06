@@ -6,7 +6,7 @@
 
 # Function: registerArray()
 
-> **registerArray**(`map`, `containerId`): [`IdentityMap`](../interfaces/IdentityMap.md)
+> **registerArray**(`map`, `containerKey`): [`IdentityMap`](../interfaces/IdentityMap.md)
 
 ## Parameters
 
@@ -14,9 +14,9 @@
 
 [`IdentityMap`](../interfaces/IdentityMap.md)
 
-### containerId
+### containerKey
 
-[`NodeId`](../type-aliases/NodeId.md)
+[`IdentityKey`](../type-aliases/IdentityKey.md)
 
 ## Returns
 

@@ -10,13 +10,13 @@
 
 ### arrayIdentities
 
-> **arrayIdentities**: `Map`\<[`NodeId`](../type-aliases/NodeId.md), [`StableItemId`](../type-aliases/StableItemId.md)[]\>
+> **arrayIdentities**: `Map`\<[`IdentityKey`](../type-aliases/IdentityKey.md), [`StableItemId`](../type-aliases/StableItemId.md)[]\>
 
 ***
 
 ### itemLookup
 
-> **itemLookup**: `Map`\<[`StableItemId`](../type-aliases/StableItemId.md), \{ `containerId`: [`NodeId`](../type-aliases/NodeId.md); `index`: `number`; \}\>
+> **itemLookup**: `Map`\<[`StableItemId`](../type-aliases/StableItemId.md), \{ `containerKey`: [`IdentityKey`](../type-aliases/IdentityKey.md); `index`: `number`; \}\>
 
 ***
 

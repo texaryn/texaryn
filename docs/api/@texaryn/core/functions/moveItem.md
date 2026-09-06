@@ -6,7 +6,7 @@
 
 # Function: moveItem()
 
-> **moveItem**(`map`, `containerId`, `from`, `to`): [`IdentityMap`](../interfaces/IdentityMap.md)
+> **moveItem**(`map`, `containerKey`, `from`, `to`): [`IdentityMap`](../interfaces/IdentityMap.md)
 
 ## Parameters
 
@@ -14,9 +14,9 @@
 
 [`IdentityMap`](../interfaces/IdentityMap.md)
 
-### containerId
+### containerKey
 
-[`NodeId`](../type-aliases/NodeId.md)
+[`IdentityKey`](../type-aliases/IdentityKey.md)
 
 ### from
 

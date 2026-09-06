@@ -26,6 +26,14 @@
 
 ***
 
+### identityKey
+
+> **identityKey**: [`IdentityKey`](../type-aliases/IdentityKey.md)
+
+Addresses this logical array container across recompiles; stable for its lifetime and otherwise opaque.
+
+***
+
 ### itemIds
 
 > **itemIds**: [`StableItemId`](../type-aliases/StableItemId.md)[]
