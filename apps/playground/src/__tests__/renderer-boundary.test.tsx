@@ -58,17 +58,21 @@ describe('the renderer-owned region', () => {
     }
   })
 
-  // Three of the four surfaces are React and one is not. A list reading
-  // "Material UI" beside "Vue" invites reading the fourth as the only one with
-  // a framework, which is the confusion the boxed region exists to remove.
-  it('names a framework on every option, not only on the one that is not React', () => {
+  // Three of the five surfaces are React and two are not. A list reading
+  // "Material UI" beside "Vue" invites reading the others as the only ones
+  // with a framework, which is the confusion the boxed region exists to
+  // remove. The list of technologies is written out rather than matched
+  // loosely, because a pattern that accepted anything before the separator
+  // would accept "Material UI · Default", which is the thing being guarded
+  // against.
+  it('names what renders every option, not only the ones that are not React', () => {
     render(<App />)
 
     const offered = surfaces()
     expect(offered.length).toBeGreaterThan(1)
     for (const { label } of offered) {
-      expect(label, `"${label}" does not say which framework renders it`).toMatch(
-        /^(React|Vue) · .+/,
+      expect(label, `"${label}" does not say what renders it`).toMatch(
+        /^(React|Vue|Web Components) · .+/,
       )
     }
   })

@@ -19,6 +19,7 @@
     "@texaryn/react-mui": "workspace:*",
     "@texaryn/schema-json": "workspace:*",
     "@texaryn/vue": "workspace:*",
+    "@texaryn/web-components": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vue": "^3.5.0"

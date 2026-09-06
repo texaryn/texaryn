@@ -102,6 +102,9 @@ importers:
       '@texaryn/vue':
         specifier: workspace:*
         version: link:../../packages/vue
+      '@texaryn/web-components':
+        specifier: workspace:*
+        version: link:../../packages/web-components
       react:
         specifier: ^19.0.0
         version: 19.2.8

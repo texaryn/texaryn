@@ -12,13 +12,21 @@ import {
 import { createMuiRegistry } from '@texaryn/react-mui'
 import { getExample } from '@texaryn/examples'
 import { VueHost } from '../VueHost.js'
+import { WcHost } from '../WcHost.js'
 
 const registries = {
   default: createDefaultRegistry(),
   mui: createMuiRegistry(),
 }
 
-type Surface = 'default' | 'mui' | 'vue'
+type ReactSurface = 'default' | 'mui'
+type Surface = ReactSurface | 'vue' | 'wc'
+
+const hosts = { vue: VueHost, wc: WcHost }
+
+function isHosted(surface: Surface): surface is 'vue' | 'wc' {
+  return surface === 'vue' || surface === 'wc'
+}
 
 /**
  * The playground's shape, reduced to the part under test: one React shell
@@ -42,8 +50,11 @@ function Shell({
 
   return (
     <FormContext.Provider value={form.runtime}>
-      {surface === 'vue' ? (
-        <VueHost runtime={form.runtime} />
+      {isHosted(surface) ? (
+        (() => {
+          const Host = hosts[surface]
+          return <Host runtime={form.runtime} />
+        })()
       ) : (
         <FormRoot registry={registries[surface]} />
       )}
@@ -69,6 +80,7 @@ function Harness({
       <button type="button" onClick={() => setSurface('default')}>to default</button>
       <button type="button" onClick={() => setSurface('mui')}>to mui</button>
       <button type="button" onClick={() => setSurface('vue')}>to vue</button>
+      <button type="button" onClick={() => setSurface('wc')}>to wc</button>
       <Shell port={port} initialData={initialData} surface={surface} onRuntime={onRuntime} />
     </>
   )
@@ -157,6 +169,99 @@ describe('one runtime, several framework render surfaces', () => {
         'the Vue surface should follow the runtime the React shell holds',
       ).toBe('Hopper')
     })
+  })
+
+  it('carries data and edits through the Web Components surface too', async () => {
+    const example = getExample('basics-string')!
+    const port = await createJsonSchemaAdapter(example.schema, {})
+    const seen: FormRuntime[] = []
+
+    const { container, getByText, getByTestId } = render(
+      <Harness
+        port={port}
+        initialData={example.initialData}
+        onRuntime={(runtime) => { if (!seen.includes(runtime)) seen.push(runtime) }}
+      />,
+    )
+
+    fireEvent.change(textInput(container), { target: { value: 'Ada' } })
+    await waitFor(() => expect(inspector(getByTestId)).toMatchObject({ name: 'Ada' }))
+
+    const wcInput = async (): Promise<HTMLInputElement> => {
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="wc-host"] input')).not.toBeNull()
+      })
+      return container.querySelector('[data-testid="wc-host"] input') as HTMLInputElement
+    }
+
+    fireEvent.click(getByText('to wc'))
+    expect((await wcInput()).value, 'the element should show what was typed in React').toBe('Ada')
+
+    // Editing in the custom element reaches the React inspector, so the two
+    // are reading and writing one runtime rather than two in step.
+    const input = await wcInput()
+    input.value = 'Grace'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await waitFor(() => expect(inspector(getByTestId)).toMatchObject({ name: 'Grace' }))
+
+    // Vue sees the edit made through the custom element.
+    fireEvent.click(getByText('to vue'))
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="vue-host"] input')).not.toBeNull()
+    })
+    expect(
+      (container.querySelector('[data-testid="vue-host"] input') as HTMLInputElement).value,
+    ).toBe('Grace')
+
+    // Back to the element, then command the runtime the React shell holds and
+    // watch the element answer. A host that built its own runtime could not.
+    fireEvent.click(getByText('to wc'))
+    expect((await wcInput()).value).toBe('Grace')
+    expect(seen, 'exactly one runtime should ever have existed').toHaveLength(1)
+
+    const snapshot = seen[0].document.getSnapshot()
+    seen[0].dispatch({
+      type: 'SetValue',
+      nodeId: (snapshot.nodes[snapshot.rootId] as { children: string[] }).children[0] as never,
+      value: 'Hopper',
+    })
+    await waitFor(async () => {
+      expect((await wcInput()).value).toBe('Hopper')
+    })
+  })
+
+  it('leaves the runtime alive when the custom element is removed', async () => {
+    const example = getExample('basics-string')!
+    const port = await createJsonSchemaAdapter(example.schema, {})
+    const seen: FormRuntime[] = []
+
+    const { container, getByText } = render(
+      <Harness
+        port={port}
+        initialData={example.initialData}
+        onRuntime={(runtime) => { if (!seen.includes(runtime)) seen.push(runtime) }}
+      />,
+    )
+    await waitFor(() => expect(seen).toHaveLength(1))
+    const runtime = seen[0]
+
+    fireEvent.click(getByText('to wc'))
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="wc-host"] input')).not.toBeNull()
+    })
+    fireEvent.click(getByText('to default'))
+    await waitFor(() => expect(container.querySelector('[data-testid="wc-host"]')).toBeNull())
+
+    // The element is in borrowed mode, so removing it disposes what it built
+    // and nothing else. A destroyed runtime would keep no node state.
+    const snapshot = runtime.document.getSnapshot()
+    const nameId = (snapshot.nodes[snapshot.rootId] as { children: string[] }).children[0]
+    expect(runtime.getNodeState(nameId as never), 'the runtime should still be usable').toBeDefined()
+
+    fireEvent.change(textInput(container), { target: { value: 'still works' } })
+    await waitFor(() =>
+      expect(runtime.data.getSnapshot()).toMatchObject({ name: 'still works' }),
+    )
   })
 
   it('holds the same port and runtime objects across every switch', async () => {
