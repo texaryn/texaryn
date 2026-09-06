@@ -16,12 +16,15 @@ import type { UIHints, ArrayHints, FieldHints } from '../hints/types.js'
 import type { IdentityMap } from './runtime-state.js'
 import type { JsonPointer, NodeId, StableItemId } from '../types.js'
 import { createIdentityMap, registerArray, insertItem } from '../identity/index.js'
+import { identityKey } from '../identity/key.js'
+import type { IdentityKey, IdentitySegment } from '../identity/key.js'
 import { getAtPointer } from '../json-pointer.js'
 
 interface CompileContext {
   nodes: Record<string, UINode>
   identityMap: IdentityMap
   nodeCounter: number
+  visited: Set<IdentityKey>
 }
 
 function nextId(ctx: CompileContext): NodeId {
@@ -59,7 +62,7 @@ export function compile(
     throw new Error('Schema projection missing root node')
   }
 
-  const ctx: CompileContext = { nodes, identityMap, nodeCounter: 0 }
+  const ctx: CompileContext = { nodes, identityMap, nodeCounter: 0, visited: new Set() }
   const rootId = compileNode(
     '' as JsonPointer,
     rootProjection,
@@ -69,12 +72,28 @@ export function compile(
     data,
     hints,
     ctx,
+    undefined,
+    [],
   )
 
   return {
     document: { version: 1, rootId, nodes },
-    identityMap: ctx.identityMap,
+    identityMap: retainVisited(ctx.identityMap, ctx.visited),
   }
+}
+
+/**
+ * Only the arrays this compile visited keep identity. An array whose pointer
+ * left the document starts fresh when it returns, and because this builds a
+ * new map rather than editing the input, a compile that throws leaves the
+ * previous state untouched.
+ */
+function retainVisited(map: IdentityMap, visited: Set<IdentityKey>): IdentityMap {
+  const arrayIdentities = new Map([...map.arrayIdentities].filter(([key]) => visited.has(key)))
+  const itemLookup = new Map(
+    [...map.itemLookup].filter(([, entry]) => visited.has(entry.containerKey)),
+  )
+  return { ...map, arrayIdentities, itemLookup }
 }
 
 function compileNode(
@@ -86,7 +105,8 @@ function compileNode(
   data: unknown,
   hints: UIHints | undefined,
   ctx: CompileContext,
-  required?: boolean,
+  required: boolean | undefined,
+  segments: readonly IdentitySegment[],
 ): NodeId {
   const { nodes } = ctx
   const id = nextId(ctx)
@@ -133,6 +153,7 @@ function compileNode(
             hints,
             ctx,
             child.required,
+            [...segments, { kind: 'property', name: child.key }],
           )
           children.push(childId)
         }
@@ -166,7 +187,9 @@ function compileNode(
     //
     // Identity map API is pure: register/insert return new maps, so we always
     // reassign ctx.identityMap rather than mutate in place.
-    const carried = ctx.identityMap.arrayIdentities.get(id)
+    const key = identityKey(segments)
+    ctx.visited.add(key)
+    const carried = ctx.identityMap.arrayIdentities.get(key)
     let itemStableIds: StableItemId[]
 
     if (carried !== undefined && carried.length === arrayItems.length) {
@@ -176,10 +199,10 @@ function compileNode(
       // produce. Minting positional ids is right for a first compile and is
       // the only safe fallback otherwise: reconciling here would be a second
       // identity system competing with the handler's.
-      ctx.identityMap = registerArray(ctx.identityMap, id)
+      ctx.identityMap = registerArray(ctx.identityMap, key)
       itemStableIds = []
       for (let i = 0; i < arrayItems.length; i++) {
-        const result = insertItem(ctx.identityMap, id, i)
+        const result = insertItem(ctx.identityMap, key, i)
         ctx.identityMap = result.map
         itemStableIds.push(result.itemId)
       }
@@ -199,6 +222,7 @@ function compileNode(
           hints,
           ctx,
           false,
+          [...segments, { kind: 'item', id: itemStableIds[i] }],
         )
         children.push(childId)
       }
@@ -207,6 +231,7 @@ function compileNode(
     const arrayHints = hints?.[pointer] as ArrayHints | undefined
     const arrayMeta: ArrayMeta = {
       itemIds: itemStableIds,
+      identityKey: key,
       itemKey: arrayHints?.itemKey,
       minItems: proj.constraints.minItems,
       maxItems: proj.constraints.maxItems,

@@ -1,4 +1,5 @@
 import type { NodeId, StableItemId, JsonPointer } from '../types.js'
+import type { IdentityKey } from '../identity/key.js'
 
 export interface UIDocument {
   version: 1
@@ -77,6 +78,8 @@ export interface ContainerNode extends NodeBase {
 
 export interface ArrayMeta {
   itemIds: StableItemId[]
+  /** Addresses this logical array container across recompiles; stable for its lifetime and otherwise opaque. */
+  identityKey: IdentityKey
   itemKey?: JsonPointer
   minItems?: number
   maxItems?: number
