@@ -135,6 +135,29 @@ describe('renderer invariants', () => {
     expect(bob.selectionStart).toBe(2)
   })
 
+  it('3c. rows before the focused one are placed relative to it, not moved past it', async () => {
+    const rt = await mount(listSchema, items)
+    const [row0, row1, row2] = rowsOf(outerArray())
+    const cid = row2.querySelector('input')!
+    cid.focus()
+
+    const moved: Node[] = []
+    const original = Node.prototype.insertBefore
+    const spy = vi
+      .spyOn(Node.prototype, 'insertBefore')
+      .mockImplementation(function (this: Node, node: Node, ref: Node | null) {
+        moved.push(node)
+        return original.call(this, node, ref)
+      } as typeof Node.prototype.insertBefore)
+    rt.dispatch({ type: 'MoveItem', containerId: nodeAt(rt, '/items'), from: 0, to: 1 })
+    await flush()
+    spy.mockRestore()
+
+    expect(rowsOf(outerArray())).toEqual([row1, row0, row2])
+    expect(moved).not.toContain(row2)
+    expect(document.activeElement).toBe(cid)
+  })
+
   it('3b. moveBefore is used when the parent has it', async () => {
     const rt = await mount(listSchema, items)
     type Movable = { moveBefore?: (node: Node, child: Node | null) => void }
