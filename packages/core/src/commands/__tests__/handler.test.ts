@@ -553,6 +553,17 @@ describe('processCommand', () => {
         expect(effects).toEqual([])
       }
     })
+
+    it('ignores array commands aimed at a field', () => {
+      const state = simpleState()
+      const { nextState, effects } = processCommand(
+        state,
+        { type: 'InsertItem', containerId: nid('name'), index: 0, value: 'x' },
+        simpleDoc,
+      )
+      expect(nextState).toBe(state)
+      expect(effects).toEqual([])
+    })
   })
 
   describe('Reset identity reconciliation', () => {
@@ -594,6 +605,28 @@ describe('processCommand', () => {
       const idsAfter = nextState.identities.arrayIdentities.get(listKey)!
       expect(idsAfter[0]).toBe(idForB)
       expect(idsAfter[1]).toBe(idForA)
+    })
+
+    it('matches by itemKey when the container declares one', () => {
+      const list = arrayDoc.nodes[nid('list') as string] as ContainerNode
+      const keyed: UIDocument = {
+        ...arrayDoc,
+        nodes: {
+          [nid('list') as string]: {
+            ...list,
+            arrayMeta: { ...list.arrayMeta!, itemKey: jp('/id') },
+          },
+        },
+      }
+      const state = arrayState([{ id: 'a', n: 1 }, { id: 'b', n: 2 }])
+      const [idForA, idForB] = state.identities.arrayIdentities.get(listKey)!
+
+      const { nextState } = processCommand(
+        state,
+        { type: 'Reset', data: { items: [{ id: 'b', n: 3 }, { id: 'a', n: 4 }] } },
+        keyed,
+      )
+      expect(nextState.identities.arrayIdentities.get(listKey)).toEqual([idForB, idForA])
     })
   })
 })

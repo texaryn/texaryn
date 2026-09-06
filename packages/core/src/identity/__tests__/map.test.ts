@@ -111,6 +111,21 @@ describe('IdentityMap', () => {
     })
   })
 
+  describe('unregistered keys', () => {
+    it('insertItem creates the list on first use', () => {
+      const { map, itemId } = insertItem(createIdentityMap(), key('arr'), 0)
+      expect(map.arrayIdentities.get(key('arr'))).toEqual([itemId])
+      expect(map.itemLookup.get(itemId)).toEqual({ containerKey: key('arr'), index: 0 })
+    })
+
+    it('removeItem leaves an unknown key empty', () => {
+      const { map, removedId } = removeItem(createIdentityMap(), key('arr'), 0)
+      expect(removedId).toBeUndefined()
+      expect(map.arrayIdentities.get(key('arr'))).toEqual([])
+      expect(map.itemLookup.size).toBe(0)
+    })
+  })
+
   describe('resolvePointer', () => {
     it('returns the current index as a string', () => {
       let map = registerArray(createIdentityMap(), key('arr'))

@@ -79,6 +79,14 @@ describe('reconcile', () => {
     expect(ids[1]).toBe(r0.itemId)
   })
 
+  it('mints an id for every item when the key is not registered', () => {
+    const result = reconcile(createIdentityMap(), key('arr'), [], [1, 2])
+    const ids = result.arrayIdentities.get(key('arr'))!
+    expect(ids).toHaveLength(2)
+    expect(ids[0]).not.toBe(ids[1])
+    expect(result.itemLookup.get(ids[1])).toEqual({ containerKey: key('arr'), index: 1 })
+  })
+
   it('deep equality is best-effort for identical objects', () => {
     let map = registerArray(createIdentityMap(), key('arr'))
     const r0 = insertItem(map, key('arr'), 0); map = r0.map
