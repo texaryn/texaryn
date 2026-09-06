@@ -87,6 +87,24 @@ export function webComponentsAriaConformance({
     },
   }
 
+  // Node ids are positional, so moving a row hands every descendant widget a
+  // new id. Ids, label targets and descriptions have to follow the row.
+  const rowsSchema = {
+    type: 'object',
+    properties: {
+      people: {
+        type: 'array',
+        title: 'People',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', title: 'Name', description: 'Full legal name', minLength: 3 },
+          },
+        },
+      },
+    },
+  }
+
   const runtimes: FormRuntime[] = []
 
   async function mount(
@@ -300,6 +318,84 @@ export function webComponentsAriaConformance({
       expect(q.queryByRole('group')).toBeNull()
       // The grouping change must not rebuild what it wraps.
       expect(city()).toBe(cityBefore)
+    })
+
+    async function movedRows(): Promise<{
+      element: TexarynFormElement
+      inputs: () => HTMLInputElement[]
+      idBefore: string[]
+    }> {
+      const element = await mount(
+        rowsSchema,
+        { people: [{ name: 'Ann' }, { name: 'Bo' }] },
+        { '/people': { canReorder: true } },
+      )
+      const q = within(element)
+      const runtime = runtimes[runtimes.length - 1]
+      const listId = Object.values(runtime.document.getSnapshot().nodes).find(
+        (n) => n.dataPointer === '/people',
+      )!.id
+      const inputs = (): HTMLInputElement[] =>
+        q.getAllByRole('textbox', { name: 'Name' }) as HTMLInputElement[]
+
+      // Bo is shorter than minLength, so a failed Submit puts the second row
+      // and only the second row into an error state.
+      submit(element)
+      await flush()
+      const [ann, bo] = inputs()
+      expect([ann.value, bo.value]).toEqual(['Ann', 'Bo'])
+      expect(ann.getAttribute('aria-invalid')).toBeNull()
+      expect(bo.getAttribute('aria-invalid')).toBe('true')
+      const idBefore = [ann.id, bo.id]
+
+      runtime.dispatch({ type: 'MoveItem', containerId: listId, from: 1, to: 0 })
+      await flush()
+      return { element, inputs, idBefore }
+    }
+
+    it('ids, labels and descriptions are rewritten when a row moves', async () => {
+      const { element, inputs, idBefore } = await movedRows()
+      const [first, second] = inputs()
+      expect(first.value, 'the row keeps its input element').toBe('Bo')
+      expect(first.name).toBe('/people/0/name')
+      expect(second.name).toBe('/people/1/name')
+
+      const describedText = (input: HTMLInputElement): string[] =>
+        (input.getAttribute('aria-describedby') ?? '')
+          .split(' ')
+          .filter(Boolean)
+          .map((id) => document.getElementById(id)?.textContent ?? '')
+      expect(describedText(first)).toContain('Full legal name')
+      expect(describedText(second)).toContain('Full legal name')
+
+      for (const { attribute, id } of idrefs(element)) {
+        const target = document.getElementById(id)
+        expect(target, `${attribute}="${id}" should resolve`).not.toBeNull()
+        expect(element.contains(target), `${attribute}="${id}" points outside the form`).toBe(true)
+      }
+      for (const label of element.querySelectorAll('label')) {
+        expect(element.contains(document.getElementById(label.htmlFor))).toBe(true)
+      }
+      const live = Array.from(element.querySelectorAll('[id]')).map((n) => n.id)
+      expect(new Set(live).size, 'ids stay unique after the move').toBe(live.length)
+      // The id belongs to the position while the widget follows the row, so
+      // the moved row has to be re-stamped with the id of its new position.
+      expect([first.id, second.id]).toEqual(idBefore)
+    })
+
+    // Known core defect, kept executable so it turns red the day it is fixed:
+    // per-node runtime state is keyed by the positional NodeId, so a move
+    // leaves validation state at the position. The valid row is announced
+    // invalid with the other row's message and the invalid row is announced
+    // valid. Every binding reads getNodeState the same way, so all three are
+    // affected. Delete the `.fails` when the runtime moves node state with
+    // the row.
+    it.fails('a validation error follows its row when the row moves', async () => {
+      const { inputs } = await movedRows()
+      const [first, second] = inputs()
+      expect(first.value).toBe('Bo')
+      expect(first.getAttribute('aria-invalid')).toBe('true')
+      expect(second.getAttribute('aria-invalid')).toBeNull()
     })
 
     it('two instances with equivalent schemas share no ids and make no cross-instance references', async () => {
