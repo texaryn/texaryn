@@ -171,6 +171,7 @@ function handleSubmit(state: RuntimeState): CommandResult {
   }
 }
 
+/** Reset replaces state wholesale: identity is re-matched, so nested arrays under a reordered row may be minted afresh. */
 function handleReset(
   state: RuntimeState,
   cmd: { type: 'Reset'; data?: unknown },
