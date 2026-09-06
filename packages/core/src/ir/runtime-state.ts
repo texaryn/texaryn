@@ -1,4 +1,5 @@
 import type { NodeId, StableItemId, ValidationError } from '../types.js'
+import type { IdentityKey } from '../identity/key.js'
 
 export interface RuntimeState {
   data: unknown
@@ -34,7 +35,7 @@ export interface SubmissionState {
 }
 
 export interface IdentityMap {
-  arrayIdentities: Map<NodeId, StableItemId[]>
-  itemLookup: Map<StableItemId, { containerId: NodeId; index: number }>
+  arrayIdentities: Map<IdentityKey, StableItemId[]>
+  itemLookup: Map<StableItemId, { containerKey: IdentityKey; index: number }>
   nextId: number
 }
