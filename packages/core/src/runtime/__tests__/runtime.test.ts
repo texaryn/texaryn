@@ -285,7 +285,7 @@ describe('FormRuntime', () => {
     runtime.destroy()
   })
 
-  it('keeps interaction and validation state with the logical item across MoveItem', async () => {
+  it('carries interaction history with the logical item across MoveItem', async () => {
     const port = makeArrayPort((data) => {
       const tags = (((data as { tags?: unknown[] }).tags ?? []) as string[])
       const errors = tags.flatMap((tag, index) =>
@@ -315,23 +315,35 @@ describe('FormRuntime', () => {
     runtime.dispatch({ type: 'MoveItem', containerId: arrayId, from: 1, to: 0 })
     await flushMicrotasks()
 
-    // The short tag is at index 0 now, so its history belongs to index 0 and
-    // the untouched tag at index 1 should carry none of it.
+    // The short tag is at index 0 now and its interaction history came with
+    // it, while the untouched tag at index 1 carries none of it.
     const moved = runtime.getNodeState(findFieldNode(runtime, '/tags/0'))!
     const untouched = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
     expect(moved.value.getSnapshot()).toBe('b')
-    expect(moved.errors.getSnapshot()).toHaveLength(1)
-    expect(moved.validationStatus.getSnapshot()).toBe('invalid')
     expect(moved.touched.getSnapshot()).toBe(true)
     expect(moved.dirty.getSnapshot()).toBe(true)
-    // The error was recorded against the old pointer and validation matches
-    // errors back by exact pointer, so it has to be rebased onto the new one.
-    expect(moved.errors.getSnapshot()[0].instancePointer).toBe('/tags/0')
-
     expect(untouched.value.getSnapshot()).toBe('aa')
-    expect(untouched.errors.getSnapshot()).toEqual([])
     expect(untouched.touched.getSnapshot()).toBe(false)
     expect(untouched.dirty.getSnapshot()).toBe(false)
+
+    // Neither keeps a validation result: a schema can apply per index, so a
+    // result produced at the old position says nothing about the new one.
+    // Reporting nothing is honest; reporting the old row's error is not.
+    for (const node of [moved, untouched]) {
+      expect(node.errors.getSnapshot()).toEqual([])
+      expect(node.validationStatus.getSnapshot()).toBe('idle')
+    }
+
+    // Validating again puts the error on the row that actually fails.
+    runtime.dispatch({ type: 'Submit' })
+    await flushMicrotasks()
+    const revalidated = runtime.getNodeState(findFieldNode(runtime, '/tags/0'))!
+    const other = runtime.getNodeState(findFieldNode(runtime, '/tags/1'))!
+    expect(revalidated.errors.getSnapshot()).toHaveLength(1)
+    expect(revalidated.errors.getSnapshot()[0].instancePointer).toBe('/tags/0')
+    expect(revalidated.validationStatus.getSnapshot()).toBe('invalid')
+    expect(other.errors.getSnapshot()).toEqual([])
+    expect(other.validationStatus.getSnapshot()).toBe('valid')
 
     runtime.destroy()
   })

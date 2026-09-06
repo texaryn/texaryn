@@ -98,9 +98,12 @@ function indexByLogicalKey(
 
 /**
  * Carries one logical node's history onto the node that now represents it.
- * Errors are recorded against the pointer they were produced for and matched
- * back by exact pointer, so a moved item's errors are rebased or they would
- * stop belonging to it.
+ * Interaction history belongs to the item and is always carried; it cannot be
+ * recomputed from data. A validation result belongs to the item at a position,
+ * because a schema may apply per index (`prefixItems`, and the draft-07 tuple
+ * form of `items`), so when the item's pointer changes its result is dropped
+ * rather than moved. Reporting nothing until validation runs again is honest;
+ * moving a result to a position its schema may not produce is not.
  */
 function carryNodeState(
   previous: CarriedNode,
@@ -108,16 +111,8 @@ function carryNodeState(
   value: unknown,
 ): NodeRuntimeState {
   const carried: NodeRuntimeState = { ...previous.state!, value }
-  const pointer = to.dataPointer
-  if (pointer == null || previous.node.dataPointer === pointer) return carried
-  if (carried.validation.errors.length === 0) return carried
-  return {
-    ...carried,
-    validation: {
-      ...carried.validation,
-      errors: carried.validation.errors.map((error) => ({ ...error, instancePointer: pointer })),
-    },
-  }
+  if (previous.node.dataPointer === to.dataPointer) return carried
+  return { ...carried, validation: { status: 'idle', errors: [] } }
 }
 
 function defaultNodeState(value: unknown): NodeRuntimeState {
