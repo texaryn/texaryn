@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -117,7 +117,23 @@ export default defineConfig({
           name: 'web-components',
           root: 'packages/web-components',
           include: ['src/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'src/**/*.browser.test.ts'],
           environment: 'jsdom',
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'web-components-browser',
+          root: 'packages/web-components',
+          include: ['src/**/*.browser.test.ts'],
+          browser: {
+            enabled: true,
+            provider: 'playwright',
+            headless: true,
+            screenshotFailures: false,
+            instances: [{ browser: 'chromium' }],
+          },
         },
       },
       {
