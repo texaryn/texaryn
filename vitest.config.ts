@@ -18,6 +18,7 @@ const alias = {
   '@texaryn/react-bootstrap': resolve(root, 'packages/react-bootstrap/src/index.ts'),
   '@texaryn/react-mui': resolve(root, 'packages/react-mui/src/index.ts'),
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
+  '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
   '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
 }
 
@@ -35,6 +36,7 @@ export default defineConfig({
         'packages/react-bootstrap/src/**',
         'packages/react-mui/src/**',
         'packages/vue/src/**',
+        'packages/web-components/src/**',
       ],
       // Type-only modules compile to nothing executable and would report 0%.
       exclude: [
@@ -43,6 +45,7 @@ export default defineConfig({
         '**/index.ts',
         '**/types.ts',
         'packages/vue/src/widget.ts',
+        'packages/web-components/src/widget.ts',
         'packages/core/src/schema/**',
         'packages/core/src/hints/**',
       ],
@@ -104,6 +107,15 @@ export default defineConfig({
         test: {
           name: 'vue',
           root: 'packages/vue',
+          include: ['src/**/*.test.ts'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'web-components',
+          root: 'packages/web-components',
           include: ['src/**/*.test.ts'],
           environment: 'jsdom',
         },

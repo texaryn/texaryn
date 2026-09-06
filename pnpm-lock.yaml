@@ -280,6 +280,19 @@ importers:
         specifier: ^3.5.0
         version: 3.5.42(typescript@5.8.3)
 
+  packages/web-components:
+    dependencies:
+      '@texaryn/core':
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@texaryn/schema-json':
+        specifier: workspace:*
+        version: link:../schema-json
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1(supports-color@10.2.2)
+
   tests:
     dependencies:
       '@texaryn/core':

@@ -1,0 +1,84 @@
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import type { FormRuntime, NodeId, SchemaEvaluationPort } from '@texaryn/core'
+
+export function adapterFor(schema: unknown): Promise<SchemaEvaluationPort> {
+  return createJsonSchemaAdapter(schema)
+}
+
+/** Lets the async validator resolve and the disconnect microtask run. */
+export function flush(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+export function type(
+  control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+  value: string,
+): void {
+  control.value = value
+  control.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+export function nodeAt(runtime: FormRuntime, pointer: string): NodeId {
+  const doc = runtime.document.getSnapshot()
+  const node = Object.values(doc.nodes).find((n) => n.dataPointer === pointer)
+  if (!node) throw new Error(`no node at ${pointer}`)
+  return node.id
+}
+
+export const requiredSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', title: 'Full name', description: 'As on your passport', minLength: 1 },
+  },
+  required: ['name'],
+}
+
+export const conditionalSchema = {
+  type: 'object',
+  properties: {
+    kind: { type: 'string', title: 'Kind' },
+  },
+  if: { properties: { kind: { const: 'b' } }, required: ['kind'] },
+  then: { properties: { extra: { type: 'string', title: 'Extra' } } },
+}
+
+export const listSchema = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      title: 'Items',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string', title: 'Name' } },
+      },
+    },
+  },
+}
+
+export const nestedSchema = {
+  type: 'object',
+  properties: {
+    rows: {
+      type: 'array',
+      title: 'Rows',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', title: 'Name' },
+          tags: { type: 'array', title: 'Tags', items: { type: 'string', title: 'Tag' } },
+        },
+      },
+    },
+  },
+}
+
+export const kindsSchema = {
+  type: 'object',
+  properties: {
+    age: { type: 'integer', title: 'Age' },
+    agree: { type: 'boolean', title: 'Agree' },
+    size: { type: 'number', title: 'Size', enum: [1, 2, 3] },
+    bio: { type: 'string', title: 'Bio' },
+  },
+}
