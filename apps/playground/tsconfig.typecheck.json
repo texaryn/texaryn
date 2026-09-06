@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.dev.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    // The shared theme and site topology are plain .mjs with no declarations,
+    // and the application reads them directly, so their types are inferred.
+    "allowJs": true
+  },
+  "include": ["src"]
+}
