@@ -6,6 +6,7 @@ import {
   getLabelProps,
   getErrorProps,
   getDescriptionProps,
+  hasNativeReadOnly,
 } from '../props/field-props.js'
 import type { LabelProps, ErrorProps, DescriptionProps } from '../props/field-props.js'
 
@@ -118,9 +119,8 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
   // Select and checkbox have no native readonly, so they say so through ARIA
   // and drop the change. Text-like controls keep the native attribute, which
   // the browser enforces before an event is ever raised.
-  const nativeReadOnly = kind !== 'enum'
   const valueReadOnly = node.readOnly
-    ? nativeReadOnly
+    ? hasNativeReadOnly(node)
       ? { readOnly: true }
       : { 'aria-readonly': true as const }
     : {}

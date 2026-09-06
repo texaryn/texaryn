@@ -158,3 +158,36 @@ describe('getDescriptionProps', () => {
     expect(props.id).toBe('texaryn-t-node_1-description')
   })
 })
+
+describe('read-only surface', () => {
+  it('uses the native attribute for a text field', () => {
+    const props = getInputProps(makeFieldNode({ readOnly: true }), makeFieldState(), PREFIX)
+    expect(props.readOnly).toBe(true)
+    expect(props['aria-readonly']).toBeUndefined()
+  })
+
+  // The same distinction useFieldBinding makes, so a widget built on the
+  // lower-level helper does not silently get a weaker guarantee.
+  it('uses ARIA for a select and a checkbox, which have no native attribute', () => {
+    const select = getInputProps(
+      makeFieldNode({ readOnly: true, enumValues: [{ value: 'dev' }] }),
+      makeFieldState(),
+      PREFIX,
+    )
+    const checkbox = getInputProps(
+      makeFieldNode({ readOnly: true, fieldType: 'boolean' }),
+      makeFieldState(),
+      PREFIX,
+    )
+    expect(select['aria-readonly']).toBe(true)
+    expect(select.readOnly).toBeUndefined()
+    expect(checkbox['aria-readonly']).toBe(true)
+    expect(checkbox.readOnly).toBeUndefined()
+  })
+
+  it('says nothing at all when the field is editable', () => {
+    const props = getInputProps(makeFieldNode(), makeFieldState(), PREFIX)
+    expect('readOnly' in props).toBe(false)
+    expect('aria-readonly' in props).toBe(false)
+  })
+})

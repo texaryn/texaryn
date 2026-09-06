@@ -15,7 +15,13 @@ export type {
 export { FormContext, FormProvider, useFormContext } from './context.js'
 export type { FormProviderProps } from './context.js'
 export { useFormIdPrefix } from './id-prefix.js'
-export { getInputProps, getLabelProps, getErrorProps, getDescriptionProps } from './props/index.js'
+export {
+  getInputProps,
+  getLabelProps,
+  getErrorProps,
+  getDescriptionProps,
+  hasNativeReadOnly,
+} from './props/index.js'
 export type { InputProps, LabelProps, ErrorProps, DescriptionProps, FieldState } from './props/index.js'
 export { FormRoot } from './components/FormRoot.js'
 export type { FormRootProps } from './components/FormRoot.js'

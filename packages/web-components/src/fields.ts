@@ -20,6 +20,11 @@ function display(value: unknown): string {
   return value == null ? '' : String(value)
 }
 
+/** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
+function hasNativeReadOnly(kind: Kind): boolean {
+  return kind === 'string' || kind === 'number' || kind === 'textarea'
+}
+
 function createControl(kind: Kind): Control {
   if (kind === 'enum') return document.createElement('select')
   if (kind === 'textarea') return document.createElement('textarea')
@@ -107,10 +112,11 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
       if (control.value !== text) control.value = text
     }
     control.disabled = state.disabled
-    // Native readonly covers text and number; a select or checkbox can only
-    // say so through ARIA, and is put back by commit above.
-    if (control instanceof HTMLInputElement && kind !== 'boolean') control.readOnly = node.readOnly
-    if (node.readOnly && (kind === 'boolean' || kind === 'enum')) {
+    // A control HTML has no readonly for can only say so through ARIA, and is
+    // put back by commit above.
+    if (hasNativeReadOnly(kind)) {
+      ;(control as HTMLInputElement | HTMLTextAreaElement).readOnly = node.readOnly
+    } else if (node.readOnly) {
       control.setAttribute('aria-readonly', 'true')
     } else {
       control.removeAttribute('aria-readonly')

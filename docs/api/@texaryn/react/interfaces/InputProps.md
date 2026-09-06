@@ -30,6 +30,14 @@ HTML/ARIA attributes for an input element
 
 ***
 
+### aria-readonly?
+
+> `optional` **aria-readonly?**: `true`
+
+Set instead where HTML has no native read-only, so select and checkbox.
+
+***
+
 ### aria-required
 
 > **aria-required**: `boolean`
@@ -86,9 +94,11 @@ HTML/ARIA attributes for an input element
 
 ***
 
-### readOnly
+### readOnly?
 
-> **readOnly**: `boolean`
+> `optional` **readOnly?**: `boolean`
+
+Native `readonly`, set only on a control HTML honours it for.
 
 ***
 
