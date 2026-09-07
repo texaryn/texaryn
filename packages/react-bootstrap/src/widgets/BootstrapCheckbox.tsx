@@ -1,6 +1,6 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useFieldBinding } from '@texaryn/react'
+import { FieldLabelContent, useFieldBinding } from '@texaryn/react'
 import { BootstrapFeedback } from './BootstrapFeedback.js'
 
 export interface WidgetProps {
@@ -12,7 +12,7 @@ function BootstrapCheckboxImpl({ node }: WidgetProps) {
   return (
     <div className="form-check mb-3">
       <input {...field.domCheckboxProps} type="checkbox" className={field.invalid ? 'form-check-input is-invalid' : 'form-check-input'} />
-      <label {...field.labelProps} className="form-check-label">{field.label}</label>
+      <label {...field.labelProps} className="form-check-label"><FieldLabelContent label={field.label} required={field.required} /></label>
       <BootstrapFeedback field={field} />
     </div>
   )

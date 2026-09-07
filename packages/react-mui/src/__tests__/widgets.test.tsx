@@ -115,54 +115,54 @@ afterEach(() => {
 describe('MUI field widgets', () => {
   it('renders text input with MUI TextField', () => {
     renderForm(fields, { name: 'A', age: 1, bio: '', role: 'dev', agree: false })
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     expect(name.tagName).toBe('INPUT')
     expect(name.getAttribute('type')).toBe('text')
   })
 
   it('text value changes propagate to form data', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     fireEvent.change(name, { target: { value: 'Bob' } })
     expect((name as HTMLInputElement).value).toBe('Bob')
   })
 
   it('renders number input with type="number"', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    const age = screen.getByLabelText('Age')
+    const age = screen.getByLabelText(/^Age/)
     expect(age.getAttribute('type')).toBe('number')
   })
 
   it('number coercion: empty string', () => {
     renderForm(fields, { name: '', age: 5, bio: '', role: 'dev', agree: false })
-    const age = screen.getByLabelText('Age')
+    const age = screen.getByLabelText(/^Age/)
     fireEvent.change(age, { target: { value: '' } })
     expect((age as HTMLInputElement).value).toBe('')
   })
 
   it('renders textarea with multiline', () => {
     renderForm(fields, { name: '', age: 0, bio: 'hello', role: 'dev', agree: false }, { '/bio': { widget: 'textarea' } })
-    const bio = screen.getByLabelText('Bio')
+    const bio = screen.getByLabelText(/^Bio/)
     expect(bio.tagName).toBe('TEXTAREA')
   })
 
   it('renders checkbox with checked state', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: true })
-    const agree = screen.getByLabelText('Agree') as HTMLInputElement
+    const agree = screen.getByLabelText(/^Agree/) as HTMLInputElement
     expect(agree.type).toBe('checkbox')
     expect(agree.checked).toBe(true)
   })
 
   it('checkbox toggle changes state', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    const agree = screen.getByLabelText('Agree') as HTMLInputElement
+    const agree = screen.getByLabelText(/^Agree/) as HTMLInputElement
     fireEvent.click(agree)
     expect(agree.checked).toBe(true)
   })
 
   it('renders select with enum options', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    const roleElement = screen.getByLabelText('Role')
+    const roleElement = screen.getByLabelText(/^Role/)
     expect(
       roleElement.tagName === 'SELECT' || roleElement.getAttribute('role') === 'combobox',
     ).toBe(true)
@@ -186,7 +186,7 @@ describe('MUI field widgets', () => {
       { '/name': { validationTrigger: 'blur' } },
       () => invalid,
     )
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     expect(screen.getByText('Legal name')).toBeTruthy()
     fireEvent.blur(name)
     await waitFor(() => {
@@ -210,7 +210,7 @@ describe('MUI field widgets', () => {
       { '/name': { validationTrigger: 'blur' } },
       () => invalid,
     )
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     const region = document.querySelector('[aria-live="polite"]')!
     expect(region.textContent).toBe('')
 
@@ -224,7 +224,7 @@ describe('MUI field widgets', () => {
 
   it('sets aria-required but not native required', () => {
     renderForm(fields, { name: '' })
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     expect(name.getAttribute('aria-required')).toBe('true')
     expect((name as HTMLInputElement).required).toBe(false)
   })
@@ -249,7 +249,7 @@ describe('MUI field widgets', () => {
     ])
     renderForm(proj, { role: 'dev' })
 
-    const combobox = screen.getByLabelText('Role')
+    const combobox = screen.getByLabelText(/^Role/)
     expect(combobox.getAttribute('role')).toBe('combobox')
     expect(combobox.getAttribute('aria-required')).toBe('true')
 
@@ -285,7 +285,7 @@ describe('MUI field widgets', () => {
     }
     renderForm(proj, { role: 'dev' }, { '/role': { validationTrigger: 'blur' } }, () => invalid)
 
-    const combobox = screen.getByLabelText('Role')
+    const combobox = screen.getByLabelText(/^Role/)
     // Valid: the attribute is absent rather than "false", so nothing is
     // announced as invalid before the field has been touched.
     expect(combobox.hasAttribute('aria-invalid')).toBe(false)
@@ -293,13 +293,13 @@ describe('MUI field widgets', () => {
     fireEvent.blur(combobox)
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Role').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByLabelText(/^Role/).getAttribute('aria-invalid')).toBe('true')
     })
   })
 
   it('every aria-describedby target exists in the DOM', () => {
     renderForm(fields, { name: 'A', age: 0, bio: '', role: 'dev', agree: false })
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     const describedBy = name.getAttribute('aria-describedby') ?? ''
     for (const id of describedBy.split(' ').filter(Boolean)) {
       expect(document.getElementById(id)).not.toBeNull()
@@ -320,14 +320,14 @@ describe('MUI field widgets', () => {
       ['/name', { type: 'string', annotations: { title: 'Name', readOnly: true } }],
     ])
     renderForm(readOnlyField, { name: 'set by the server' })
-    const name = screen.getByLabelText('Name') as HTMLInputElement
+    const name = screen.getByLabelText(/^Name/) as HTMLInputElement
     expect(name.readOnly).toBe(true)
     expect(name.disabled).toBe(false)
   })
 
   it('number rendered through number input stays numeric', () => {
     renderForm(fields, { name: '', age: 42, bio: '', role: 'dev', agree: false })
-    const age = screen.getByLabelText('Age') as HTMLInputElement
+    const age = screen.getByLabelText(/^Age/) as HTMLInputElement
     expect(age.value).toBe('42')
     fireEvent.change(age, { target: { value: '7' } })
     expect(age.value).toBe('7')
@@ -345,7 +345,7 @@ describe('MUI field widgets', () => {
       ['/count', { type: 'integer', annotations: { title: 'Count' } }],
     ])
     const { getData } = renderFormWithData(proj, { count: 10 }, { '/count': { widget: 'textarea' } })
-    const el = screen.getByLabelText('Count')
+    const el = screen.getByLabelText(/^Count/)
     expect(el.tagName).toBe('TEXTAREA')
     fireEvent.change(el, { target: { value: '7' } })
     await waitFor(() => {
@@ -374,7 +374,7 @@ describe('MUI field widgets', () => {
       ],
     ])
     const { getData } = renderFormWithData(proj, { level: 1 })
-    const trigger = screen.getByLabelText('Level')
+    const trigger = screen.getByLabelText(/^Level/)
     fireEvent.mouseDown(trigger)
     const options = screen.getAllByRole('option')
     expect(options).toHaveLength(3)
@@ -422,7 +422,7 @@ describe('MUI field widgets', () => {
       { '/agree': { validationTrigger: 'blur' } },
       () => invalid,
     )
-    const cb = screen.getByLabelText('Agree')
+    const cb = screen.getByLabelText(/^Agree/)
     fireEvent.click(cb)
     fireEvent.blur(cb)
     await waitFor(() => {
@@ -434,8 +434,8 @@ describe('MUI field widgets', () => {
 describe('MUI containers', () => {
   it('renders object children in a Stack layout', () => {
     renderForm(fields, { name: '', age: 0, bio: '', role: 'dev', agree: false })
-    expect(screen.getByLabelText('Name')).toBeTruthy()
-    expect(screen.getByLabelText('Age')).toBeTruthy()
+    expect(screen.getByLabelText(/^Name/)).toBeTruthy()
+    expect(screen.getByLabelText(/^Age/)).toBeTruthy()
   })
 
   it('array control: Add and Remove buttons', () => {
@@ -458,7 +458,7 @@ describe('MUI containers', () => {
       ['/tags/0', { type: 'string', annotations: { title: 'Tag' } }],
     ])
     renderForm(proj, { tags: ['a'] })
-    expect(screen.getByLabelText('Tag')).toBeTruthy()
+    expect(screen.getByLabelText(/^Tag/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add item to Tags' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Remove Tag 1 from Tags' })).toBeTruthy()
   })
@@ -513,7 +513,7 @@ describe('MUI theming', () => {
       )
     }
     render(<TestForm />)
-    expect(screen.getByLabelText('Name')).toBeTruthy()
+    expect(screen.getByLabelText(/^Name/)).toBeTruthy()
   })
 })
 
@@ -545,7 +545,7 @@ describe('MUI read-only controls', () => {
   it('marks the combobox and the checkbox read only without disabling them', () => {
     renderForm(readOnlyProjection, { role: 'dev', agree: false })
     const combobox = screen.getByRole('combobox', { name: 'Role' })
-    const checkbox = screen.getByLabelText('Agree') as HTMLInputElement
+    const checkbox = screen.getByLabelText(/^Agree/) as HTMLInputElement
     expect(combobox.getAttribute('aria-readonly')).toBe('true')
     expect(checkbox.getAttribute('aria-readonly')).toBe('true')
     expect(checkbox.disabled).toBe(false)
@@ -553,7 +553,7 @@ describe('MUI read-only controls', () => {
 
   it('refuses a checkbox toggle', () => {
     renderForm(readOnlyProjection, { role: 'dev', agree: false })
-    fireEvent.click(screen.getByLabelText('Agree'))
-    expect((screen.getByLabelText('Agree') as HTMLInputElement).checked).toBe(false)
+    fireEvent.click(screen.getByLabelText(/^Agree/))
+    expect((screen.getByLabelText(/^Agree/) as HTMLInputElement).checked).toBe(false)
   })
 })

@@ -158,7 +158,7 @@ describe('ErrorSummary over a live runtime', () => {
     const port = await createJsonSchemaAdapter(schema)
     render(<Form port={port} />)
     await waitFor(() => {
-      expect(screen.getByLabelText('Full Name')).toBeTruthy()
+      expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
     })
   }
 
@@ -175,6 +175,6 @@ describe('ErrorSummary over a live runtime', () => {
       expect(screen.getByRole('link')).toBeTruthy()
     })
     const href = screen.getByRole('link').getAttribute('href') ?? ''
-    expect(document.getElementById(href.slice(1))).toBe(screen.getByLabelText('Full Name'))
+    expect(document.getElementById(href.slice(1))).toBe(screen.getByLabelText(/^Full Name/))
   })
 })

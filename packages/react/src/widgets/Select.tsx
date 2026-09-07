@@ -1,6 +1,7 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '../hooks/use-field-binding.js'
+import { FieldLabelContent } from '../components/FieldLabelContent.js'
 import { FieldErrors } from '../components/FieldErrors.js'
 
 export interface WidgetProps {
@@ -13,7 +14,7 @@ function SelectImpl({ node }: WidgetProps) {
 
   return (
     <div>
-      <label {...field.labelProps}>{field.label}</label>
+      <label {...field.labelProps}><FieldLabelContent label={field.label} required={field.required} /></label>
       <select {...field.domInputProps}>
         {enumValues.map((option) => (
           <option key={String(option.value)} value={String(option.value)}>

@@ -1,6 +1,6 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useFieldBinding } from '@texaryn/react'
+import { FieldLabelContent, useFieldBinding } from '@texaryn/react'
 import { BootstrapFeedback } from './BootstrapFeedback.js'
 
 export interface WidgetProps {
@@ -13,7 +13,7 @@ function BootstrapSelectImpl({ node }: WidgetProps) {
 
   return (
     <div className="mb-3">
-      <label {...field.labelProps} className="form-label">{field.label}</label>
+      <label {...field.labelProps} className="form-label"><FieldLabelContent label={field.label} required={field.required} /></label>
       <select {...field.domInputProps} className={field.invalid ? 'form-select is-invalid' : 'form-select'}>
         {enumValues.map((option) => (
           <option key={String(option.value)} value={String(option.value)}>

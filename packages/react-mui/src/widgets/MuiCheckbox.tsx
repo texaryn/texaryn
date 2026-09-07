@@ -4,7 +4,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import FormHelperText from '@mui/material/FormHelperText'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useFieldBinding } from '@texaryn/react'
+import { FieldLabelContent, useFieldBinding } from '@texaryn/react'
 import { helperContent } from './helper-text.js'
 
 export interface WidgetProps {
@@ -18,7 +18,7 @@ function MuiCheckboxImpl({ node }: WidgetProps) {
   return (
     <FormControl error={field.invalid} disabled={field.disabled}>
       <FormControlLabel
-        label={field.label}
+        label={<FieldLabelContent label={field.label} required={field.required} />}
         control={
           <Checkbox
             checked={field.domCheckboxProps.checked}

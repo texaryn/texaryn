@@ -1,6 +1,6 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useFieldBinding } from '@texaryn/react'
+import { FieldLabelContent, useFieldBinding } from '@texaryn/react'
 import { BootstrapFeedback } from './BootstrapFeedback.js'
 
 export interface WidgetProps {
@@ -11,7 +11,7 @@ function BootstrapNumberInputImpl({ node }: WidgetProps) {
   const field = useFieldBinding(node as FieldNode)
   return (
     <div className="mb-3">
-      <label {...field.labelProps} className="form-label">{field.label}</label>
+      <label {...field.labelProps} className="form-label"><FieldLabelContent label={field.label} required={field.required} /></label>
       <input {...field.domInputProps} type="number" className={field.invalid ? 'form-control is-invalid' : 'form-control'} />
       <BootstrapFeedback field={field} />
     </div>

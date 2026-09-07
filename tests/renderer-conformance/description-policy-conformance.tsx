@@ -81,7 +81,7 @@ export function descriptionPolicyConformance({
         />,
       )
       await waitFor(() => {
-        expect(screen.getByLabelText('Full Name')).toBeTruthy()
+        expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
       })
       expect(screen.getByText('Your legal name')).toBeTruthy()
     })
@@ -96,9 +96,9 @@ export function descriptionPolicyConformance({
           />,
         )
         await waitFor(() => {
-          expect(screen.getByLabelText('Full Name')).toBeTruthy()
+          expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
         })
-        const input = screen.getByLabelText('Full Name')
+        const input = screen.getByLabelText(/^Full Name/)
 
         const describedByBefore = input.getAttribute('aria-describedby') ?? ''
         expect(describedByBefore).toMatch(/texaryn-.*-description/)
@@ -126,9 +126,9 @@ export function descriptionPolicyConformance({
           />,
         )
         await waitFor(() => {
-          expect(screen.getByLabelText('Full Name')).toBeTruthy()
+          expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
         })
-        const input = screen.getByLabelText('Full Name')
+        const input = screen.getByLabelText(/^Full Name/)
 
         expect(screen.getByText('Your legal name')).toBeTruthy()
 
@@ -154,9 +154,9 @@ export function descriptionPolicyConformance({
           />,
         )
         await waitFor(() => {
-          expect(screen.getByLabelText('Full Name')).toBeTruthy()
+          expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
         })
-        const input = screen.getByLabelText('Full Name')
+        const input = screen.getByLabelText(/^Full Name/)
 
         fireEvent.blur(input)
         await waitFor(() => {

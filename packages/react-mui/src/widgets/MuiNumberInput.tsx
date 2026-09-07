@@ -1,7 +1,7 @@
 import React from 'react'
 import TextField from '@mui/material/TextField'
 import type { FieldNode, UINode } from '@texaryn/core'
-import { useFieldBinding } from '@texaryn/react'
+import { FieldLabelContent, useFieldBinding } from '@texaryn/react'
 import { helperContent } from './helper-text.js'
 
 export interface WidgetProps {
@@ -21,7 +21,7 @@ function MuiNumberInputImpl({ node }: WidgetProps) {
       onBlur={field.domInputProps.onBlur}
       disabled={field.disabled}
       placeholder={field.placeholder}
-      label={field.label}
+      label={<FieldLabelContent label={field.label} required={field.required} />}
       error={field.invalid}
       helperText={helperContent(field)}
       fullWidth

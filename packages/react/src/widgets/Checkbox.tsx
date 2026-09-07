@@ -1,6 +1,7 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '../hooks/use-field-binding.js'
+import { FieldLabelContent } from '../components/FieldLabelContent.js'
 import { FieldErrors } from '../components/FieldErrors.js'
 
 export interface WidgetProps {
@@ -13,7 +14,7 @@ function CheckboxImpl({ node }: WidgetProps) {
   return (
     <div>
       <input {...field.domCheckboxProps} type="checkbox" />
-      <label {...field.labelProps}>{field.label}</label>
+      <label {...field.labelProps}><FieldLabelContent label={field.label} required={field.required} /></label>
       {field.description ? <div {...field.descriptionProps}>{field.description}</div> : null}
       <FieldErrors node={field.node} errors={field.errors} showErrors={field.invalid} />
     </div>
