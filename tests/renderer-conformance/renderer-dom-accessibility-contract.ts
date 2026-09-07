@@ -148,6 +148,15 @@ const conditionalListSchema = {
   then: { properties: { tags: { title: 'Tags' } } },
 }
 
+// Untitled array, titled item, no rows. The Add control is at its most
+// important here and has no row to borrow a title from.
+const emptyListSchema = {
+  type: 'object',
+  properties: {
+    tags: { type: 'array', items: { type: 'string', title: 'Tag' } },
+  },
+}
+
 const IDREF_ATTRIBUTES = [
   'for',
   'aria-describedby',
@@ -502,6 +511,11 @@ export function rendererDomAccessibilityContract({
       // now read 3, 1, 2 in document order.
       const after = removeNames()
       expect(after).toEqual(before)
+    })
+
+    it('names the add control from the item type when the array is empty', async () => {
+      const { q } = await mount(emptyListSchema, { tags: [] })
+      expect(computeAccessibleName(q.getByRole('button', { name: /^Add/ }))).toBe('Add Tag')
     })
 
     it('follows a title a conditional adds to the array', async () => {

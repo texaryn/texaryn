@@ -58,9 +58,11 @@ export const ArrayControl = defineComponent({
     const document = useStore(runtime.document, runtime.document.getSnapshot())
     const array = useFieldArray(() => props.node.id)
     // Read from the document so a title added by a recompile reaches the name.
-    const arrayTitle = computed(
-      () => (document.value.nodes[props.node.id] ?? props.node).annotations.title,
+    const currentArray = computed(
+      () => (document.value.nodes[props.node.id] ?? props.node) as ContainerNode,
     )
+    const arrayTitle = computed(() => currentArray.value.annotations.title)
+    const itemTemplateTitle = computed(() => currentArray.value.arrayMeta?.itemTitle)
 
     return () =>
       h('div', [
@@ -108,12 +110,9 @@ export const ArrayControl = defineComponent({
               'button',
               {
                 type: 'button',
-                'aria-label': addActionName(
-                  array.items.value
-                    .map((item) => (item.nodeId ? document.value.nodes[item.nodeId] : undefined))
-                    .find((child) => child != null)?.annotations.title,
-                  arrayTitle.value,
-                ),
+                // The item template's title, not the first row's: a row may
+                // not exist yet, which is when naming this matters most.
+                'aria-label': addActionName(itemTemplateTitle.value, arrayTitle.value),
                 onClick: () => array.add(),
               },
               'Add',

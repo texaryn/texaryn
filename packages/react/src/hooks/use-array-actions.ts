@@ -21,11 +21,9 @@ export function useArrayActions(node: UINode): ArrayActions {
   const arrayTitle = current.annotations.title
   return {
     removeName: (position, item) => removeActionName(position, item?.annotations.title, arrayTitle),
-    addName: addActionName(
-      current.children
-        .map((id) => document.nodes[id])
-        .find((child): child is UINode => child != null)?.annotations.title,
-      arrayTitle,
-    ),
+    // The item template's title, not the first row's. A row may not exist yet,
+    // which is exactly when naming the add control matters most, and a row's
+    // annotations can in principle depend on its data.
+    addName: addActionName(current.arrayMeta?.itemTitle, arrayTitle),
   }
 }

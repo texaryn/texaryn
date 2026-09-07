@@ -455,12 +455,12 @@ describe('MUI containers', () => {
           children: [{ pointer: toPointer('/tags/0'), key: '0', required: false }],
         },
       ],
-      ['/tags/0', { type: 'string', annotations: { title: 'Tag 1' } }],
+      ['/tags/0', { type: 'string', annotations: { title: 'Tag' } }],
     ])
     renderForm(proj, { tags: ['a'] })
-    expect(screen.getByLabelText('Tag 1')).toBeTruthy()
+    expect(screen.getByLabelText('Tag')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add item to Tags' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Remove Tag 1 1 from Tags' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Tag 1 from Tags' })).toBeTruthy()
   })
 })
 

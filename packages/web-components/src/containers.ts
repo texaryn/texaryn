@@ -245,11 +245,9 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     }
     reorder(list, elements)
     add.hidden = !(meta?.canAdd ?? false)
-    const firstChild = nodes[node.children[0]]
-    add.setAttribute(
-      'aria-label',
-      addActionName(firstChild?.annotations.title, node.annotations.title),
-    )
+    // The item template's title, not the first row's: a row may not exist yet,
+    // which is when naming this matters most.
+    add.setAttribute('aria-label', addActionName(meta?.itemTitle, node.annotations.title))
   }
 
   reconcile(node)

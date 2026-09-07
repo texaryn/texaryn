@@ -88,6 +88,8 @@ export interface ArrayMeta {
   /** Addresses this logical array container across recompiles; stable for its lifetime and otherwise opaque. */
   identityKey: IdentityKey
   itemKey?: JsonPointer
+  /** Title of the item template, so an add control can be named before any row exists. */
+  itemTitle?: string
   minItems?: number
   maxItems?: number
   canAdd: boolean
