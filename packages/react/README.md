@@ -268,6 +268,11 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `UseFieldArrayReturn`
 - `useFieldBinding`
 - `useObjectGroup`
+- `useArrayActions`
+- `ArrayActions`
+- `removeActionName`
+- `moveUpActionName`
+- `addActionName`
 - `ObjectGroup`
 - `FieldBinding`
 - `DomValueInputProps`

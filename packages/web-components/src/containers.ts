@@ -1,5 +1,6 @@
 import type { ContainerNode, StableItemId, UINode } from '@texaryn/core'
 import type { DomWidget, NodeBinding, RenderContext } from './widget.js'
+import { addActionName, moveUpActionName, removeActionName } from './action-names.js'
 
 function currentNodes(ctx: RenderContext): Record<string, UINode> {
   return ctx.runtime.document.getSnapshot().nodes
@@ -227,6 +228,13 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       }
       row.remove.hidden = !(meta?.canRemove ?? false)
       row.up.hidden = !(meta?.canReorder ?? false) || index === 0
+      // Named here rather than in createRow: a row survives a move, so the
+      // position in its name is only correct if it is rewritten every pass,
+      // the same reason the click handlers resolve their index at click time.
+      const itemTitle = child?.annotations.title
+      const arrayTitle = node.annotations.title
+      row.remove.setAttribute('aria-label', removeActionName(index + 1, itemTitle, arrayTitle))
+      row.up.setAttribute('aria-label', moveUpActionName(index + 1, itemTitle, arrayTitle))
       elements.push(row.element)
     })
     for (const [itemId, row] of rows) {
@@ -237,6 +245,11 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     }
     reorder(list, elements)
     add.hidden = !(meta?.canAdd ?? false)
+    const firstChild = nodes[node.children[0]]
+    add.setAttribute(
+      'aria-label',
+      addActionName(firstChild?.annotations.title, node.annotations.title),
+    )
   }
 
   reconcile(node)

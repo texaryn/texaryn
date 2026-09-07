@@ -299,3 +299,32 @@ describe('renderer invariants', () => {
     expect((rt.data.getSnapshot() as typeof nested).rows[1].tags).toEqual(['a1x', 'a2'])
   })
 })
+
+// The shared contract names Remove and Add on every binding; only Vue and this
+// package expose a reorder control, so its name is pinned here. It is set in
+// reconcile rather than at row creation, because a row survives a move and its
+// position does not.
+describe('reorder control naming', () => {
+  it('names the reorder control by the row it moves, and renames it after a move', async () => {
+    await mount(listSchema, items, { '/items': { canReorder: true } })
+    const upNames = () =>
+      rowsOf(outerArray())
+        .map((row) => Array.from(row.querySelectorAll('button')).find((b) => b.textContent === 'Up'))
+        .map((b) => (b && !b.hidden ? b.getAttribute('aria-label') : null))
+
+    // The first row has nowhere to go, so its control stays hidden.
+    expect(upNames()[0]).toBeNull()
+    expect(upNames()[1]).toMatch(/^Move up .*2/)
+    expect(upNames()[2]).toMatch(/^Move up .*3/)
+
+    const [, row1] = rowsOf(outerArray())
+    buttonIn(row1, 'Up').click()
+    await flush()
+
+    // Positions two and three still read two and three: the names follow the
+    // position rather than the row that moved.
+    expect(upNames()[0]).toBeNull()
+    expect(upNames()[1]).toMatch(/^Move up .*2/)
+    expect(upNames()[2]).toMatch(/^Move up .*3/)
+  })
+})

@@ -37,12 +37,15 @@
 
 ## Functions
 
+- [addActionName](functions/addActionName.md)
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [fieldAria](functions/fieldAria.md)
 - [fieldLabel](functions/fieldLabel.md)
 - [makeId](functions/makeId.md)
+- [moveUpActionName](functions/moveUpActionName.md)
 - [provideFormRuntime](functions/provideFormRuntime.md)
 - [provideRendererRegistry](functions/provideRendererRegistry.md)
+- [removeActionName](functions/removeActionName.md)
 - [useField](functions/useField.md)
 - [useFieldArray](functions/useFieldArray.md)
 - [useFieldWidget](functions/useFieldWidget.md)

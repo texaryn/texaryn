@@ -459,8 +459,8 @@ describe('MUI containers', () => {
     ])
     renderForm(proj, { tags: ['a'] })
     expect(screen.getByLabelText('Tag 1')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add item to Tags' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Tag 1 1 from Tags' })).toBeTruthy()
   })
 })
 

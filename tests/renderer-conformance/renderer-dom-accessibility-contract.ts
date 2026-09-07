@@ -19,7 +19,7 @@
 // plumbing, which each binding tests on its own.
 import { describe, it, expect, afterEach } from 'vitest'
 import { within } from '@testing-library/dom'
-import { computeAccessibleDescription } from 'dom-accessibility-api'
+import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { createFormRuntime } from '@texaryn/core'
 import type { FormRuntime, NodeId, UIHints } from '@texaryn/core'
@@ -127,6 +127,25 @@ const conditionalGroupSchema = {
   },
   if: { properties: { mode: { const: 'named' } }, required: ['mode'] },
   then: { properties: { group: { title: 'Address' } } },
+}
+
+const listSchema = {
+  type: 'object',
+  properties: {
+    tags: { type: 'array', title: 'Tags', items: { type: 'string', title: 'Tag' } },
+  },
+}
+
+// The array's title arrives from a conditional branch, so a name built from a
+// stale copy of the node keeps saying "item" after the title exists.
+const conditionalListSchema = {
+  type: 'object',
+  properties: {
+    mode: { type: 'string', title: 'Mode', enum: ['plain', 'named'] },
+    tags: { type: 'array', items: { type: 'string' } },
+  },
+  if: { properties: { mode: { const: 'named' } }, required: ['mode'] },
+  then: { properties: { tags: { title: 'Tags' } } },
 }
 
 const IDREF_ATTRIBUTES = [
@@ -449,6 +468,60 @@ export function rendererDomAccessibilityContract({
       expect(document.activeElement).toBe(city)
       expect(group!.getAttribute('role'), 'the group should stop being one').toBe('none')
       expect(q.queryAllByRole('group')).toHaveLength(0)
+    })
+
+    // Five identical "Remove" buttons say nothing about which row they act on.
+    // The claim is representation, not event wiring: each control names its
+    // action and its current position, and no two in one array share a name.
+    it('names each row action by its current position', async () => {
+      const { surface, runtime, q } = await mount(listSchema, { tags: ['a', 'b', 'c'] })
+      const removeNames = (): string[] =>
+        q
+          .getAllByRole('button', { name: /^Remove/ })
+          .map((b: HTMLElement) => computeAccessibleName(b))
+
+      const before = removeNames()
+      expect(before).toHaveLength(3)
+      expect(new Set(before).size, 'no two rows should share a name').toBe(3)
+      before.forEach((name: string, index: number) => {
+        expect(name, 'the name should carry the 1-based position').toContain(String(index + 1))
+      })
+
+      // Through the runtime rather than a reorder control, so the claim runs on
+      // every binding including the three that expose no reorder button.
+      await surface.act(() => {
+        runtime.dispatch({
+          type: 'MoveItem',
+          containerId: nodeAt(runtime, '/tags'),
+          from: 2,
+          to: 0,
+        })
+      })
+
+      // Names follow the position, not the row. Stuck to the rows they would
+      // now read 3, 1, 2 in document order.
+      const after = removeNames()
+      expect(after).toEqual(before)
+    })
+
+    it('follows a title a conditional adds to the array', async () => {
+      const { surface, runtime, q } = await mount(conditionalListSchema, {
+        mode: 'plain',
+        tags: ['a', 'b'],
+      })
+      const addName = () => computeAccessibleName(q.getByRole('button', { name: /^Add/ }))
+      const firstRemoveName = () =>
+        computeAccessibleName(q.getAllByRole('button', { name: /^Remove/ })[0]!)
+
+      expect(addName()).toBe('Add item')
+      expect(firstRemoveName()).toBe('Remove item 1')
+
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/mode'), value: 'named' })
+      })
+
+      expect(addName(), 'the name should follow the document').toBe('Add item to Tags')
+      expect(firstRemoveName()).toBe('Remove item 1 from Tags')
     })
 
     it('exposes a read-only field as read only rather than disabled', async () => {

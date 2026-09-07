@@ -3,6 +3,7 @@ import type { ContainerNode, UINode } from '@texaryn/core'
 import { useFieldArray } from '../hooks/use-field-array.js'
 import { NodeRenderer } from '../components/NodeRenderer.js'
 import { useRendererContext } from '../components/renderer-context.js'
+import { useArrayActions } from '../hooks/use-array-actions.js'
 
 export interface WidgetProps {
   node: UINode
@@ -12,6 +13,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
+  const actions = useArrayActions(node)
 
   return (
     <div>
@@ -23,7 +25,14 @@ function ArrayControlImpl({ node }: WidgetProps) {
               <NodeRenderer node={childNode} document={document} registry={registry} />
             ) : null}
             {fieldArray.canRemove ? (
-              <button type="button" onClick={() => fieldArray.remove(index)}>
+              // The visible word stays short; the name that distinguishes the
+              // row goes in aria-label, which contains it so speech input
+              // still works.
+              <button
+                type="button"
+                aria-label={actions.removeName(index + 1, childNode)}
+                onClick={() => fieldArray.remove(index)}
+              >
                 Remove
               </button>
             ) : null}
@@ -31,7 +40,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
         )
       })}
       {fieldArray.canAdd ? (
-        <button type="button" onClick={() => fieldArray.add()}>
+        <button type="button" aria-label={actions.addName} onClick={() => fieldArray.add()}>
           Add
         </button>
       ) : null}

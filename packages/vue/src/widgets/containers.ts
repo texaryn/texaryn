@@ -5,6 +5,7 @@ import { useFormRuntime } from '../context.js'
 import { useStore } from '../use-store.js'
 import { useFieldArray } from '../use-field-array.js'
 import { NodeRenderer } from '../components/NodeRenderer.js'
+import { addActionName, moveUpActionName, removeActionName } from '../action-names.js'
 
 const nodeProp = { node: { type: Object as PropType<UINode>, required: true } } as const
 
@@ -56,11 +57,16 @@ export const ArrayControl = defineComponent({
     const runtime = useFormRuntime()
     const document = useStore(runtime.document, runtime.document.getSnapshot())
     const array = useFieldArray(() => props.node.id)
+    // Read from the document so a title added by a recompile reaches the name.
+    const arrayTitle = computed(
+      () => (document.value.nodes[props.node.id] ?? props.node).annotations.title,
+    )
 
     return () =>
       h('div', [
         ...array.items.value.map((item, index) => {
           const child = item.nodeId ? document.value.nodes[item.nodeId] : undefined
+          const itemTitle = child?.annotations.title
           return h(
             'div',
             // Keyed by the stable item id, never the positional node id. That
@@ -70,17 +76,48 @@ export const ArrayControl = defineComponent({
             { key: item.id },
             [
               child ? h(NodeRenderer, { node: child }) : null,
+              // The visible word stays short; the distinguishing name goes in
+              // aria-label, which contains it so speech input still works.
               array.canRemove.value
-                ? h('button', { type: 'button', onClick: () => array.remove(index) }, 'Remove')
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      'aria-label': removeActionName(index + 1, itemTitle, arrayTitle.value),
+                      onClick: () => array.remove(index),
+                    },
+                    'Remove',
+                  )
                 : null,
               array.canReorder.value && index > 0
-                ? h('button', { type: 'button', onClick: () => array.move(index, index - 1) }, 'Up')
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      'aria-label': moveUpActionName(index + 1, itemTitle, arrayTitle.value),
+                      onClick: () => array.move(index, index - 1),
+                    },
+                    'Up',
+                  )
                 : null,
             ],
           )
         }),
         array.canAdd.value
-          ? h('button', { type: 'button', onClick: () => array.add() }, 'Add')
+          ? h(
+              'button',
+              {
+                type: 'button',
+                'aria-label': addActionName(
+                  array.items.value
+                    .map((item) => (item.nodeId ? document.value.nodes[item.nodeId] : undefined))
+                    .find((child) => child != null)?.annotations.title,
+                  arrayTitle.value,
+                ),
+                onClick: () => array.add(),
+              },
+              'Add',
+            )
           : null,
       ])
   },

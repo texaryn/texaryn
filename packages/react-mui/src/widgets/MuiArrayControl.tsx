@@ -3,7 +3,7 @@ import Stack from '@mui/material/Stack'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import type { ContainerNode, UINode } from '@texaryn/core'
-import { NodeRenderer, useFieldArray, useRendererContext } from '@texaryn/react'
+import { NodeRenderer, useArrayActions, useFieldArray, useRendererContext } from '@texaryn/react'
 
 export interface WidgetProps {
   node: UINode
@@ -13,6 +13,7 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
+  const actions = useArrayActions(node)
 
   return (
     <Stack spacing={2}>
@@ -28,6 +29,7 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
                 variant="outlined"
                 color="error"
                 size="small"
+                aria-label={actions.removeName(index + 1, childNode)}
                 onClick={() => fieldArray.remove(index)}
               >
                 Remove
@@ -38,7 +40,7 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
       })}
       {fieldArray.canAdd ? (
         <Box>
-          <Button variant="contained" onClick={() => fieldArray.add()}>
+          <Button variant="contained" aria-label={actions.addName} onClick={() => fieldArray.add()}>
             Add
           </Button>
         </Box>

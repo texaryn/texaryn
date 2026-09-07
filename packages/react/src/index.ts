@@ -7,6 +7,9 @@ export { useFieldArray } from './hooks/use-field-array.js'
 export type { UseFieldArrayReturn } from './hooks/use-field-array.js'
 export { useFieldBinding } from './hooks/use-field-binding.js'
 export { useObjectGroup } from './hooks/use-object-group.js'
+export { useArrayActions } from './hooks/use-array-actions.js'
+export type { ArrayActions } from './hooks/use-array-actions.js'
+export { removeActionName, moveUpActionName, addActionName } from './props/action-names.js'
 export type { ObjectGroup } from './hooks/use-object-group.js'
 export type {
   FieldBinding,

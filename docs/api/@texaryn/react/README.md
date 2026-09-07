@@ -8,6 +8,7 @@
 
 ## Interfaces
 
+- [ArrayActions](interfaces/ArrayActions.md)
 - [DescriptionProps](interfaces/DescriptionProps.md)
 - [DomCheckedInputProps](interfaces/DomCheckedInputProps.md)
 - [DomInputBaseProps](interfaces/DomInputBaseProps.md)
@@ -44,6 +45,7 @@
 
 ## Functions
 
+- [addActionName](functions/addActionName.md)
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [ErrorSummary](functions/ErrorSummary.md)
 - [FieldErrors](functions/FieldErrors.md)
@@ -54,7 +56,10 @@
 - [getInputProps](functions/getInputProps.md)
 - [getLabelProps](functions/getLabelProps.md)
 - [hasNativeReadOnly](functions/hasNativeReadOnly.md)
+- [moveUpActionName](functions/moveUpActionName.md)
 - [NodeRenderer](functions/NodeRenderer.md)
+- [removeActionName](functions/removeActionName.md)
+- [useArrayActions](functions/useArrayActions.md)
 - [useField](functions/useField.md)
 - [useFieldArray](functions/useFieldArray.md)
 - [useFieldBinding](functions/useFieldBinding.md)

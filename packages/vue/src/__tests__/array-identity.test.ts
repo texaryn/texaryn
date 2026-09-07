@@ -122,7 +122,16 @@ describe('stable array identity survives the binding', () => {
 // dispatched around it. The tests above prove identity survives a command;
 // these prove the buttons a user actually presses issue the right one.
 describe('the array control issues the commands it offers', () => {
-  const buttons = (wrapper: { findAll: (s: string) => { text: () => string; trigger: (e: string) => Promise<void> }[] }, label: string) =>
+  const buttons = (
+    wrapper: {
+      findAll: (s: string) => Array<{
+        text: () => string
+        trigger: (e: string) => Promise<void>
+        attributes: (name: string) => string | undefined
+      }>
+    },
+    label: string,
+  ) =>
     wrapper.findAll('button').filter((b) => b.text() === label)
 
   it('adds a row from the add button', async () => {
@@ -168,5 +177,17 @@ describe('the array control issues the commands it offers', () => {
         { id: 'a', name: 'First' },
       ],
     })
+  })
+
+  // The shared contract names Remove and Add on every binding; only Vue and
+  // Web Components expose a reorder control, so its name is pinned here.
+  it('names the reorder control by the row it moves', async () => {
+    const { wrapper } = await mountExample('ui-hint-array')
+    const up = buttons(wrapper, 'Up')
+    expect(up).toHaveLength(1)
+    // Row two is the only one that can move up, and the visible word is still
+    // contained in the name so speech input keeps working.
+    expect(up[0].attributes('aria-label')).toMatch(/^Move up .*2/)
+    expect(up[0].text()).toBe('Up')
   })
 })

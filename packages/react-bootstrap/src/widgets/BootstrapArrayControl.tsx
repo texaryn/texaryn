@@ -1,6 +1,6 @@
 import React from 'react'
 import type { ContainerNode, UINode } from '@texaryn/core'
-import { NodeRenderer, useFieldArray, useRendererContext } from '@texaryn/react'
+import { NodeRenderer, useArrayActions, useFieldArray, useRendererContext } from '@texaryn/react'
 
 export interface WidgetProps {
   node: UINode
@@ -10,6 +10,7 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
+  const actions = useArrayActions(node)
 
   return (
     <div>
@@ -21,7 +22,12 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
               <NodeRenderer node={childNode} document={document} registry={registry} />
             ) : null}
             {fieldArray.canRemove ? (
-              <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => fieldArray.remove(index)}>
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-sm"
+                aria-label={actions.removeName(index + 1, childNode)}
+                onClick={() => fieldArray.remove(index)}
+              >
                 Remove
               </button>
             ) : null}
@@ -29,7 +35,12 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
         )
       })}
       {fieldArray.canAdd ? (
-        <button type="button" className="btn btn-primary" onClick={() => fieldArray.add()}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          aria-label={actions.addName}
+          onClick={() => fieldArray.add()}
+        >
           Add
         </button>
       ) : null}
