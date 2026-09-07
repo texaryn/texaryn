@@ -1,10 +1,22 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import React from 'react'
 import { createStore } from '@texaryn/core'
-import type { FormRuntime, NodeId, JsonPointer, VisibleError, UIDocument, SubmissionState } from '@texaryn/core'
+import type {
+  FormRuntime,
+  NodeId,
+  JsonPointer,
+  VisibleError,
+  UIDocument,
+  SubmissionState,
+  SchemaEvaluationPort,
+} from '@texaryn/core'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { FormContext } from '../../context.js'
 import { ErrorSummary } from '../ErrorSummary.js'
+import { FormRoot } from '../FormRoot.js'
+import { useForm } from '../../hooks/use-form.js'
+import { createDefaultRegistry } from '../../widgets/index.js'
 
 afterEach(() => {
   cleanup()
@@ -112,5 +124,54 @@ describe('ErrorSummary', () => {
     renderWithRuntime(makeMockRuntime(errors))
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(2)
+  })
+})
+
+describe('ErrorSummary over a live runtime', () => {
+  const registry = createDefaultRegistry()
+
+  const schema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', title: 'Full Name', minLength: 1 },
+    },
+    required: ['name'],
+  }
+
+  function Form({ port }: { port: SchemaEvaluationPort }) {
+    const form = useForm(port, { initialData: { name: '' } })
+    return (
+      <FormContext.Provider value={form.runtime}>
+        <ErrorSummary />
+        <FormRoot registry={registry} />
+        <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
+          Submit
+        </button>
+      </FormContext.Provider>
+    )
+  }
+
+  async function renderForm() {
+    const port = await createJsonSchemaAdapter(schema)
+    render(<Form port={port} />)
+    await waitFor(() => {
+      expect(screen.getByLabelText('Full Name')).toBeTruthy()
+    })
+  }
+
+  it('lists nothing before the user submits', async () => {
+    await renderForm()
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
+    expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it('links a failed submit to the input the renderer actually mounted', async () => {
+    await renderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(screen.getByRole('link')).toBeTruthy()
+    })
+    const href = screen.getByRole('link').getAttribute('href') ?? ''
+    expect(document.getElementById(href.slice(1))).toBe(screen.getByLabelText('Full Name'))
   })
 })
