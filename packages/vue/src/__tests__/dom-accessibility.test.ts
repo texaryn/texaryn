@@ -4,7 +4,6 @@ import { createDefaultRegistry } from '../widgets/default-registry.js'
 
 rendererDomAccessibilityContract({
   adapter: vueAdapter('vue', createDefaultRegistry),
-  // All three are cross-binding defects this suite exists to expose. React has
-  // them too. Remove each declaration with the fix that closes it.
-  knownGaps: ['duplicate-id', 'cross-instance-reference', 'missing-named-group'],
+  // Remove each declaration with the fix that closes it.
+  knownGaps: ['missing-named-group'],
 })

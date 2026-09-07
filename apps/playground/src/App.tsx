@@ -4,7 +4,7 @@ import type { FormRuntime, RendererRegistry, SchemaEvaluationPort } from '@texar
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
   useForm,
-  FormContext,
+  FormProvider,
   FormRoot,
   ErrorSummary,
   createDefaultRegistry,
@@ -180,7 +180,7 @@ function FormWorkspace({
     <>
       <section className="pg-col pg-col--preview">
         {toolbar}
-        <FormContext.Provider value={form.runtime}>
+        <FormProvider value={form.runtime}>
           <ErrorSummary />
 
           {/* The boundary, named so it can be seen and asserted. Everything
@@ -247,7 +247,7 @@ function FormWorkspace({
               </p>
             )}
           </section>
-        </FormContext.Provider>
+        </FormProvider>
       </section>
 
       <aside className="pg-col pg-col--inspect" aria-label="Inspector">

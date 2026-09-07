@@ -3,7 +3,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { createRendererRegistry } from '@texaryn/core'
 import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints } from '@texaryn/core'
-import { FormContext } from '../../context.js'
+import { FormProvider } from '../../context.js'
 import { useForm } from '../../hooks/use-form.js'
 import { FormRoot } from '../../components/FormRoot.js'
 import { createDefaultRegistry } from '../default-registry.js'
@@ -42,9 +42,9 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
     const form = useForm(port, { initialData: data, hints })
     latestData = form.data
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={createDefaultRegistry()} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
 

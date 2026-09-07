@@ -90,15 +90,25 @@ The runtime is destroyed automatically when the hook unmounts.
 
 ### `FormProvider`
 
-Provides a `FormRuntime` to renderer components and hooks:
+Provides a `FormRuntime` to renderer components and hooks, and owns the DOM id
+namespace for that rendering surface:
 
 ```tsx
 <FormProvider value={form.runtime}>
+  <ErrorSummary />
   <FormRoot registry={registry} />
 </FormProvider>
 ```
 
-`useFormContext()` returns the current runtime.
+`useFormContext()` returns the current runtime and `useFormIdPrefix()` returns
+the namespace. Rendering through `FormContext.Provider` instead throws: the
+context alone carries no namespace, which is what let two forms on one page
+share ids.
+
+Generated ids are opaque relationship identifiers rather than styling hooks.
+Their shape is not part of the public contract; use classes or data attributes
+for CSS. Uniqueness is per React application, so two independent roots on one
+page need distinct `identifierPrefix` options.
 
 ### `FormRoot`
 
@@ -267,6 +277,8 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 
 - `FormContext`
 - `FormProvider`
+- `FormProviderProps`
+- `useFormIdPrefix`
 - `FormRoot`
 - `FormRootProps`
 - `NodeRenderer`

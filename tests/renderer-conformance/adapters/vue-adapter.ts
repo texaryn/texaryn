@@ -16,9 +16,14 @@ export function vueAdapter(
   createRegistry: () => RendererRegistry<WidgetComponent>,
 ): DomAccessibilityAdapter {
   const registry = createRegistry()
+  let apps = 0
   return {
     name,
     async mount({ runtime, host }) {
+      // Vue ids are unique per application, and each mount() is its own app, so
+      // the harness has to supply what a page with two independent apps would:
+      // distinct idPrefixes. Within one app the binding handles it alone.
+      apps += 1
       const wrapper = mount(
         defineComponent({
           setup() {
@@ -26,7 +31,7 @@ export function vueAdapter(
             return () => h(FormRoot, { registry })
           },
         }),
-        { attachTo: host },
+        { attachTo: host, global: { config: { idPrefix: `app${apps}` } } },
       )
       await nextTick()
       return {

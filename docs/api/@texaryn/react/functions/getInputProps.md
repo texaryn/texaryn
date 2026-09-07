@@ -6,7 +6,7 @@
 
 # Function: getInputProps()
 
-> **getInputProps**(`node`, `fieldState`): [`InputProps`](../interfaces/InputProps.md)
+> **getInputProps**(`node`, `fieldState`, `idPrefix`): [`InputProps`](../interfaces/InputProps.md)
 
 getInputProps: Returns ARIA-correct props for an input element
 Includes id, name, value, disabled, aria-required, aria-invalid, aria-describedby
@@ -20,6 +20,10 @@ Includes id, name, value, disabled, aria-required, aria-invalid, aria-describedb
 ### fieldState
 
 [`FieldState`](../interfaces/FieldState.md)
+
+### idPrefix
+
+`string`
 
 ## Returns
 

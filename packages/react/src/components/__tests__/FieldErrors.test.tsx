@@ -3,6 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import React from 'react'
 import type { FieldNode, NodeId, JsonPointer, ValidationError } from '@texaryn/core'
 import { FieldErrors } from '../FieldErrors.js'
+import { FormProvider } from '../../context.js'
 
 afterEach(() => {
   cleanup()
@@ -28,38 +29,44 @@ const sampleErrors: ValidationError[] = [
   { instancePointer: '/name', keyword: 'required', message: 'Required', params: {} },
 ]
 
+// The id scope comes from the provider, not the runtime, so a null runtime is
+// enough to render a field-level widget on its own.
+function renderScoped(ui: React.ReactNode) {
+  return render(<FormProvider value={null}>{ui}</FormProvider>)
+}
+
 describe('FieldErrors', () => {
   it('renders nothing when showErrors is false', () => {
-    const { container } = render(
+    const { container } = renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={false} />,
     )
     expect(container.innerHTML).toBe('')
   })
 
   it('renders nothing when errors array is empty', () => {
-    const { container } = render(
+    const { container } = renderScoped(
       <FieldErrors node={makeFieldNode()} errors={[]} showErrors={true} />,
     )
     expect(container.innerHTML).toBe('')
   })
 
   it('renders errors when showErrors is true', () => {
-    render(
+    renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
     )
     expect(screen.getByText('Required')).toBeTruthy()
   })
 
   it('renders error container with role="alert" and correct id', () => {
-    render(
+    renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
     )
     const container = screen.getByRole('alert')
-    expect(container.id).toBe('texaryn-node_1-error')
+    expect(container.id).toMatch(/^texaryn-[0-9a-z_]+-node_1-error$/)
   })
 
   it('does not render aria-live attribute', () => {
-    render(
+    renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
     )
     const container = screen.getByRole('alert')
@@ -70,7 +77,7 @@ describe('FieldErrors', () => {
     const errors: ValidationError[] = [
       { instancePointer: '/name', keyword: 'minLength', params: {} },
     ]
-    render(
+    renderScoped(
       <FieldErrors node={makeFieldNode()} errors={errors} showErrors={true} />,
     )
     expect(screen.getByText('minLength')).toBeTruthy()
@@ -81,7 +88,7 @@ describe('FieldErrors', () => {
       { instancePointer: '/name', keyword: 'required', message: 'Required', params: {} },
       { instancePointer: '/name', keyword: 'minLength', message: 'Too short', params: {} },
     ]
-    render(
+    renderScoped(
       <FieldErrors node={makeFieldNode()} errors={errors} showErrors={true} />,
     )
     expect(screen.getByText('Required')).toBeTruthy()

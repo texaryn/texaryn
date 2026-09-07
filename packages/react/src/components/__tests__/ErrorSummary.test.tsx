@@ -12,7 +12,7 @@ import type {
   SchemaEvaluationPort,
 } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { FormContext } from '../../context.js'
+import { FormProvider } from '../../context.js'
 import { ErrorSummary } from '../ErrorSummary.js'
 import { FormRoot } from '../FormRoot.js'
 import { useForm } from '../../hooks/use-form.js'
@@ -36,9 +36,9 @@ function makeMockRuntime(visibleErrors: VisibleError[]): FormRuntime {
 
 function renderWithRuntime(runtime: FormRuntime) {
   return render(
-    <FormContext.Provider value={runtime}>
+    <FormProvider value={runtime}>
       <ErrorSummary />
-    </FormContext.Provider>,
+    </FormProvider>,
   )
 }
 
@@ -70,7 +70,8 @@ describe('ErrorSummary', () => {
     }]
     renderWithRuntime(makeMockRuntime(errors))
     const link = screen.getByRole('link')
-    expect(link.getAttribute('href')).toBe('#texaryn-node_2-input')
+    // The prefix belongs to the provider instance, so only the shape is fixed.
+    expect(link.getAttribute('href')).toMatch(/^#texaryn-[0-9a-z_]+-node_2-input$/)
   })
 
   it('falls back to pointer when fieldTitle is undefined', () => {
@@ -141,13 +142,13 @@ describe('ErrorSummary over a live runtime', () => {
   function Form({ port }: { port: SchemaEvaluationPort }) {
     const form = useForm(port, { initialData: { name: '' } })
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <ErrorSummary />
         <FormRoot registry={registry} />
         <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
           Submit
         </button>
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
 

@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import React from 'react'
 import { useField } from '../use-field.js'
 import { useFieldArray } from '../use-field-array.js'
-import { FormContext } from '../../context.js'
+import { FormProvider } from '../../context.js'
 import { createFormRuntime } from '@texaryn/core'
 import type {
   SchemaEvaluationPort, SchemaProjection, NodeProjection,
@@ -69,9 +69,9 @@ function findFieldNodeId(runtime: FormRuntime, dataPointer: string): NodeId {
 function createProviderWrapper(runtime: FormRuntime) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <FormContext.Provider value={runtime}>
+      <FormProvider value={runtime}>
         {children}
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
 }

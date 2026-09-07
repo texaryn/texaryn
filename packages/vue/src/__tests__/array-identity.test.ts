@@ -32,6 +32,39 @@ describe('stable array identity survives the binding', () => {
     expect(after[0]).not.toBe(milk)
   })
 
+  it('restamps a moved row with its new positional id and keeps every reference local', async () => {
+    const { wrapper, form } = await mountExample('runtime-array-interactions')
+
+    const before = inputs(wrapper)
+    const milk = before[0]!
+    const idBefore = milk.id
+    const prefixOf = (id: string) => id.slice(0, id.indexOf('-node_'))
+
+    const container = form.document.value.nodes[form.document.value.rootId]
+    const arrayId = (container as { children: string[] }).children[0]
+    form.dispatch({ type: 'MoveItem', containerId: arrayId as never, from: 0, to: 1 })
+    await settle()
+
+    // The element follows the item, the id belongs to the position, and the
+    // instance prefix belongs to the surface and so belongs to neither.
+    expect(milk.value).toBe('milk')
+    expect(milk.id).not.toBe(idBefore)
+    expect(prefixOf(milk.id)).toBe(prefixOf(idBefore))
+
+    const root = wrapper.element as HTMLElement
+    const ids = new Set([...root.querySelectorAll('[id]')].map((el) => el.id))
+    expect(ids.size).toBeGreaterThan(0)
+    for (const el of root.querySelectorAll('[for],[aria-describedby],[aria-labelledby]')) {
+      for (const attribute of ['for', 'aria-describedby', 'aria-labelledby']) {
+        const value = el.getAttribute(attribute)
+        if (!value) continue
+        for (const reference of value.split(' ').filter(Boolean)) {
+          expect(ids.has(reference), `${attribute} points outside the form`).toBe(true)
+        }
+      }
+    }
+  })
+
   // The half that a keyed-by-position implementation would still pass. After
   // a move the surviving component holds a node whose id now names a
   // different position, so a binding that captured the id in setup writes to

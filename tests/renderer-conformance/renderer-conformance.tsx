@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import React from 'react'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
-import { useForm, FormContext, FormRoot } from '@texaryn/react'
+import { useForm, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 
 export interface RendererConformanceOptions {
@@ -32,10 +32,10 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
   function FormInner({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
     const form = useForm(port, { initialData: data })
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={registry} />
         <pre data-testid="form-data">{JSON.stringify(form.data)}</pre>
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
 

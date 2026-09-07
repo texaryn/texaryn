@@ -11,7 +11,7 @@ import type {
   UIHints,
   ValidationResult,
 } from '@texaryn/core'
-import { FormContext, FormRoot, useForm } from '@texaryn/react'
+import { FormProvider, FormRoot, useForm } from '@texaryn/react'
 import { createMuiRegistry } from '../index.js'
 
 function toPointer(s: string): JsonPointer {
@@ -49,9 +49,9 @@ function renderForm(
   function TestForm() {
     const form = useForm(port, { initialData: data, hints })
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={createMuiRegistry()} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
   return render(<TestForm />)
@@ -71,9 +71,9 @@ function renderFormWithData(
     const form = useForm(port, { initialData: data, hints })
     dataRef.current = form.data
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={createMuiRegistry()} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
   const result = render(<TestForm />)
@@ -496,9 +496,9 @@ describe('MUI theming', () => {
       const form = useForm(port, { initialData: { name: '' } })
       return (
         <ThemeProvider theme={theme}>
-          <FormContext.Provider value={form.runtime}>
+          <FormProvider value={form.runtime}>
             <FormRoot registry={createMuiRegistry()} />
-          </FormContext.Provider>
+          </FormProvider>
         </ThemeProvider>
       )
     }

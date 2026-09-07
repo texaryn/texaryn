@@ -5,7 +5,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { FormRuntime, SchemaEvaluationPort } from '@texaryn/core'
 import {
   useForm,
-  FormContext,
+  FormProvider,
   FormRoot,
   createDefaultRegistry,
 } from '@texaryn/react'
@@ -49,7 +49,7 @@ function Shell({
   useEffect(() => { onRuntime(form.runtime) }, [form.runtime, onRuntime])
 
   return (
-    <FormContext.Provider value={form.runtime}>
+    <FormProvider value={form.runtime}>
       {isHosted(surface) ? (
         (() => {
           const Host = hosts[surface]
@@ -61,7 +61,7 @@ function Shell({
       {/* Stands in for the inspector: it reads the same runtime, so what it
           shows is evidence about the runtime rather than about the shell. */}
       <pre data-testid="inspector">{JSON.stringify(form.data)}</pre>
-    </FormContext.Provider>
+    </FormProvider>
   )
 }
 

@@ -6,7 +6,7 @@
 
 # Function: getDescriptionProps()
 
-> **getDescriptionProps**(`node`): [`DescriptionProps`](../interfaces/DescriptionProps.md)
+> **getDescriptionProps**(`node`, `idPrefix`): [`DescriptionProps`](../interfaces/DescriptionProps.md)
 
 getDescriptionProps: Returns ARIA-correct props for a description element
 
@@ -15,6 +15,10 @@ getDescriptionProps: Returns ARIA-correct props for a description element
 ### node
 
 [`FieldNode`](../../core/interfaces/FieldNode.md)
+
+### idPrefix
+
+`string`
 
 ## Returns
 

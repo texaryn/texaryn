@@ -6,7 +6,7 @@
 
 # Function: getErrorProps()
 
-> **getErrorProps**(`node`): [`ErrorProps`](../interfaces/ErrorProps.md)
+> **getErrorProps**(`node`, `idPrefix`): [`ErrorProps`](../interfaces/ErrorProps.md)
 
 getErrorProps: Returns ARIA-correct props for an error container
 
@@ -15,6 +15,10 @@ getErrorProps: Returns ARIA-correct props for an error container
 ### node
 
 [`FieldNode`](../../core/interfaces/FieldNode.md)
+
+### idPrefix
+
+`string`
 
 ## Returns
 

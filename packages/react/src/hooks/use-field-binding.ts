@@ -1,5 +1,6 @@
 import type { FieldNode, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
+import { useFormIdPrefix } from '../id-prefix.js'
 import {
   getInputProps,
   getLabelProps,
@@ -91,7 +92,8 @@ function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {
 
 export function useFieldBinding(node: FieldNode): FieldBinding {
   const field = useField(node.id)
-  const input = getInputProps(node, field)
+  const idPrefix = useFormIdPrefix()
+  const input = getInputProps(node, field, idPrefix)
   const kind = fieldKind(node)
 
   const base: DomInputBaseProps = {
@@ -138,9 +140,9 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     errors,
     error: first ? first.message ?? first.keyword : undefined,
     invalid: errors.length > 0,
-    labelProps: getLabelProps(node),
-    descriptionProps: getDescriptionProps(node),
-    errorProps: getErrorProps(node),
+    labelProps: getLabelProps(node, idPrefix),
+    descriptionProps: getDescriptionProps(node, idPrefix),
+    errorProps: getErrorProps(node, idPrefix),
     domInputProps,
     domCheckboxProps,
   }

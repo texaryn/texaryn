@@ -1,5 +1,6 @@
 import type { FieldNode, ValidationError } from '@texaryn/core'
 import { getErrorProps } from '../props/index.js'
+import { useFormIdPrefix } from '../id-prefix.js'
 
 export interface FieldErrorsProps {
   node: FieldNode
@@ -8,11 +9,12 @@ export interface FieldErrorsProps {
 }
 
 export function FieldErrors({ node, errors, showErrors }: FieldErrorsProps) {
+  const idPrefix = useFormIdPrefix()
   if (!showErrors || errors.length === 0) {
     return null
   }
 
-  const errorProps = getErrorProps(node)
+  const errorProps = getErrorProps(node, idPrefix)
 
   return (
     <div {...errorProps}>

@@ -47,6 +47,7 @@
 - [useFieldArray](functions/useFieldArray.md)
 - [useFieldWidget](functions/useFieldWidget.md)
 - [useForm](functions/useForm.md)
+- [useFormIdPrefix](functions/useFormIdPrefix.md)
 - [useFormRuntime](functions/useFormRuntime.md)
 - [useRendererRegistry](functions/useRendererRegistry.md)
 - [useStore](functions/useStore.md)

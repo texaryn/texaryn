@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
 import React from 'react'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
-import { useForm, FormContext, FormRoot } from '@texaryn/react'
+import { useForm, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 import type { TexarynExample } from '@texaryn/examples'
 import {
@@ -34,9 +34,9 @@ function Form({
 }) {
   const form = useForm(port, { initialData: example.initialData, hints: example.hints })
   return (
-    <FormContext.Provider value={form.runtime}>
+    <FormProvider value={form.runtime}>
       <FormRoot registry={registry} />
-    </FormContext.Provider>
+    </FormProvider>
   )
 }
 

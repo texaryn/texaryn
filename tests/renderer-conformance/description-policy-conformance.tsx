@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import React from 'react'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
-import { useForm, FormContext, FormRoot } from '@texaryn/react'
+import { useForm, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 
 export interface DescriptionPolicyOptions {
@@ -61,9 +61,9 @@ export function descriptionPolicyConformance({
   }) {
     const form = useForm(port, { initialData: data, hints })
     return (
-      <FormContext.Provider value={form.runtime}>
+      <FormProvider value={form.runtime}>
         <FormRoot registry={registry} />
-      </FormContext.Provider>
+      </FormProvider>
     )
   }
 
