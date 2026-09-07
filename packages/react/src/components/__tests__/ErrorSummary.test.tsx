@@ -56,7 +56,9 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByRole('alert')).toBeTruthy()
+    // No live role: the fields announce their own errors, so an aggregate
+    // region would speak the same validation event a second time.
+    expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByText(/Name/)).toBeTruthy()
     expect(screen.getByText(/Required/)).toBeTruthy()
   })

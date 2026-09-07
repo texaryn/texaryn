@@ -37,18 +37,24 @@ function renderScoped(ui: React.ReactNode) {
 }
 
 describe('FieldErrors', () => {
-  it('renders nothing when showErrors is false', () => {
+  // The region stays mounted and goes empty instead of unmounting: one that
+  // arrives with its content already in place is not reliably announced.
+  it('stays mounted and says nothing when showErrors is false', () => {
     const { container } = renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={false} />,
     )
-    expect(container.innerHTML).toBe('')
+    const region = container.querySelector('[aria-live="polite"]')
+    expect(region).not.toBeNull()
+    expect(region!.textContent).toBe('')
   })
 
-  it('renders nothing when errors array is empty', () => {
+  it('stays mounted and says nothing when the errors array is empty', () => {
     const { container } = renderScoped(
       <FieldErrors node={makeFieldNode()} errors={[]} showErrors={true} />,
     )
-    expect(container.innerHTML).toBe('')
+    const region = container.querySelector('[aria-live="polite"]')
+    expect(region).not.toBeNull()
+    expect(region!.textContent).toBe('')
   })
 
   it('renders errors when showErrors is true', () => {
@@ -58,20 +64,14 @@ describe('FieldErrors', () => {
     expect(screen.getByText('Required')).toBeTruthy()
   })
 
-  it('renders error container with role="alert" and correct id', () => {
-    renderScoped(
+  it('is a polite atomic live region carrying the field error id', () => {
+    const { container } = renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
     )
-    const container = screen.getByRole('alert')
-    expect(container.id).toMatch(/^texaryn-[0-9a-z_]+-node_1-error$/)
-  })
-
-  it('does not render aria-live attribute', () => {
-    renderScoped(
-      <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
-    )
-    const container = screen.getByRole('alert')
-    expect(container.getAttribute('aria-live')).toBeNull()
+    const region = container.querySelector('[aria-live="polite"]')!
+    expect(region.id).toMatch(/^texaryn-[0-9a-z_]+-node_1-error$/)
+    expect(region.getAttribute('aria-atomic')).toBe('true')
+    expect(region.getAttribute('role')).toBeNull()
   })
 
   it('falls back to keyword when message is undefined', () => {

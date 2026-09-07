@@ -4,6 +4,12 @@ import { useStore } from '../hooks/use-store.js'
 import { useFormIdPrefix } from '../id-prefix.js'
 import { makeId } from '../props/field-props.js'
 
+/**
+ * Deliberately not a live region. The fields already announce their own
+ * errors, so an aggregate one would speak the same validation event twice.
+ * What this needs instead is to become a focus destination after a failed
+ * submit, which is separate work.
+ */
 export function ErrorSummary() {
   const runtime = useFormContext()
   const idPrefix = useFormIdPrefix()
@@ -14,7 +20,7 @@ export function ErrorSummary() {
   }
 
   return (
-    <div role="alert">
+    <div>
       <ul>
         {visibleErrors.map((entry: VisibleError) => (
           <li key={entry.nodeId}>

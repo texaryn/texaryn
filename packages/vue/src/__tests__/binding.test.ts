@@ -113,7 +113,11 @@ describe('validation and touched state drive what is shown', () => {
   it('stays quiet before the field is touched', async () => {
     const { wrapper } = await mountExample('accessibility-error-association')
     await settle()
-    expect(wrapper.findAll('[role="alert"]').length).toBe(0)
+    // Absence of an alert element would now pass for free. The claim is that
+    // the region is there and has nothing to say yet.
+    const regions = wrapper.findAll('[aria-live="polite"]')
+    expect(regions.length).toBeGreaterThan(0)
+    expect(regions.every((r) => r.element.textContent === '')).toBe(true)
     wrapper.unmount()
   })
 
@@ -128,7 +132,10 @@ describe('validation and touched state drive what is shown', () => {
     input.dispatchEvent(new Event('blur'))
     await settle()
 
-    expect(wrapper.findAll('[role="alert"]').length).toBeGreaterThan(0)
+    // The region is mounted from the start, so what changes is its content.
+    const regions = wrapper.findAll('[aria-live="polite"]')
+    expect(regions.length).toBeGreaterThan(0)
+    expect(regions.some((r) => r.element.textContent !== '')).toBe(true)
     expect(input.getAttribute('aria-invalid')).toBe('true')
     expect(input.getAttribute('aria-describedby')).toContain('error')
     wrapper.unmount()

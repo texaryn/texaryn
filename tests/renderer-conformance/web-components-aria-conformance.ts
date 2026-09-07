@@ -126,6 +126,27 @@ export function webComponentsAriaConformance({
     return new Promise((resolve) => setTimeout(resolve, 0))
   }
 
+  /**
+   * The error region is mounted from the start and empty while the field is
+   * valid, so silence is an empty region rather than a missing element. An
+   * absent-element assertion would now pass for free.
+   */
+  function regions(element: HTMLElement): HTMLElement[] {
+    return [...element.querySelectorAll<HTMLElement>('[aria-live="polite"]')]
+  }
+
+  function region(element: HTMLElement): HTMLElement {
+    const found = regions(element).find((r) => r.textContent !== '')
+    if (!found) throw new Error('no live region has anything to announce')
+    return found
+  }
+
+  function expectSilentRegions(element: HTMLElement): void {
+    const all = regions(element)
+    expect(all.length).toBeGreaterThan(0)
+    expect(all.map((r) => r.textContent)).toEqual(all.map(() => ''))
+  }
+
   function blur(control: HTMLElement): void {
     control.dispatchEvent(new Event('blur'))
   }
@@ -185,7 +206,7 @@ export function webComponentsAriaConformance({
       expect(optional.getAttribute('aria-required')).toBeNull()
     })
 
-    it('untouched invalid field: no aria-invalid, no alert', async () => {
+    it('untouched invalid field: no aria-invalid, and the live region is silent', async () => {
       const element = await mount(
         requiredStringSchema,
         { name: '', nickname: '' },
@@ -193,10 +214,10 @@ export function webComponentsAriaConformance({
       )
       const q = within(element)
       expect(q.getByRole('textbox', { name: 'Full Name' }).getAttribute('aria-invalid')).toBeNull()
-      expect(q.queryByRole('alert')).toBeNull()
+      expectSilentRegions(element)
     })
 
-    it('touched invalid field: aria-invalid, an alert, and aria-describedby pointing at it', async () => {
+    it('touched invalid field: aria-invalid, a filled live region, and aria-describedby pointing at it', async () => {
       const element = await mount(
         requiredStringSchema,
         { name: '', nickname: '' },
@@ -208,7 +229,7 @@ export function webComponentsAriaConformance({
       await flush()
 
       expect(input.getAttribute('aria-invalid')).toBe('true')
-      const alert = q.getByRole('alert')
+      const alert = region(element)
       expect(alert.textContent).not.toBe('')
       const describedBy = (input.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean)
       expect(describedBy).toContain(alert.id)
@@ -253,7 +274,7 @@ export function webComponentsAriaConformance({
       blur(input)
       await flush()
       expect(input.getAttribute('aria-invalid')).toBeNull()
-      expect(q.queryByRole('alert')).toBeNull()
+      expectSilentRegions(element)
     })
 
     it('a failed Submit marks untouched invalid fields and a later valid Submit clears them', async () => {
@@ -265,13 +286,15 @@ export function webComponentsAriaConformance({
       submit(element)
       await flush()
       expect(input.getAttribute('aria-invalid')).toBe('true')
-      expect(q.getAllByRole('alert').length).toBeGreaterThan(0)
+      expect(
+        [...element.querySelectorAll('[aria-live="polite"]')].some((r) => r.textContent !== ''),
+      ).toBe(true)
 
       type(input, 'Alice')
       submit(element)
       await flush()
       expect(input.getAttribute('aria-invalid')).toBeNull()
-      expect(q.queryByRole('alert')).toBeNull()
+      expectSilentRegions(element)
     })
 
     it('a titled nested object is exposed as a group with that name', async () => {

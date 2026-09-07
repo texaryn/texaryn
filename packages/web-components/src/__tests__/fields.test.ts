@@ -86,10 +86,14 @@ describe('default widgets', () => {
 
     rt.dispatch({ type: 'Submit' })
     await flush()
-    const alert = container.querySelector<HTMLElement>('[role=alert]')!
+    const region = [...container.querySelectorAll<HTMLElement>('[aria-live="polite"]')].find(
+      (r) => r.textContent !== '',
+    )!
     expect(name.getAttribute('aria-invalid')).toBe('true')
-    expect(alert.hidden).toBe(false)
-    expect(name.getAttribute('aria-describedby')!.split(' ')).toEqual([description.id, alert.id])
+    // The region was never hidden; it filled. aria-describedby is what changes
+    // conditionally, and it points at the region only once it has content.
+    expect(region.hidden).toBe(false)
+    expect(name.getAttribute('aria-describedby')!.split(' ')).toEqual([description.id, region.id])
   })
 })
 

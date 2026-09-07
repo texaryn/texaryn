@@ -83,8 +83,9 @@ describe('Bootstrap field widgets', () => {
     const feedback = screen.getByText('Too short')
     expect(feedback.className).toContain('invalid-feedback')
     expect(feedback.className).toContain('d-block')
-    expect(feedback.closest('[role="alert"]')).not.toBeNull()
-    expect(name.getAttribute('aria-describedby')).toContain(feedback.closest('[role="alert"]')!.id)
+    const region = feedback.closest('[aria-live="polite"]')
+    expect(region).not.toBeNull()
+    expect(name.getAttribute('aria-describedby')).toContain(region!.id)
   })
 
   it('does not set the HTML required attribute, only aria-required', () => {

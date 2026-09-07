@@ -195,7 +195,9 @@ describe('MUI field widgets', () => {
     expect(screen.queryByText('Legal name')).toBeNull()
   })
 
-  it('helper text gets role="alert" while invalid', async () => {
+  // MUI renders no helper line for empty helperText, so the live region has to
+  // be a stable child of that line rather than the line itself.
+  it('keeps one live region in the helper line and fills it when invalid', async () => {
     const invalid: ValidationResult = {
       valid: false,
       errors: [
@@ -209,10 +211,15 @@ describe('MUI field widgets', () => {
       () => invalid,
     )
     const name = screen.getByLabelText('Name')
+    const region = document.querySelector('[aria-live="polite"]')!
+    expect(region.textContent).toBe('')
+
     fireEvent.blur(name)
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeTruthy()
+      expect(region.textContent).toBe('Too short')
     })
+    expect(document.querySelector('[aria-live="polite"]')).toBe(region)
+    expect(document.querySelector('[role="alert"]')).toBeNull()
   })
 
   it('sets aria-required but not native required', () => {

@@ -138,7 +138,11 @@ export function descriptionPolicyConformance({
         })
 
         expect(screen.queryByText('Your legal name')).toBeNull()
-        expect(screen.getByRole('alert')).toBeTruthy()
+        // The error reaches a live region rather than an alert, so what this
+        // asserts is that something is now being announced, not its role.
+        const region = document.querySelector('[aria-live="polite"]')
+        expect(region).not.toBeNull()
+        expect(region!.textContent).not.toBe('')
       })
 
       it('description returns when field becomes valid', async () => {

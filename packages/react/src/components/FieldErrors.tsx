@@ -8,17 +8,18 @@ export interface FieldErrorsProps {
   showErrors: boolean
 }
 
+/**
+ * Always rendered, and empty while there is nothing to say. Returning null
+ * until an error exists meant the region arrived already populated, which is
+ * the case screen readers do not reliably announce.
+ */
 export function FieldErrors({ node, errors, showErrors }: FieldErrorsProps) {
   const idPrefix = useFormIdPrefix()
-  if (!showErrors || errors.length === 0) {
-    return null
-  }
-
-  const errorProps = getErrorProps(node, idPrefix)
+  const visible = showErrors ? errors : []
 
   return (
-    <div {...errorProps}>
-      {errors.map((error, index) => (
+    <div {...getErrorProps(node, idPrefix)}>
+      {visible.map((error, index) => (
         <div key={index}>{error.message ?? error.keyword}</div>
       ))}
     </div>

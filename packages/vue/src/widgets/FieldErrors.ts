@@ -9,16 +9,17 @@ export const FieldErrors = defineComponent({
     errors: { type: Array as PropType<readonly ValidationError[]>, required: true },
   },
   setup(props) {
-    return () => {
-      if (props.errors.length === 0) return null
-      return h(
+    // Always rendered, and empty while valid. A region inserted with its
+    // content already in place is not reliably announced, and polite rather
+    // than alert because validation runs on change, blur and submit.
+    return () =>
+      h(
         'div',
-        { id: props.id, role: 'alert' },
+        { id: props.id, 'aria-live': 'polite', 'aria-atomic': 'true' },
         props.errors.map((error, index) =>
           h('div', { key: `${error.instancePointer}:${error.keyword}:${index}` },
             error.message ?? error.keyword),
         ),
       )
-    }
   },
 })

@@ -46,7 +46,12 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
   const control = createControl(kind)
   const description = document.createElement('div')
   const errors = document.createElement('div')
-  errors.setAttribute('role', 'alert')
+  // Set once and never toggled. Hiding the region while empty took it out of
+  // the accessibility tree, so unhiding it with content already in place was
+  // the same defect as inserting it populated. Polite rather than alert
+  // because validation runs on change, blur and submit.
+  errors.setAttribute('aria-live', 'polite')
+  errors.setAttribute('aria-atomic', 'true')
   root.append(label, control, description, errors)
 
   const state = new FieldState(ctx.runtime, node, () => render())
@@ -137,7 +142,6 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
         return line
       }),
     )
-    errors.hidden = visibleErrors.length === 0
 
     const describedBy: string[] = []
     if (helpText) describedBy.push(description.id)
