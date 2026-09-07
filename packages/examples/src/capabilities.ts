@@ -49,6 +49,14 @@ export interface CapabilityDefinition {
   /** Only when the capability's semantics differ per dialect. */
   dialects?: readonly Dialect[]
   /**
+   * The JSON Schema keywords this capability corresponds to. The support
+   * matrix is generated from these, so a keyword cannot be documented as
+   * supported without a capability declaring it.
+   */
+  keywords?: readonly string[]
+  /** Only when the keyword names themselves differ per dialect. */
+  keywordsByDialect?: Partial<Record<Dialect, readonly string[]>>
+  /**
    * Supported capabilities require an example by default. Opting out is
    * deliberate and has to say why, so whole categories cannot drift out of
    * coverage silently.
@@ -63,36 +71,42 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['type'],
   },
   'schema.type.number': {
     title: 'Number fields',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['type'],
   },
   'schema.type.integer': {
     title: 'Integer fields',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['type'],
   },
   'schema.type.boolean': {
     title: 'Boolean fields',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['type'],
   },
   'schema.type.object': {
     title: 'Object types',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['type', 'properties'],
   },
   'schema.type.array': {
     title: 'Array types',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['items'],
   },
   'schema.object.nested': {
     title: 'Nested objects',
@@ -111,12 +125,14 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['enum'],
   },
   'schema.field.required': {
     title: 'Required and optional fields',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['required'],
   },
 
   'schema.constraint.minLength': {
@@ -124,48 +140,56 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['minLength'],
   },
   'schema.constraint.maxLength': {
     title: 'maxLength',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['maxLength'],
   },
   'schema.constraint.pattern': {
     title: 'pattern',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['pattern'],
   },
   'schema.constraint.minimum': {
     title: 'minimum',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['minimum'],
   },
   'schema.constraint.maximum': {
     title: 'maximum',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['maximum'],
   },
   'schema.constraint.minItems': {
     title: 'minItems',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['minItems'],
   },
   'schema.constraint.maxItems': {
     title: 'maxItems',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['maxItems'],
   },
   'schema.constraint.uniqueItems': {
     title: 'uniqueItems',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['uniqueItems'],
   },
 
   'schema.reference.local-ref': {
@@ -173,12 +197,22 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywordsByDialect: {
+      'draft-07': ['$ref', 'definitions'],
+      '2019-09': ['$ref', '$defs'],
+      '2020-12': ['$ref', '$defs'],
+    },
   },
   'schema.reference.reused-fragment': {
     title: 'A $defs fragment reused by several properties',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywordsByDialect: {
+      'draft-07': ['$ref', 'definitions'],
+      '2019-09': ['$ref', '$defs'],
+      '2020-12': ['$ref', '$defs'],
+    },
   },
 
   'schema.conditional.if-then-else': {
@@ -186,6 +220,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['if', 'then', 'else'],
   },
 
   'schema.composition.oneOf': {
@@ -193,12 +228,14 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['oneOf'],
   },
   'schema.composition.anyOf': {
     title: 'anyOf',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    keywords: ['anyOf'],
   },
 
   'schema.dependency.dependentSchemas': {
@@ -207,6 +244,7 @@ export const capabilities = {
     status: 'supported',
     verification: 'projection',
     dialects: ['2019-09', '2020-12'],
+    keywords: ['dependentSchemas'],
   },
   'schema.dependency.dependentRequired': {
     title: 'dependentRequired',
@@ -214,6 +252,7 @@ export const capabilities = {
     status: 'supported',
     verification: 'projection',
     dialects: ['2019-09', '2020-12'],
+    keywords: ['dependentRequired'],
   },
   'schema.dependency.draft07-dependencies': {
     title: 'Draft 7 dependencies',
@@ -221,6 +260,7 @@ export const capabilities = {
     status: 'supported',
     verification: 'projection',
     dialects: ['draft-07'],
+    keywords: ['dependencies'],
   },
 
   'schema.dialect.draft-07': {
@@ -243,6 +283,102 @@ export const capabilities = {
     status: 'supported',
     verification: 'projection',
     dialects: ['2020-12'],
+  },
+
+  'schema.composition.allOf': {
+    title: 'allOf composition',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['allOf'],
+  },
+  'schema.constraint.exclusiveMinimum': {
+    title: 'Exclusive minimum',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['exclusiveMinimum'],
+  },
+  'schema.constraint.exclusiveMaximum': {
+    title: 'Exclusive maximum',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['exclusiveMaximum'],
+  },
+  'schema.constraint.multipleOf': {
+    title: 'Multiple of',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['multipleOf'],
+  },
+
+  // JSON Schema calls these annotations rather than assertions, and says
+  // applications are expected to make their own use of them. So the claim
+  // here is projection: the value reaches the compiled node. Whether a widget
+  // does anything with it is a renderer concern and a separate capability.
+  'schema.annotation.title': {
+    title: 'Title annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['title'],
+  },
+  'schema.annotation.description': {
+    title: 'Description annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['description'],
+  },
+  // Projected, never applied. JSON Schema is explicit that `default` does not
+  // fill a missing instance value, and the example proves both halves.
+  'schema.annotation.default': {
+    title: 'Default annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['default'],
+  },
+  'schema.annotation.examples': {
+    title: 'Examples annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['examples'],
+  },
+  'schema.annotation.readOnly': {
+    title: 'Read-only annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['readOnly'],
+  },
+  'schema.annotation.writeOnly': {
+    title: 'Write-only annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['writeOnly'],
+  },
+  // An annotation in the 2020-12 default vocabulary, kept separate from the
+  // optional format-assertion vocabulary: this claims projection only, never
+  // that a format is validated.
+  'schema.annotation.format': {
+    title: 'Format annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywords: ['format'],
+  },
+  'schema.annotation.deprecated': {
+    title: 'Deprecated annotation',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    dialects: ['2019-09', '2020-12'],
+    keywords: ['deprecated'],
   },
 
   'ui-hint.widget': {

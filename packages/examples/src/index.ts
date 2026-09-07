@@ -6,6 +6,13 @@ export type {
   Dialect,
   VerificationLayer,
 } from './capabilities.js'
+export type { SupportRow } from './support-matrix.js'
+export {
+  dialects,
+  formProjectionSupport,
+  matrixCapabilityIds,
+  rowKeywords,
+} from './support-matrix.js'
 export {
   capabilities,
   capabilityIds,

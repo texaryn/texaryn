@@ -1,0 +1,54 @@
+---
+// The positive form-projection claims, rendered from @texaryn/examples rather
+// than written here. A keyword cannot appear in this table without a
+// capability declaring it, which is what stops the guide and the manifest
+// drifting apart. Prose and limitations stay in the guide.
+import { dialects, formProjectionSupport, rowKeywords } from '@texaryn/examples'
+
+const labels: Record<string, string> = {
+  'draft-07': 'Draft 7',
+  '2019-09': '2019-09',
+  '2020-12': '2020-12',
+}
+
+const rows = formProjectionSupport.map((row) => ({
+  title: row.title,
+  formBehavior: row.formBehavior,
+  columns: dialects.map((dialect) => ({
+    dialect,
+    keywords: rowKeywords(row, dialect),
+  })),
+}))
+---
+
+<table>
+  <thead>
+    <tr>
+      <th>Capability</th>
+      {dialects.map((dialect) => <th>{labels[dialect]}</th>)}
+      <th>Form behavior</th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      rows.map((row) => (
+        <tr>
+          <td>{row.title}</td>
+          {row.columns.map((column) => (
+            <td>
+              {column.keywords.length === 0
+                ? '—'
+                : column.keywords.map((keyword, index) => (
+                    <>
+                      {index > 0 ? ', ' : ''}
+                      <code>{keyword}</code>
+                    </>
+                  ))}
+            </td>
+          ))}
+          <td set:html={row.formBehavior.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

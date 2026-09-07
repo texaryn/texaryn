@@ -7,6 +7,7 @@ import {
 } from '../capabilities.js'
 import type { CapabilityId } from '../capabilities.js'
 import { examples, examplesCovering } from '../registry.js'
+import { formProjectionSupport, matrixCapabilityIds, rowKeywords } from '../support-matrix.js'
 
 describe('capability manifest', () => {
   it('uses namespaced identifiers throughout', () => {
@@ -116,5 +117,58 @@ describe('example registry', () => {
       const schema = example.schema as { type?: string }
       expect(schema.type, `${example.id} should have an object schema`).toBe('object')
     }
+  })
+})
+
+// The published support matrix is generated from the manifest, so the guide
+// cannot claim a keyword that no capability declares. TypeScript already
+// rejects an unknown id in a row; these assertions catch the other direction
+// and give a message that says what to do about it.
+describe('published support matrix', () => {
+  it('claims only declared capabilities', () => {
+    for (const row of formProjectionSupport) {
+      for (const id of row.capabilities) {
+        expect(
+          isCapabilityId(id),
+          `JSON Schema support row "${row.title}" claims "${id}" without a declared capability. Add the capability to packages/examples/src/capabilities.ts before documenting it.`,
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('documents every supported schema capability', () => {
+    const claimed = new Set<CapabilityId>(matrixCapabilityIds())
+    // Dialect support is its own section of the guide rather than a row of the
+    // form-projection table, and the type capabilities are named by the rows
+    // that use them rather than listed on their own.
+    const exempt = (id: CapabilityId) =>
+      id.startsWith('schema.dialect.') || id.startsWith('schema.type.')
+    const missing = capabilityIds.filter(
+      (id) =>
+        getCapability(id).category === 'schema' &&
+        getCapability(id).status === 'supported' &&
+        !exempt(id) &&
+        !claimed.has(id),
+    )
+    expect(
+      missing,
+      missing
+        .map(
+          (id) =>
+            `Supported capability "${id}" is not present in the JSON Schema support matrix. Add it to a row in packages/examples/src/support-matrix.ts.`,
+        )
+        .join('\n'),
+    ).toEqual([])
+  })
+
+  it('resolves keywords per dialect, including where the spelling differs', () => {
+    const references = formProjectionSupport.find((row) => row.title === 'Local references')!
+    expect(rowKeywords(references, 'draft-07')).toContain('definitions')
+    expect(rowKeywords(references, '2020-12')).toContain('$defs')
+
+    // deprecated arrived in 2019-09, so the draft-07 column must not claim it.
+    const annotations = formProjectionSupport.find((row) => row.title === 'Field annotations')!
+    expect(rowKeywords(annotations, 'draft-07')).not.toContain('deprecated')
+    expect(rowKeywords(annotations, '2019-09')).toContain('deprecated')
   })
 })
