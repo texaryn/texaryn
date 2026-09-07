@@ -49,7 +49,7 @@ describe('inspector panes', () => {
     fireEvent.click(tab('Schema'))
     await waitFor(() => expect(panel().textContent).toContain('String field'))
 
-    const editor = screen.getByLabelText('JSON Schema') as HTMLTextAreaElement
+    const editor = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
     const custom = JSON.stringify(
       { type: 'object', title: 'Edited schema', properties: { q: { type: 'string' } } },
       null,
@@ -102,7 +102,7 @@ describe('inspector panes', () => {
     // The conditional branch decides which nodes are active, so the projection
     // has to be recomputed from current data rather than cached from mount.
     const before = panel().textContent ?? ''
-    fireEvent.change(await screen.findByLabelText('Account type'), {
+    fireEvent.change(await screen.findByLabelText(/^Account type/), {
       target: { value: 'personal' },
     })
     await waitFor(() => expect(panel().textContent).not.toBe(before))
@@ -172,7 +172,7 @@ describe('validation pane', () => {
     // The field is invalid from the start, so anything that re-ran validation
     // itself would print an error here immediately. visibleErrors stays empty
     // until the runtime decides the error should be shown.
-    const username = await screen.findByLabelText('Username')
+    const username = await screen.findByLabelText(/^Username/)
     fireEvent.blur(username)
 
     await waitFor(() => {

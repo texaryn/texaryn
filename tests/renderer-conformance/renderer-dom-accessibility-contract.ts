@@ -538,6 +538,29 @@ export function rendererDomAccessibilityContract({
       expect(firstRemoveName()).toBe('Remove item 1 from Tags')
     })
 
+    // Three channels carry one fact and must stay separate. Collapsing any two
+    // is the regression this claim exists to catch: drop the visible suffix and
+    // a sighted user cannot tell; let it into the accessible name and the
+    // requirement is announced twice alongside aria-required.
+    it('shows required visibly without putting it in the accessible name', async () => {
+      const { q } = await mount(requiredSchema, { name: '', nickname: '' })
+      const required = q.getByRole('textbox', { name: 'Full Name' })
+      const optional = q.getByRole('textbox', { name: 'Nickname' })
+      const labelOf = (control: HTMLElement) =>
+        control.ownerDocument.querySelector(`label[for="${control.id}"]`)?.textContent ??
+        control.closest('label')?.textContent ??
+        ''
+
+      expect(labelOf(required), 'a sighted user should see the requirement').toContain('required')
+      expect(computeAccessibleName(required), 'and hear it only once').toBe('Full Name')
+      expect(required.getAttribute('aria-required')).toBe('true')
+
+      // The inverse, so a helper cannot be applied to every field alike.
+      expect(labelOf(optional)).not.toContain('required')
+      expect(computeAccessibleName(optional)).toBe('Nickname')
+      expect([null, 'false']).toContain(optional.getAttribute('aria-required'))
+    })
+
     it('exposes a read-only field as read only rather than disabled', async () => {
       const { q } = await mount(
         readOnlySchema,

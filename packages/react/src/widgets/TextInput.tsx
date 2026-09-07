@@ -1,6 +1,7 @@
 import React from 'react'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '../hooks/use-field-binding.js'
+import { FieldLabelContent } from '../components/FieldLabelContent.js'
 import { FieldErrors } from '../components/FieldErrors.js'
 
 export interface WidgetProps {
@@ -12,7 +13,7 @@ function TextInputImpl({ node }: WidgetProps) {
 
   return (
     <div>
-      <label {...field.labelProps}>{field.label}</label>
+      <label {...field.labelProps}><FieldLabelContent label={field.label} required={field.required} /></label>
       <input {...field.domInputProps} type="text" />
       {field.description ? <div {...field.descriptionProps}>{field.description}</div> : null}
       <FieldErrors node={field.node} errors={field.errors} showErrors={field.invalid} />

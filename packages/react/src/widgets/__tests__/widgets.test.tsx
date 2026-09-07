@@ -75,7 +75,7 @@ describe('Default widgets', () => {
       ['/name', { type: 'string', annotations: { title: 'Name' } }],
     ])
     renderForm(proj, { name: 'Alice' })
-    const input = screen.getByLabelText('Name') as HTMLInputElement
+    const input = screen.getByLabelText(/^Name/) as HTMLInputElement
     expect(input).toBeTruthy()
     expect(input.value).toBe('Alice')
   })
@@ -98,12 +98,12 @@ describe('Default widgets', () => {
       '/age': { placeholder: '18' },
       '/bio': { widget: 'textarea', placeholder: 'Tell us about yourself' },
     })
-    expect((screen.getByLabelText('Email') as HTMLInputElement).placeholder).toBe('you@example.com')
-    expect((screen.getByLabelText('Age') as HTMLInputElement).placeholder).toBe('18')
-    const bio = screen.getByLabelText('Bio') as HTMLTextAreaElement
+    expect((screen.getByLabelText(/^Email/) as HTMLInputElement).placeholder).toBe('you@example.com')
+    expect((screen.getByLabelText(/^Age/) as HTMLInputElement).placeholder).toBe('18')
+    const bio = screen.getByLabelText(/^Bio/) as HTMLTextAreaElement
     expect(bio.tagName).toBe('TEXTAREA')
     expect(bio.placeholder).toBe('Tell us about yourself')
-    expect((screen.getByLabelText('Name') as HTMLInputElement).hasAttribute('placeholder')).toBe(false)
+    expect((screen.getByLabelText(/^Name/) as HTMLInputElement).hasAttribute('placeholder')).toBe(false)
   })
 
   it('renders helpText as the field description on every default field widget, preferring it over the schema description', () => {
@@ -137,10 +137,10 @@ describe('Default widgets', () => {
       const el = screen.getByLabelText(label)
       expect(document.getElementById(el.getAttribute('aria-describedby')!)!.textContent).toBe(text)
     }
-    const bio = screen.getByLabelText('Bio') as HTMLInputElement
+    const bio = screen.getByLabelText(/^Bio/) as HTMLInputElement
     expect(document.getElementById(bio.getAttribute('aria-describedby')!)!.textContent).toBe('From the hint')
     expect(screen.queryByText('From the schema')).toBeNull()
-    const nick = screen.getByLabelText('Nickname') as HTMLInputElement
+    const nick = screen.getByLabelText(/^Nickname/) as HTMLInputElement
     expect(document.getElementById(nick.getAttribute('aria-describedby')!)!.textContent).toBe('Hint without schema description')
     expect(screen.getByText('Schema only')).toBeTruthy()
   })
@@ -153,7 +153,7 @@ describe('Default widgets', () => {
       ['/age', { type: 'integer', annotations: { title: 'Age' } }],
     ])
     renderForm(proj, { age: 30 })
-    const input = screen.getByLabelText('Age') as HTMLInputElement
+    const input = screen.getByLabelText(/^Age/) as HTMLInputElement
     expect(input.getAttribute('type')).toBe('number')
   })
 
@@ -165,7 +165,7 @@ describe('Default widgets', () => {
       ['/agree', { type: 'boolean', annotations: { title: 'I agree' } }],
     ])
     renderForm(proj, { agree: false })
-    const input = screen.getByLabelText('I agree') as HTMLInputElement
+    const input = screen.getByLabelText(/^I agree/) as HTMLInputElement
     expect(input.getAttribute('type')).toBe('checkbox')
   })
 
@@ -181,7 +181,7 @@ describe('Default widgets', () => {
       }],
     ])
     renderForm(proj, { role: 'dev' })
-    expect(screen.getByLabelText('Role').tagName).toBe('SELECT')
+    expect(screen.getByLabelText(/^Role/).tagName).toBe('SELECT')
   })
 
   it('renders children of object container', () => {
@@ -194,8 +194,8 @@ describe('Default widgets', () => {
       ['/last', { type: 'string', annotations: { title: 'Last' } }],
     ])
     renderForm(proj, { first: 'A', last: 'B' })
-    expect(screen.getByLabelText('First')).toBeTruthy()
-    expect(screen.getByLabelText('Last')).toBeTruthy()
+    expect(screen.getByLabelText(/^First/)).toBeTruthy()
+    expect(screen.getByLabelText(/^Last/)).toBeTruthy()
   })
 
   it('hides fields with visible: false', () => {
@@ -217,7 +217,7 @@ describe('Default widgets', () => {
       ['/age', { type: 'integer', annotations: { title: 'Age' } }],
     ])
     renderForm(proj, {}, { '/age': { widget: 'textarea' } })
-    const control = screen.getByLabelText('Age') as HTMLTextAreaElement
+    const control = screen.getByLabelText(/^Age/) as HTMLTextAreaElement
     expect(control.tagName).toBe('TEXTAREA')
     fireEvent.change(control, { target: { value: '42' } })
     expect((latestData as { age?: unknown }).age).toBe(42)
@@ -254,8 +254,8 @@ describe('read-only controls with no native attribute', () => {
 
   it('marks both through ARIA and neither as disabled', () => {
     renderForm(proj, { role: 'dev', agree: false })
-    const select = screen.getByLabelText('Role') as HTMLSelectElement
-    const checkbox = screen.getByLabelText('Agree') as HTMLInputElement
+    const select = screen.getByLabelText(/^Role/) as HTMLSelectElement
+    const checkbox = screen.getByLabelText(/^Agree/) as HTMLInputElement
     expect(select.getAttribute('aria-readonly')).toBe('true')
     expect(checkbox.getAttribute('aria-readonly')).toBe('true')
     expect(select.disabled).toBe(false)
@@ -264,13 +264,13 @@ describe('read-only controls with no native attribute', () => {
 
   it('refuses a select change', () => {
     renderForm(proj, { role: 'dev', agree: false })
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'pm' } })
+    fireEvent.change(screen.getByLabelText(/^Role/), { target: { value: 'pm' } })
     expect((latestData as { role: string }).role).toBe('dev')
   })
 
   it('refuses a checkbox toggle', () => {
     renderForm(proj, { role: 'dev', agree: false })
-    fireEvent.click(screen.getByLabelText('Agree'))
+    fireEvent.click(screen.getByLabelText(/^Agree/))
     expect((latestData as { agree: boolean }).agree).toBe(false)
   })
 })

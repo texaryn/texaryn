@@ -21,6 +21,30 @@ function display(value: unknown): string {
 }
 
 /** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
+/** The wording every binding uses, so a custom widget can match it. */
+export const REQUIRED_INDICATOR = '(required)'
+
+/**
+ * Three separate channels carry one fact and must not be collapsed. The
+ * sighted user reads "(required)"; the accessible name stays the label alone,
+ * because aria-required already reports the state and naming it too makes some
+ * screen readers say it twice; and the indicator says the word rather than an
+ * asterisk, so nobody has to be told elsewhere what a marker means.
+ *
+ * Rebuilt on every render because a conditional schema can make a field
+ * required or optional at any recompile.
+ */
+function writeLabel(label: HTMLElement, text: string, required: boolean): void {
+  const children: Node[] = [document.createTextNode(text)]
+  if (required) {
+    const marker = document.createElement('span')
+    marker.setAttribute('aria-hidden', 'true')
+    marker.textContent = ` ${REQUIRED_INDICATOR}`
+    children.push(marker)
+  }
+  label.replaceChildren(...children)
+}
+
 function hasNativeReadOnly(kind: Kind): boolean {
   return kind === 'string' || kind === 'number' || kind === 'textarea'
 }
@@ -105,7 +129,11 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
   }
 
   function render(): void {
-    label.textContent = node.annotations.title ?? node.dataPointer ?? node.id
+    writeLabel(
+      label,
+      node.annotations.title ?? node.dataPointer ?? node.id,
+      node.constraints.required === true,
+    )
     renderOptions()
     const value = state.value
     if (control instanceof HTMLInputElement && kind === 'boolean') {

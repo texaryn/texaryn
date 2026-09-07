@@ -56,17 +56,17 @@ afterEach(() => { cleanup() })
 describe('Bootstrap field widgets', () => {
   it('renders Bootstrap classes for each control kind', () => {
     renderForm(fields, { name: 'A', age: 1, bio: '', role: 'dev', agree: false }, { '/bio': { widget: 'textarea' } })
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     expect(name.className).toContain('form-control')
     expect(name.closest('.mb-3')).not.toBeNull()
     expect(screen.getByText('Name').className).toContain('form-label')
     expect(screen.getByText('Legal name').className).toContain('form-text')
-    expect(screen.getByLabelText('Age').className).toContain('form-control')
-    expect((screen.getByLabelText('Age') as HTMLInputElement).type).toBe('number')
-    expect(screen.getByLabelText('Bio').tagName).toBe('TEXTAREA')
-    expect(screen.getByLabelText('Bio').className).toContain('form-control')
-    expect(screen.getByLabelText('Role').className).toContain('form-select')
-    const agree = screen.getByLabelText('Agree')
+    expect(screen.getByLabelText(/^Age/).className).toContain('form-control')
+    expect((screen.getByLabelText(/^Age/) as HTMLInputElement).type).toBe('number')
+    expect(screen.getByLabelText(/^Bio/).tagName).toBe('TEXTAREA')
+    expect(screen.getByLabelText(/^Bio/).className).toContain('form-control')
+    expect(screen.getByLabelText(/^Role/).className).toContain('form-select')
+    const agree = screen.getByLabelText(/^Agree/)
     expect(agree.className).toContain('form-check-input')
     expect(agree.closest('.form-check')).not.toBeNull()
     expect(screen.getByText('Agree').className).toContain('form-check-label')
@@ -75,7 +75,7 @@ describe('Bootstrap field widgets', () => {
   it('applies is-invalid and invalid-feedback only once the field is touched and invalid', async () => {
     const invalid: ValidationResult = { valid: false, errors: [{ instancePointer: '/name', keyword: 'minLength', message: 'Too short', params: {} }] }
     renderForm(fields, { name: '' }, { '/name': { validationTrigger: 'blur' } }, () => invalid)
-    const name = screen.getByLabelText('Name')
+    const name = screen.getByLabelText(/^Name/)
     expect(name.className).not.toContain('is-invalid')
     expect(screen.queryByText('Too short')).toBeNull()
     fireEvent.blur(name)
@@ -90,7 +90,7 @@ describe('Bootstrap field widgets', () => {
 
   it('does not set the HTML required attribute, only aria-required', () => {
     renderForm(fields, { name: '' })
-    const name = screen.getByLabelText('Name') as HTMLInputElement
+    const name = screen.getByLabelText(/^Name/) as HTMLInputElement
     expect(name.required).toBe(false)
     expect(name.getAttribute('aria-required')).toBe('true')
   })
@@ -108,7 +108,7 @@ describe('Bootstrap containers', () => {
       ['/tags/0', { type: 'string', annotations: { title: 'Tag' } }],
     ])
     renderForm(proj, { tags: ['a'] })
-    expect(screen.getByLabelText('Tag')).toBeTruthy()
+    expect(screen.getByLabelText(/^Tag/)).toBeTruthy()
     // The accessible name now carries the row context, while the visible word
     // stays short; this test cares about the Bootstrap classes.
     const add = screen.getByRole('button', { name: 'Add item to Tags' })
@@ -142,8 +142,8 @@ describe('Bootstrap read-only controls', () => {
 
   it('uses the native attribute for text and ARIA for a checkbox', () => {
     renderForm(readOnlyFields, { code: 'abc', agree: false })
-    const code = screen.getByLabelText('Code') as HTMLInputElement
-    const agree = screen.getByLabelText('Agree') as HTMLInputElement
+    const code = screen.getByLabelText(/^Code/) as HTMLInputElement
+    const agree = screen.getByLabelText(/^Agree/) as HTMLInputElement
     expect(code.readOnly).toBe(true)
     expect(code.disabled).toBe(false)
     expect(agree.getAttribute('aria-readonly')).toBe('true')

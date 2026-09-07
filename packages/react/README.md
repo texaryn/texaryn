@@ -297,6 +297,9 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 ### Error display
 
 - `FieldErrors`
+- `FieldLabelContent`
+- `FieldLabelContentProps`
+- `REQUIRED_INDICATOR`
 - `FieldErrorsProps`
 - `ErrorSummary`
 

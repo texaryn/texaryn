@@ -150,7 +150,7 @@ describe('id namespace', () => {
     })
 
     const before = idsIn(container)
-    const input = screen.getByLabelText('Full Name') as HTMLInputElement
+    const input = screen.getByLabelText(/^Full Name/) as HTMLInputElement
     await act(async () => {
       fireEvent.change(input, { target: { value: 'Alice' } })
     })

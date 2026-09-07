@@ -7,9 +7,31 @@ import { FieldErrors } from './FieldErrors.js'
 
 const nodeProp = { node: { type: Object as PropType<UINode>, required: true } } as const
 
+/** The wording every binding uses, so a custom widget can match it. */
+export const REQUIRED_INDICATOR = '(required)'
+
+/**
+ * Three separate channels carry one fact and must not be collapsed. The
+ * sighted user reads "(required)"; the accessible name stays the label alone,
+ * because aria-required already reports the state and naming it too makes some
+ * screen readers say it twice; and the indicator says the word rather than an
+ * asterisk, so nobody has to be told elsewhere what a marker means.
+ */
+function labelContent(field: FieldWidget): Array<VNode | string> {
+  const content: Array<VNode | string> = [field.label.value]
+  if (field.aria.value['aria-required']) {
+    content.push(h('span', { 'aria-hidden': 'true' }, ` ${REQUIRED_INDICATOR}`))
+  }
+  return content
+}
+
 function fieldShell(field: FieldWidget, control: VNode): VNode {
   return h('div', [
-    h('label', { id: `${field.labelFor.value}-label`, for: field.labelFor.value }, field.label.value),
+    h(
+      'label',
+      { id: `${field.labelFor.value}-label`, for: field.labelFor.value },
+      labelContent(field),
+    ),
     control,
     field.description.value
       ? h('div', { id: field.descriptionId.value }, field.description.value)
