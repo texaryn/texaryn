@@ -1,5 +1,12 @@
 # @texaryn/schema-json
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [e7c00ce]
+  - @texaryn/core@0.6.0
+
 ## 0.2.4
 
 ### Patch Changes
