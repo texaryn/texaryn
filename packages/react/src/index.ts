@@ -6,6 +6,8 @@ export type { UseFieldReturn } from './hooks/use-field.js'
 export { useFieldArray } from './hooks/use-field-array.js'
 export type { UseFieldArrayReturn } from './hooks/use-field-array.js'
 export { useFieldBinding } from './hooks/use-field-binding.js'
+export { useObjectGroup } from './hooks/use-object-group.js'
+export type { ObjectGroup } from './hooks/use-object-group.js'
 export type {
   FieldBinding,
   DomValueInputProps,
