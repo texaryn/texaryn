@@ -47,6 +47,10 @@ export interface DomAccessibilityAdapter {
  * unrelated failure cannot masquerade as it. `it.fails` would accept any
  * throw, including a broken adapter; this accepts only the stated diagnosis,
  * and fails once the defect is fixed so the declaration has to be removed.
+ *
+ * No binding declares one any more: every gap this suite was built to expose
+ * has been closed. The mechanism stays for the next partial fix, where landing
+ * one with a named declaration beats leaving the suite unable to run at all.
  */
 export type KnownGap = 'duplicate-id' | 'cross-instance-reference' | 'missing-named-group'
 
@@ -102,7 +106,27 @@ const groupedSchema = {
       title: 'Address',
       properties: { city: { type: 'string', title: 'City' } },
     },
+    // Untitled on purpose: a group with no name is noise in the tree.
+    meta: {
+      type: 'object',
+      properties: { note: { type: 'string', title: 'Note' } },
+    },
+    trigger: { type: 'string', title: 'Trigger' },
   },
+}
+
+const groupedData = { address: { city: 'Paris' }, meta: { note: '' }, trigger: '' }
+
+// The title arrives from a conditional branch rather than being written on the
+// property, which is the case the stable-element design exists for.
+const conditionalGroupSchema = {
+  type: 'object',
+  properties: {
+    mode: { type: 'string', title: 'Mode', enum: ['plain', 'named'] },
+    group: { type: 'object', properties: { city: { type: 'string', title: 'City' } } },
+  },
+  if: { properties: { mode: { const: 'named' } }, required: ['mode'] },
+  then: { properties: { group: { title: 'Address' } } },
 }
 
 const IDREF_ATTRIBUTES = [
@@ -362,6 +386,71 @@ export function rendererDomAccessibilityContract({
       expect(filled[0]!.textContent).toBe('')
     })
 
+    it('does not expose an untitled nested object as a group', async () => {
+      const { q } = await mount(groupedSchema, groupedData)
+      // Every group in the tree has to be a named one, so counting them is the
+      // claim: an untitled container must not add an anonymous group.
+      const groups = q.queryAllByRole('group')
+      expect(groups).toHaveLength(1)
+      expect(q.getByRole('textbox', { name: 'Note' })).toBeTruthy()
+    })
+
+    it('keeps the group element across a recompile', async () => {
+      const { surface, runtime, q } = await mount(groupedSchema, groupedData)
+      const group = q.getByRole('group', { name: 'Address' })
+      const city = q.getByRole('textbox', { name: 'City' }) as HTMLInputElement
+      city.focus()
+
+      // Any command recompiles the document. The element is chosen once at
+      // mount for exactly this reason: deciding it from the title would
+      // remount the subtree and take the caret with it.
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/trigger'), value: 'x' })
+      })
+
+      expect(q.getByRole('group', { name: 'Address' })).toBe(group)
+      expect(q.getByRole('textbox', { name: 'City' })).toBe(city)
+      expect(document.activeElement).toBe(city)
+    })
+
+    // The reason the element is chosen once at mount rather than derived from
+    // the title. Deciding it later would swap div for fieldset exactly here,
+    // remounting the subtree and taking the caret with it.
+    it('names and unnames a group as a conditional adds and drops its title', async () => {
+      const { surface, runtime, q } = await mount(conditionalGroupSchema, {
+        mode: 'plain',
+        group: { city: 'Paris' },
+      })
+      const modeId = nodeAt(runtime, '/mode')
+      const city = q.getByRole('textbox', { name: 'City' }) as HTMLInputElement
+      const group = city.closest('fieldset')
+
+      expect(group, 'a nested object should be a grouping element').not.toBeNull()
+      expect(group!.getAttribute('role'), 'an unnamed group is noise').toBe('none')
+      expect(q.queryAllByRole('group')).toHaveLength(0)
+      city.focus()
+
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: modeId, value: 'named' })
+      })
+
+      expect(q.getByRole('group', { name: 'Address' }), 'the same element becomes the group').toBe(
+        group,
+      )
+      expect(q.getByRole('textbox', { name: 'City' }), 'the field should not remount').toBe(city)
+      expect(document.activeElement, 'the caret should survive the transition').toBe(city)
+
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: modeId, value: 'plain' })
+      })
+
+      expect(city.closest('fieldset'), 'still the same element').toBe(group)
+      expect(q.getByRole('textbox', { name: 'City' })).toBe(city)
+      expect(document.activeElement).toBe(city)
+      expect(group!.getAttribute('role'), 'the group should stop being one').toBe('none')
+      expect(q.queryAllByRole('group')).toHaveLength(0)
+    })
+
     it('exposes a read-only field as read only rather than disabled', async () => {
       const { q } = await mount(
         readOnlySchema,
@@ -382,7 +471,7 @@ export function rendererDomAccessibilityContract({
     })
 
     it('exposes a titled nested object as a named group', async () => {
-      const { q } = await mount(groupedSchema, { address: { city: 'Paris' } })
+      const { q } = await mount(groupedSchema, groupedData)
       const named = q.queryAllByRole('group', { name: 'Address' })
       expectGapOr(
         'missing-named-group',

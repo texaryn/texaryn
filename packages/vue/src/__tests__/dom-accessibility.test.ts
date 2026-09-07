@@ -4,6 +4,4 @@ import { createDefaultRegistry } from '../widgets/default-registry.js'
 
 rendererDomAccessibilityContract({
   adapter: vueAdapter('vue', createDefaultRegistry),
-  // Remove each declaration with the fix that closes it.
-  knownGaps: ['missing-named-group'],
 })

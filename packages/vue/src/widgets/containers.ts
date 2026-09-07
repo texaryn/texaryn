@@ -14,17 +14,38 @@ export const ObjectLayout = defineComponent({
   setup(props) {
     const runtime = useFormRuntime()
     const document = useStore(runtime.document, runtime.document.getSnapshot())
+    // Whether a node is nested is fixed for its lifetime, but its title is
+    // not: a conditional subschema can add or drop one on any recompile.
+    // Choosing the element once and re-deriving only the grouping semantics
+    // keeps the subtree mounted, because swapping div for fieldset would
+    // remount it and drop focus.
+    const nested = props.node.parentId !== null
+    const current = computed(
+      () => (document.value.nodes[props.node.id] ?? props.node) as ContainerNode,
+    )
+    const title = computed(() => current.value.annotations.title)
     const children = computed(() =>
-      (props.node as ContainerNode).children
+      current.value.children
         .map((id) => document.value.nodes[id])
         .filter((child): child is UINode => child != null),
     )
 
-    return () =>
-      h(
-        'div',
-        children.value.map((child) => h(NodeRenderer, { key: child.id, node: child })),
+    return () => {
+      const rendered = children.value.map((child) => h(NodeRenderer, { key: child.id, node: child }))
+      if (!nested) return h('div', rendered)
+      // The root object is the form itself, so only a nested titled object
+      // names a group. An unnamed group is noise, so the fieldset stops being
+      // one. Children sit in their own element so the legend is never a
+      // candidate for reorder.
+      return h(
+        'fieldset',
+        { role: title.value === undefined ? 'none' : undefined },
+        [
+          ...(title.value === undefined ? [] : [h('legend', title.value)]),
+          h('div', rendered),
+        ],
       )
+    }
   },
 })
 

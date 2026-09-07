@@ -4,5 +4,4 @@ import { createMuiRegistry } from '../index.js'
 
 rendererDomAccessibilityContract({
   adapter: reactAdapter('react-mui', createMuiRegistry),
-  knownGaps: ['missing-named-group'],
 })
