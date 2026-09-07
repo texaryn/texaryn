@@ -6,6 +6,7 @@ import {
   getLabelProps,
   getErrorProps,
   getDescriptionProps,
+  hasNativeReadOnly,
 } from '../props/field-props.js'
 import type { LabelProps, ErrorProps, DescriptionProps } from '../props/field-props.js'
 
@@ -13,6 +14,12 @@ export interface DomInputBaseProps {
   id: string
   name: string
   disabled: boolean
+  /**
+   * Set only where HTML has no native `readonly`, which is every control but
+   * text, number and textarea. Those carry the native attribute instead, on
+   * the value surface below.
+   */
+  'aria-readonly'?: true
   'aria-required': boolean
   'aria-invalid'?: boolean
   'aria-describedby'?: string
@@ -23,6 +30,7 @@ export interface DomInputBaseProps {
 /** Value-shaped surface for text, number, textarea and select controls. */
 export interface DomValueInputProps extends DomInputBaseProps {
   value: string | number
+  readOnly?: boolean
   onChange(event: { target: { value: string } }): void
 }
 
@@ -42,6 +50,7 @@ export interface FieldBinding {
   touched: boolean
   dirty: boolean
   disabled: boolean
+  readOnly: boolean
   visible: boolean
   /** Derived from the node for adapters. `aria-required` stays owned by getInputProps. */
   required: boolean
@@ -107,18 +116,33 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     onBlur: input.onBlur,
   }
 
+  // Select and checkbox have no native readonly, so they say so through ARIA
+  // and drop the change. Text-like controls keep the native attribute, which
+  // the browser enforces before an event is ever raised.
+  const valueReadOnly = node.readOnly
+    ? hasNativeReadOnly(node)
+      ? { readOnly: true }
+      : { 'aria-readonly': true as const }
+    : {}
+
   const domInputProps: DomValueInputProps = {
     ...base,
+    ...valueReadOnly,
     value: displayValue(kind, field.value),
-    onChange: (event: { target: { value: string } }) =>
-      field.onChange(coerce(kind, node, event.target.value)),
+    onChange: (event: { target: { value: string } }) => {
+      if (node.readOnly) return
+      field.onChange(coerce(kind, node, event.target.value))
+    },
   }
 
   const domCheckboxProps: DomCheckedInputProps = {
     ...base,
     checked: Boolean(field.value),
-    onChange: (event: { target: { checked: boolean } }) =>
-      field.onChange(event.target.checked),
+    ...(node.readOnly ? { 'aria-readonly': true as const } : {}),
+    onChange: (event: { target: { checked: boolean } }) => {
+      if (node.readOnly) return
+      field.onChange(event.target.checked)
+    },
   }
 
   const errors = field.showErrors ? field.errors : NO_ERRORS
@@ -132,6 +156,7 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     touched: field.touched,
     dirty: field.dirty,
     disabled: field.disabled,
+    readOnly: node.readOnly,
     visible: field.visible,
     required: Boolean(node.constraints.required),
     label: node.annotations.title ?? node.dataPointer ?? node.id,

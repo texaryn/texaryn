@@ -87,12 +87,22 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
           errors: field.errors.value,
         },
         idPrefix,
+        kind.value !== 'enum' && kind.value !== 'boolean',
       ),
     ),
     errors,
     invalid,
-    setRaw: (raw: string) => { field.onChange(coerce(kind.value, node.value, raw)) },
-    setValue: field.onChange,
+    // The runtime rejects the write too. Stopping here as well keeps the DOM
+    // from showing a change that was refused, which native readonly prevents
+    // for text-like controls but not for a select or a checkbox.
+    setRaw: (raw: string) => {
+      if (node.value.readOnly) return
+      field.onChange(coerce(kind.value, node.value, raw))
+    },
+    setValue: (value: unknown) => {
+      if (node.value.readOnly) return
+      field.onChange(value)
+    },
     onBlur: field.onBlur,
   }
 }

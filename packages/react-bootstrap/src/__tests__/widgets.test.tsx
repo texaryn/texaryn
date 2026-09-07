@@ -116,3 +116,32 @@ describe('Bootstrap containers', () => {
     expect(itemWrapper!.className).toContain('mb-3')
   })
 })
+
+// Bootstrap spreads the props useFieldBinding builds, so this confirms the
+// shared mapping arrives rather than re-testing the refusal itself.
+describe('Bootstrap read-only controls', () => {
+  const readOnlyFields = makeProjection([
+    [
+      '',
+      {
+        type: 'object',
+        children: [
+          { pointer: toPointer('/code'), key: 'code', required: false },
+          { pointer: toPointer('/agree'), key: 'agree', required: false },
+        ],
+      },
+    ],
+    ['/code', { type: 'string', annotations: { title: 'Code', readOnly: true } }],
+    ['/agree', { type: 'boolean', annotations: { title: 'Agree', readOnly: true } }],
+  ])
+
+  it('uses the native attribute for text and ARIA for a checkbox', () => {
+    renderForm(readOnlyFields, { code: 'abc', agree: false })
+    const code = screen.getByLabelText('Code') as HTMLInputElement
+    const agree = screen.getByLabelText('Agree') as HTMLInputElement
+    expect(code.readOnly).toBe(true)
+    expect(code.disabled).toBe(false)
+    expect(agree.getAttribute('aria-readonly')).toBe('true')
+    expect(agree.disabled).toBe(false)
+  })
+})

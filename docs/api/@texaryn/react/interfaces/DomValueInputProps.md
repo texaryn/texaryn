@@ -34,6 +34,20 @@ Value-shaped surface for text, number, textarea and select controls.
 
 ***
 
+### aria-readonly?
+
+> `optional` **aria-readonly?**: `true`
+
+Set only where HTML has no native `readonly`, which is every control but
+text, number and textarea. Those carry the native attribute instead, on
+the value surface below.
+
+#### Inherited from
+
+[`DomInputBaseProps`](DomInputBaseProps.md).[`aria-readonly`](DomInputBaseProps.md#aria-readonly)
+
+***
+
 ### aria-required
 
 > **aria-required**: `boolean`
@@ -81,6 +95,12 @@ Value-shaped surface for text, number, textarea and select controls.
 #### Inherited from
 
 [`DomInputBaseProps`](DomInputBaseProps.md).[`placeholder`](DomInputBaseProps.md#placeholder)
+
+***
+
+### readOnly?
+
+> `optional` **readOnly?**: `boolean`
 
 ***
 

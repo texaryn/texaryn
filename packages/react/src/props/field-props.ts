@@ -23,6 +23,10 @@ export interface InputProps extends Record<string, unknown> {
   name: string
   value: unknown
   disabled: boolean
+  /** Native `readonly`, set only on a control HTML honours it for. */
+  readOnly?: boolean
+  /** Set instead where HTML has no native read-only, so select and checkbox. */
+  'aria-readonly'?: true
   'aria-required': boolean
   'aria-invalid'?: boolean
   'aria-describedby'?: string
@@ -59,6 +63,16 @@ export function makeId(idPrefix: string, nodeId: string, suffix: string): string
 }
 
 /**
+ * HTML honours `readonly` on text, number and textarea only. A select or a
+ * checkbox says so through ARIA instead, and the widget refuses the change.
+ * Shared with useFieldBinding so the two public surfaces cannot drift apart.
+ */
+export function hasNativeReadOnly(node: FieldNode): boolean {
+  if (node.enumValues != null && node.enumValues.length > 0) return false
+  return node.fieldType !== 'boolean'
+}
+
+/**
  * getInputProps: Returns ARIA-correct props for an input element
  * Includes id, name, value, disabled, aria-required, aria-invalid, aria-describedby
  */
@@ -84,6 +98,11 @@ export function getInputProps(
     name: node.dataPointer || node.id,
     value: fieldState.value,
     disabled: fieldState.disabled,
+    ...(node.readOnly
+      ? hasNativeReadOnly(node)
+        ? { readOnly: true }
+        : { 'aria-readonly': true as const }
+      : {}),
     'aria-required': Boolean(node.constraints?.required),
     'aria-describedby': describedByIds.length > 0 ? describedByIds.join(' ') : undefined,
     onChange: fieldState.onChange,

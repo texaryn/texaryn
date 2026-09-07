@@ -75,6 +75,16 @@ const kindsSchema = {
   },
 }
 
+const readOnlySchema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', title: 'Code', readOnly: true },
+    count: { type: 'integer', title: 'Count', readOnly: true },
+    bio: { type: 'string', title: 'Bio', readOnly: true },
+    name: { type: 'string', title: 'Name' },
+  },
+}
+
 const groupedSchema = {
   type: 'object',
   properties: {
@@ -282,6 +292,31 @@ export function rendererDomAccessibilityContract({
         runtime.dispatch({ type: 'Submit' })
       })
       expect(input.getAttribute('aria-invalid')).toBe('true')
+    })
+
+    // Read-only and disabled are different states: a read-only control stays
+    // focusable and selectable. Enforcement is the runtime's job and is proven
+    // in core; what every renderer owes is saying which state this is.
+    // Every control HTML gives a native readonly attribute, not a sample of
+    // one: text, number and textarea are three separate branches in each
+    // renderer, and a policy tested on one of them drifts on the others.
+    it('exposes a read-only field as read only rather than disabled', async () => {
+      const { q } = await mount(
+        readOnlySchema,
+        { code: 'abc', count: 1, bio: 'set by the server', name: '' },
+        { '/bio': { widget: 'textarea' } },
+      )
+      const controls = [
+        q.getByRole('textbox', { name: 'Code' }),
+        q.getByRole('spinbutton', { name: 'Count' }),
+        q.getByRole('textbox', { name: 'Bio' }),
+      ] as Array<HTMLInputElement | HTMLTextAreaElement>
+
+      for (const control of controls) {
+        expect(control.readOnly, `${control.tagName} should be read only`).toBe(true)
+        expect(control.disabled, `${control.tagName} should not be disabled`).toBe(false)
+      }
+      expect((q.getByRole('textbox', { name: 'Name' }) as HTMLInputElement).readOnly).toBe(false)
     })
 
     it('exposes a titled nested object as a named group', async () => {

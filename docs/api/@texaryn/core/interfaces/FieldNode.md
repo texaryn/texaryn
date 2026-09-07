@@ -108,6 +108,21 @@
 
 ***
 
+### readOnly
+
+> **readOnly**: `boolean`
+
+Effective read-only, inherited from any read-only ancestor. Editing a
+descendant changes the ancestor's value, so the restriction has to
+cascade. Distinct from `annotations.readOnly`, which is only what the
+schema said about this node.
+
+#### Inherited from
+
+[`NodeBase`](NodeBase.md).[`readOnly`](NodeBase.md#readonly)
+
+***
+
 ### type
 
 > **type**: `"field"`

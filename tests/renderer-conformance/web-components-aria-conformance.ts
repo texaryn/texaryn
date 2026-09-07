@@ -185,19 +185,6 @@ export function webComponentsAriaConformance({
       expect(optional.getAttribute('aria-required')).toBeNull()
     })
 
-    it('a readOnly field is disabled and its neighbours are not', async () => {
-      const element = await mount(kindsSchema, {
-        name: '',
-        age: 0,
-        agree: false,
-        role: 'dev',
-        code: 'x',
-      })
-      const q = within(element)
-      expect((q.getByRole('textbox', { name: 'Code' }) as HTMLInputElement).disabled).toBe(true)
-      expect((q.getByRole('textbox', { name: 'Name' }) as HTMLInputElement).disabled).toBe(false)
-    })
-
     it('untouched invalid field: no aria-invalid, no alert', async () => {
       const element = await mount(
         requiredStringSchema,

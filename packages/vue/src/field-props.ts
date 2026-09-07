@@ -15,6 +15,10 @@ export interface FieldAria {
   id: string
   name: string
   disabled: boolean
+  /** Native `readonly`, which HTML honours on text, number and textarea only. */
+  readonly?: boolean
+  /** Set instead where HTML has no native read-only, so select and checkbox. */
+  'aria-readonly'?: true
   'aria-required': boolean
   'aria-invalid'?: boolean
   'aria-describedby'?: string
@@ -29,6 +33,7 @@ export function fieldAria(
   node: FieldNode,
   state: { disabled: boolean; showErrors: boolean; errors: readonly ValidationError[] },
   idPrefix: string,
+  nativeReadOnly = true,
 ): FieldAria {
   const describedBy: string[] = []
   if (node.helpText ?? node.annotations?.description) {
@@ -40,10 +45,17 @@ export function fieldAria(
     describedBy.push(makeId(idPrefix, node.id, 'error'))
   }
 
+  const readOnly = node.readOnly
+    ? nativeReadOnly
+      ? { readonly: true }
+      : { 'aria-readonly': true as const }
+    : {}
+
   return {
     id: makeId(idPrefix, node.id, 'input'),
     name: node.dataPointer || node.id,
     disabled: state.disabled,
+    ...readOnly,
     'aria-required': Boolean(node.constraints?.required),
     'aria-invalid': invalid ? true : undefined,
     'aria-describedby': describedBy.length > 0 ? describedBy.join(' ') : undefined,

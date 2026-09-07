@@ -25,6 +25,16 @@
 
 ***
 
+### aria-readonly?
+
+> `optional` **aria-readonly?**: `true`
+
+Set only where HTML has no native `readonly`, which is every control but
+text, number and textarea. Those carry the native attribute instead, on
+the value surface below.
+
+***
+
 ### aria-required
 
 > **aria-required**: `boolean`

@@ -223,3 +223,54 @@ describe('Default widgets', () => {
     expect((latestData as { age?: unknown }).age).toBe(42)
   })
 })
+
+// Native readonly is enforced by the browser before an event exists, so it
+// needs no test here. A select and a checkbox have no such attribute: they say
+// so through ARIA, and the change has to be refused for that to mean anything.
+// Bootstrap and MUI reach the same code, because all three sets spread the
+// props useFieldBinding builds.
+describe('read-only controls with no native attribute', () => {
+  const proj = makeProjection([
+    [
+      '',
+      {
+        type: 'object',
+        children: [
+          { pointer: toPointer('/role'), key: 'role', required: false },
+          { pointer: toPointer('/agree'), key: 'agree', required: false },
+        ],
+      },
+    ],
+    [
+      '/role',
+      {
+        type: 'string',
+        annotations: { title: 'Role', readOnly: true },
+        enumValues: [{ value: 'dev', title: 'Dev' }, { value: 'pm', title: 'PM' }],
+      },
+    ],
+    ['/agree', { type: 'boolean', annotations: { title: 'Agree', readOnly: true } }],
+  ])
+
+  it('marks both through ARIA and neither as disabled', () => {
+    renderForm(proj, { role: 'dev', agree: false })
+    const select = screen.getByLabelText('Role') as HTMLSelectElement
+    const checkbox = screen.getByLabelText('Agree') as HTMLInputElement
+    expect(select.getAttribute('aria-readonly')).toBe('true')
+    expect(checkbox.getAttribute('aria-readonly')).toBe('true')
+    expect(select.disabled).toBe(false)
+    expect(checkbox.disabled).toBe(false)
+  })
+
+  it('refuses a select change', () => {
+    renderForm(proj, { role: 'dev', agree: false })
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'pm' } })
+    expect((latestData as { role: string }).role).toBe('dev')
+  })
+
+  it('refuses a checkbox toggle', () => {
+    renderForm(proj, { role: 'dev', agree: false })
+    fireEvent.click(screen.getByLabelText('Agree'))
+    expect((latestData as { agree: boolean }).agree).toBe(false)
+  })
+})

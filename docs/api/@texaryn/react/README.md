@@ -52,6 +52,7 @@
 - [getErrorProps](functions/getErrorProps.md)
 - [getInputProps](functions/getInputProps.md)
 - [getLabelProps](functions/getLabelProps.md)
+- [hasNativeReadOnly](functions/hasNativeReadOnly.md)
 - [NodeRenderer](functions/NodeRenderer.md)
 - [useField](functions/useField.md)
 - [useFieldArray](functions/useFieldArray.md)

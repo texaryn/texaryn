@@ -12,6 +12,16 @@ function identityKeyOf(node: UINode | undefined): IdentityKey | undefined {
   return node?.type === 'container' ? node.arrayMeta?.identityKey : undefined
 }
 
+/**
+ * Read-only is enforced here rather than only in the widgets, because ARIA is
+ * a description and not a gate: a custom registry that dispatched SetValue
+ * would otherwise walk straight through it. Reset is deliberately exempt, as
+ * wholesale replacement by the owning authority rather than an edit.
+ */
+function isReadOnly(document: UIDocument, nodeId: NodeId): boolean {
+  return document.nodes[nodeId as string]?.readOnly === true
+}
+
 export function processCommand(
   state: RuntimeState,
   command: Command,
@@ -19,12 +29,16 @@ export function processCommand(
 ): CommandResult {
   switch (command.type) {
     case 'SetValue':
+      if (isReadOnly(document, command.nodeId)) return { nextState: state, effects: [] }
       return handleSetValue(state, command, document)
     case 'InsertItem':
+      if (isReadOnly(document, command.containerId)) return { nextState: state, effects: [] }
       return handleInsertItem(state, command, document)
     case 'RemoveItem':
+      if (isReadOnly(document, command.containerId)) return { nextState: state, effects: [] }
       return handleRemoveItem(state, command, document)
     case 'MoveItem':
+      if (isReadOnly(document, command.containerId)) return { nextState: state, effects: [] }
       return handleMoveItem(state, command, document)
     case 'SetTouched':
       return handleSetTouched(state, command)

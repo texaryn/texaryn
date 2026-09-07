@@ -12,6 +12,7 @@ function makeFieldNode(fieldType: string): FieldNode {
     order: 0,
     visible: true,
     disabled: false,
+    readOnly: false,
     annotations: {},
     fieldType: fieldType as any,
     constraints: {},

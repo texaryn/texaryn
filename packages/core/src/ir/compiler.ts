@@ -74,6 +74,7 @@ export function compile(
     ctx,
     undefined,
     [],
+    false,
   )
 
   return {
@@ -107,9 +108,13 @@ function compileNode(
   ctx: CompileContext,
   required: boolean | undefined,
   segments: readonly IdentitySegment[],
+  inheritedReadOnly: boolean,
 ): NodeId {
   const { nodes } = ctx
   const id = nextId(ctx)
+  // Editing a descendant changes the ancestor's value, so a read-only object
+  // or array makes everything beneath it read-only too.
+  const readOnly = inheritedReadOnly || proj.annotations.readOnly === true
 
   const fieldHints = hints?.[pointer]
   const annotations: NodeAnnotations = {
@@ -154,6 +159,7 @@ function compileNode(
             ctx,
             child.required,
             [...segments, { kind: 'property', name: child.key }],
+            readOnly,
           )
           children.push(childId)
         }
@@ -168,7 +174,8 @@ function compileNode(
       dataPointer: pointer,
       order,
       visible: proj.active,
-      disabled: proj.annotations.readOnly ?? false,
+      disabled: false,
+      readOnly,
       annotations,
       children,
     }
@@ -223,6 +230,7 @@ function compileNode(
           ctx,
           false,
           [...segments, { kind: 'item', id: itemStableIds[i] }],
+          readOnly,
         )
         children.push(childId)
       }
@@ -235,9 +243,13 @@ function compileNode(
       itemKey: arrayHints?.itemKey,
       minItems: proj.constraints.minItems,
       maxItems: proj.constraints.maxItems,
-      canAdd: proj.constraints.maxItems == null || arrayItems.length < proj.constraints.maxItems,
-      canRemove: proj.constraints.minItems == null || arrayItems.length > proj.constraints.minItems,
-      canReorder: arrayHints?.canReorder ?? false,
+      canAdd:
+        !readOnly &&
+        (proj.constraints.maxItems == null || arrayItems.length < proj.constraints.maxItems),
+      canRemove:
+        !readOnly &&
+        (proj.constraints.minItems == null || arrayItems.length > proj.constraints.minItems),
+      canReorder: !readOnly && (arrayHints?.canReorder ?? false),
     }
 
     const node: ContainerNode = {
@@ -248,7 +260,8 @@ function compileNode(
       dataPointer: pointer,
       order,
       visible: proj.active,
-      disabled: proj.annotations.readOnly ?? false,
+      disabled: false,
+      readOnly,
       annotations,
       children,
       arrayMeta,
@@ -263,7 +276,8 @@ function compileNode(
       dataPointer: pointer,
       order,
       visible: proj.active,
-      disabled: proj.annotations.readOnly ?? false,
+      disabled: false,
+      readOnly,
       annotations,
       fieldType,
       format: proj.format,
