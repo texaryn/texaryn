@@ -54,16 +54,18 @@ schema switches to a custom schema rendered from the editor contents alone.
 
 Changing renderer does not rebuild the form. The runtime belongs to the
 selected example, and the renderer is presentation over it, so switching
-between Default, Bootstrap, Material UI and Vue preserves whatever has been
-typed.
+between Default, Bootstrap, Material UI, Vue and Web Components preserves
+whatever has been typed.
 
-Vue is not a fourth React registry. It is a Vue application mounted over the
-same `FormRuntime` instance the React shell owns, which is why switching to it
-and back preserves data without anything copying state: there is only one
-runtime, and both frameworks render it. `VueHost` deliberately does not call
+Vue and Web Components are not further React registries. Each is mounted over
+the same `FormRuntime` instance the React shell owns, which is why switching
+away and back preserves data without anything copying state: there is one
+runtime and every framework renders it. `VueHost` deliberately does not call
 Vue's `useForm`, because that composable creates and destroys a runtime of its
 own; it uses `provideFormRuntime` with the borrowed one and unmounts only the
-Vue application when the renderer changes.
+Vue application when the renderer changes. `WcHost` passes the borrowed runtime
+to `<texaryn-form>` as its primitive input rather than handing it a port, so
+the element never owns a runtime either.
 
 ## URLs
 
@@ -109,6 +111,7 @@ which redirects paths under the playground mount back to it.
 - `@texaryn/react-bootstrap`
 - `@texaryn/react-mui`
 - `@texaryn/vue`
+- `@texaryn/web-components`
 - `@texaryn/examples`
 
 It exists for development, manual exploration and end-to-end verification

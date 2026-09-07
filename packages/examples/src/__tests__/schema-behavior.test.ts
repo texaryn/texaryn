@@ -231,3 +231,55 @@ describe('dialects are detected and honoured', () => {
     expect(node(await project(modern, { creditCard: 'x' }), '/cvv')?.active).toBe(true)
   })
 })
+
+describe('allOf contributes every branch at once', () => {
+  // The distinguishing behaviour, not merely that the keyword parsed: anyOf
+  // and oneOf select a branch from the data, allOf contributes all of them.
+  it('projects properties declared only inside allOf branches', async () => {
+    const ex = example('composition-all-of')
+    const projection = await project(ex, ex.initialData)
+
+    for (const pointer of ['/reference', '/recipient', '/street']) {
+      expect(node(projection, pointer), `${pointer} should be projected`).toBeDefined()
+      expect(node(projection, pointer)?.active).toBe(true)
+    }
+  })
+})
+
+describe('numeric constraints reach the projection', () => {
+  it('carries exclusive bounds and multipleOf', async () => {
+    const ex = example('validation-exclusive-numeric-constraints')
+    const projection = await project(ex, ex.initialData)
+
+    expect(node(projection, '/discount')?.constraints.exclusiveMinimum).toBe(0)
+    expect(node(projection, '/discount')?.constraints.exclusiveMaximum).toBe(1)
+    expect(node(projection, '/quantity')?.constraints.multipleOf).toBe(12)
+  })
+})
+
+describe('annotations reach the projection', () => {
+  it('carries every annotation the support guide claims', async () => {
+    const ex = example('basics-annotations')
+    const projection = await project(ex, ex.initialData)
+
+    const nickname = node(projection, '/nickname')
+    expect(nickname?.annotations.title).toBe('Nickname')
+    expect(nickname?.annotations.description).toBe('What other people see.')
+    expect(nickname?.annotations.examples).toEqual(['Ada', 'Grace'])
+
+    expect(node(projection, '/accountId')?.annotations.readOnly).toBe(true)
+    expect(node(projection, '/newPassword')?.annotations.writeOnly).toBe(true)
+    expect(node(projection, '/faxNumber')?.annotations.deprecated).toBe(true)
+    expect(node(projection, '/email')?.format).toBe('email')
+  })
+
+  // Both halves on purpose. JSON Schema says `default` does not fill a missing
+  // instance value, so projecting it must not be mistaken for applying it.
+  it('projects default without applying it to the data', async () => {
+    const ex = example('basics-annotations')
+    const projection = await project(ex, ex.initialData)
+
+    expect(node(projection, '/nickname')?.annotations.default).toBe('Ada')
+    expect((ex.initialData as Record<string, unknown>).nickname).toBeUndefined()
+  })
+})

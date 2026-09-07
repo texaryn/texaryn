@@ -56,6 +56,36 @@ export const numericConstraints: TexarynExample = {
   initialData: { age: 39, rating: 4.5 },
 }
 
+export const exclusiveNumericConstraints: TexarynExample = {
+  id: 'validation-exclusive-numeric-constraints',
+  title: 'Exclusive bounds and multiples',
+  description:
+    'Bounds that exclude their own endpoint, and a step the value must be a multiple of. All three reach the projection alongside the inclusive bounds.',
+  category: 'validation',
+  covers: [
+    'schema.constraint.exclusiveMinimum',
+    'schema.constraint.exclusiveMaximum',
+    'schema.constraint.multipleOf',
+    'schema.type.number',
+    'schema.type.integer',
+  ],
+  schema: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    title: 'Pricing',
+    properties: {
+      discount: {
+        type: 'number',
+        title: 'Discount',
+        exclusiveMinimum: 0,
+        exclusiveMaximum: 1,
+      },
+      quantity: { type: 'integer', title: 'Quantity', multipleOf: 12 },
+    },
+  },
+  initialData: { discount: 0.25, quantity: 24 },
+}
+
 export const arrayConstraints: TexarynExample = {
   id: 'validation-array-constraints',
   title: 'Array constraints',
@@ -89,5 +119,6 @@ export const arrayConstraints: TexarynExample = {
 export const constraintExamples = [
   stringConstraints,
   numericConstraints,
+  exclusiveNumericConstraints,
   arrayConstraints,
 ] as const
