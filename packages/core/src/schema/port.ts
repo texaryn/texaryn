@@ -29,6 +29,15 @@ export interface NodeProjection {
   enumValues?: EnumOption[]
   active: boolean
   annotations: AnnotationSet
+  /**
+   * Annotations of an array's item template, for arrays only.
+   *
+   * A row's own node carries these once it exists, but a renderer needs them
+   * before that: an empty array still has an add control to name, and that is
+   * where naming it matters most. Optional, so an adapter that cannot supply
+   * them stays valid.
+   */
+  itemAnnotations?: AnnotationSet
 }
 
 export interface ChildProjection {

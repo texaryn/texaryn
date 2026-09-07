@@ -282,6 +282,10 @@ function walk(
     enumValues: extractEnumValues(schema),
     active: nodeActive,
     annotations: extractAnnotations(schema),
+    itemAnnotations:
+      type === 'array' && resolved.items
+        ? extractAnnotations(dereference(resolved.items).schema as Record<string, unknown>)
+        : undefined,
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {

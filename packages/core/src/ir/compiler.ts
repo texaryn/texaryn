@@ -241,6 +241,7 @@ function compileNode(
       itemIds: itemStableIds,
       identityKey: key,
       itemKey: arrayHints?.itemKey,
+      itemTitle: proj.itemAnnotations?.title,
       minItems: proj.constraints.minItems,
       maxItems: proj.constraints.maxItems,
       canAdd:

@@ -103,13 +103,17 @@ describe('Bootstrap containers', () => {
       ['/tags', { type: 'array', annotations: { title: 'Tags' }, children: [
         { pointer: toPointer('/tags/0'), key: '0', required: false },
       ] }],
-      ['/tags/0', { type: 'string', annotations: { title: 'Tag 1' } }],
+      // The realistic shape: a schema gives every item the same title, so this
+      // is 'Tag' rather than a per-row 'Tag 1' no real schema produces.
+      ['/tags/0', { type: 'string', annotations: { title: 'Tag' } }],
     ])
     renderForm(proj, { tags: ['a'] })
-    expect(screen.getByLabelText('Tag 1')).toBeTruthy()
-    const add = screen.getByRole('button', { name: 'Add' })
+    expect(screen.getByLabelText('Tag')).toBeTruthy()
+    // The accessible name now carries the row context, while the visible word
+    // stays short; this test cares about the Bootstrap classes.
+    const add = screen.getByRole('button', { name: 'Add item to Tags' })
     expect(add.className).toContain('btn-primary')
-    const remove = screen.getByRole('button', { name: 'Remove' })
+    const remove = screen.getByRole('button', { name: 'Remove Tag 1 from Tags' })
     expect(remove.className).toContain('btn-outline-danger')
     expect(remove.className).toContain('btn-sm')
     const itemWrapper = remove.closest('.mb-3')

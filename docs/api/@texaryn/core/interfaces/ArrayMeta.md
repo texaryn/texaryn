@@ -46,6 +46,14 @@ Addresses this logical array container across recompiles; stable for its lifetim
 
 ***
 
+### itemTitle?
+
+> `optional` **itemTitle?**: `string`
+
+Title of the item template, so an add control can be named before any row exists.
+
+***
+
 ### maxItems?
 
 > `optional` **maxItems?**: `number`
