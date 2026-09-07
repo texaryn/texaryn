@@ -42,7 +42,7 @@ The CSS import above assumes a bundler that resolves stylesheet imports. A page 
 
 ## What this package renders
 
-`createBootstrapRegistry()` returns a `RendererRegistry<WidgetComponent>` with seven widgets. Each field widget sits in a `mb-3` wrapper, adds `is-invalid` to its control while the field shows errors, and renders the description as `form-text` and every visible error as `invalid-feedback d-block` inside the binding's `role="alert"` container.
+`createBootstrapRegistry()` returns a `RendererRegistry<WidgetComponent>` with seven widgets. Each field widget sits in a `mb-3` wrapper, adds `is-invalid` to its control while the field shows errors, and renders the description as `form-text` and every visible error as `invalid-feedback d-block` inside the binding's live region, which stays mounted and empty while the field is valid.
 
 | Widget | Node it matches | Classes |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ The CSS import above assumes a bundler that resolves stylesheet imports. A page 
 
 Enum outranks the primitive type, so a string field with an `enum` renders as a select, and the `textarea` hint outranks both.
 
-`invalid-feedback` is hidden by Bootstrap unless it directly follows an `.is-invalid` sibling. The error lines sit inside the alert container rather than beside the control, so each one carries `d-block`.
+`invalid-feedback` is hidden by Bootstrap unless it directly follows an `.is-invalid` sibling. The error lines sit inside the live region rather than beside the control, so each one carries `d-block`.
 
 ## Composing your own registry
 

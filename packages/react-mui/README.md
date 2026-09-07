@@ -73,7 +73,7 @@ Enum outranks the primitive type, so a string field with an `enum` renders as a 
 
 ### Error display: replace, not both
 
-Where `@texaryn/react-bootstrap` and the default registry show the description and every visible error together, this package shows one line of helper text at a time: the description while the field is valid, and the first visible error in its place once the field is invalid. That is `TextField`'s own `helperText` model, one slot, so the widgets pass it `field.error ?? field.description` rather than rendering both. The error line carries `role="alert"` through `slotProps.formHelperText`.
+Where `@texaryn/react-bootstrap` and the default registry show the description and every visible error together, this package shows one line of helper text at a time: the description while the field is valid, and the first visible error in its place once the field is invalid. That is `TextField`'s own `helperText` model, one slot, so the widgets fill it with the error or the description rather than both. MUI renders no helper line at all for empty `helperText`, so the live region that announces the error is a stable `aria-live="polite"` span inside that line rather than the line itself: a region inserted with its content already in place is not reliably announced.
 
 ### `aria-required`, not `required`
 

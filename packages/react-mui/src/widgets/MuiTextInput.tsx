@@ -2,6 +2,7 @@ import React from 'react'
 import TextField from '@mui/material/TextField'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '@texaryn/react'
+import { helperContent } from './helper-text.js'
 
 export interface WidgetProps {
   node: UINode
@@ -21,16 +22,13 @@ function MuiTextInputImpl({ node }: WidgetProps) {
       placeholder={field.placeholder}
       label={field.label}
       error={field.invalid}
-      helperText={field.error ?? field.description}
+      helperText={helperContent(field)}
       fullWidth
       slotProps={{
         htmlInput: {
           readOnly: field.readOnly,
           'aria-required': field.required || undefined,
           'aria-invalid': field.invalid || undefined,
-        },
-        formHelperText: {
-          role: field.invalid ? 'alert' : undefined,
         },
       }}
     />

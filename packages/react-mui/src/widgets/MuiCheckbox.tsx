@@ -5,6 +5,7 @@ import Checkbox from '@mui/material/Checkbox'
 import FormHelperText from '@mui/material/FormHelperText'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '@texaryn/react'
+import { helperContent } from './helper-text.js'
 
 export interface WidgetProps {
   node: UINode
@@ -12,7 +13,6 @@ export interface WidgetProps {
 
 function MuiCheckboxImpl({ node }: WidgetProps) {
   const field = useFieldBinding(node as FieldNode)
-  const feedback = field.error ?? field.description
   const helperId = `${field.domCheckboxProps.id}-helper`
 
   return (
@@ -31,17 +31,13 @@ function MuiCheckboxImpl({ node }: WidgetProps) {
                 'aria-required': field.required || undefined,
                 'aria-readonly': field.readOnly || undefined,
                 'aria-invalid': field.invalid || undefined,
-                'aria-describedby': feedback ? helperId : undefined,
+                'aria-describedby': helperId,
               },
             }}
           />
         }
       />
-      {feedback ? (
-        <FormHelperText id={helperId} role={field.invalid ? 'alert' : undefined}>
-          {feedback}
-        </FormHelperText>
-      ) : null}
+      <FormHelperText id={helperId}>{helperContent(field)}</FormHelperText>
     </FormControl>
   )
 }

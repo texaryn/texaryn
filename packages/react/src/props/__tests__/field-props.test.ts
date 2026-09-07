@@ -142,12 +142,15 @@ describe('getLabelProps', () => {
 })
 
 describe('getErrorProps', () => {
-  it('returns role alert without aria-live', () => {
+  // Polite rather than alert: validation runs on change, blur and submit, so
+  // assertive would interrupt typing and speak once per field on submit.
+  it('describes a polite atomic live region rather than an alert', () => {
     const node = makeFieldNode()
     const props = getErrorProps(node, PREFIX)
     expect(props.id).toBe('texaryn-t-node_1-error')
-    expect(props.role).toBe('alert')
-    expect(props).not.toHaveProperty('aria-live')
+    expect(props['aria-live']).toBe('polite')
+    expect(props['aria-atomic']).toBe(true)
+    expect(props).not.toHaveProperty('role')
   })
 })
 

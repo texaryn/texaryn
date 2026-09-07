@@ -156,7 +156,11 @@ describe('useFieldBinding: derivations', () => {
     expect(prefix).toMatch(/^texaryn-[0-9a-z_]+$/)
     expect(binding().labelProps).toEqual({ id: `${prefix}-${id}-label`, htmlFor: `${prefix}-${id}-input` })
     expect(binding().descriptionProps).toEqual({ id: `${prefix}-${id}-description` })
-    expect(binding().errorProps).toEqual({ id: `${prefix}-${id}-error`, role: 'alert' })
+    expect(binding().errorProps).toEqual({
+      id: `${prefix}-${id}-error`,
+      'aria-live': 'polite',
+      'aria-atomic': true,
+    })
   })
 
   it('passes touched, dirty, disabled, visible and onBlur through from useField', async () => {

@@ -75,6 +75,15 @@ const kindsSchema = {
   },
 }
 
+// Two constraints on one field, so a single value can move from failing one
+// message to failing a different one without ever becoming valid.
+const twoMessageSchema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', title: 'Code', minLength: 4, pattern: '^[a-z]+$' },
+  },
+}
+
 const readOnlySchema = {
   type: 'object',
   properties: {
@@ -300,6 +309,59 @@ export function rendererDomAccessibilityContract({
     // Every control HTML gives a native readonly attribute, not a sample of
     // one: text, number and textarea are three separate branches in each
     // renderer, and a policy tested on one of them drifts on the others.
+    // A live region has to be in the tree, and empty, before the message
+    // arrives: one inserted with its content already in place is not reliably
+    // announced. jsdom cannot prove an announcement, so the claim is the DOM
+    // lifecycle that makes one possible, and that the same node carries every
+    // update rather than being replaced.
+    it('keeps one error region mounted while the message changes', async () => {
+      const { surface, runtime, q } = await mount(
+        twoMessageSchema,
+        { code: 'ab' },
+        { '/code': { validationTrigger: 'blur' } },
+      )
+      const codeId = nodeAt(runtime, '/code')
+      const regions = () => [...surface.root.querySelectorAll('[aria-live]')]
+      // Identity by node rather than through aria-describedby, because a
+      // renderer may point that at a wrapper whose child is the live region.
+      const spoken = () => regions().filter((r) => r.textContent !== '')
+
+      const before = regions()
+      expect(before.length, 'the region should exist before any error').toBeGreaterThan(0)
+      expect(spoken(), 'nothing should be announced yet').toEqual([])
+      for (const r of before) {
+        expect(r.hasAttribute('hidden'), 'a hidden region is out of the tree').toBe(false)
+        expect(r.getAttribute('aria-hidden')).not.toBe('true')
+      }
+
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetTouched', nodeId: codeId })
+      })
+      const filled = spoken()
+      expect(filled.length, 'the error should reach a live region').toBe(1)
+      expect(before, 'the region should be one that already existed').toContain(filled[0])
+      const first = filled[0]!.textContent
+
+      // Still invalid, different message. A region that only works on first
+      // appearance would pass everything above and fail here.
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: codeId, value: 'ABCDE' })
+        runtime.dispatch({ type: 'SetTouched', nodeId: codeId })
+      })
+      expect(spoken(), 'the same node should carry the new message').toEqual([filled[0]])
+      expect(filled[0]!.textContent).not.toBe(first)
+
+      await surface.act(() => {
+        runtime.dispatch({ type: 'SetValue', nodeId: codeId, value: 'abcde' })
+        runtime.dispatch({ type: 'SetTouched', nodeId: codeId })
+      })
+      expect(
+        surface.root.contains(filled[0]!),
+        'the region should survive the field going valid',
+      ).toBe(true)
+      expect(filled[0]!.textContent).toBe('')
+    })
+
     it('exposes a read-only field as read only rather than disabled', async () => {
       const { q } = await mount(
         readOnlySchema,

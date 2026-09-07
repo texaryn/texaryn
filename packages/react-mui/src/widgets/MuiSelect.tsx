@@ -3,6 +3,7 @@ import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import type { FieldNode, UINode } from '@texaryn/core'
 import { useFieldBinding } from '@texaryn/react'
+import { helperContent } from './helper-text.js'
 
 export interface WidgetProps {
   node: UINode
@@ -23,7 +24,7 @@ function MuiSelectImpl({ node }: WidgetProps) {
       disabled={field.disabled}
       label={field.label}
       error={field.invalid}
-      helperText={field.error ?? field.description}
+      helperText={helperContent(field)}
       fullWidth
       slotProps={{
         // Screen readers see the combobox div, not MUI's aria-hidden native
@@ -39,9 +40,6 @@ function MuiSelectImpl({ node }: WidgetProps) {
             'aria-required': field.required || undefined,
             'aria-readonly': field.readOnly || undefined,
           },
-        },
-        formHelperText: {
-          role: field.invalid ? 'alert' : undefined,
         },
       }}
     >
