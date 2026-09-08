@@ -362,9 +362,10 @@ export const capabilities = {
     verification: 'projection',
     keywords: ['writeOnly'],
   },
-  // An annotation in the 2020-12 default vocabulary, kept separate from the
-  // optional format-assertion vocabulary: this claims projection only, never
-  // that a format is validated.
+  // format-annotation is the default vocabulary from 2019-09, and this claims
+  // projection only: that the keyword reaches a renderer, never that a value is
+  // checked against it. Whether it is asserted is a separate per-dialect
+  // validation question, answered by the adapter rather than here.
   'schema.annotation.format': {
     title: 'Format annotation',
     category: 'schema',
