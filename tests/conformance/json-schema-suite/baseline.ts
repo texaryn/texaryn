@@ -106,13 +106,25 @@ function outcomeProblem(where: string, outcome: unknown): string | null {
  * file could carry any string as a reason, or drop the evidence an issue-bound
  * reason owes, and the compiler would never see it.
  */
-export function baselineProblems(value: unknown): string[] {
+export function baselineProblems(value: unknown, ranAdapters: readonly string[]): string[] {
   const problems: string[] = []
   if (!isRecord(value)) return ['baseline is not an object']
   if (typeof value.suiteRevision !== 'string' || !/^[0-9a-f]{40}$/.test(value.suiteRevision)) {
     problems.push('suiteRevision is not a full 40-character commit sha')
   }
   if (!isRecord(value.adapters)) return [...problems, 'adapters is not an object']
+
+  // The published table renders whatever adapters the file holds. Without this
+  // an entry could exist only in the baseline, satisfy every other rule, and
+  // be published as a measurement no runner ever took.
+  const recordedNames = Object.keys(value.adapters).sort()
+  const expected = [...ranAdapters].sort()
+  for (const name of recordedNames.filter((n) => !expected.includes(n))) {
+    problems.push(`${name}: recorded in the baseline but no runner executed it`)
+  }
+  for (const name of expected.filter((n) => !recordedNames.includes(n))) {
+    problems.push(`${name}: executed but missing from the baseline`)
+  }
 
   for (const [adapter, perDialect] of Object.entries(value.adapters)) {
     if (!isRecord(perDialect)) {

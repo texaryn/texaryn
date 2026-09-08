@@ -69,10 +69,14 @@ that is not a hypothetical: `@texaryn/schema-json-hyperjump` passes these and
 `@texaryn/schema-json` does not. Folding them into the category above would
 have hidden a real difference between the two.
 
-**Upstream validator deviations** are behaviour differences in the validator
-library itself. Each carries an issue link, so the claim travels with its
-evidence rather than resting on a sentence in a JSON file. One of them is
-documented upstream policy rather than a defect, which the note says.
+**Upstream validator deviations** are departures from the suite's expectations
+observed through the reference adapter. They are recorded that way on purpose:
+the measurement runs through Texaryn's own code, so it does not by itself
+establish the validator library as the cause. Each carries an issue link, so
+the claim travels with its evidence rather than resting on a sentence in a JSON
+file, and each is to be reproduced against the validator directly before being
+reported upstream. One is documented upstream policy rather than a defect,
+which its note says.
 
 ## Format assertion differs by dialect
 

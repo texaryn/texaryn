@@ -163,7 +163,7 @@ describe('official JSON Schema Test Suite', () => {
   // The baseline arrives through JSON.parse, where the reason union proves
   // nothing, so the closed set and the evidence rule are enforced here.
   it('is a structurally valid baseline', () => {
-    const problems = baselineProblems(baseline)
+    const problems = baselineProblems(baseline, Object.keys(adapters))
     expect(problems, `baseline.json is not valid:\n${problems.map((p) => `  ${p}`).join('\n')}`).toEqual(
       [],
     )
