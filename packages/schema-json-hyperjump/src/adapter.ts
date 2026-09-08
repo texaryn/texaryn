@@ -16,6 +16,16 @@ const registerByDialect: Record<Dialect, typeof registerSchema2020> = {
   '2020-12': registerSchema2020,
 }
 
+// hyperjump determines a schema's dialect from its own `$schema`, and the
+// per-dialect entry points above only load vocabularies: they carry no default.
+// A schema that omits `$schema` is therefore rejected outright unless the
+// dialect is named at registration, which is the third argument.
+const dialectIds: Record<Dialect, string> = {
+  'draft-07': 'http://json-schema.org/draft-07/schema#',
+  '2019-09': 'https://json-schema.org/draft/2019-09/schema',
+  '2020-12': 'https://json-schema.org/draft/2020-12/schema',
+}
+
 export async function createHyperjumpAdapter(
   schema: unknown,
   config?: HyperjumpAdapterConfig,
@@ -29,7 +39,7 @@ export async function createHyperjumpAdapter(
   })
 
   const register = registerByDialect[dialect]
-  register(schema as Parameters<typeof registerSchema2020>[0], id)
+  register(schema as Parameters<typeof registerSchema2020>[0], id, dialectIds[dialect])
 
   const schemaDoc = await getSchema(id)
   const compiled = await compile(schemaDoc)
