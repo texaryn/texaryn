@@ -51,10 +51,12 @@ function toDraftOption(dialect: Dialect): string {
 // wrapped in a Promise so the factory signature stays uniform with libraries whose
 // preparation step is genuinely async (e.g. hyperjump's annotate()).
 async function prepareSchema(schema: unknown, dialect: Dialect): Promise<SchemaNode> {
-  // 2020-12 makes `format` an assertion by default in json-schema-library, which is a
-  // deviation from the spec (format is annotation-only unless the format-assertion
-  // vocabulary is declared). formatAssertion: false restores spec-correct behavior.
-  const formatAssertion = dialect === '2020-12' ? false : undefined
+  // json-schema-library asserts `format` in every dialect. Draft 7 permits that:
+  // assertion is the conventional behaviour there and the specification only asks
+  // that it can be disabled. From 2019-09 the default inverted, and `format` is an
+  // annotation unless the format-assertion vocabulary is declared, so asserting it
+  // is a deviation rather than a stricter setting.
+  const formatAssertion = dialect === 'draft-07' ? undefined : false
   return compileSchema(schema as JsonSchema | BooleanSchema, {
     draft: toDraftOption(dialect),
     formatAssertion,
