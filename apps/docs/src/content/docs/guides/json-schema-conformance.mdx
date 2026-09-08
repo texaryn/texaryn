@@ -36,28 +36,43 @@ Those are reported separately and never added together.
 - **Classified failures** are mandatory cases that fail for a stated, recorded
   reason. Nothing is skipped: the remote-reference tests run, fail, and are
   classified rather than being excluded from the denominator.
-- **Optional passed** counts the `optional/` cases, which cover behaviour the
-  specification leaves to the implementation, including format assertion.
-  A lower number here is not a defect.
+- **Optional passed, default configuration** counts the `optional/` cases,
+  which cover behaviour the specification leaves to the implementation. A lower
+  number here is not a defect, and it is not directly comparable between
+  adapters: the suite expects an implementation running `optional/format` to
+  turn format assertion on where it supports it, and these runs use each
+  adapter's shipped defaults instead. The count is recorded per failing test
+  id, so a change is identified rather than merely detected.
 
 ## What the failures are
 
 Every mandatory failure is recorded individually in
 `tests/conformance/json-schema-suite/baseline.json` with a reason drawn from a
-closed set. There is no wildcard: a reason names one exact upstream test, so
-"skip all `unevaluatedProperties` tests" is not expressible.
+closed set, validated when the file is read rather than only in the type
+system, and with the observed outcome (wrong answer, or the error class of a
+throw). There is no wildcard: a reason names one exact upstream test, so "skip
+all `unevaluatedProperties` tests" is not expressible. Recording the outcome is
+what stops a deviation covering a test that later fails for a new reason.
 
-**Remote schema resolution** is the whole of `@texaryn/schema-json`'s failures.
-The suite serves documents from `http://localhost:1234` and references the
-dialect metaschemas by absolute URI. Neither adapter factory exposes a
-resolver hook, so those references are never fetched. The two adapters then
-diverge in a way worth knowing: `@texaryn/schema-json` validates as though the
-reference contributed nothing, while `@texaryn/schema-json-hyperjump` refuses
-to compile at all. Neither is a claim about remote references working.
+**External schema resolution** accounts for every failure of both adapters
+except the two classes below. The suite expects documents to be retrieved from
+`http://localhost:1234`, and neither adapter factory exposes a resolver hook.
+The two then diverge in a way worth knowing: `@texaryn/schema-json` validates
+as though the reference contributed nothing, while
+`@texaryn/schema-json-hyperjump` refuses to compile at all.
+
+**Standard metaschema** is kept separate, because it is a different promise. A
+handful of cases `$ref` the dialect's own metaschema by its canonical URI to
+check a schema is itself valid. A validator can reasonably be expected to know
+the metaschema of a dialect it claims without any user-supplied resolver, and
+that is not a hypothetical: `@texaryn/schema-json-hyperjump` passes these and
+`@texaryn/schema-json` does not. Folding them into the category above would
+have hidden a real difference between the two.
 
 **Upstream validator deviations** are behaviour differences in the validator
-library itself, and each one carries a link to a filed issue so the claim
-travels with its evidence.
+library itself. Each carries an issue link, so the claim travels with its
+evidence rather than resting on a sentence in a JSON file. One of them is
+documented upstream policy rather than a defect, which the note says.
 
 ## Format assertion differs by dialect
 
@@ -69,16 +84,21 @@ reason that dialect's optional count is higher than 2020-12's.
 
 The mandatory suite cannot see this. Only 2020-12's `format.json` carries the
 "invalid string is only an annotation by default" cases; the Draft 7 and
-2019-09 files contain no string cases at all. The optional pass count is what
-makes the behaviour visible, which is why it is asserted rather than merely
-recorded.
+2019-09 files contain no string cases at all. The optional bucket is where the
+difference shows up, which is part of why its failing set is pinned. It is
+corroboration rather than proof, though: the suite expects an implementation
+running those cases to enable format assertion, so that bucket is measuring a
+different mode from the default. Correcting 2019-09 will come with a direct
+test of the behaviour itself.
 
 ## Regenerating the baseline
 
 The suite gates drift, not the pass rate. A mandatory test that regresses
-fails; a recorded deviation that starts passing fails, so the declaration has
-to go; an unclassified failure fails from the first run; and either pass count
-moving fails. Maintainers re-record it with:
+fails; one that starts failing a different way fails; a recorded deviation that
+starts passing fails, so the declaration has to go; an unclassified failure
+fails from the first run; a moved pass count fails; and so does a change to the
+set of failing optional tests, even one that leaves the count identical.
+Maintainers re-record it with:
 
 ```bash
 pnpm json-schema-suite:baseline

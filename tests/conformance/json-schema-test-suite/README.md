@@ -11,18 +11,26 @@ revision a lie.
 runner reads it and fails if it stops matching the recorded baseline, so the
 suite and the baseline cannot move independently.
 
+`SHA256SUMS.json` records a digest per vendored file, checked on every run.
+That catches a local edit, a truncated copy or a half-finished update, so the
+revision above cannot quietly stop describing the files. It proves integrity
+since import, not provenance: only re-importing shows the files came from that
+upstream commit.
+
 ## What is here
 
 Only the three dialects Texaryn claims, `tests/draft7`, `tests/draft2019-09`
 and `tests/draft2020-12`. Draft 3, 4 and 6 are not vendored because no adapter
 claims them.
 
-`remotes/` is deliberately not vendored. Those documents exist to be served
-over HTTP at `http://localhost:1234`, and neither adapter factory exposes a
-resolver hook, so every test that reaches for one fails identically whether or
-not the files are present. Vendoring them would suggest remote resolution is
-exercised. The failures are recorded and classified instead, in
-`../json-schema-suite/baseline.json`.
+`remotes/` is deliberately not vendored, because neither adapter factory
+exposes a resolver hook, so there is no way to register those documents and
+every test reaching for one fails identically whether or not the files are
+present. This is not a claim that they need an HTTP server: upstream is
+explicit that they can be loaded from disk and registered under their
+`http://localhost:1234/...` retrieval URI. The moment a resolver is part of
+the adapter surface, vendor them. Until then the failures are recorded and
+classified in `../json-schema-suite/baseline.json`.
 
 ## Updating
 
@@ -32,11 +40,14 @@ git clone --depth 1 https://github.com/json-schema-org/JSON-Schema-Test-Suite /t
 
 Copy `tests/draft7`, `tests/draft2019-09`, `tests/draft2020-12` and `LICENSE`
 over this directory, write the new commit SHA into `UPSTREAM_REVISION`, then
-regenerate the baseline:
+rewrite the digests and regenerate the baseline:
 
 ```bash
-pnpm json-schema-suite:baseline
+pnpm json-schema-suite:manifest && pnpm json-schema-suite:baseline
 ```
+
+Rewrite the manifest only as part of an import. Running it to silence a digest
+failure would erase the only evidence that a vendored file was edited.
 
 The resulting diff is the point: it shows which upstream cases were added and
 what they say about the adapters. Review it rather than committing it blind.

@@ -1,9 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { SchemaEvaluationPort } from '@texaryn/core'
 
-const suiteRoot = fileURLToPath(new URL('../json-schema-test-suite/', import.meta.url))
+export const suiteRoot = fileURLToPath(new URL('../json-schema-test-suite/', import.meta.url))
 
 export const suiteRevision = readFileSync(join(suiteRoot, 'UPSTREAM_REVISION'), 'utf8').trim()
 
@@ -24,6 +23,13 @@ function jsonFiles(dir: string): string[] {
     else if (entry.name.endsWith('.json')) out.push(full)
   }
   return out
+}
+
+/** Every vendored test file, as paths relative to the suite root. */
+export function suiteFiles(): string[] {
+  return jsonFiles(join(suiteRoot, 'tests'))
+    .map((path) => relative(suiteRoot, path).split('\\').join('/'))
+    .sort()
 }
 
 /** One suite case: a schema plus the assertions made against it. */

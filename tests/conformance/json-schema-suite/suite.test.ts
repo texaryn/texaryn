@@ -2,10 +2,12 @@
 // one upstream commit.
 //
 // The absolute pass rate is not the gate. What is gated is drift: a mandatory
-// test that regresses fails, a declared deviation that starts passing fails so
-// the declaration has to go, and a failure nobody has classified fails from
-// the first run. Passing is the default, so the committed baseline records
-// totals and deviations rather than thousands of successes.
+// test that regresses fails, a mandatory test that starts failing a different
+// way fails, a declared deviation that starts passing fails so the declaration
+// has to go, a failure nobody has classified fails from the first run, and a
+// moved pass count or optional failure set fails. Passing is the default, so
+// the committed baseline records totals, the optional failure ids and the
+// mandatory deviations rather than thousands of successes.
 //
 // Everything runs through the public adapter surface. Configuring the
 // underlying validator directly would report a capability a Texaryn consumer
@@ -17,8 +19,8 @@ import { createHyperjumpAdapter } from '@texaryn/schema-json-hyperjump'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { loadSuite, suiteDialects, suiteRevision, testId } from './runner.js'
 import type { SuiteDialect } from './runner.js'
-import { baselinePath, readBaseline } from './baseline.js'
-import type { Baseline, DialectBaseline } from './baseline.js'
+import { baselinePath, baselineProblems, readBaseline } from './baseline.js'
+import type { Baseline, DialectBaseline, FailureOutcome } from './baseline.js'
 
 const UPDATE = process.env.UPDATE_JSON_SCHEMA_BASELINE === '1'
 
@@ -36,46 +38,66 @@ const adapters: Record<string, AdapterFactory> = {
 
 interface Observed {
   mandatory: { total: number; passed: number }
-  optional: { total: number; passed: number }
+  optional: { total: number; passed: number; failures: string[] }
   /** Mandatory tests that did not match the suite's expectation. */
-  failures: Map<string, string>
+  failures: Map<string, FailureOutcome>
+}
+
+function describeOutcome(outcome: FailureOutcome): string {
+  return outcome.kind === 'wrong-validity'
+    ? `returned valid=${outcome.actual}`
+    : `${outcome.kind} ${outcome.errorName}`
+}
+
+function sameOutcome(a: FailureOutcome, b: FailureOutcome): boolean {
+  if (a.kind !== b.kind) return false
+  return a.kind === 'wrong-validity'
+    ? a.actual === (b as { actual: boolean }).actual
+    : a.errorName === (b as { errorName: string }).errorName
 }
 
 async function observe(createAdapter: AdapterFactory, dialect: SuiteDialect): Promise<Observed> {
   const observed: Observed = {
     mandatory: { total: 0, passed: 0 },
-    optional: { total: 0, passed: 0 },
+    optional: { total: 0, passed: 0, failures: [] },
     failures: new Map(),
   }
 
   for (const suiteCase of loadSuite(dialect)) {
     const bucket = suiteCase.optional ? observed.optional : observed.mandatory
     let port: SchemaEvaluationPort | null = null
-    let compileError: string | null = null
+    let compileFailure: FailureOutcome | null = null
     try {
       port = await createAdapter(suiteCase.schema, dialect)
     } catch (error) {
-      compileError = `compile: ${(error as Error).message}`
+      compileFailure = { kind: 'compile-error', errorName: (error as Error).name }
     }
 
     for (const test of suiteCase.tests) {
       bucket.total += 1
-      let detail = compileError
+      let failure: FailureOutcome | null = compileFailure
       if (port) {
         try {
           const result = await port.validate(test.data)
-          detail = result.valid === test.expected ? null : `expected valid=${test.expected}`
+          failure =
+            result.valid === test.expected
+              ? null
+              : { kind: 'wrong-validity', actual: result.valid }
         } catch (error) {
-          detail = `validate: ${(error as Error).message}`
+          failure = { kind: 'validate-error', errorName: (error as Error).name }
         }
       }
-      if (detail === null) {
+      const id = testId(suiteCase.file, suiteCase.description, test.description)
+      if (failure === null) {
         bucket.passed += 1
-      } else if (!suiteCase.optional) {
-        observed.failures.set(testId(suiteCase.file, suiteCase.description, test.description), detail)
+      } else if (suiteCase.optional) {
+        observed.optional.failures.push(id)
+      } else {
+        observed.failures.set(id, failure)
       }
     }
   }
+  observed.optional.failures.sort()
   return observed
 }
 
@@ -104,13 +126,19 @@ if (UPDATE) {
     for (const dialect of dialectNames) {
       const observed = perDialect.get(dialect)!
       const deviations: DialectBaseline['deviations'] = {}
-      for (const [id, detail] of [...observed.failures].sort(([a], [b]) => (a < b ? -1 : 1))) {
-        // A new failure arrives unclassified on purpose, so the assertions
-        // below fail until a human states why it is expected.
-        deviations[id] = previous?.adapters?.[name]?.[dialect]?.deviations?.[id] ?? {
-          reason: 'texaryn-adapter-deviation',
-          note: `UNCLASSIFIED: ${detail}`,
-        }
+      for (const [id, outcome] of [...observed.failures].sort(([a], [b]) => (a < b ? -1 : 1))) {
+        // A new failure keeps a reason no reader accepts, so the assertions
+        // below fail until a human states why it is expected. Seeding a real
+        // reason instead would let an unreviewed failure be laundered into the
+        // baseline by editing one word of the note.
+        const carried = previous?.adapters?.[name]?.[dialect]?.deviations?.[id]
+        deviations[id] = carried
+          ? { ...carried, outcome }
+          : {
+              reason: 'UNCLASSIFIED' as DialectBaseline['deviations'][string]['reason'],
+              outcome,
+              note: `UNCLASSIFIED: ${describeOutcome(outcome)}`,
+            }
       }
       next.adapters[name][dialect] = {
         mandatory: observed.mandatory,
@@ -132,6 +160,40 @@ describe('official JSON Schema Test Suite', () => {
     ).toBe(baseline.suiteRevision)
   })
 
+  // The baseline arrives through JSON.parse, where the reason union proves
+  // nothing, so the closed set and the evidence rule are enforced here.
+  it('is a structurally valid baseline', () => {
+    const problems = baselineProblems(baseline)
+    expect(problems, `baseline.json is not valid:\n${problems.map((p) => `  ${p}`).join('\n')}`).toEqual(
+      [],
+    )
+  })
+
+  // Deviations are keyed by description, which survives upstream reordering
+  // but is not promised to be unique. A collision would silently collapse two
+  // failures into one entry, so it fails here rather than skewing a count.
+  describe('test ids', () => {
+    for (const dialect of dialectNames) {
+      it(`are unique across ${dialect}`, () => {
+        const seen = new Set<string>()
+        const duplicates: string[] = []
+        for (const suiteCase of loadSuite(dialect)) {
+          for (const test of suiteCase.tests) {
+            const id = testId(suiteCase.file, suiteCase.description, test.description)
+            if (seen.has(id)) duplicates.push(id)
+            seen.add(id)
+          }
+        }
+        expect(
+          duplicates,
+          `upstream now has colliding descriptions; the baseline key is no longer an identity:\n${duplicates
+            .map((id) => `  ${id}`)
+            .join('\n')}`,
+        ).toEqual([])
+      })
+    }
+  })
+
   for (const [name, perDialect] of results) {
     describe(name, () => {
       for (const dialect of dialectNames) {
@@ -150,7 +212,7 @@ describe('official JSON Schema Test Suite', () => {
             expect(
               unexpected,
               `mandatory tests failing without a recorded deviation:\n${unexpected
-                .map((id) => `  ${id}: ${observed.failures.get(id)}`)
+                .map((id) => `  ${id}: ${describeOutcome(observed.failures.get(id)!)}`)
                 .join('\n')}`,
             ).toEqual([])
           })
@@ -165,6 +227,25 @@ describe('official JSON Schema Test Suite', () => {
             ).toEqual([])
           })
 
+          // A deviation that stays red for a new reason is a new fact, and
+          // without this the recorded classification would quietly describe
+          // something that is no longer happening.
+          it('fails each declared deviation the way the baseline recorded', () => {
+            const changed: string[] = []
+            for (const [id, deviation] of Object.entries(recorded?.deviations ?? {})) {
+              const now = observed.failures.get(id)
+              if (now && deviation.outcome && !sameOutcome(deviation.outcome, now)) {
+                changed.push(
+                  `  ${id}: recorded ${describeOutcome(deviation.outcome)}, now ${describeOutcome(now)}`,
+                )
+              }
+            }
+            expect(
+              changed,
+              `these still fail, but differently, so the recorded reason may no longer apply:\n${changed.join('\n')}`,
+            ).toEqual([])
+          })
+
           it('classifies every deviation', () => {
             const unclassified = Object.entries(recorded?.deviations ?? {})
               .filter(([, d]) => d.note.startsWith('UNCLASSIFIED'))
@@ -175,34 +256,39 @@ describe('official JSON Schema Test Suite', () => {
             ).toEqual([])
           })
 
-          it('backs a generic deviation reason with evidence', () => {
-            const generic = Object.entries(recorded?.deviations ?? {}).filter(
-              ([, d]) =>
-                (d.reason === 'upstream-validator-deviation' || d.reason === 'suite-known-issue') &&
-                !d.issue,
-            )
-            expect(
-              generic.map(([id]) => id),
-              'these reasons require an issue link',
-            ).toEqual([])
-          })
-
           it('counts the same number of tests the baseline recorded', () => {
             expect(observed.mandatory.total).toBe(recorded?.mandatory.total)
             expect(observed.optional.total).toBe(recorded?.optional.total)
           })
 
-          // The optional bucket is a count rather than named entries, because
-          // naming several hundred per dialect would cost a large diff for no
-          // decision. Pinning the count is still what makes an optional-only
-          // behaviour change visible: without it, turning format assertion on
-          // or off moves nothing a test can see, and the published figure
-          // silently stops describing the adapter.
-          it('holds the optional pass count the baseline recorded', () => {
+          // Both counts are published, so both are asserted rather than left
+          // to be implied by the deviation set.
+          it('holds the pass counts the baseline recorded', () => {
+            expect(
+              observed.mandatory.passed,
+              `mandatory passes moved from ${recorded?.mandatory.passed} to ${observed.mandatory.passed}; regenerate the baseline if that was intended`,
+            ).toBe(recorded?.mandatory.passed)
             expect(
               observed.optional.passed,
               `optional passes moved from ${recorded?.optional.passed} to ${observed.optional.passed}; regenerate the baseline if that was intended`,
             ).toBe(recorded?.optional.passed)
+          })
+
+          // The count alone would miss one optional test regressing while
+          // another starts passing, which is the shape an adapter change most
+          // often takes.
+          it('fails the same optional tests the baseline recorded', () => {
+            const before = new Set(recorded?.optional.failures ?? [])
+            const after = new Set(observed.optional.failures)
+            const started = [...after].filter((id) => !before.has(id))
+            const stopped = [...before].filter((id) => !after.has(id))
+            expect(
+              { started, stopped },
+              `the optional failure set moved:\n${[
+                ...started.map((id) => `  now failing: ${id}`),
+                ...stopped.map((id) => `  now passing: ${id}`),
+              ].join('\n')}`,
+            ).toEqual({ started: [], stopped: [] })
           })
         })
       }
