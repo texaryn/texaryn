@@ -1,0 +1,88 @@
+---
+title: JSON Schema validation compatibility
+description: Texaryn's adapters measured against the official JSON Schema Test Suite, per adapter and per dialect, with every failure classified.
+---
+
+import JsonSchemaConformanceTable from '../../../components/JsonSchemaConformanceTable.astro'
+
+Texaryn's schema adapters run the [official JSON Schema Test
+Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite), vendored at
+a pinned revision. The figures below are read from the same file the test
+suite asserts against, so a number here cannot drift from the measured
+behaviour without a test failing.
+
+This page is about **validation**, which Texaryn delegates to a validator
+library. What Texaryn itself guarantees is the form projection, described in
+[JSON Schema support](/texaryn/guides/json-schema-support/). The two are deliberately
+separate: `const`, `not`, `contains` and `unevaluatedProperties` affect whether
+data is valid without affecting which control is rendered.
+
+## Results
+
+<JsonSchemaConformanceTable />
+
+Every number is per adapter. There is deliberately no combined figure, because
+a "Texaryn compliance" percentage would describe no package anyone can
+install. `@texaryn/schema-json` is the default and the one published;
+`@texaryn/schema-json-hyperjump` is a private reference adapter kept to check
+that `SchemaEvaluationPort` is not shaped around a single validator.
+
+## How to read the columns
+
+The suite splits its cases into a mandatory set and an `optional/` directory.
+Those are reported separately and never added together.
+
+- **Mandatory passed** counts cases every implementation is expected to pass.
+- **Classified failures** are mandatory cases that fail for a stated, recorded
+  reason. Nothing is skipped: the remote-reference tests run, fail, and are
+  classified rather than being excluded from the denominator.
+- **Optional passed** counts the `optional/` cases, which cover behaviour the
+  specification leaves to the implementation, including format assertion.
+  A lower number here is not a defect.
+
+## What the failures are
+
+Every mandatory failure is recorded individually in
+`tests/conformance/json-schema-suite/baseline.json` with a reason drawn from a
+closed set. There is no wildcard: a reason names one exact upstream test, so
+"skip all `unevaluatedProperties` tests" is not expressible.
+
+**Remote schema resolution** is the whole of `@texaryn/schema-json`'s failures.
+The suite serves documents from `http://localhost:1234` and references the
+dialect metaschemas by absolute URI. Neither adapter factory exposes a
+resolver hook, so those references are never fetched. The two adapters then
+diverge in a way worth knowing: `@texaryn/schema-json` validates as though the
+reference contributed nothing, while `@texaryn/schema-json-hyperjump` refuses
+to compile at all. Neither is a claim about remote references working.
+
+**Upstream validator deviations** are behaviour differences in the validator
+library itself, and each one carries a link to a filed issue so the claim
+travels with its evidence.
+
+## Format assertion differs by dialect
+
+`format` is annotation-only in 2019-09 and 2020-12 unless the format-assertion
+vocabulary is declared, and assertion is permitted in Draft 7. Today
+`@texaryn/schema-json` asserts `format` in Draft 7 and 2019-09 and does not in
+2020-12. The 2019-09 behaviour is not specification-correct, and it is the
+reason that dialect's optional count is higher than 2020-12's.
+
+The mandatory suite cannot see this. Only 2020-12's `format.json` carries the
+"invalid string is only an annotation by default" cases; the Draft 7 and
+2019-09 files contain no string cases at all. The optional pass count is what
+makes the behaviour visible, which is why it is asserted rather than merely
+recorded.
+
+## Regenerating the baseline
+
+The suite gates drift, not the pass rate. A mandatory test that regresses
+fails; a recorded deviation that starts passing fails, so the declaration has
+to go; an unclassified failure fails from the first run; and either pass count
+moving fails. Maintainers re-record it with:
+
+```bash
+pnpm json-schema-suite:baseline
+```
+
+Reviewing that diff is the point of the exercise. Regenerating a baseline to
+turn a suite green, rather than to record an intended change, defeats it.

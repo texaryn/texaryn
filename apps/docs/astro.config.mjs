@@ -108,6 +108,10 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
+            {
+              label: 'JSON Schema validation compatibility',
+              slug: 'guides/json-schema-conformance',
+            },
             { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
           ],
         },

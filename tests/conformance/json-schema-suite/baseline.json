@@ -1,0 +1,825 @@
+{
+  "suiteRevision": "f6fd52a0a95472e079cbfc6ef7f089702b80e045",
+  "adapters": {
+    "schema-json": {
+      "draft-07": {
+        "mandatory": {
+          "total": 929,
+          "passed": 915
+        },
+        "optional": {
+          "total": 898,
+          "passed": 661
+        },
+        "deviations": {
+          "definitions.json :: validate definition against metaschema :: valid definition schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref with ref to definitions :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          }
+        }
+      },
+      "2019-09": {
+        "mandatory": {
+          "total": 1261,
+          "passed": 1242
+        },
+        "optional": {
+          "total": 1019,
+          "passed": 782
+        },
+        "deviations": {
+          "defs.json :: validate definition against metaschema :: valid definition schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref with ref to defs :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read and validation keywords stay active."
+          }
+        }
+      },
+      "2020-12": {
+        "mandatory": {
+          "total": 1301,
+          "passed": 1276
+        },
+        "optional": {
+          "total": 1023,
+          "passed": 566
+        },
+        "deviations": {
+          "defs.json :: validate definition against metaschema :: valid definition schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it."
+          },
+          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it."
+          },
+          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') instead of reporting the unresolved reference."
+          },
+          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') instead of reporting the unresolved reference."
+          },
+          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$dynamicAnchor resolution needs the remote base document at http://localhost:1234, and no resolver is exposed to fetch it."
+          },
+          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$ref targets the dialect metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched and the subschema is not applied."
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: remote ref with ref to defs :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never fetched."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read and validation keywords stay active."
+          }
+        }
+      }
+    },
+    "schema-json-hyperjump": {
+      "draft-07": {
+        "mandatory": {
+          "total": 929,
+          "passed": 898
+        },
+        "optional": {
+          "total": 898,
+          "passed": 474
+        },
+        "deviations": {
+          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $ref prevents a sibling $id from changing the base uri :: $ref resolves to /definitions/base_foo, data does not validate": {
+            "reason": "upstream-validator-deviation",
+            "note": "draft-07 $ref ignores its siblings, so the sibling $id must not change the base URI. Hyperjump resolves against the sibling $id and reaches definitions/foo (string) instead of definitions/base_foo (number), inverting both expectations. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $ref prevents a sibling $id from changing the base uri :: $ref resolves to /definitions/base_foo, data validates": {
+            "reason": "upstream-validator-deviation",
+            "note": "draft-07 $ref ignores its siblings, so the sibling $id must not change the base URI. Hyperjump resolves against the sibling $id and reaches definitions/foo (string) instead of definitions/base_foo (number), inverting both expectations. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: naive replacement of $ref with its destination is not correct :: do not evaluate the $ref inside the enum, definition exact match": {
+            "reason": "upstream-validator-deviation",
+            "note": "enum entries are literal JSON, never schemas. Hyperjump substitutes the $ref destination, so the entry behaves as {\"type\":\"string\"}. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: naive replacement of $ref with its destination is not correct :: match the enum exactly": {
+            "reason": "upstream-validator-deviation",
+            "note": "enum entries are literal JSON, never schemas. Hyperjump substitutes the $ref destination, so the entry behaves as {\"type\":\"string\"}. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "refRemote.json :: $ref to $ref finds location-independent $id :: non-number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves the referenced folder document from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than the unresolved reference."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves the referenced folder document from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than the unresolved reference."
+          },
+          "refRemote.json :: base URI change :: base URI change ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to definitions :: invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to definitions :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: object is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          }
+        }
+      },
+      "2019-09": {
+        "mandatory": {
+          "total": 1261,
+          "passed": 1221
+        },
+        "optional": {
+          "total": 1019,
+          "passed": 542
+        },
+        "deviations": {
+          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change :: base URI change ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to defs :: invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to defs :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: object is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          }
+        }
+      },
+      "2020-12": {
+        "mandatory": {
+          "total": 1301,
+          "passed": 1248
+        },
+        "optional": {
+          "total": 1023,
+          "passed": 544
+        },
+        "deviations": {
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect parent schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect parent schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: non-number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect extended schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect parent schema": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
+            "reason": "upstream-validator-deviation",
+            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump refuses to register any schema whose $id uses the file: scheme. See issue 108.",
+            "issue": "https://github.com/texaryn/texaryn/issues/108"
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change :: base URI change ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: base URI change :: base URI change ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: ref within remote ref :: ref within ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref :: remote ref valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to defs :: invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: remote ref with ref to defs :: valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: null is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: object is invalid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "refRemote.json :: root ref in remote ref :: string is valid": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "The suite serves this document from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot load rather than proceeding without it."
+          },
+          "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          },
+          "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
+            "reason": "remote-schema-resolution-not-exposed",
+            "note": "$schema names a custom metaschema at http://localhost:1234. Without a resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+          }
+        }
+      }
+    }
+  }
+}
