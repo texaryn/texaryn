@@ -10,15 +10,13 @@ import { suiteDialects, type SuiteDialect } from './runner.js'
  * file are deliberately impossible, because "skip all unevaluatedProperties
  * tests" is how a suite stops meaning anything.
  */
+// `standard-metaschema-resolution-missing` was here until both adapters
+// resolved the published metaschemas. It is deliberately not kept as a spare:
+// a reason that describes a limitation nobody has any more is somewhere a
+// future regression could be filed instead of fixed.
 export const deviationReasons = [
   // A document the suite expects to be retrieved from http://localhost:1234.
   'external-schema-resolution-not-exposed',
-  // A $ref or $schema naming the dialect's own metaschema. Kept apart from
-  // the above because a validator can reasonably be expected to know the
-  // metaschema of a dialect it claims, without any user-supplied resolver:
-  // schema-json-hyperjump passes these and schema-json does not, so folding
-  // them together would hide a real difference in what the two support.
-  'standard-metaschema-resolution-missing',
   'texaryn-adapter-deviation',
   'upstream-validator-deviation',
   'suite-known-issue',
@@ -34,7 +32,6 @@ export type DeviationReason = (typeof deviationReasons)[number]
  */
 export const issueExemptReasons: readonly DeviationReason[] = [
   'external-schema-resolution-not-exposed',
-  'standard-metaschema-resolution-missing',
 ]
 
 /**

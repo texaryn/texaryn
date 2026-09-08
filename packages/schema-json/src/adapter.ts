@@ -13,6 +13,7 @@ import type {
   JsonPointer,
 } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
+import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { buildProjection } from './projection.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
@@ -51,6 +52,12 @@ function toDraftOption(dialect: Dialect): string {
 // wrapped in a Promise so the factory signature stays uniform with libraries whose
 // preparation step is genuinely async (e.g. hyperjump's annotate()).
 async function prepareSchema(schema: unknown, dialect: Dialect): Promise<SchemaNode> {
+  // A schema may reference its dialect's metaschema to assert that it is
+  // itself a valid schema. json-schema-library carries the draft definitions
+  // but not the metaschema documents, and an unresolved reference fails
+  // closed, so without these a valid schema is reported invalid.
+  const referenced = referencedDialects(schema)
+  const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
   // json-schema-library asserts `format` in every dialect. Draft 7 permits that:
   // assertion is the conventional behaviour there and the specification only asks
   // that it can be disabled. From 2019-09 the default inverted, and `format` is an
@@ -60,6 +67,7 @@ async function prepareSchema(schema: unknown, dialect: Dialect): Promise<SchemaN
   return compileSchema(schema as JsonSchema | BooleanSchema, {
     draft: toDraftOption(dialect),
     formatAssertion,
+    remotes,
   })
 }
 

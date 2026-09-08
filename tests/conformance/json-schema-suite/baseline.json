@@ -5,7 +5,7 @@
       "draft-07": {
         "mandatory": {
           "total": 929,
-          "passed": 915
+          "passed": 917
         },
         "optional": {
           "total": 898,
@@ -135,7 +135,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -158,8 +158,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -251,22 +251,6 @@
           ]
         },
         "deviations": {
-          "definitions.json :: validate definition against metaschema :: valid definition schema": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
-          },
-          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
-          },
           "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
             "outcome": {
@@ -368,7 +352,7 @@
       "2019-09": {
         "mandatory": {
           "total": 1261,
-          "passed": 1242
+          "passed": 1244
         },
         "optional": {
           "total": 1019,
@@ -398,8 +382,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -425,7 +409,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -473,7 +457,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -645,7 +629,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -668,8 +652,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -749,7 +733,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -824,7 +808,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -833,22 +817,6 @@
           ]
         },
         "deviations": {
-          "defs.json :: validate definition against metaschema :: valid definition schema": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
-          },
-          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
-          },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
             "outcome": {
@@ -990,7 +958,7 @@
       "2020-12": {
         "mandatory": {
           "total": 1301,
-          "passed": 1276
+          "passed": 1278
         },
         "optional": {
           "total": 1023,
@@ -1021,8 +989,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1048,7 +1016,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1096,7 +1064,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -1268,7 +1236,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1291,8 +1259,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1372,7 +1340,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -1447,7 +1415,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -1456,14 +1424,6 @@
           ]
         },
         "deviations": {
-          "defs.json :: validate definition against metaschema :: valid definition schema": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
-          },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
             "reason": "external-schema-resolution-not-exposed",
             "outcome": {
@@ -1511,14 +1471,6 @@
               "actual": false
             },
             "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
-          },
-          "ref.json :: remote ref, containing refs itself :: remote ref valid": {
-            "reason": "standard-metaschema-resolution-missing",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1696,8 +1648,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1723,7 +1675,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1918,7 +1870,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1941,8 +1893,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2022,7 +1974,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2404,8 +2356,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -2431,7 +2383,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -2479,7 +2431,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -2651,7 +2603,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -2674,8 +2626,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2755,7 +2707,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2830,7 +2782,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -3221,8 +3173,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -3248,7 +3200,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -3296,7 +3248,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -3468,7 +3420,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -3491,8 +3443,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -3572,7 +3524,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -3647,7 +3599,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
