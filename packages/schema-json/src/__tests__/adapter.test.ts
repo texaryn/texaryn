@@ -162,4 +162,39 @@ describe('createJsonSchemaAdapter', () => {
       expect(projection.nodes.get('/name' as JsonPointer)!.type).toBe('string')
     })
   })
+
+  // Whether `format` asserts is a per-dialect decision, so it is asserted per
+  // dialect rather than sampled. The string is the official suite's own
+  // "invalid email" value, and the underlying library asserts in every dialect
+  // unless told otherwise, so each case here is a live choice.
+  describe('format assertion by dialect', () => {
+    const cases = [
+      // Draft 7 treats format as an assertion by convention, and the
+      // specification asks only that it can be turned off.
+      { dialect: 'draft-07', expected: false },
+      // From 2019-09 format-annotation is the default vocabulary, so an
+      // invalid format string stays valid unless format-assertion is declared.
+      { dialect: '2019-09', expected: true },
+      { dialect: '2020-12', expected: true },
+    ] as const
+
+    for (const { dialect, expected } of cases) {
+      it(`${expected ? 'ignores' : 'enforces'} an invalid email under ${dialect}`, async () => {
+        const adapter = await createJsonSchemaAdapter(
+          { type: 'string', format: 'email' },
+          { defaultDialect: dialect },
+        )
+        expect((await adapter.validate('2962')).valid).toBe(expected)
+        expect((await adapter.validate('someone@example.com')).valid).toBe(true)
+      })
+    }
+
+    it('reads the dialect from $schema rather than the fallback', async () => {
+      const adapter = await createJsonSchemaAdapter(
+        { $schema: 'https://json-schema.org/draft/2019-09/schema', type: 'string', format: 'email' },
+        { defaultDialect: 'draft-07' },
+      )
+      expect((await adapter.validate('2962')).valid).toBe(true)
+    })
+  })
 })

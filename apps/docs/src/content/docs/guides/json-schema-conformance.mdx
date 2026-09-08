@@ -81,19 +81,23 @@ which its note says.
 ## Format assertion differs by dialect
 
 `format` is annotation-only in 2019-09 and 2020-12 unless the format-assertion
-vocabulary is declared, and assertion is permitted in Draft 7. Today
-`@texaryn/schema-json` asserts `format` in Draft 7 and 2019-09 and does not in
-2020-12. The 2019-09 behaviour is not specification-correct, and it is the
-reason that dialect's optional count is higher than 2020-12's.
+vocabulary is declared, and assertion is permitted in Draft 7.
+`@texaryn/schema-json` follows that: it asserts `format` in Draft 7 and treats
+it as an annotation in 2019-09 and 2020-12. To assert in the later dialects,
+declare the format-assertion vocabulary in the schema.
 
-The mandatory suite cannot see this. Only 2020-12's `format.json` carries the
+That is why Draft 7's optional count sits above the other two. Those cases
+deliberately measure an implementation with format assertion switched on, so a
+dialect that correctly leaves it off scores lower there. It is the one place in
+this report where a lower number is the specification-correct one.
+
+The mandatory suite cannot see any of this, which is worth knowing about the
+suite rather than about the adapter. Only 2020-12's `format.json` carries the
 "invalid string is only an annotation by default" cases; the Draft 7 and
-2019-09 files contain no string cases at all. The optional bucket is where the
-difference shows up, which is part of why its failing set is pinned. It is
-corroboration rather than proof, though: the suite expects an implementation
-running those cases to enable format assertion, so that bucket is measuring a
-different mode from the default. Correcting 2019-09 will come with a direct
-test of the behaviour itself.
+2019-09 files contain no string cases at all. Correcting 2019-09 moved its
+optional count by 219 and left every mandatory result in every dialect
+untouched, so the behaviour is pinned by a direct test in
+`@texaryn/schema-json` rather than by anything here.
 
 ## Regenerating the baseline
 

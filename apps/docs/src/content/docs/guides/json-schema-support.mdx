@@ -68,11 +68,13 @@ Newer draft keywords such as `minContains`, `maxContains`,
 `unevaluatedProperties` and `unevaluatedItems` are delegated to that library;
 they are not an independent Texaryn compliance guarantee.
 
-For **2020-12**, the adapter explicitly disables `format` assertions. A value
-such as `format: 'email'` remains available as field metadata but does not
-make an invalid email fail validation. Draft 7 and 2019-09 use the validation
-library's default format behavior. The adapter does not expose a format
-assertion configuration option.
+For **2019-09 and 2020-12**, the adapter disables `format` assertions, because
+those dialects make `format` an annotation unless the format-assertion
+vocabulary is declared. A value such as `format: 'email'` stays available as
+field metadata but does not make an invalid email fail validation; declare that
+vocabulary in the schema to assert it. **Draft 7** asserts `format`, which the
+specification permits and which is the conventional behaviour there. The
+adapter exposes no format assertion option of its own, so the dialect decides.
 
 `validateAt(data, pointer)` validates the full instance and filters errors to
 the requested pointer and its descendants. It does not compile or validate an
