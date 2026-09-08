@@ -1,0 +1,100 @@
+---
+// Rendered from the committed baseline, so the published figures and the ones
+// the conformance suite asserts are the same numbers. Reported per adapter and
+// never summed: an aggregate would describe no installable package.
+import baseline from '../../../../tests/conformance/json-schema-suite/baseline.json'
+
+const dialectLabels: Record<string, string> = {
+  'draft-07': 'Draft 7',
+  '2019-09': '2019-09',
+  '2020-12': '2020-12',
+}
+
+const adapterLabels: Record<string, string> = {
+  'schema-json': '@texaryn/schema-json',
+  'schema-json-hyperjump': '@texaryn/schema-json-hyperjump',
+}
+
+const reasonLabels: Record<string, string> = {
+  'external-schema-resolution-not-exposed': 'External schema resolution',
+  'standard-metaschema-resolution-missing': 'Standard metaschema',
+  'texaryn-adapter-deviation': 'Texaryn adapter',
+  'upstream-validator-deviation': 'Upstream validator',
+  'suite-known-issue': 'Suite known issue',
+}
+
+type Deviation = { reason: string; issue?: string; note: string }
+type DialectBaseline = {
+  mandatory: { total: number; passed: number }
+  optional: { total: number; passed: number }
+  deviations: Record<string, Deviation>
+}
+
+const adapters = Object.entries(
+  baseline.adapters as Record<string, Record<string, DialectBaseline>>,
+).map(([name, perDialect]) => ({
+  name,
+  label: adapterLabels[name] ?? name,
+  rows: Object.entries(perDialect).map(([dialect, r]) => {
+    const byReason = new Map<string, number>()
+    for (const deviation of Object.values(r.deviations)) {
+      byReason.set(deviation.reason, (byReason.get(deviation.reason) ?? 0) + 1)
+    }
+    return {
+      dialect,
+      label: dialectLabels[dialect] ?? dialect,
+      mandatory: r.mandatory,
+      optional: r.optional,
+      // Sorted so the published table does not reorder itself when the order
+      // deviations happen to be discovered in changes.
+      classified: [...byReason]
+        .map(([reason, count]) => ({ label: reasonLabels[reason] ?? reason, count }))
+        .sort((a, b) => (a.label < b.label ? -1 : 1)),
+    }
+  }),
+}))
+---
+
+<p>
+  Suite revision <code>{baseline.suiteRevision}</code>.
+</p>
+
+{
+  adapters.map((adapter) => (
+    <>
+      <h3>
+        <code>{adapter.label}</code>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Dialect</th>
+            <th>Mandatory passed</th>
+            <th>Classified failures</th>
+            <th>Optional passed, default configuration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {adapter.rows.map((row) => (
+            <tr>
+              <td>{row.label}</td>
+              <td>
+                {row.mandatory.passed} / {row.mandatory.total}
+              </td>
+              <td>
+                {row.classified.length === 0
+                  ? '—'
+                  : row.classified
+                      .map((entry) => `${entry.label} (${entry.count})`)
+                      .join(', ')}
+              </td>
+              <td>
+                {row.optional.passed} / {row.optional.total}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  ))
+}

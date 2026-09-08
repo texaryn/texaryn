@@ -307,6 +307,26 @@ describe('createHyperjumpAdapter', () => {
     })
   })
 
+  // Every other dialect test above declares $schema, so all three passed while
+  // the dialect was never handed to hyperjump at registration. A schema without
+  // $schema is the common case (the official test suite's draft7 files omit it
+  // throughout), and it is the only shape that exercises defaultDialect.
+  describe('defaultDialect without $schema', () => {
+    for (const dialect of ['draft-07', '2019-09', '2020-12'] as const) {
+      it(`compiles and evaluates a bare schema as ${dialect}`, async () => {
+        const adapter = await createHyperjumpAdapter(
+          { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+          { defaultDialect: dialect },
+        )
+        expect(adapter.project({ name: 'Alice' }).nodes.get('/name' as JsonPointer)!.type).toBe(
+          'string',
+        )
+        expect((await adapter.validate({ name: 'Alice' })).valid).toBe(true)
+        expect((await adapter.validate({})).valid).toBe(false)
+      })
+    }
+  })
+
   describe('oneOf with selected-but-incomplete branch', () => {
     it('activates the discriminated branch even when required fields are missing', async () => {
       const adapter = await createHyperjumpAdapter(oneOfSchema)

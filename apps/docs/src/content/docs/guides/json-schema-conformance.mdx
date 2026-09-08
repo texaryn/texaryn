@@ -1,0 +1,112 @@
+---
+title: JSON Schema validation compatibility
+description: Texaryn's adapters measured against the official JSON Schema Test Suite, per adapter and per dialect, with every failure classified.
+---
+
+import JsonSchemaConformanceTable from '../../../components/JsonSchemaConformanceTable.astro'
+
+Texaryn's schema adapters run the [official JSON Schema Test
+Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite), vendored at
+a pinned revision. The figures below are read from the same file the test
+suite asserts against, so a number here cannot drift from the measured
+behaviour without a test failing.
+
+This page is about **validation**, which Texaryn delegates to a validator
+library. What Texaryn itself guarantees is the form projection, described in
+[JSON Schema support](/texaryn/guides/json-schema-support/). The two are deliberately
+separate: `const`, `not`, `contains` and `unevaluatedProperties` affect whether
+data is valid without affecting which control is rendered.
+
+## Results
+
+<JsonSchemaConformanceTable />
+
+Every number is per adapter. There is deliberately no combined figure, because
+a "Texaryn compliance" percentage would describe no package anyone can
+install. `@texaryn/schema-json` is the default and the one published;
+`@texaryn/schema-json-hyperjump` is a private reference adapter kept to check
+that `SchemaEvaluationPort` is not shaped around a single validator.
+
+## How to read the columns
+
+The suite splits its cases into a mandatory set and an `optional/` directory.
+Those are reported separately and never added together.
+
+- **Mandatory passed** counts cases every implementation is expected to pass.
+- **Classified failures** are mandatory cases that fail for a stated, recorded
+  reason. Nothing is skipped: the remote-reference tests run, fail, and are
+  classified rather than being excluded from the denominator.
+- **Optional passed, default configuration** counts the `optional/` cases,
+  which cover behaviour the specification leaves to the implementation. A lower
+  number here is not a defect, and it is not directly comparable between
+  adapters: the suite expects an implementation running `optional/format` to
+  turn format assertion on where it supports it, and these runs use each
+  adapter's shipped defaults instead. The count is recorded per failing test
+  id, so a change is identified rather than merely detected.
+
+## What the failures are
+
+Every mandatory failure is recorded individually in
+`tests/conformance/json-schema-suite/baseline.json` with a reason drawn from a
+closed set, validated when the file is read rather than only in the type
+system, and with the observed outcome (wrong answer, or the error class of a
+throw). There is no wildcard: a reason names one exact upstream test, so "skip
+all `unevaluatedProperties` tests" is not expressible. Recording the outcome is
+what stops a deviation covering a test that later fails for a new reason.
+
+**External schema resolution** accounts for every failure of both adapters
+except the two classes below. The suite expects documents to be retrieved from
+`http://localhost:1234`, and neither adapter factory exposes a resolver hook.
+The two then diverge in a way worth knowing: `@texaryn/schema-json` validates
+as though the reference contributed nothing, while
+`@texaryn/schema-json-hyperjump` refuses to compile at all.
+
+**Standard metaschema** is kept separate, because it is a different promise. A
+handful of cases `$ref` the dialect's own metaschema by its canonical URI to
+check a schema is itself valid. A validator can reasonably be expected to know
+the metaschema of a dialect it claims without any user-supplied resolver, and
+that is not a hypothetical: `@texaryn/schema-json-hyperjump` passes these and
+`@texaryn/schema-json` does not. Folding them into the category above would
+have hidden a real difference between the two.
+
+**Upstream validator deviations** are departures from the suite's expectations
+observed through the reference adapter. They are recorded that way on purpose:
+the measurement runs through Texaryn's own code, so it does not by itself
+establish the validator library as the cause. Each carries an issue link, so
+the claim travels with its evidence rather than resting on a sentence in a JSON
+file, and each is to be reproduced against the validator directly before being
+reported upstream. One is documented upstream policy rather than a defect,
+which its note says.
+
+## Format assertion differs by dialect
+
+`format` is annotation-only in 2019-09 and 2020-12 unless the format-assertion
+vocabulary is declared, and assertion is permitted in Draft 7. Today
+`@texaryn/schema-json` asserts `format` in Draft 7 and 2019-09 and does not in
+2020-12. The 2019-09 behaviour is not specification-correct, and it is the
+reason that dialect's optional count is higher than 2020-12's.
+
+The mandatory suite cannot see this. Only 2020-12's `format.json` carries the
+"invalid string is only an annotation by default" cases; the Draft 7 and
+2019-09 files contain no string cases at all. The optional bucket is where the
+difference shows up, which is part of why its failing set is pinned. It is
+corroboration rather than proof, though: the suite expects an implementation
+running those cases to enable format assertion, so that bucket is measuring a
+different mode from the default. Correcting 2019-09 will come with a direct
+test of the behaviour itself.
+
+## Regenerating the baseline
+
+The suite gates drift, not the pass rate. A mandatory test that regresses
+fails; one that starts failing a different way fails; a recorded deviation that
+starts passing fails, so the declaration has to go; an unclassified failure
+fails from the first run; a moved pass count fails; and so does a change to the
+set of failing optional tests, even one that leaves the count identical.
+Maintainers re-record it with:
+
+```bash
+pnpm json-schema-suite:baseline
+```
+
+Reviewing that diff is the point of the exercise. Regenerating a baseline to
+turn a suite green, rather than to record an intended change, defeats it.

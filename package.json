@@ -9,6 +9,8 @@
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:watch": "vitest",
+    "json-schema-suite:baseline": "UPDATE_JSON_SCHEMA_BASELINE=1 vitest run --project conformance json-schema-suite",
+    "json-schema-suite:manifest": "node scripts/json-schema-suite-manifest.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish",
