@@ -240,6 +240,87 @@ describe('failures the guard does not explain', () => {
 })
 
 /**
+ * A dependency the data does not trigger, alongside one it does.
+ *
+ * The predicate only considers dependencies upstream would have processed,
+ * which are those whose trigger is present in the data or named in `required`.
+ * One that is neither is skipped rather than reduced, so an untriggered
+ * dependency cannot accidentally explain a failure caused elsewhere.
+ */
+describe('an untriggered dependency beside a failing one', () => {
+  const mixed = {
+    type: 'object',
+    properties: { other: { type: 'boolean' }, flag: { type: 'boolean' } },
+    dependencies: {
+      // Declared first, and never triggered by the data below, so it is the
+      // one the predicate has to skip before reaching the failing dependency.
+      other: { properties: { fromOther: { type: 'string' } } },
+      flag: {
+        oneOf: [
+          { properties: { flag: { const: false } } },
+          {
+            properties: { flag: { const: true }, extra: { type: 'string' } },
+            required: ['extra'],
+          },
+        ],
+      },
+    },
+  }
+
+  it('is skipped, and the failing dependency still explains the throw', async () => {
+    const projectWith = await projector(mixed)
+    expect(() => projectWith({ flag: true })).not.toThrow()
+
+    const pointers = [...projectWith({ flag: true }).nodes.keys()]
+    expect(pointers).toContain('/extra')
+    // The untriggered dependency's own field is still a static candidate, since
+    // candidate discovery does not depend on the data.
+    expect(pointers).toContain('/fromOther')
+  })
+})
+
+/**
+ * A dependency whose own dependency carries the same defect.
+ *
+ * The predicate reduces each applicable dependent schema on its own to see
+ * whether it reports failure the documented way. That reduction can itself
+ * throw, when the dependency nests another one with the same shape, and a
+ * throw there is a different fault which the predicate is not entitled to
+ * treat as explaining anything.
+ */
+describe('a dependency nesting the same defect', () => {
+  const nested = {
+    type: 'object',
+    properties: { outer: { type: 'boolean' }, inner: { type: 'boolean' } },
+    dependencies: {
+      outer: {
+        properties: { inner: { type: 'boolean' } },
+        dependencies: {
+          inner: {
+            oneOf: [
+              { properties: { inner: { const: false } } },
+              {
+                properties: { inner: { const: true }, deep: { type: 'string' } },
+                required: ['deep'],
+              },
+            ],
+          },
+        },
+      },
+    },
+  }
+
+  it('does not throw, and still reaches the nested candidate', async () => {
+    const projectWith = await projector(nested)
+    expect(() => projectWith({ outer: true, inner: true })).not.toThrow()
+
+    const pointers = [...projectWith({ outer: true, inner: true }).nodes.keys()]
+    expect(pointers).toContain('/inner')
+    expect(pointers).toContain('/deep')
+  })
+})
+
+/**
  * The workaround's own retirement test, exercising json-schema-library rather
  * than Texaryn.
  *

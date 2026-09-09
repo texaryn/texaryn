@@ -333,20 +333,23 @@ function isDependentReductionFailure(node: SchemaNode, data: unknown): boolean {
     const required = Array.isArray(declared) ? (declared as string[]) : []
 
     for (const [property, dependency] of Object.entries(dependentSchemas)) {
-      if (!dependency || typeof dependency !== 'object') continue
       // Upstream processes a dependency whose trigger is present in the data or
       // named in `required`, so those are the ones whose failure it can reach.
       if (!Object.prototype.hasOwnProperty.call(record, property) && !required.includes(property)) {
         continue
       }
       try {
+        // No check that `dependency` is a node: anything that is not one throws
+        // here and lands in the catch below, which reaches the same conclusion
+        // without a branch nothing can exercise.
         if ((dependency as SchemaNode).reduceNode(data).node === undefined) {
           explained = true
           return
         }
       } catch {
-        // A dependency that throws on its own is a different fault, and not one
-        // this predicate is entitled to vouch for.
+        // A dependency that throws while being reduced on its own is a
+        // different fault, and not one this predicate may vouch for. Reached by
+        // a dependency whose own dependency carries the same defect.
       }
     }
   })
@@ -371,15 +374,21 @@ function isDependentReductionFailure(node: SchemaNode, data: unknown): boolean {
  * unresolved branch. Anything unexplained is re-thrown, which is why the
  * predicate exists rather than a bare catch.
  *
- * And one thing the suite does not prove, which is worth admitting rather than
- * implying: replacing the predicate with a bare catch fails no test here. No
- * schema is known that makes `reduceNode` throw for a reason other than this
- * defect, other than upstream's own stack overflow on `if`/`then` nested
- * around twenty deep, and where a stack runs out varies by platform, so
- * asserting it would pin the wrong thing. That overflow is the concrete reason
- * the predicate stays: under a bare catch it would become a silently inactive
- * form rather than a visible failure, which is precisely the trade this
- * comment argues against making by default.
+ * And one thing the suite does not prove, worth admitting rather than
+ * implying: the `throw` below is the one line here no test reaches, and
+ * replacing this whole predicate with a bare catch fails nothing. No schema is
+ * known that makes `reduceNode` throw for a reason other than this defect,
+ * except upstream's own stack overflow on `if`/`then` nested around twenty
+ * deep, and where a stack runs out varies by platform, so asserting it would
+ * pin the wrong thing.
+ *
+ * That overflow is the concrete reason the predicate stays: under a bare catch
+ * a twenty-deep conditional schema becomes a silently inactive form instead of
+ * a visible failure, which is exactly the trade this comment argues against
+ * making by default. The predicate's own branches are covered, by a dependency
+ * the data does not trigger and by one whose own dependency carries the same
+ * defect; it is only the re-throw that waits for a second upstream fault to
+ * exist.
  *
  * No diagnostic is emitted. The channel describes schemas that cannot be
  * projected, and this schema projects perfectly well for data that satisfies a
