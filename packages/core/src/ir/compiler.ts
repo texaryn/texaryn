@@ -97,6 +97,18 @@ function retainVisited(map: IdentityMap, visited: Set<IdentityKey>): IdentityMap
   return { ...map, arrayIdentities, itemLookup }
 }
 
+/**
+ * Whether a renderer should show the node.
+ *
+ * `active` is what JSON Schema evaluation says; `provisional` is what the
+ * projection selected for the user to complete. A form has to show either, and
+ * the two are kept apart on the port because they are different facts. This is
+ * where they collapse into the one the IR carries.
+ */
+function isExposed(proj: NodeProjection): boolean {
+  return proj.active || proj.provisional === true
+}
+
 function compileNode(
   pointer: JsonPointer,
   proj: NodeProjection,
@@ -157,7 +169,7 @@ function compileNode(
             data,
             hints,
             ctx,
-            child.required,
+            child.required || child.provisionalRequired === true,
             [...segments, { kind: 'property', name: child.key }],
             readOnly,
           )
@@ -173,7 +185,7 @@ function compileNode(
       parentId,
       dataPointer: pointer,
       order,
-      visible: proj.active,
+      visible: isExposed(proj),
       disabled: false,
       readOnly,
       annotations,
@@ -260,7 +272,7 @@ function compileNode(
       parentId,
       dataPointer: pointer,
       order,
-      visible: proj.active,
+      visible: isExposed(proj),
       disabled: false,
       readOnly,
       annotations,
@@ -276,7 +288,7 @@ function compileNode(
       parentId,
       dataPointer: pointer,
       order,
-      visible: proj.active,
+      visible: isExposed(proj),
       disabled: false,
       readOnly,
       annotations,

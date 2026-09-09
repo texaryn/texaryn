@@ -12,6 +12,10 @@
 
 > **active**: `boolean`
 
+Whether JSON Schema evaluation says this node applies to the data as it
+stands. Nothing else: it is an assertion about the schema, not about what a
+form should show.
+
 ***
 
 ### annotations
@@ -54,6 +58,25 @@ A row's own node carries these once it exists, but a renderer needs them
 before that: an empty array still has an add control to name, and that is
 where naming it matters most. Optional, so an adapter that cannot supply
 them stays valid.
+
+***
+
+### provisional?
+
+> `optional` **provisional?**: `boolean`
+
+Whether the form exposes this node so the user can complete it, when
+`active` is false.
+
+These are two facts rather than three states, and they are allowed to
+disagree because that disagreement is the point. A `oneOf` branch the data
+uniquely identifies but has not yet satisfied does not apply, so `active`
+is false, and hiding it would leave the user no way to supply the property
+that would make it apply. `provisional` says the projection has selected
+that branch for the user to finish.
+
+Only meaningful while `active` is false, and absent means false, so an
+adapter that does not select provisionally keeps its current behaviour.
 
 ***
 

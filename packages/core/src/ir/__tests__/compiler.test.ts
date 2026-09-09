@@ -18,6 +18,7 @@ function makeProjection(
       children: partial.children,
       enumValues: partial.enumValues,
       active: partial.active ?? true,
+      provisional: partial.provisional,
       annotations: partial.annotations ?? {},
     })
   }
@@ -358,6 +359,65 @@ describe('compile', () => {
       expect(hiddenNode.visible).toBe(false)
     })
 
+    /**
+     * `active` and `provisional` are two facts rather than three states. A
+     * `oneOf` branch the data identifies but has not satisfied does not apply,
+     * so `active` is false, and hiding it would leave the user no way to supply
+     * what would make it apply.
+     */
+    it('sets visible: true for a provisionally selected node', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: '/lastName' as JsonPointer, key: 'lastName', required: false },
+          ],
+        }],
+        ['/lastName', { type: 'string', active: false, provisional: true }],
+      ])
+
+      const { document } = compile(projection, {})
+      const node = Object.values(document.nodes).find((n) => n.dataPointer === '/lastName')!
+      expect(node.visible).toBe(true)
+    })
+
+    it.each([
+      ['absent', undefined, false],
+      ['false', false, false],
+      ['true', true, true],
+    ])('with active false and provisional %s, visible is %s', (_label, provisional, visible) => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [{ pointer: '/x' as JsonPointer, key: 'x', required: false }],
+        }],
+        ['/x', { type: 'string', active: false, provisional }],
+      ])
+
+      const { document } = compile(projection, {})
+      const node = Object.values(document.nodes).find((n) => n.dataPointer === '/x')!
+      expect(node.visible).toBe(visible)
+    })
+
+    /**
+     * The pair is meaningless when `active` is already true, and it renders the
+     * same either way, so an adapter cannot make a node invisible by claiming
+     * both.
+     */
+    it('stays visible when an adapter reports both', () => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [{ pointer: '/x' as JsonPointer, key: 'x', required: false }],
+        }],
+        ['/x', { type: 'string', active: true, provisional: true }],
+      ])
+
+      const { document } = compile(projection, {})
+      const node = Object.values(document.nodes).find((n) => n.dataPointer === '/x')!
+      expect(node.visible).toBe(true)
+    })
+
     it('sets visible: true for active nodes', () => {
       const projection = makeProjection([
         ['', {
@@ -455,4 +515,43 @@ describe('identity keys', () => {
     expect(() => compile(throwing, data, undefined, first.identityMap)).toThrow('boom')
     expect(JSON.stringify([...first.identityMap.arrayIdentities])).toBe(before)
   })
+})
+
+describe('provisional requiredness', () => {
+  /**
+   * Exposing a provisionally selected branch's field while reporting it
+   * optional would say the form does not need what the validator will demand
+   * the moment the branch applies. The two facts stay apart on the port and
+   * collapse here, the same way visibility does.
+   */
+  it.each([
+    ['neither', false, undefined, false],
+    ['schema only', true, undefined, true],
+    ['provisional only', false, true, true],
+    ['both', true, true, true],
+    ['both false', false, false, false],
+  ])(
+    'with %s, the compiled field reports required %s',
+    (_label, required, provisionalRequired, expected) => {
+      const projection = makeProjection([
+        ['', {
+          type: 'object',
+          children: [
+            {
+              pointer: '/lastName' as JsonPointer,
+              key: 'lastName',
+              required,
+              provisionalRequired,
+            },
+          ],
+        }],
+        ['/lastName', { type: 'string', active: false, provisional: true }],
+      ])
+
+      const { document } = compile(projection, {})
+      const node = Object.values(document.nodes).find((n) => n.dataPointer === '/lastName')!
+      expect(node.type).toBe('field')
+      expect((node as { constraints: { required?: boolean } }).constraints.required).toBe(expected)
+    },
+  )
 })
