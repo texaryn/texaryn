@@ -506,6 +506,16 @@ The value is not lost from the form: `AnnotationSet.default` carries it, so a
 binding could display it as a placeholder or prefill. It is absent from the
 data.
 
+**Since recorded, the contract for this is decided:**
+`docs/adr/003-schema-defaults-are-not-data.md`. Materialisation becomes opt-in
+and happens once, so the cost above stays exactly as measured for an adopter who
+does not ask for it, and disappears for one who does. Measuring the reference
+before deciding was worth it: RJSF resolves conditional branches against the
+data as supplied, before filling defaults, and does not resolve them again, so a
+branch that its own discriminator default activates renders a field and leaves
+its declared default unapplied. Texaryn diverges there deliberately. The
+measurements are pinned in `src/defaults-reference.test.tsx`.
+
 Related and smaller, from the same step: `ui:widget: hidden` renders as an
 ordinary visible text input. `FieldHints.hidden` exists but is deprecated and
 documented as never applied, with a comment saying a visibility contract has to
@@ -655,6 +665,7 @@ being a record of anything.
 | 2, no shape without an explicit `type` | fixed, pending release |
 | 3, the conditional validated but not projected | fixed, pending release |
 | 4, the `oneOf`-inside-`dependencies` crash | open, upstream, [#121](https://github.com/texaryn/texaryn/issues/121) |
+| 7, `default` never applied | contract decided, `docs/adr/003-schema-defaults-are-not-data.md`, nothing implemented |
 
 And one finding the fixes uncovered rather than closed: with the crash out of
 the way, a branch the data identifies but leaves incomplete still hides the
