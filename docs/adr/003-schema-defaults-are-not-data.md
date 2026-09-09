@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. The contract below is decided; the initialization facility it
-describes is not built yet.
+Proposed. The contract below is the decision being put up for review; the
+initialization facility it describes is not built yet.
 
 ## Context
 
@@ -44,26 +44,41 @@ the submitted payload, because that is what a scaffolder action reads.
 | a value the caller supplied | never overwritten |
 | explicit `false`, `0`, `''`, `null` | all kept, never defaulted over |
 | child default, parent object absent | parent created, child filled |
-| object-level `default` on a property | **ignored** |
+| object-level `default` on a property | ignored |
 | object-level and property-level both present | property wins |
 | declared array `default` | used as given |
 | item default, no array default | no rows created |
 | `minItems` with an item default | rows created and filled |
-| unselected branch default, no `formData` | **filled** |
-| unselected branch default, `formData: { flag: false }` | **not filled** |
-| the branch once it applies | filled |
+| branch default, `if` vacuously satisfied by absent data | filled |
+| the same, once `required` makes the `if` fail | not filled |
+| branch that the discriminator's own default activates | **not filled, and rendered empty** |
 
-Two of those changed the contract below.
+The uncontroversial rows are the first four. Three of the rest changed the
+contract below.
 
-**The reference is not self-consistent about conditionals.** The last three rows
-describe the same starting instance expressed two ways, and the default from a
-branch that does not apply is filled in one and not the other. So "what RJSF
-does" is not a specification for that case, and imitating it would mean
-imitating an inconsistency.
+**The reference resolves conditionals against the data before defaults, and
+does not resolve them again after.** The last three rows are one finding. With
+`if: { properties: { flag: { const: true } } }` and no data at all, the `if` is
+satisfied vacuously, because `properties` constrains a property it does not
+require: so the branch merges and its default is filled, even though `flag`
+defaults to `false` and the branch will not apply to the instance the form
+actually starts from. Add `required: ['flag']` to the `if` and the default
+disappears, which is what identifies the mechanism. The third row is the same
+mechanism with the sign reversed and is the one that matters: `flag` defaults to
+`true`, so the branch *does* apply once initialization finishes, the field is
+rendered, and its declared default is still absent, because the branch decision
+was taken earlier against data where `flag` had not yet been filled. A visible
+field with a declared default and an empty value is not a behaviour to
+reproduce.
 
 **`minItems` filling rows is a convenience, not a schema instruction.**
 `minItems` constrains an instance; it does not describe one. Creating rows to
 satisfy it is the reference being helpful.
+
+**Ignoring an object-level `default` discards an ordinary annotation.** A schema
+that says `default: { team: 'platform' }` on an object has stated that object's
+default value. The reference applies it only in the sense that a nested
+property-level declaration wins; with no nested declaration it applies nothing.
 
 ## Decision
 
@@ -80,47 +95,66 @@ Concretely:
    or prefill a control from it without writing to the data.
 3. **`createFormRuntime` does not materialise defaults.** Given `{}`, the
    runtime's data stays `{}`. This is today's behaviour and stays the default.
-4. **Reprojection never applies them.** A branch becoming active must not inject
+4. **Once the runtime exists, no reprojection ever fills a default.** A branch
+   becoming active because the user edited a discriminator must not inject
    values, or a cleared field refills itself from its default and cannot be
-   emptied, and a discriminator change becomes a data edit.
+   emptied, and changing a discriminator becomes a data edit.
 5. **`Reset` restores the caller's data**, not a default-expanded version,
    unless the caller asked for materialisation, in which case it restores what
    was materialised. This falls out of `handleReset` using
    `cmd.data ?? state.initialData` provided materialisation happens before
    construction.
-6. **If materialisation is wanted, it is explicit and it happens once**, before
-   the runtime exists, through a facility whose name is not settled. Everything
-   downstream then treats a materialised value as ordinary caller data, which is
-   what `onSubmit` needs for a scaffolder action to see it, and what makes a
-   field sitting at its default report `modified: false` against
+6. **Materialisation is opt-in, explicit, and happens once**, through
+   `FormRuntimeOptions.initialization: 'schema-defaults'` (default `'none'`).
+   `createFormRuntime` runs it against `options.initialData` and uses the result
+   as `state.initialData`, so it completes before the runtime has any state and
+   everything downstream treats a materialised value as ordinary caller data.
+   That is what `onSubmit` needs for a scaffolder action to see it, and what
+   makes a field sitting at its default report `modified: false` against
    `state.initialData` without new code.
 
-### Rules for the facility, when it is built
+### Rules for the facility
 
-From the measurements, the defensible subset:
+From the measurements:
 
-- fill only absent locations, where absent means the property is not present;
-  `false`, `0`, `''` and `null` are values;
-- take the declaration nearest the data location, so a property-level default
-  beats a container's, matching the reference;
-- create parent objects needed to hold a child default;
-- use a declared array `default` as given, and do not create rows from item
-  defaults;
-- **do not** fill from branches that do not apply, which diverges from the
-  reference in the case where the reference contradicts itself;
-- **do not** create rows to satisfy `minItems`, which is a constraint rather
-  than a description.
+- **Fill only absent locations.** Absent means the property is not present;
+  `false`, `0`, `''` and `null` are values and are never defaulted over.
+- **Never overwrite.** A location is filled at most once, ever.
+- **Nearest declaration wins**, so a property-level default beats its
+  container's. Where only the container declares one, apply it, which diverges
+  from the reference discarding it.
+- **Create parent objects** needed to hold a child default.
+- **Use a declared array `default` as given**, and do not create rows from item
+  defaults. Do not create rows to satisfy `minItems`, which is a constraint
+  rather than a description.
+- **Resolve conditionals against the data being built, not the data as
+  supplied.** Fill what the schema declares unconditionally, re-evaluate which
+  branches apply against the result, fill within those, and repeat while a pass
+  writes something new. This is the divergence that fixes the reference's
+  staleness: a branch activated by the discriminator's own default gets its
+  defaults, and a branch the discriminator's default rules out does not.
+
+The iteration terminates because it is monotone: a pass may only fill absent
+locations and never overwrite, so a pass that writes nothing is the end. A
+recursive schema can keep revealing new locations to fill, so the number of
+passes is bounded; **reaching the bound emits a diagnostic rather than
+truncating silently**, which is the lesson from the applicator depth cap that
+deleted valid candidates.
+
+All of this happens inside initialization, before the runtime exists. Rule 4
+governs everything after.
 
 ### What stays open
 
-**A field revealed later.** Under materialise-once, a conditional field whose
-branch becomes active after construction never receives its default, because
-materialisation has already happened and rule 4 forbids doing it again.
-Backstage's own documented conditional is exactly this shape: `includeName`
-defaults to `true` and `lastName` appears only when it is. Seeding on activation
-instead reintroduces the refill problem unless each location is materialised at
-most once ever, which is more state and interacts with the provisional-selection
-decision in issue #120. Not decided here.
+**A branch activated by a user edit.** Filling unconditional defaults first
+settles the construction-time case, including the shape Backstage's own
+documented conditional uses: `includeName` defaults to `true`, so the branch
+applies during initialization and anything it declares is filled then. What is
+not settled is a discriminator the *user* changes later. Rule 4 says nothing is
+filled, so that field starts empty. Seeding on activation instead reintroduces
+the refill problem unless each location is materialised at most once ever, which
+is more state, and it interacts with the provisional-selection decision in
+issue #120. Not decided here.
 
 ## Consequences
 
@@ -128,10 +162,11 @@ An adopter who needs RJSF's payload has to ask for it, at the call site, in one
 place. That is the cost, and it is the point: the request is visible rather than
 implied by the schema.
 
-The divergence on unselected branches is deliberate and will show up as a
-difference in the adoption comparison. It is recorded rather than smoothed over,
-because the alternative is reproducing a behaviour that depends on how the
-caller happened to spell the same starting state.
+Two divergences from the reference will show up as differences in the adoption
+comparison, and both are cases where the reference is the one that is wrong. It
+fills defaults from branches that its own discriminator defaults rule out, and
+omits them from branches those defaults activate. Recording that is more useful
+than matching it.
 
 Nothing about validation changes, so no conformance result moves.
 
@@ -140,6 +175,12 @@ Nothing about validation changes, so no conformance result moves.
 **Apply defaults by default.** Matches the reference and needs no option, and it
 is the failure named at the top: an annotation becoming data with nobody having
 asked. It would also make every recompile a candidate for injecting values.
+
+**Resolve conditionals once, against the data as supplied.** This is what the
+reference does, and it is one pass rather than a fixpoint, so it is cheaper and
+cannot fail to terminate. It is rejected because the measurements show what it
+costs: the branch decision is taken against an instance that initialization is
+about to change, so it is wrong in both directions.
 
 **Apply them in the adapter, into the schema or the projection.** The schema
 would then assert something its author did not write, and validation would see
@@ -155,5 +196,5 @@ larger hole than the problem being solved.
 - Friction log entry 7, `spikes/backstage-adoption/FRICTION-LOG.md`
 - Issue #124, what the runtime does with a non-object `initialData` root, found
   while measuring this and deliberately separate
-- Issue #120, provisional branch selection, which the revealed-field question
+- Issue #120, provisional branch selection, which the user-edit question
   depends on
