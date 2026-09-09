@@ -221,24 +221,6 @@ interface CandidateProperty {
 }
 
 /**
- * A bound on applicator nesting, and a backstop rather than the cycle guard.
- *
- * The guard below keys on `schemaLocation`, which repeats when a `$ref` closes
- * a cycle, and that alone is enough: raising this constant to 100000 leaves the
- * recursive-applicator test passing, while removing both overflows the stack.
- * This exists because `schemaLocation` is not guaranteed to be present on every
- * node, and a recursive schema whose nodes carried none would otherwise recurse
- * until the stack gave out. A hung form is a far worse failure than a candidate
- * missed at depth 65.
- *
- * The consequence for anyone editing this: the two bounds overlap on every
- * fixture in the suite, so deleting either one on its own does not fail a test.
- * That was measured rather than assumed, and it is the reason this comment
- * records which of them is the mechanism.
- */
-const MAX_APPLICATOR_DEPTH = 64
-
-/**
  * Every property key that could appear at this node's own instance location,
  * across every branch that might apply to it.
  *
@@ -280,7 +262,7 @@ const MAX_APPLICATOR_DEPTH = 64
  */
 function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
   const candidates = new Map<string, CandidateProperty>()
-  const visited = new Set<string>()
+  const visited = new Set<string | SchemaNode>()
 
   const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
     const entry = candidates.get(key) ?? { alternatives: [] }
@@ -289,34 +271,47 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
     candidates.set(key, entry)
   }
 
-  const visit = (current: SchemaNode, own: boolean, depth: number): void => {
-    if (depth > MAX_APPLICATOR_DEPTH) return
-
+  const visit = (current: SchemaNode, own: boolean): void => {
     const resolved = dereference(current)
+
+    // Keyed on `schemaLocation` where there is one, and on the node itself
+    // where there is not, which together cover every way the traversal can
+    // come back to where it started.
+    //
+    // Neither alone is sufficient and each covers what the other cannot. A
+    // cycle requires a `$ref`, because an inline schema cannot nest into
+    // itself, and `resolveRef()` returns a fresh `SchemaNode` on every call
+    // whose raw `schema` object is fresh too, so identity never matches across
+    // one; those nodes do carry a location. An inline branch is never resolved
+    // through a ref, so its identity is stable within one traversal.
+    //
+    // This deliberately replaced a depth cap. A cap terminates, but it does so
+    // by dropping candidates a valid schema declared, which is the silent
+    // disappearance the whole projection-diagnostic design exists to prevent:
+    // a field nested under 70 applicators is still a field.
     const location = (resolved as { schemaLocation?: unknown }).schemaLocation
-    if (typeof location === 'string') {
-      if (visited.has(location)) return
-      visited.add(location)
-    }
+    const key = typeof location === 'string' ? location : resolved
+    if (visited.has(key)) return
+    visited.add(key)
 
     for (const [key, propNode] of Object.entries(resolved.properties ?? {})) {
       record(key, propNode, own)
     }
 
     for (const branch of [resolved.if, resolved.then, resolved.else]) {
-      if (branch) visit(branch, false, depth + 1)
+      if (branch) visit(branch, false)
     }
     for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
-      for (const branch of branches ?? []) visit(branch, false, depth + 1)
+      for (const branch of branches ?? []) visit(branch, false)
     }
     for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
       if (dependency && typeof dependency === 'object') {
-        visit(dependency as SchemaNode, false, depth + 1)
+        visit(dependency as SchemaNode, false)
       }
     }
   }
 
-  visit(node, true, 0)
+  visit(node, true)
   return candidates
 }
 
