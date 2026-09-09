@@ -170,3 +170,57 @@ describe('recursive references', () => {
  * `dependency-composition.test.ts`, which asserts the projection succeeds
  * rather than that it throws.
  */
+
+/**
+ * A valid schema is not allowed to lose fields for crossing an implementation
+ * threshold.
+ *
+ * An earlier version of the collector carried a depth cap of 64 alongside the
+ * cycle guard, and crossing it returned silently. These would have failed:
+ * `/deep` is declared by a perfectly ordinary schema and simply sits further
+ * down than the cap allowed. The cap is gone, and the cycle guard alone
+ * terminates, so depth costs nothing.
+ */
+describe('deeply nested applicators, without a cycle', () => {
+  /** `depth` nested `allOf` wrappers ending in one property. */
+  function nested(depth: number): Record<string, unknown> {
+    let inner: Record<string, unknown> = { properties: { deep: { type: 'string' } } }
+    for (let level = 0; level < depth; level += 1) inner = { allOf: [inner] }
+    return { type: 'object', properties: { shallow: { type: 'string' } }, ...inner }
+  }
+
+  it.each([10, 70, 120])('finds a property under %i applicators', async (depth) => {
+    const pointers = [...(await project(nested(depth), {})).nodes.keys()]
+    expect(pointers).toContain('/shallow')
+    expect(pointers).toContain('/deep')
+  })
+
+  it('reports no diagnostic for depth alone', async () => {
+    const projection = await project(nested(70), {})
+    expect(projection.diagnostics).toEqual([])
+  })
+
+  /**
+   * Depth through the conditional applicators as well, which is the shape a
+   * real template reaches: each level guards the next.
+   *
+   * Ten, not seventy, and the reason is worth recording rather than hiding
+   * behind a smaller number. `json-schema-library` has its own ceiling on
+   * nested `if`/`then` reduction, somewhere between fifteen and twenty levels
+   * on this machine, and it overflows the stack past it. Reproduced against
+   * `main` before this change, so it is upstream and pre-existing rather than
+   * anything to do with candidate collection. It is not asserted, because
+   * where a stack runs out varies with the platform and with coverage
+   * instrumentation, and a test that pins that number proves nothing. Ten is
+   * comfortably inside it; Backstage's own documented conditional is one level
+   * deep.
+   */
+  it('finds a property under nested conditionals', async () => {
+    let inner: Record<string, unknown> = { properties: { deep: { type: 'string' } } }
+    for (let level = 0; level < 10; level += 1) {
+      inner = { allOf: [{ if: { properties: { flag: { const: true } } }, then: inner }] }
+    }
+    const schema = { type: 'object', properties: { flag: { type: 'boolean' } }, ...inner }
+    expect([...(await project(schema, { flag: true })).nodes.keys()]).toContain('/deep')
+  })
+})
