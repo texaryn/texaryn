@@ -20,7 +20,10 @@ async function project(schema: unknown, data: unknown) {
 async function verdict(schema: unknown, data: unknown) {
   const adapter = await createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
   const result = await adapter.validate(data)
-  return { valid: result.valid, errors: result.errors.map((e) => `${e.instancePointer}:${e.keyword}`) }
+  return {
+    valid: result.valid,
+    errors: result.errors.map((e) => `${e.instancePointer}:${e.keyword}`),
+  }
 }
 
 /**

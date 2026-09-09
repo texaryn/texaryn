@@ -205,39 +205,135 @@ function dereference(node: SchemaNode): SchemaNode {
 }
 
 /**
- * Discovers every property key that could ever appear on this node, across every
- * conditional branch (if/then/else, dependentSchemas, oneOf, anyOf). draft-07
- * `dependencies` is normalized by json-schema-library into
- * `dependentSchemas`/`dependentRequired` at parse time, so it needs no separate
- * handling here.
+ * A property key a form may need to render, and where its schema came from.
  *
- * This is the "static" half of the inactive-node contract: a branch that is not
- * currently selected for the data still contributes its property pointers, just
- * with `active: false`.
+ * The two are kept apart rather than collapsed to one node, because they carry
+ * different authority. A key declared by this schema's own `properties` is the
+ * most specific statement about that location. A key contributed by an
+ * applicator branch is one of possibly several competing statements, and which
+ * of them applies is a question about the data, not about the schema.
  */
-function collectCandidateProperties(node: SchemaNode): Record<string, SchemaNode> {
-  const candidates: Record<string, SchemaNode> = {}
-  const merge = (props: Record<string, SchemaNode> | undefined) => {
-    if (!props) return
-    for (const [key, propNode] of Object.entries(props)) {
-      if (!(key in candidates)) candidates[key] = propNode
-    }
+interface CandidateProperty {
+  /** Declared by the node's own `properties`. */
+  direct?: SchemaNode
+  /** Contributed by applicator branches, in the order the schema declares them. */
+  alternatives: SchemaNode[]
+}
+
+/**
+ * A bound on applicator nesting, and a backstop rather than the cycle guard.
+ *
+ * The guard below keys on `schemaLocation`, which repeats when a `$ref` closes
+ * a cycle, and that alone is enough: raising this constant to 100000 leaves the
+ * recursive-applicator test passing, while removing both overflows the stack.
+ * This exists because `schemaLocation` is not guaranteed to be present on every
+ * node, and a recursive schema whose nodes carried none would otherwise recurse
+ * until the stack gave out. A hung form is a far worse failure than a candidate
+ * missed at depth 65.
+ *
+ * The consequence for anyone editing this: the two bounds overlap on every
+ * fixture in the suite, so deleting either one on its own does not fail a test.
+ * That was measured rather than assumed, and it is the reason this comment
+ * records which of them is the mechanism.
+ */
+const MAX_APPLICATOR_DEPTH = 64
+
+/**
+ * Every property key that could appear at this node's own instance location,
+ * across every branch that might apply to it.
+ *
+ * This is the static half of the inactive-node contract: a branch the data does
+ * not currently select still contributes its property pointers, which then
+ * project with `active: false`. The dynamic half is `reduceNode`, which decides
+ * which of them apply now, and the two must stay separate. Making the candidate
+ * set data-driven would delete a pointer the moment its branch stopped
+ * matching, which is exactly the flicker the contract exists to prevent.
+ *
+ * **Recursion is through applicators only, and only those acting on this same
+ * instance location**: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
+ * `dependentSchemas`, and whatever a `$ref` resolves to. draft-07
+ * `dependencies` needs no separate handling, because json-schema-library
+ * normalises it into `dependentSchemas` at parse time.
+ *
+ * Three things are deliberately not followed:
+ *
+ * - **`not`**, because a subschema inside it describes a shape the instance
+ *   must *not* satisfy. Collecting its properties as candidates would invert
+ *   its meaning.
+ * - **the values of `properties`**, because those describe a child location,
+ *   not this one. `owner` is collected; the walk descends into `/owner`
+ *   separately and collects `name` there. Following it here would make `name` a
+ *   sibling of `owner`.
+ * - **`items` and `prefixItems`**, for the same reason: an array's items are
+ *   their own locations.
+ *
+ * The cycle guard keys on `schemaLocation` rather than on node identity, which
+ * was measured rather than assumed and is the opposite of what it looks like it
+ * should be: `resolveRef()` returns a fresh `SchemaNode` on every call, and the
+ * raw `schema` object it wraps is fresh too, so an identity `Set` never matches
+ * and a recursive `$ref` would not terminate. `schemaLocation` is stable, is
+ * distinct for each inline branch position, and repeats when a reference closes
+ * a cycle, which is precisely the three properties needed. The set is per call,
+ * because deduplicating a schema location is only sound while collecting names
+ * for one instance location; the same schema legitimately recurs at a deeper
+ * pointer, and `walk` visits it again there.
+ */
+function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
+  const candidates = new Map<string, CandidateProperty>()
+  const visited = new Set<string>()
+
+  const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
+    const entry = candidates.get(key) ?? { alternatives: [] }
+    if (direct) entry.direct ??= propNode
+    else entry.alternatives.push(propNode)
+    candidates.set(key, entry)
   }
-  merge(node.properties)
-  merge(node.if?.properties)
-  merge(node.then?.properties)
-  merge(node.else?.properties)
-  if (node.dependentSchemas) {
-    for (const dependency of Object.values(node.dependentSchemas)) {
+
+  const visit = (current: SchemaNode, own: boolean, depth: number): void => {
+    if (depth > MAX_APPLICATOR_DEPTH) return
+
+    const resolved = dereference(current)
+    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
+    if (typeof location === 'string') {
+      if (visited.has(location)) return
+      visited.add(location)
+    }
+
+    for (const [key, propNode] of Object.entries(resolved.properties ?? {})) {
+      record(key, propNode, own)
+    }
+
+    for (const branch of [resolved.if, resolved.then, resolved.else]) {
+      if (branch) visit(branch, false, depth + 1)
+    }
+    for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
+      for (const branch of branches ?? []) visit(branch, false, depth + 1)
+    }
+    for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
       if (dependency && typeof dependency === 'object') {
-        merge((dependency as SchemaNode).properties)
+        visit(dependency as SchemaNode, false, depth + 1)
       }
     }
   }
-  for (const branch of node.allOf ?? []) merge(branch.properties)
-  for (const branch of node.oneOf ?? []) merge(branch.properties)
-  for (const branch of node.anyOf ?? []) merge(branch.properties)
+
+  visit(node, true, 0)
   return candidates
+}
+
+/**
+ * The schema to project for a candidate when no branch is active.
+ *
+ * A hidden node is still compiled, so it needs some shape, and an inactive key
+ * defined differently by two branches has no single right answer. The rule is
+ * therefore stated rather than left to traversal order: the node's own
+ * declaration wins, and failing that the first branch the schema declares. It
+ * is a stable placeholder and deliberately not a claim that one branch matters
+ * more, which is why `CandidateProperty` keeps the alternatives instead of
+ * discarding them. Whenever a branch *is* active, `walk` uses the reduced
+ * node instead and this is not consulted.
+ */
+function candidatePrototype(candidate: CandidateProperty): SchemaNode {
+  return candidate.direct ?? candidate.alternatives[0]
 }
 
 /**
@@ -438,7 +534,7 @@ function walk(
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
     const candidateProps = collectCandidateProperties(original)
-    const propKeys = Object.keys(candidateProps)
+    const propKeys = [...candidateProps.keys()]
 
     const children: ChildProjection[] | undefined =
       propKeys.length > 0
@@ -463,7 +559,7 @@ function walk(
       const childPointer = `${pointer}/${escapeSegment(key)}`
       const childActive = nodeActive && activeKeys.has(key)
       const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
-      const childNode = reducedChildNode ?? candidateProps[key]
+      const childNode = reducedChildNode ?? candidatePrototype(candidateProps.get(key)!)
       walk(childNode, childPointer, dataRecord?.[key], childActive, nodes, diagnostics)
     }
     return
