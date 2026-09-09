@@ -53,7 +53,10 @@ was measured both ways. They agree on all of them, including the defect: `if` an
 properties are already merged and the `allOf` traversal setting never applies to
 this shape. That equivalence is asserted in the same file rather than argued,
 because without it these would be measurements of RJSF rather than of the form a
-Backstage user fills in.
+Backstage user fills in. The Stepper also passes `formData={stepsState}`, where
+an untouched step's state is `{}` and not an omitted prop, and since these cases
+turn on whether a property is absent that is not obviously the same input
+either. It is, and that is asserted too.
 
 | Case | RJSF |
 | --- | --- |
@@ -85,9 +88,12 @@ default is filled with no `formData` and not filled with
 **Second reading, and it stands.** It does not contradict itself.
 `if: { properties: { flag: { const: true } } }` constrains a property it does not
 require, so an absent `flag` satisfies it vacuously; adding `required: ['flag']`
-makes the default disappear, which is what identifies the mechanism. Conditionals
-are resolved against the data as the caller supplied it, before defaults are
-filled, and are not resolved again.
+makes the default disappear, which is what identifies the mechanism. Within one
+default-computation invocation, branch selection is taken against the data as it
+arrived and is not recomputed after sibling defaults change that data. Stated
+more strongly than that it would be wrong: the click case below shows a later
+form-data update triggering another computation, so it is the single invocation
+that does not iterate, not the form that never recomputes.
 
 That produces the defect in the twelfth row. With `flag` defaulting to `true`,
 the branch does apply to the instance the form starts from, the field is
@@ -134,106 +140,146 @@ property-level declaration wins; with no nested declaration it applies nothing.
 ## Decision
 
 **Schema evaluation describes defaults. An initialization policy may consume
-them, once per location. Projection never mutates data.**
-
-Concretely:
+them. Projection never mutates data.**
 
 1. **Validation stays pure JSON Schema.** A default never makes a missing
    property present and never satisfies `required`. Nothing in the validation
    path changes.
-2. **Projection exposes the annotation and applies nothing.** This is today's
-   behaviour and it is correct. A renderer may show a default as a placeholder
-   or prefill a control from it without writing to the data.
+2. **Projection exposes the annotation and applies nothing.** A renderer may
+   present a default as non-value presentation, a placeholder or a suggestion.
+   **A control's value always comes from runtime data.** Putting a default into
+   a control while the data stays absent would rebuild the exact divergence this
+   ADR exists to remove: a value the user can see and the submission does not
+   contain, which is the twelfth measured row.
 3. **`createFormRuntime` materialises nothing by default.** Given `{}`, the
    runtime's data stays `{}`.
 4. **Materialisation is opt-in**, through
    `FormRuntimeOptions.initialization: 'schema-defaults'` (default `'none'`).
-5. **A location is materialised the first time it becomes reachable, and never
-   again.** Construction is the first reachability event, so a schema with no
-   conditionals is finished there. A branch the user activates later, or a row
-   `InsertItem` creates, materialises the locations it reveals.
+5. **The rule is: fill a location that is reachable and absent.** Absent means
+   the property is not present; `false`, `0`, `''` and `null` are values.
+   Reachable means the projection exposes it given the data as it stands.
+   Construction is the first moment anything is reachable, so a schema without
+   conditionals is finished there; a branch the user activates later becomes
+   reachable then.
 
-   **This needs no record of what has already been filled.** The rule follows
-   from "fill only absent locations" plus the measured fact that this runtime
-   never removes a key: clearing a field leaves the key present holding
-   `undefined`, and deactivating a branch leaves its data in place, so a filled
-   location cannot become absent and a second pass over it cannot fill it. That
-   is the one non-obvious dependency in this contract, so it is stated rather
-   than assumed: **if the runtime ever starts removing keys, whether on clear or
-   by pruning an inactive branch, this rule needs an explicit set of
-   materialised locations to keep its meaning, and for array rows that set
-   cannot be keyed by JSON pointer, because removing a row renumbers the
-   pointers of the rows after it.**
-6. **What was materialised at construction is `state.initialData`.**
-   `createFormRuntime` runs the construction pass against `options.initialData`
-   and uses the result, so `handleReset` (`cmd.data ?? state.initialData`) and
-   `handleSetValue`'s `modified` computation need no new code for it.
-7. **`Reset` restores data and nothing else**, since rule 5 keeps no state to
-   restore. `Reset` with no `cmd.data` returns to `state.initialData`, which is
-   what construction materialised, so a reset form is a fresh one. `Reset` with
-   `cmd.data` replaces the data wholesale and materialisation does **not** run
-   again on it: a caller passing explicit data is stating what the form holds,
-   and re-running the pass would overwrite their intent for any location they
-   left absent. A caller who wants defaults over their reset data can ask for
-   them the same way they did at construction, by constructing again.
+   **This is the contract, and "once per location" is not.** An earlier revision
+   promised a location would be materialised once and never again, and that
+   promise is not one this mechanism owns: it holds only because nothing in the
+   runtime currently removes a key, which is measured in
+   `spikes/backstage-adoption/src/absence-reference.test.ts` and is not this
+   contract's to guarantee. #126 keeps open a design that would end it. So the
+   rule states what it does, and the consequence is named separately: **while
+   keys are never removed, a filled location cannot become absent, so nothing is
+   ever filled twice.** If that stops being true, the choice is between owning
+   the state explicitly and accepting that a deleted property becomes eligible
+   again, and the state would be keyed on core's stable item identity rather
+   than a JSON pointer, since removing a row renumbers the pointers after it.
+   **When this is implemented the invariant belongs in `packages/core`'s own
+   tests**, not only in a spike the workspace CI does not run.
+6. **What construction materialised is `state.initialData`**, so
+   `handleSetValue`'s `modified` computation needs no new code for it.
+7. **`Reset` applies the configured policy, with or without `cmd.data`.**
+   `Reset` establishes a new baseline, so the policy that produced the first one
+   has to produce this one: a runtime configured for `'schema-defaults'` whose
+   baseline was never initialized under its own policy is incoherent. An earlier
+   revision exempted `Reset` with explicit data on the reasoning that a caller
+   supplying data is stating what the form holds, which has no basis, since the
+   same caller supplied `initialData` at construction and asked for filling
+   there. A caller who wants exact replacement needs to say so explicitly rather
+   than have it inferred from passing data at all.
 
 ### Rules for the pass
 
-From the measurements:
-
-- **Fill only absent locations.** Absent means the property is not present;
-  `false`, `0`, `''` and `null` are values and are never defaulted over.
-- **Never fill a location twice.** Given the rule above and a runtime that does
-  not remove keys, this follows rather than needing enforcement, which is what
-  rule 5 depends on.
-- **Nearest declaration wins, per key.** A property-level default beats its
-  container's for that key, and the container's default still supplies the keys
-  no property declares: container `{ team: 'a', extra: 'x' }` with a
-  property-level `team` default of `'b'` yields `{ team: 'b', extra: 'x' }`. Per
-  key rather than whole-value, because whole-value discarding contradicts "fill
-  only absent locations". Applying a container-level default at all diverges
-  from the reference discarding it.
+- **Fill only absent locations.** Never overwrite, including `false`, `0`, `''`
+  and `null`.
+- **A container default is materialised whole, then recursed into.** Take
+  `default: { team: 'a', extra: 'x' }` as given, then let child declarations
+  fill only the keys still absent. So a property-level `team` default of `'b'`
+  does **not** win: the result is `{ team: 'a', extra: 'x' }`, and it is
+  `{ team: 'b', extra: 'x' }` only when the container default omits `team`.
+  Per-key override was the earlier decision and is rejected: once the container
+  default is materialised the child location is present, so overwriting it is a
+  second precedence system rather than absence semantics, and it would be
+  asymmetric with taking a declared array default as given. This diverges from
+  the reference, which lets the property win.
 - **Create parent objects** needed to hold a child default.
-- **Use a declared array `default` as given**, and create no rows from item
-  defaults. Create no rows to satisfy `minItems`, which is a constraint rather
-  than a description.
-- **Resolve conditionals against the data being built, not the data as
-  supplied.** Fill what the schema declares unconditionally, re-evaluate which
-  branches apply against the result, fill within those, and repeat while a pass
-  writes something new.
+- **Take a declared array `default` as given**, create no rows from item
+  defaults, and create no rows to satisfy `minItems`, which is a constraint
+  rather than a description.
+- **Copy every value.** An object or array default is deep-copied on each use,
+  so two rows filled from one declaration share no mutable identity with each
+  other or with the schema.
+- **Insert a declared default exactly, including one that does not validate.**
+  JSON Schema does not require a `default` to satisfy its own schema, so
+  `{ type: 'integer', default: 'oops' }` materialises `'oops'` and ordinary
+  validation reports it. Sanitising or skipping it would make initialization a
+  second validator with its own opinion, which rule 1 exists to prevent.
+- **Two applicable declarations that disagree are a diagnostic, not a
+  guess.** One applicable default is used; several that are equal are used;
+  several that differ leave the location absent and report it. `allOf` with two
+  branches declaring different defaults for the same property has no nearest
+  declaration, and resolving it by schema order would build semantics out of
+  traversal order. This is the same answer `ambiguous-projection-shape` already
+  gives for a shape two keyword families disagree about.
 
-The iteration terminates because it is monotone: a pass may only fill locations
-that are absent and unmaterialised, and never revisits one, so a pass that writes
-nothing is the end. A recursive schema can keep revealing new locations, so the
-pass count is bounded; **reaching the bound emits a diagnostic rather than
-truncating silently**, which is the lesson from the applicator depth cap that
-deleted valid candidates in #118.
+### The pass, precisely
+
+Each pass reads one snapshot and writes once:
+
+1. project the current data,
+2. find every reachable location that is absent and has an applicable default,
+3. resolve conflicts by the rule above,
+4. apply those writes as one step.
+
+Repeat until a pass writes nothing. More than one pass is needed rather than
+merely tidy: `a` defaults to `true`, which reveals `b`, which defaults to
+`true`, which reveals `c`. One pass after the unconditional defaults reaches
+`b` and not `c`.
+
+**Convergence is bounded and the bound is transactional.** Monotonicity alone
+does not terminate, because a recursive schema can keep revealing new locations;
+the reachable set has to be finite for the argument to close, and nothing
+guarantees that. So initialization runs to a budget, and exceeding it **discards
+the whole initialization and surfaces an error**, leaving the caller's data as
+supplied. Keeping the partial writes would make the resulting data depend on the
+budget, which is an arbitrary number. This also answers where the diagnostic
+goes: it is an initialization failure reported to the caller, not a projection
+diagnostic, so it does not touch the channel documented as describing schemas.
 
 ### What this costs
 
-A location seeded after construction is not in `state.initialData`, so it
-reports `modified: true`. That is the honest answer, since the user did change
-the form, but it means "modified" can be true for a field the user never typed
-into. Recorded rather than hidden.
-
-The rest of the cost is the dependency in rule 5. Nothing new is stored, and
-that is only sound while keys are never removed.
+A location seeded after construction is not in `state.initialData`, so
+`modified` is true for it while `dirty`, `touched` and `pristine` still report
+that the user never edited that field. That combination is correct rather than
+merely tolerable: the value does differ from the baseline, and the user did not
+type it. The user may have changed a discriminator, or nothing at all. The four
+flags together say exactly that, and all four need pinning, because carried node
+interaction state is not recomputed just because the data changed.
 
 ### What stays open
 
-**Which branch counts as reachable while a discriminator is ambiguous.** A
-`oneOf` the data identifies but leaves incomplete is the subject of #120, and
-its two-axis `active`/`provisional` model decides whether a provisional branch's
-locations are reachable for this purpose. Seeding from a provisional branch and
-seeding from an active one are different promises. Not decided here, and it
-blocks implementation rather than the contract.
+**Whether a provisionally selected branch is reachable.** Rule 5 turns on
+"reachable", and #120 has not settled whether a `oneOf` branch the data
+identifies but leaves incomplete exposes its locations. Seeding from a
+provisional branch and seeding from a settled one are different promises, so
+this is a hole in the contract and not only in its implementation. **ADR-003
+stays Proposed until #120 answers it**, and
+`initialization: 'schema-defaults'` is not published before then.
 
-**Where the iteration-bound diagnostic goes.** There is no channel for it yet.
-`SchemaProjection.diagnostics` is documented as describing schemas rather than
-data and belongs to the projection, while the bound is reached inside
-`createFormRuntime` and is a fact about one initialization run. Reusing the
-projection channel would break the boundary that channel was given; a new one
-is a public API addition that this ADR does not decide. Undecided, and small.
+**Root defaults.** Once initialization exists, `initialData` omitted,
+`initialData: {}` and a root-level `default` are three different inputs, and the
+runtime currently turns the first into the second before projection, which is
+the `??` in #124. The implementation has to keep enough information to know
+whether the root was actually absent, so #124 is a prerequisite rather than a
+neighbour.
+
+**An omitted `InsertItem` value.** `handleInsertItem` writes
+`cmd.value ?? null`, so an insert with no value cannot be told from an insert of
+an explicit `null` and the row arrives holding `null`. Under this contract
+`null` is a value, so a new row could never receive its item default. Measured
+and pinned in `absence-reference.test.ts`, tracked as #127, and a prerequisite:
+the three cases have to become distinguishable before a row can be initialized
+at all.
 
 ## Consequences
 
@@ -243,18 +289,29 @@ implied by the schema.
 
 For an adopter who does ask, the behaviour matches the reference on every
 uncontroversial case and on the user-activated conditional that Backstage's own
-documented template uses. Three divergences remain, and in all three the
-reference is the one that is wrong: it discards an object-level default, it
-creates array rows to satisfy a constraint rather than a description, and it
-leaves a branch activated by its own discriminator default unfilled while
-rendering the field.
+documented template uses. Four divergences remain.
+
+Three are cases where the reference is wrong: it creates array rows to satisfy a
+constraint rather than a description, it leaves a branch activated by its own
+discriminator default unfilled while rendering the field, and it resolves two
+equally applicable disagreeing defaults by traversal order rather than reporting
+them.
+
+The fourth is a case where the two are simply different, and it is worth being
+plain about which. On an object that declares both its own `default` and a
+property-level one, the reference lets the property win; this contract
+materialises the container's default whole and lets property declarations fill
+only what it left absent. Neither is what the reference does with a
+container-only default, which it discards entirely. The contract's answer is
+chosen for internal consistency with "fill only absent" rather than for parity,
+so an adopter with a schema of that shape sees a different value.
 
 One measured behaviour is deliberately **not** listed as a divergence, because
 it is not one: both runtimes keep the data of a branch that has stopped
 applying, and both therefore submit it. That is a question about what a
 submission contains rather than about defaults, it predates this contract, and
 it is tracked as #126. How that one is resolved matters here: pruning data when
-a branch deactivates would break rule 5's dependency, filtering at submission
+a branch deactivates would end rule 5's consequence, filtering at submission
 time would leave it intact.
 
 Nothing about validation changes, so no conformance result moves.
@@ -265,19 +322,27 @@ Nothing about validation changes, so no conformance result moves.
 is the failure named at the top: an annotation becoming data with nobody having
 asked.
 
-**Materialise once at construction and never again.** This was the first
-decision written here, on the grounds that filling later would make a cleared
-field refill and become unclearable. It is rejected because the premise is
-false in this runtime: a cleared field keeps its key, so a later pass cannot
-refill it. With the objection gone, refusing to fill on activation only buys a
+**Materialise once at construction and never again.** The first decision
+written here, on the grounds that filling later would make a cleared field
+refill and become unclearable. It is rejected because the premise is false in
+this runtime: a cleared field keeps its key, so a later pass cannot refill it.
+With the objection gone, refusing to fill on activation only buys a
 user-activated branch's fields starting empty, and the template the adoption
 exercise uses is exactly that shape.
 
-**Carry an explicit set of materialised locations.** The second decision written
-here, and it is what rule 5 would need if keys were ever removed. It is rejected
-now because nothing removes them, so the set would be state that can never
-change an outcome. Rule 5 names the condition under which this becomes the right
-answer instead.
+**Promise once-per-location and derive it from key retention.** The second
+decision written here, and the one that took a reviewer to dislodge. It is
+rejected because the promise and the mechanism were not the same contract: the
+mechanism fills whatever is reachable and absent, and "never again" was a
+property of the runtime's retention behaviour rather than anything the rule
+enforced. Publishing the stronger sentence would have made an unowned guarantee
+part of the API, with its only evidence in a spike the workspace CI does not
+run. Rule 5 now states the mechanism and names the consequence separately.
+
+**Carry an explicit set of materialised locations.** The state that would make
+once-per-location a real guarantee. Not rejected on the merits, and rule 5 names
+the condition that would call for it: it buys nothing today, because nothing
+removes a key, so it could not change an outcome.
 
 **Resolve conditionals once, against the data as supplied.** This is what the
 reference does, and it is one pass rather than a fixpoint. It is rejected
@@ -294,6 +359,12 @@ starting state.
 flexibility, and it lets a host inject values no schema declared, which is a
 larger hole than the problem being solved.
 
+**Prefilling a control from the annotation instead of materialising.** No data
+mutation, no option, and no bookkeeping, which is why it is tempting. It is
+rejected because it reproduces the defect: the user sees a value the submission
+does not carry, which is exactly the twelfth measured row. Rule 2 permits a
+default as a placeholder and forbids it as a control's value for this reason.
+
 ## Related
 
 - Friction log entry 7, `spikes/backstage-adoption/FRICTION-LOG.md`
@@ -302,4 +373,6 @@ larger hole than the problem being solved.
 - Issue #120, branch selection, which decides what "reachable" means for a
   provisional branch and therefore blocks implementation
 - Issue #126, a submission carrying data from a branch that no longer applies,
-  measured here; rule 5 depends on how it is resolved
+  measured here; rule 5's consequence depends on how it is resolved
+- Issue #127, an omitted `InsertItem` value becoming `null`, measured here and a
+  prerequisite for initializing a new row

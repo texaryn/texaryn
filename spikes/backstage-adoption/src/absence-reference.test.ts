@@ -43,6 +43,31 @@ describe('a filled location never becomes absent', () => {
     runtime.destroy()
   })
 
+  /**
+   * The prerequisite the defaults contract found rather than introduced.
+   * `handleInsertItem` writes `cmd.value ?? null`, so an insert with no value
+   * is indistinguishable from an insert of an explicit `null`, and the row
+   * arrives holding `null`. Since the contract treats `null` as a value that is
+   * never defaulted over, a newly inserted row could never receive its item
+   * default. Tracked as its own defect; the contract records it as a
+   * precondition rather than working around it.
+   */
+  it('an insert with no value writes null, which the defaults rule may not overwrite', async () => {
+    const port = await createJsonSchemaAdapter(
+      {
+        type: 'object',
+        properties: { list: { type: 'array', items: { type: 'string', default: 'seed' } } },
+      },
+      { defaultDialect: 'draft-07' },
+    )
+    const runtime = createFormRuntime(port, { initialData: { list: [] } })
+
+    runtime.dispatch({ type: 'InsertItem', containerId: pointerId(runtime, '/list'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ list: [null] })
+    runtime.destroy()
+  })
+
   it('deactivating a branch keeps the data it held', async () => {
     const port = await createJsonSchemaAdapter(
       {

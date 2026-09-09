@@ -320,6 +320,23 @@ describe('what RJSF does with default', () => {
     expect(backstage.revealedValue).toBe(rjsfDefault.revealedValue)
   })
 
+  /**
+   * The other half of the configuration question. Backstage's Stepper passes
+   * `formData={stepsState}`, and an untouched step's state is `{}` rather than
+   * an omitted prop. Omitting `formData` is not obviously the same input, since
+   * these cases turn on whether a property is absent.
+   */
+  it.each([
+    ['vacuous if', branchOn(false, false)],
+    ['required in if', branchOn(false, true)],
+    ['the staleness case', branchOn(true, true)],
+  ])('an empty formData object matches an omitted one: %s', (_label, schema) => {
+    const omitted = measure(schema, undefined, BACKSTAGE_BEHAVIOR)
+    const empty = measure(schema, {}, BACKSTAGE_BEHAVIOR)
+    expect(empty.payload).toEqual(omitted.payload)
+    expect(empty.revealedValue).toBe(omitted.revealedValue)
+  })
+
   it.each([
     [
       'an object-level default stays discarded',
