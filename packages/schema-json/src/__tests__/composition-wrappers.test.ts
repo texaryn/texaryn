@@ -115,3 +115,50 @@ describe('typeless composition wrappers', () => {
     expect(projection.diagnostics).toEqual([])
   })
 })
+
+/**
+ * The distinction the first version of this got wrong: entering a composition
+ * says nothing on its own about whose fault the missing shape is.
+ *
+ * A branch can be selected and still supply no shape, because scalar shapes
+ * are deliberately not inferred. That schema is unprojectable by this adapter
+ * whatever the value, so suppressing its diagnostic hid a real limitation
+ * behind a rule meant for transient data.
+ */
+describe('whose fault a missing shape is', () => {
+  it('reports branches that match but describe no renderable shape', async () => {
+    // Both branches match "abc", and neither says anything this adapter can
+    // draw. Nothing is wrong with the value; the schema is the problem.
+    const { pointers, codes } = await projectWith(
+      { anyOf: [{ minLength: 1 }, { pattern: '^a' }] },
+      'abc',
+    )
+    expect(pointers).toEqual([])
+    expect(codes).toEqual([':unresolved-projection-shape'])
+  })
+
+  it('reports an enum-only composition, whose members match', async () => {
+    const { codes } = await projectWith({ anyOf: [{ enum: ['a'] }, { enum: ['b'] }] }, 'a')
+    expect(codes).toEqual([':unresolved-projection-shape'])
+  })
+
+  it('reports a composition with no renderable branch even when nothing matches', async () => {
+    // Nothing matches, but there was never a branch worth rendering either, so
+    // this is a limitation rather than a passing data state.
+    const { codes } = await projectWith({ anyOf: [{ minLength: 5 }] }, 'ab')
+    expect(codes).toEqual([':unresolved-projection-shape'])
+  })
+
+  it('reports the selected branch even when a sibling branch is renderable', async () => {
+    // The object branch could render; the string branch is the one the value
+    // selected, and it cannot. The renderable sibling does not excuse it.
+    const { codes } = await projectWith({ anyOf: [{ type: 'object' }, { minLength: 1 }] }, 'abc')
+    expect(codes).toEqual([':unresolved-projection-shape'])
+  })
+
+  it('stays silent only when a renderable branch exists and none matched', async () => {
+    const schema = { anyOf: [{ type: 'object', required: ['a'] }, { type: 'string' }] }
+    expect((await projectWith(schema, 42)).codes).toEqual([])
+    expect((await projectWith(schema, {})).codes).toEqual([])
+  })
+})

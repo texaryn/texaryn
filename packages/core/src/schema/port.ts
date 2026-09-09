@@ -25,12 +25,20 @@ export interface SchemaProjection {
    * here. Nothing is guessed and no schema disappears without a word.
    *
    * The boundary worth stating, because it is what keeps this channel worth
-   * reading: these describe schemas, not data. A schema whose `oneOf` or
-   * `anyOf` branches the current value happens not to match is not reported,
-   * because that same schema projects a shape for a value that does match one.
-   * Whether the value is acceptable is validation's subject, and a form's data
-   * fails to match for most of the time someone is filling it in, so
-   * reporting it here would mean a diagnostic that flaps on every keystroke.
+   * reading: these describe schemas, not data.
+   *
+   * One case is therefore not reported, and only one: a `oneOf` or `anyOf`
+   * whose branches the current value does not match, where some branch would
+   * have rendered for a value that did. That same schema projects a shape for
+   * such a value, whether the value is acceptable is validation's subject, and
+   * a form's data fails to match for most of the time someone is filling it
+   * in, so reporting it would mean a diagnostic that flaps on every keystroke.
+   *
+   * Everything else about a composition is reported, including a branch that
+   * the value does match and that still supplies no shape, and a composition
+   * with no renderable branch at all. Both are limitations of the adapter
+   * rather than states of the data, and being inside a composition does not
+   * excuse them.
    *
    * Optional, so an adapter that reports nothing stays valid, and empty rather
    * than absent means "nothing to report".
