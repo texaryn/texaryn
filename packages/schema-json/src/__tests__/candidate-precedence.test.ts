@@ -117,22 +117,22 @@ describe('recursive references', () => {
   }
 
   /**
-   * A separate, pre-existing defect that writing these tests uncovered, pinned
-   * here rather than fixed, because it is a different mechanism: `walk`
-   * descends into every declared property whether or not the data reaches it,
-   * which is deliberate and is what lets an untouched optional field render.
-   * A schema referring to itself therefore has no bound on that descent, and
-   * the collector's own guard cannot help, because the recursion is not in the
-   * collector.
+   * `tree` is deliberately not projected here.
    *
-   * Verified against `main` before this change, so it is not a regression from
-   * recursive candidate collection. Tracked as issue #119. When it is fixed
-   * this test fails, which is the intended way to find it.
+   * A self-referential property overflows the stack, because `walk` descends
+   * into every declared property whether the data reaches it or not, so the
+   * descent has no bound. That is a pre-existing defect on a different
+   * mechanism from this collector's guard, verified against `main` before this
+   * change, and it is tracked as issue #119 with the reproduction.
+   *
+   * It is not asserted, and the first attempt to assert it is the reason:
+   * `toThrow(RangeError)` passed locally and failed in CI, because available
+   * stack depth varies with the platform and with the coverage instrumentation
+   * CI runs. A test that depends on where the stack happens to run out is not
+   * evidence of anything. The deterministic half of the same behaviour, that
+   * descent is static rather than data-driven, is already pinned by
+   * "derives a shape at every depth" in `implicit-types.test.ts`.
    */
-  it('overflows the stack on a self-referential property, still', async () => {
-    const adapter = await createJsonSchemaAdapter(tree, { defaultDialect: 'draft-07' })
-    expect(() => adapter.project({ name: 'root' })).toThrow(RangeError)
-  })
 
   it('handles a cycle reached through an applicator', async () => {
     const viaApplicator = {

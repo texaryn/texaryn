@@ -94,12 +94,25 @@ describe('the documented Backstage conditional', () => {
 
   /**
    * draft-07 `dependencies` applies only when the named property is present,
-   * so an absent trigger applies nothing. Correct, and asserted so it is not
-   * read as part of the defect.
+   * so an absent trigger requires nothing. Asserted so it is not read as part
+   * of the defect.
+   *
+   * The candidate is still projected, and that is the point of separating the
+   * two halves: which pointers can exist is a question about the schema and
+   * does not move with the data, while `active` is what tracks the data. A
+   * candidate set that shrank here would make the pointer appear and disappear
+   * as someone typed.
    */
-  it('applies nothing when the trigger property is absent', async () => {
+  it('requires nothing when the trigger property is absent, but still offers the field', async () => {
     expect((await verdict(documented, {})).valid).toBe(true)
-    expect(project(documented, {})).resolves.toBeDefined()
+
+    const projection = await project(documented, {})
+    expect([...projection.nodes.keys()]).toEqual(['', '/includeName', '/lastName'])
+    expect(projection.nodes.get('/lastName' as JsonPointer)?.active).toBe(false)
+    expect(projection.nodes.get('' as JsonPointer)?.children).toEqual([
+      { pointer: '/includeName', key: 'includeName', required: false },
+      { pointer: '/lastName', key: 'lastName', required: false },
+    ])
   })
 })
 
