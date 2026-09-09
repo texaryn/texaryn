@@ -8,13 +8,18 @@ import type { FormRuntime } from '@texaryn/core'
  * is the one behaviour the defaults contract in `docs/adr/003` depends on and
  * does not itself introduce.
  *
- * The contract fills only absent locations and claims that gives it
- * once-per-location for free. That holds exactly while nothing removes a key.
- * If either of these tests starts failing, rule 5 of that ADR needs an explicit
- * set of materialised locations, and for array rows it cannot be keyed by JSON
- * pointer.
+ * The contract fills only absent locations, and a filled location therefore
+ * cannot be filled twice exactly while nothing removes a key. If either of the
+ * first two tests starts failing, that consequence is gone and the ADR's rule 5
+ * has to take one of the two answers it names: carry an explicit set of
+ * materialised locations, keyed on stable item identity rather than a JSON
+ * pointer, or accept that a deleted property becomes eligible again.
  *
- * Measured against the published `@texaryn/core` 0.7.0, not the workspace.
+ * The third test is about a different dependency: whether the port can carry
+ * the information the contract's conflict rule needs.
+ *
+ * Measured against the published `@texaryn/core` 0.7.0 and
+ * `@texaryn/schema-json` 0.3.0, not the workspace.
  */
 function pointerId(runtime: FormRuntime, pointer: string): never {
   const nodes = Object.values(runtime.document.getSnapshot().nodes) as {
@@ -90,5 +95,39 @@ describe('a filled location never becomes absent', () => {
 
     expect(runtime.data.getSnapshot()).toEqual({ flag: false, revealed: 'typed' })
     runtime.destroy()
+  })
+})
+
+/**
+ * The contract says two equally applicable declarations that disagree are a
+ * diagnostic rather than a guess. This is what the port can currently express
+ * about that case, and the answer is nothing: `AnnotationSet.default` is one
+ * value, `extractAnnotations` reads it from the already-reduced schema, and the
+ * evaluator has merged the `allOf` branches by then. So the projection reports
+ * the later branch's value with no record that there were two, which is the
+ * traversal-order resolution the rule exists to forbid. Nothing reports it
+ * either: `SchemaProjection.diagnostics` does not exist in the published 0.7.0
+ * at all, since it is part of the held release, so this cannot even be asserted
+ * against here.
+ *
+ * The rule therefore needs the port to preserve candidate declarations, and
+ * until it does the rule is prose. Tracked as its own prerequisite.
+ */
+describe('what the port can say about two disagreeing defaults', () => {
+  it('collapses them to the later one, silently', async () => {
+    const port = await createJsonSchemaAdapter(
+      {
+        type: 'object',
+        allOf: [
+          { properties: { x: { type: 'string', default: 'a' } } },
+          { properties: { x: { type: 'string', default: 'b' } } },
+        ],
+      },
+      { defaultDialect: 'draft-07' },
+    )
+
+    const projection = port.project({})
+
+    expect(projection.nodes.get('/x' as never)?.annotations.default).toBe('b')
   })
 })

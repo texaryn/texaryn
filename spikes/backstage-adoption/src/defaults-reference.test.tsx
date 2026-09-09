@@ -56,14 +56,16 @@ function measure(
   return { payload, revealedValue }
 }
 
-function live(schema: unknown) {
+function live(schema: unknown, behavior?: unknown, formData: unknown = {}) {
   let latest: unknown
   const { container } = render(
     createElement(Form, {
       schema: schema as RJSFSchema,
       validator,
-      onChange: ({ formData }) => {
-        latest = formData
+      formData,
+      experimental_defaultFormStateBehavior: behavior as never,
+      onChange: ({ formData: next }) => {
+        latest = next
       },
       onError: () => {},
     }),
@@ -241,8 +243,11 @@ describe('what RJSF does with default', () => {
    * default after the form exists. It only fails to when the activation came
    * from the discriminator's own default instead of from a click.
    */
-  it('applies a branch default when the user activates the branch', () => {
-    const h = live(branchOn(false, true))
+  it.each([
+    ["RJSF's own defaults", undefined],
+    ["Backstage's option", BACKSTAGE_BEHAVIOR],
+  ])('applies a branch default when the user activates the branch, under %s', (_l, behavior) => {
+    const h = live(branchOn(false, true), behavior)
     expect(h.revealed()).toBeNull()
     fireEvent.click(h.flag())
     expect(h.revealed()?.value).toBe('appeared')
@@ -263,9 +268,31 @@ describe('what RJSF does with default', () => {
    * This matters beyond defaults: a value typed into a branch that is then
    * deactivated stays in the data and reaches the submission, so a scaffolder
    * action can read a parameter from a branch the form no longer applies.
+   *
+   * Two limits on how far these interactive cases reproduce Backstage. They now
+   * run under its `allOf` option as well, but they run through `@rjsf/core`'s
+   * own templates rather than `@rjsf/material-ui`, which is what Backstage
+   * renders. The theme cannot be installed here at all:
+   * `@material-ui/core@4.12.4` peers `react@^16.8.0 || ^17.0.0` and this spike
+   * runs React 19, which is friction log entry 1 in a sharper form than it was
+   * first recorded.
+   *
+   * What the theme could have changed is exactly what these cases turn on, what
+   * clearing the widget puts into the form data, so it was read rather than
+   * assumed. Both templates do the same thing:
+   *
+   *   @rjsf/core       onChange(value === '' ? options.emptyValue : value)
+   *   @rjsf/material-ui onChange(value === '' ? options.emptyValue : value)
+   *
+   * `options.emptyValue` is undefined unless a template sets `ui:emptyValue`,
+   * so a cleared input yields `undefined` either way and the theme cannot move
+   * this reading.
    */
-  it('keeps a cleared key present as undefined, which is why no default returns', () => {
-    const h = live(branchOn(false, true))
+  it.each([
+    ["RJSF's own defaults", undefined],
+    ["Backstage's option", BACKSTAGE_BEHAVIOR],
+  ])('keeps a cleared key present as undefined, under %s', (_l, behavior) => {
+    const h = live(branchOn(false, true), behavior)
     fireEvent.click(h.flag())
     expect(h.data()).toEqual({ flag: true, revealed: 'appeared' })
 
@@ -280,8 +307,11 @@ describe('what RJSF does with default', () => {
     h.done()
   })
 
-  it('submits a value typed into a branch that is no longer active', () => {
-    const h = live(branchOn(false, true))
+  it.each([
+    ["RJSF's own defaults", undefined],
+    ["Backstage's option", BACKSTAGE_BEHAVIOR],
+  ])('keeps a value typed into a branch that is no longer active, under %s', (_l, behavior) => {
+    const h = live(branchOn(false, true), behavior)
     fireEvent.click(h.flag())
     fireEvent.change(h.revealed()!, { target: { value: 'typed' } })
     fireEvent.click(h.flag())
