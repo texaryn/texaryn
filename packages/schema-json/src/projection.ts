@@ -278,38 +278,105 @@ function forEachSameInstanceSchema(
   visitOne(node, true)
 }
 
-/** The keywords whose reducer carries the upstream defect, at any depth. */
-const DEPENDENCY_KEYWORDS = ['dependencies', 'dependentSchemas', 'dependentRequired']
+/**
+ * The keyword whose reducer carries the upstream defect.
+ *
+ * Only the draft-07 spelling. Both of its forms, the array of names and the
+ * subschema, are parsed from this one keyword, and the native
+ * `dependentSchemas` and `dependentRequired` reducers do not perform the
+ * `reduceNode(…).node as SchemaNode` and `dynamicId` dereference that fails.
+ * Removing those as well was a broader intervention than the cause.
+ */
+const DEPENDENCY_KEYWORD = 'dependencies'
 
 /**
- * The same schema with every dependency keyword removed, at every depth.
+ * Keywords whose value is a schema, or a collection of them.
  *
- * Operates on the raw schema rather than the compiled graph, so there is
- * nothing to dereference and `$ref` stays the string it was. The `seen` set is
- * for a caller who hands over a cyclic object, which is user input and cheap to
- * guard against.
+ * The transformer below descends only into these. Everything else is either an
+ * instance value or an annotation, and walking into one corrupts it: `const`,
+ * `enum`, `default` and `examples` all hold data the author wrote, and a
+ * `const` of `{ dependencies: 'a string' }` is a perfectly ordinary value whose
+ * key means nothing. Treating a schema as a uniform object tree is what made
+ * "the same schema with the dependency keyword removed" untrue.
  */
-function withoutDependencies(schema: unknown, seen = new Set<object>()): unknown {
-  if (Array.isArray(schema)) return schema.map((entry) => withoutDependencies(entry, seen))
-  if (typeof schema !== 'object' || schema === null) return schema
-  if (seen.has(schema)) return schema
-  seen.add(schema)
+const SCHEMA_VALUED_KEYWORDS = [
+  'if',
+  'then',
+  'else',
+  'not',
+  'additionalProperties',
+  'items',
+  'additionalItems',
+  'contains',
+  'propertyNames',
+  'unevaluatedProperties',
+  'unevaluatedItems',
+]
+
+/** Keywords holding an array of schemas. */
+const SCHEMA_LIST_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems']
+
+/** Keywords holding a map of names to schemas. */
+const SCHEMA_MAP_KEYWORDS = [
+  'properties',
+  'patternProperties',
+  'definitions',
+  '$defs',
+  'dependentSchemas',
+]
+
+/**
+ * The same schema with the `dependencies` keyword removed wherever a schema can
+ * occur.
+ *
+ * Descends only through keywords whose values are schemas, because a JSON
+ * Schema is not a uniform object tree. `const`, `enum`, `default` and
+ * `examples` hold instance data, and a `const` of `{ dependencies: 'a string' }`
+ * is an ordinary value whose key is not a keyword; walking into it and dropping
+ * that key changes what the schema accepts. A transformer used to attribute a
+ * failure has to leave everything except the thing it is testing untouched, or
+ * the attribution is about a different schema.
+ *
+ * What it still cannot do is reach a `dependencies` behind a `$ref`, because
+ * the reference is a string here and resolving it would mean carrying the
+ * compiled context around. So a dependency reached only through a reference is
+ * not removed, the retry fails the same way, and the failure is reported rather
+ * than absorbed, which is the safe direction.
+ */
+function withoutDependencies(schema: unknown): unknown {
+  if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) return schema
 
   const stripped: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(schema)) {
-    if (DEPENDENCY_KEYWORDS.includes(key)) continue
-    stripped[key] = withoutDependencies(value, seen)
+    if (key === DEPENDENCY_KEYWORD) continue
+
+    if (SCHEMA_VALUED_KEYWORDS.includes(key)) {
+      stripped[key] = withoutDependencies(value)
+    } else if (SCHEMA_LIST_KEYWORDS.includes(key) && Array.isArray(value)) {
+      stripped[key] = value.map((entry) => withoutDependencies(entry))
+    } else if (SCHEMA_MAP_KEYWORDS.includes(key) && value && typeof value === 'object') {
+      stripped[key] = Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([name, subschema]) => [
+          name,
+          withoutDependencies(subschema),
+        ]),
+      )
+    } else {
+      // An instance value, an annotation, or a keyword this does not need to
+      // understand. Carried across exactly as written.
+      stripped[key] = value
+    }
   }
   return stripped
 }
 
 /**
- * Reduces the same data against the same schema with the dependency keywords
- * removed, so a failure can be attributed rather than guessed at.
+ * Reduces the same data against the same schema with the `dependencies`
+ * keyword removed, so a failure can be attributed rather than guessed at.
  *
- * If the failure goes with those keywords this returns, and the caller has its
- * answer: they caused it. If the failure survives them, this throws, and the
- * caller has its answer just as directly: it was never theirs.
+ * If the failure goes with that keyword this returns, and the caller has its
+ * answer: it caused it. If the failure survives, this throws, and the caller
+ * has its answer just as directly: it was never that keyword's.
  *
  * The alternative was to predict which schemas the reducer would visit for
  * this data, and that turned out to be the wrong shape twice over. Predicting
@@ -394,14 +461,15 @@ function reduceWithoutDependencies(node: SchemaNode, data: unknown): void {
 function reduceAgainst(node: SchemaNode, data: unknown): SchemaNode | undefined {
   try {
     return node.reduceNode(data).node ?? undefined
-  } catch {
-    // The retry decides, and it needs no branch of its own: if the failure
-    // goes with the dependency keywords, there is no node to report, and if it
-    // survives them then it was never theirs and the retry throws it onward.
-    // The caller then sees the stripped schema's error rather than the
-    // original, which is the same fault by definition, since removing the
-    // dependencies made no difference to it.
-    reduceWithoutDependencies(node, data)
+  } catch (failure) {
+    try {
+      reduceWithoutDependencies(node, data)
+    } catch {
+      // The retry is a diagnostic, so its exception is not the caller's
+      // business: the schema it reduced was modified, and its execution path
+      // with it. What the caller gets is the failure that actually happened.
+      throw failure
+    }
     return undefined
   }
 }
