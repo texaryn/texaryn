@@ -160,10 +160,17 @@ them. Projection never mutates data.**
    `FormRuntimeOptions.initialization: 'schema-defaults'` (default `'none'`).
 5. **The rule is: fill a location that is reachable and absent.** Absent means
    the property is not present; `false`, `0`, `''` and `null` are values.
-   Reachable means the projection exposes it given the data as it stands.
-   Construction is the first moment anything is reachable, so a schema without
-   conditionals is finished there; a branch the user activates later becomes
-   reachable then.
+
+   **Reachable is not "present in the projection".** A projection deliberately
+   contains the pointers of branches that do not currently apply, which is the
+   inactive-node contract: the walker keeps them so a form can show what could
+   exist, and `NodeProjection.active` is the bit that says whether one applies
+   now. Filling from a node merely because it is in `nodes` would seed every
+   branch of every `oneOf` at once. So reachable means **the node applies to the
+   data as it stands**, which before #120 means `active` is true and nothing
+   else qualifies. Construction is the first moment anything is reachable, so a
+   schema without conditionals is finished there; a branch the user activates
+   later becomes reachable then.
 
    **This is the contract, and "once per location" is not.** An earlier revision
    promised a location would be materialised once and never again, and that
@@ -225,6 +232,16 @@ them. Projection never mutates data.**
   traversal order. This is the same answer `ambiguous-projection-shape` already
   gives for a shape two keyword families disagree about.
 
+  **This rule is prose until the port can carry the case.**
+  `AnnotationSet.default` is a single value and `extractAnnotations` reads it
+  from the already-reduced schema, so the evaluator has merged the branches
+  before core sees anything. Measured: the two-branch `allOf` above projects
+  `/x` with `default: 'b'`, the later branch, with no record that there were
+  two. So the current behaviour is exactly the traversal-order resolution this
+  rule forbids, and the port needs to preserve candidate declarations rather
+  than one collapsed value. Pinned in `absence-reference.test.ts` and tracked as
+  #128, a prerequisite for this rule alone rather than for the whole contract.
+
 ### The pass, precisely
 
 Each pass reads one snapshot and writes once:
@@ -232,7 +249,18 @@ Each pass reads one snapshot and writes once:
 1. project the current data,
 2. find every reachable location that is absent and has an applicable default,
 3. resolve conflicts by the rule above,
-4. apply those writes as one step.
+4. drop any write whose location is a strict descendant of another write in this
+   pass,
+5. apply the rest as one step.
+
+Step 4 is what makes "materialised whole" true rather than merely intended.
+Without it, `{}` against a schema declaring `default` at both `/owner` and
+`/owner/team` yields both writes in one pass, and the pass is back to needing a
+precedence rule between them. Dropping the descendant leaves `/owner` written
+with its own default; the next pass reprojects, finds `/owner/team` present, and
+writes nothing. When the container's default omits `team`, that next pass finds
+it absent and the property-level default applies, which is the case the rule
+above says should still fill.
 
 Repeat until a pass writes nothing. More than one pass is needed rather than
 merely tidy: `a` defaults to `true`, which reveals `b`, which defaults to
@@ -243,11 +271,21 @@ merely tidy: `a` defaults to `true`, which reveals `b`, which defaults to
 does not terminate, because a recursive schema can keep revealing new locations;
 the reachable set has to be finite for the argument to close, and nothing
 guarantees that. So initialization runs to a budget, and exceeding it **discards
-the whole initialization and surfaces an error**, leaving the caller's data as
-supplied. Keeping the partial writes would make the resulting data depend on the
-budget, which is an arbitrary number. This also answers where the diagnostic
-goes: it is an initialization failure reported to the caller, not a projection
-diagnostic, so it does not touch the channel documented as describing schemas.
+the whole initialization**, leaving the caller's data as supplied. Keeping the
+partial writes would make the resulting data depend on the budget, which is an
+arbitrary number.
+
+**How that failure is delivered differs by call surface, and both are named
+rather than left to the implementation.** Initialization runs at two moments and
+they do not have the same shape: `createFormRuntime` returns a value, so it
+**throws**, and the caller is in a position to catch a runtime it never
+received. `dispatch` returns `void` and is typically called from an event
+handler, where throwing takes out the host's render, so a `Reset` that exhausts
+the budget **leaves the data untouched and reports on a store**, alongside
+`submission`. Both mean the same thing, that initialization did not happen and
+nothing was written, and neither uses the projection's diagnostics channel,
+which is documented as describing schemas rather than one run over data. The
+store's name is an API decision this ADR does not make.
 
 ### What this costs
 
@@ -282,7 +320,15 @@ an explicit `null` and the row arrives holding `null`. Under this contract
 `null` is a value, so a new row could never receive its item default. Measured
 and pinned in `absence-reference.test.ts`, tracked as #127, and a prerequisite:
 the three cases have to become distinguishable before a row can be initialized
-at all.
+at all. Distinguishing the command's input is not the whole of it, since an
+omitted element still needs a representation; a row should be initialized before
+its array value becomes externally observable rather than by leaving a hole or
+an `undefined` in public data.
+
+**Carrying disagreeing default declarations to core.** #128, above. The conflict
+rule cannot be implemented until the port stops collapsing them, and the shape
+of that addition is worth prototyping before it is designed, because the
+question is where detection happens rather than what the API looks like.
 
 ## Consequences
 
@@ -379,3 +425,5 @@ default as a placeholder and forbids it as a control's value for this reason.
   measured here; rule 5's consequence depends on how it is resolved
 - Issue #127, an omitted `InsertItem` value becoming `null`, measured here and a
   prerequisite for initializing a new row
+- Issue #128, the port collapsing two disagreeing defaults, measured here and a
+  prerequisite for the conflict rule alone
