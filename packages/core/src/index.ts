@@ -36,6 +36,8 @@ export { compile } from './ir/index.js'
 export type {
   SchemaEvaluationPort,
   SchemaProjection,
+  ProjectionDiagnostic,
+  ProjectionDiagnosticCode,
   NodeProjection,
   ChildProjection,
   AnnotationSet,

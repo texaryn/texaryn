@@ -1,6 +1,8 @@
 export type {
   SchemaEvaluationPort,
   SchemaProjection,
+  ProjectionDiagnostic,
+  ProjectionDiagnosticCode,
   NodeProjection,
   ChildProjection,
   AnnotationSet,

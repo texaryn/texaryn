@@ -1,9 +1,4 @@
-import type {
-  JsonPointer,
-  JsonSchemaType,
-  MaybePromise,
-  ValidationResult,
-} from '../types.js'
+import type { JsonPointer, JsonSchemaType, MaybePromise, ValidationResult } from '../types.js'
 import type { FieldConstraints, EnumOption } from '../ir/types.js'
 
 export interface SchemaEvaluationPort {
@@ -11,17 +6,68 @@ export interface SchemaEvaluationPort {
 
   validate(data: unknown): MaybePromise<ValidationResult>
 
-  validateAt?(
-    data: unknown,
-    pointer: JsonPointer,
-  ): MaybePromise<ValidationResult>
+  validateAt?(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult>
 }
 
 export interface SchemaProjection {
   nodes: Map<JsonPointer, NodeProjection>
+  /**
+   * Every place the adapter could not choose a shape to render, and why.
+   *
+   * A pointer absent from `nodes` renders no field, and without this the
+   * caller cannot tell an intentional omission from a schema the adapter did
+   * not understand. That distinction is not cosmetic: a schema declaring a
+   * field the form silently never collects is the failure mode this exists to
+   * make visible.
+   *
+   * The rule the codes divide up: an explicit `type` is used, an unambiguous
+   * structural shape is derived, and everything else is reported here. Nothing
+   * is guessed and nothing disappears without a word.
+   *
+   * Optional, so an adapter that reports nothing stays valid, and empty rather
+   * than absent means "nothing to report".
+   */
+  diagnostics?: readonly ProjectionDiagnostic[]
 }
 
+/**
+ * One reason a pointer has no node.
+ *
+ * `code` is a stable identifier a caller can branch on; `message` is for a
+ * person reading a log and is not a contract.
+ */
+export interface ProjectionDiagnostic {
+  pointer: JsonPointer
+  code: ProjectionDiagnosticCode
+  message: string
+}
+
+export type ProjectionDiagnosticCode =
+  /**
+   * The schema declares no `type` and carries keywords belonging to more than
+   * one JSON type, so there is no single shape to present. Choosing between
+   * them would render a control for a shape the author never committed to.
+   */
+  | 'ambiguous-projection-shape'
+  /**
+   * The schema declares no `type` and carries nothing that implies one. An
+   * `enum` is the common case, and deliberately not treated as a string:
+   * JSON Schema permits heterogeneous members, so `enum` says what the values
+   * are and not what type they have.
+   */
+  | 'unresolved-projection-shape'
+
 export interface NodeProjection {
+  /**
+   * The shape a renderer should present, which is not an assertion about the
+   * instance's JSON Schema type.
+   *
+   * For a schema declaring `type`, the two coincide. For one that does not,
+   * an adapter may still derive a shape from the schema's structural keywords,
+   * and doing so changes nothing about validation: `{ properties: {...} }`
+   * projects as an object and continues to accept a string, because the object
+   * keywords are inapplicable to one.
+   */
   type: JsonSchemaType
   format?: string
   constraints: FieldConstraints

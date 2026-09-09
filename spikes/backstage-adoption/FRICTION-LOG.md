@@ -251,6 +251,26 @@ only to the Texaryn side, because RJSF needs no such help. Every field the
 comparison later reports is therefore a field that survived this pass, which is
 worth remembering when reading the results: without it there is no form at all.
 
+Note the shortcut this workaround takes, because the real fix must not: it
+rewrites the schema before compiling it, which changes validation as well as
+the form. `{ properties: { name: … } }` accepts a string under JSON Schema, and
+after this pass it does not. That is tolerable in a harness measuring form
+shape and wrong in the library.
+
+**Status: addressed upstream, pending release.** `@texaryn/schema-json` now
+derives a form shape from structural keywords without touching the schema.
+Measured by installing the packed tarball into this spike and deleting the
+workaround: all 49 step comparisons pass, along with the array, enum-array,
+defaults, secrets, custom-field, format and resolver files, 90 of 92 tests. The
+two failures are this entry's own pins in `findings.test.ts`, which is the
+ratchet working as intended.
+
+The workaround is still committed, because this spike installs from the
+registry and the fix is unpublished. `src/workarounds.test.ts` asserts the
+workaround is still necessary against the installed version, so the day it
+publishes that test fails and says to delete `infer-types.ts`. That keeps the
+retirement from depending on anyone remembering.
+
 ### 3. Conditional fields: the validator honours the conditional, the form does not
 
 **Category: blocker. No workaround attempted, because there is nothing to work
