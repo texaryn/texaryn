@@ -57,9 +57,14 @@ what stops a deviation covering a test that later fails for a new reason.
 **External schema resolution** accounts for every failure of both adapters
 except the two classes below. The suite expects documents to be retrieved from
 `http://localhost:1234`, and neither adapter factory exposes a resolver hook.
-The two then diverge in a way worth knowing: `@texaryn/schema-json` validates
-as though the reference contributed nothing, while
-`@texaryn/schema-json-hyperjump` refuses to compile at all.
+
+Both fail closed, which is the part worth knowing, and they do it at different
+points. `@texaryn/schema-json` compiles, then reports the unresolved reference
+as a `$ref` validation error, so the instance is judged invalid whatever the
+referenced schema would have said; constraints beside the reference are still
+applied. `@texaryn/schema-json-hyperjump` refuses to compile at all. Neither
+silently drops the constraint, so an unresolvable reference cannot let data
+through unchecked.
 
 **Standard metaschema** is kept separate, because it is a different promise. A
 handful of cases `$ref` the dialect's own metaschema by its canonical URI to

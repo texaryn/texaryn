@@ -135,7 +135,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -158,8 +158,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -257,7 +257,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "ref.json :: remote ref, containing refs itself :: remote ref valid": {
             "reason": "standard-metaschema-resolution-missing",
@@ -265,7 +265,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -273,7 +273,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -281,7 +281,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -289,7 +289,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -297,7 +297,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -305,7 +305,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -313,7 +313,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -321,7 +321,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -329,7 +329,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref with ref to definitions :: valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -337,7 +337,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -345,7 +345,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -353,7 +353,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -361,7 +361,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           }
         }
       },
@@ -398,8 +398,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -425,7 +425,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -473,7 +473,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -645,7 +645,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -668,8 +668,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -749,7 +749,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -824,7 +824,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -839,7 +839,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "ref.json :: remote ref, containing refs itself :: remote ref valid": {
             "reason": "standard-metaschema-resolution-missing",
@@ -847,7 +847,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -855,7 +855,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -863,7 +863,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -871,7 +871,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -879,7 +879,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -887,7 +887,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -895,7 +895,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -903,7 +903,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -911,7 +911,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -919,7 +919,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -927,7 +927,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -935,7 +935,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -943,7 +943,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -951,7 +951,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -959,7 +959,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -967,7 +967,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -975,7 +975,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
             "reason": "external-schema-resolution-not-exposed",
@@ -983,7 +983,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. With no resolver the custom vocabulary is never read and the validation keywords stay active."
+            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read, so the validation keywords stay active and the instance is judged against them."
           }
         }
       },
@@ -1021,8 +1021,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1048,7 +1048,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1096,7 +1096,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -1268,7 +1268,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1291,8 +1291,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1372,7 +1372,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -1447,7 +1447,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -1462,7 +1462,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1470,7 +1470,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1478,7 +1478,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
           },
           "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1486,7 +1486,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1494,7 +1494,7 @@
               "kind": "validate-error",
               "errorName": "TypeError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') rather than reporting the unresolved reference."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1502,7 +1502,7 @@
               "kind": "validate-error",
               "errorName": "TypeError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') rather than reporting the unresolved reference."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1510,7 +1510,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
           },
           "ref.json :: remote ref, containing refs itself :: remote ref valid": {
             "reason": "standard-metaschema-resolution-missing",
@@ -1518,7 +1518,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$ref names the dialect's own metaschema by absolute URI. createJsonSchemaAdapter exposes no resolver hook and json-schema-library does not carry the metaschema, so the reference contributes nothing and the schema-validity assertion is not made."
+            "note": "$ref names the dialect's own metaschema by absolute URI to assert that the instance is itself a valid schema. json-schema-library does not carry the metaschema documents and createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1526,7 +1526,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1534,7 +1534,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1542,7 +1542,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1550,7 +1550,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1558,7 +1558,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1566,7 +1566,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1574,7 +1574,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1582,7 +1582,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1590,7 +1590,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1598,7 +1598,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1606,7 +1606,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1614,7 +1614,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1622,7 +1622,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1630,7 +1630,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1638,7 +1638,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1646,7 +1646,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference is never resolved and validation proceeds without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
             "reason": "external-schema-resolution-not-exposed",
@@ -1654,7 +1654,7 @@
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. With no resolver the custom vocabulary is never read and the validation keywords stay active."
+            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read, so the validation keywords stay active and the instance is judged against them."
           }
         }
       }
@@ -1696,8 +1696,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1723,7 +1723,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1918,7 +1918,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1941,8 +1941,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2022,7 +2022,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2404,8 +2404,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -2431,7 +2431,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -2479,7 +2479,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -2651,7 +2651,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -2674,8 +2674,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2755,7 +2755,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2830,7 +2830,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -3221,8 +3221,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -3248,7 +3248,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -3296,7 +3296,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -3468,7 +3468,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -3491,8 +3491,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -3572,7 +3572,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -3647,7 +3647,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
