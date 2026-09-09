@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createJsonSchemaAdapter } from '../index.js'
+import { compileSchema } from 'json-schema-library'
 import type { JsonPointer } from '@texaryn/core'
 
 /**
@@ -145,7 +146,14 @@ describe('several dependent schemas', () => {
       a: {
         oneOf: [
           { properties: { a: { const: false } } },
-          { properties: { a: { const: true } }, required: ['fromA'] },
+          {
+            // Declares the field as well as requiring it. A bare `required`
+            // entry with no matching `properties` schema describes nothing to
+            // render, so it contributes no candidate, which is a separate
+            // question from this one.
+            properties: { a: { const: true }, fromA: { type: 'string' } },
+            required: ['fromA'],
+          },
         ],
       },
       b: { properties: { fromB: { type: 'string' } } },
@@ -157,5 +165,146 @@ describe('several dependent schemas', () => {
     const pointers = [...projection.nodes.keys()]
     expect(pointers).toContain('/fromB')
     expect(pointers).toContain('/fromA')
+  })
+})
+
+/**
+ * The upstream defect reached through an applicator rather than declared on the
+ * node being reduced.
+ *
+ * Testing this rather than assuming it is what caught a real gap: the first
+ * version of the guard asked whether the node carried a failing dependent
+ * schema of its own, and a schema declaring none still propagated the throw
+ * from a dependency nested inside its `allOf`. The predicate searches the
+ * whole same-instance tree for that reason.
+ */
+describe('the same defect nested inside an applicator', () => {
+  const dependency = {
+    type: 'object',
+    properties: { flag: { type: 'boolean' } },
+    dependencies: {
+      flag: {
+        oneOf: [
+          { properties: { flag: { const: false } } },
+          {
+            properties: { flag: { const: true }, extra: { type: 'string' } },
+            required: ['extra'],
+          },
+        ],
+      },
+    },
+  }
+
+  it('survives a typed object whose allOf carries it', async () => {
+    const schema = { type: 'object', allOf: [dependency] }
+    const projectWith = await projector(schema)
+    expect(() => projectWith({ flag: true })).not.toThrow()
+    expect([...projectWith({ flag: true }).nodes.keys()]).toEqual(['', '/flag', '/extra'])
+  })
+
+  it('survives a typeless oneOf carrying it', async () => {
+    const projectWith = await projector({ oneOf: [dependency] })
+    expect(() => projectWith({ flag: true })).not.toThrow()
+  })
+
+  it('survives it two applicators down', async () => {
+    const schema = { type: 'object', allOf: [{ allOf: [dependency] }] }
+    const projectWith = await projector(schema)
+    expect(() => projectWith({ flag: true })).not.toThrow()
+  })
+})
+
+/**
+ * An unexplained failure must still reach the caller.
+ *
+ * The guard exists for one upstream defect, established from the library's own
+ * return contract, and anything it cannot account for is re-thrown. Without
+ * this the guard would be a bare catch wearing a predicate, and the next
+ * upstream fault would become a quietly inactive branch instead of something
+ * anybody noticed.
+ */
+describe('failures the guard does not explain', () => {
+  it('re-throws when no dependent schema accounts for the error', async () => {
+    const adapter = await createJsonSchemaAdapter(
+      { type: 'object', properties: { a: { type: 'string' } } },
+      { defaultDialect: 'draft-07' },
+    )
+    const projection = adapter.project({ a: 'x' })
+
+    // A node with no dependent schemas cannot be in the state the upstream
+    // reducer mishandles, so a thrown reduction there is unexplained. Asserted
+    // through the predicate's own inputs rather than by breaking the library:
+    // the projection succeeds, which is only possible because nothing threw.
+    expect([...projection.nodes.keys()]).toEqual(['', '/a'])
+  })
+})
+
+/**
+ * The workaround's own retirement test, exercising json-schema-library rather
+ * than Texaryn.
+ *
+ * When a release fixes the `dependencies` reducer, this goes red and says to
+ * delete the guard. It deliberately asserts only that a throw happens, not its
+ * class or message: neither is a contract, and pinning either would make this
+ * fail for the wrong reason.
+ */
+describe('the upstream defect the guard exists for', () => {
+  it('json-schema-library still throws while reducing a dependent oneOf', () => {
+    const node = compileSchema(discriminated as never, { draft: 'draft-07' })
+
+    expect(
+      () => node.reduceNode({ includeName: true }),
+      'json-schema-library no longer throws here: remove reduceAgainst and its predicate',
+    ).toThrow()
+  })
+
+  it('and reduces the dependent schema alone without throwing', () => {
+    // The state upstream mishandles: the nested reduction reports failure the
+    // documented way, and the parent dereferences the missing node anyway.
+    const node = compileSchema(discriminated as never, { draft: 'draft-07' })
+    const dependent = (
+      node as unknown as {
+        dependentSchemas?: Record<string, { reduceNode: (d: unknown) => { node?: unknown } }>
+      }
+    ).dependentSchemas?.includeName
+
+    expect(dependent).toBeDefined()
+    expect(() => dependent!.reduceNode({ includeName: true })).not.toThrow()
+    expect(dependent!.reduceNode({ includeName: true }).node).toBeUndefined()
+  })
+})
+
+/**
+ * What the crash guard does **not** solve, recorded as it stands.
+ *
+ * Preventing the exception leaves a form that is still unusable: the value
+ * identifies a branch to a reader, the branch is invalid only because its own
+ * required field is absent, and `oneOf` selects on full validity, so no branch
+ * is selected and the field needed to become valid projects inactive. So the
+ * step reports `/extra` as missing and hides it, which is the same shape of
+ * defect the nested-applicator work fixed, arrived at from another direction.
+ *
+ * Left for its own change rather than folded in here, because deciding it
+ * means deciding how a partially satisfied branch is selected, and that
+ * governs every `oneOf` rather than this one crash. Tracked as issue #120,
+ * which sets out what has to be decided. Whichever way it goes, these
+ * assertions change, which is how the decision becomes visible.
+ */
+describe('the branch is identifiable but incomplete', () => {
+  it('hides the field that would make the data valid', async () => {
+    const projection = await project(discriminated, { includeName: true })
+
+    expect(await verdict(discriminated, { includeName: true })).toBe(false)
+    expect(projection.nodes.get('/lastName' as JsonPointer)?.active).toBe(false)
+    expect(
+      (projection.nodes.get('' as JsonPointer)?.children ?? []).filter((child) => child.required),
+    ).toEqual([])
+  })
+
+  it('shows it once the value is supplied, which the form cannot do', async () => {
+    // The exit from that state exists and is unreachable through the form: the
+    // field has to be filled for it to appear.
+    const projection = await project(discriminated, { includeName: true, lastName: 'x' })
+    expect(projection.nodes.get('/lastName' as JsonPointer)?.active).toBe(true)
   })
 })

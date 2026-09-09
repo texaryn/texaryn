@@ -162,89 +162,11 @@ describe('recursive references', () => {
 })
 
 /**
- * The regression condition for keeping this change separate from the
- * `oneOf`-inside-`dependencies` crash. That defect is downstream of the
- * candidate collector: `walk` reduces the node before it collects candidates,
- * so recursive collection cannot repair or mask it. If this test starts
- * passing, the two concerns were conflated and the crash's own fix needs
- * rewriting rather than deleting this.
+ * The regression condition that kept the nested-applicator work separate from
+ * the `oneOf`-inside-`dependencies` crash has been retired, having done its
+ * job. It asserted the crash still threw, so that recursive candidate
+ * discovery could be shown not to have fixed it by accident, and it stayed red
+ * until the crash was fixed on purpose. The behaviour it guarded now lives in
+ * `dependency-composition.test.ts`, which asserts the projection succeeds
+ * rather than that it throws.
  */
-describe('the oneOf-inside-dependencies crash is untouched', () => {
-  const crashing = {
-    type: 'object',
-    properties: { flag: { type: 'boolean' } },
-    dependencies: {
-      flag: {
-        oneOf: [
-          { properties: { flag: { const: false } } },
-          { properties: { flag: { const: true } }, required: ['extra'] },
-        ],
-      },
-    },
-  }
-
-  it('still throws while the data satisfies no branch', async () => {
-    const adapter = await createJsonSchemaAdapter(crashing, { defaultDialect: 'draft-07' })
-    expect((await adapter.validate({ flag: true })).valid).toBe(false)
-    expect(() => adapter.project({ flag: true })).toThrow(TypeError)
-  })
-
-  it('still projects once a branch is satisfied', async () => {
-    const adapter = await createJsonSchemaAdapter(crashing, { defaultDialect: 'draft-07' })
-    expect(() => adapter.project({ flag: true, extra: 'x' })).not.toThrow()
-  })
-})
-
-/**
- * A valid schema is not allowed to lose fields for crossing an implementation
- * threshold.
- *
- * An earlier version of the collector carried a depth cap of 64 alongside the
- * cycle guard, and crossing it returned silently. These would have failed:
- * `/deep` is declared by a perfectly ordinary schema and simply sits further
- * down than the cap allowed. The cap is gone, and the cycle guard alone
- * terminates, so depth costs nothing.
- */
-describe('deeply nested applicators, without a cycle', () => {
-  /** `depth` nested `allOf` wrappers ending in one property. */
-  function nested(depth: number): Record<string, unknown> {
-    let inner: Record<string, unknown> = { properties: { deep: { type: 'string' } } }
-    for (let level = 0; level < depth; level += 1) inner = { allOf: [inner] }
-    return { type: 'object', properties: { shallow: { type: 'string' } }, ...inner }
-  }
-
-  it.each([10, 70, 120])('finds a property under %i applicators', async (depth) => {
-    const pointers = [...(await project(nested(depth), {})).nodes.keys()]
-    expect(pointers).toContain('/shallow')
-    expect(pointers).toContain('/deep')
-  })
-
-  it('reports no diagnostic for depth alone', async () => {
-    const projection = await project(nested(70), {})
-    expect(projection.diagnostics).toEqual([])
-  })
-
-  /**
-   * Depth through the conditional applicators as well, which is the shape a
-   * real template reaches: each level guards the next.
-   *
-   * Ten, not seventy, and the reason is worth recording rather than hiding
-   * behind a smaller number. `json-schema-library` has its own ceiling on
-   * nested `if`/`then` reduction, somewhere between fifteen and twenty levels
-   * on this machine, and it overflows the stack past it. Reproduced against
-   * `main` before this change, so it is upstream and pre-existing rather than
-   * anything to do with candidate collection. It is not asserted, because
-   * where a stack runs out varies with the platform and with coverage
-   * instrumentation, and a test that pins that number proves nothing. Ten is
-   * comfortably inside it; Backstage's own documented conditional is one level
-   * deep.
-   */
-  it('finds a property under nested conditionals', async () => {
-    let inner: Record<string, unknown> = { properties: { deep: { type: 'string' } } }
-    for (let level = 0; level < 10; level += 1) {
-      inner = { allOf: [{ if: { properties: { flag: { const: true } } }, then: inner }] }
-    }
-    const schema = { type: 'object', properties: { flag: { type: 'boolean' } }, ...inner }
-    expect([...(await project(schema, { flag: true })).nodes.keys()]).toContain('/deep')
-  })
-})

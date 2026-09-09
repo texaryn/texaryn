@@ -221,6 +221,182 @@ interface CandidateProperty {
 }
 
 /**
+ * Visits `node` and every schema that applies at the same instance location.
+ *
+ * The boundary is the same one candidate discovery needs and is stated once
+ * here rather than twice: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
+ * `dependentSchemas` and whatever a `$ref` resolves to all constrain the value
+ * at this pointer. `not` is excluded, because its subschema describes what the
+ * instance must not be; the values of `properties`, and `items`, are excluded
+ * because they describe other locations, and following them would confuse a
+ * grandchild with a sibling.
+ *
+ * `own` distinguishes the node itself from a schema reached through an
+ * applicator, which is what lets a caller treat the node's own declarations as
+ * more specific than a branch's.
+ *
+ * Termination is keyed on `schemaLocation` where a node has one and on the node
+ * itself where it does not. Those cover disjoint cases and neither alone
+ * suffices: a cycle requires a `$ref`, and `resolveRef()` returns a fresh
+ * `SchemaNode` on every call whose raw `schema` object is fresh too, so
+ * identity never matches across one, while those nodes do carry a location; an
+ * inline branch is never resolved through a ref, so its identity is stable
+ * within one traversal. There is deliberately no depth limit, because dropping
+ * a field for crossing a threshold is the silent disappearance the projection
+ * diagnostics exist to prevent.
+ *
+ * The visited set is per call. Deduplicating a schema location is only sound
+ * while examining one instance location; the same schema legitimately recurs
+ * at a deeper pointer, and `walk` reaches it again there.
+ */
+function forEachSameInstanceSchema(
+  node: SchemaNode,
+  visit: (schema: SchemaNode, own: boolean) => void,
+): void {
+  const visited = new Set<string | SchemaNode>()
+
+  const visitOne = (current: SchemaNode, own: boolean): void => {
+    const resolved = dereference(current)
+    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
+    const key = typeof location === 'string' ? location : resolved
+    if (visited.has(key)) return
+    visited.add(key)
+
+    visit(resolved, own)
+
+    for (const branch of [resolved.if, resolved.then, resolved.else]) {
+      if (branch) visitOne(branch, false)
+    }
+    for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
+      for (const branch of branches ?? []) visitOne(branch, false)
+    }
+    for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
+      if (dependency && typeof dependency === 'object') visitOne(dependency as SchemaNode, false)
+    }
+  }
+
+  visitOne(node, true)
+}
+
+/**
+ * Whether a thrown reduction is the one upstream defect this adapter works
+ * around, established from the library's own return contract rather than from
+ * the shape of the error.
+ *
+ * `reduceNode` models a reducer that cannot resolve as `{ node: undefined,
+ * error }`, and `oneOf` deliberately returns an error when zero or several
+ * branches match. json-schema-library 11.6.2 honours that everywhere except
+ * its `dependencies` reducer, which discards the error half, casts the missing
+ * node with `as SchemaNode`, and then dereferences it. Tracked as issue #121,
+ * which carries the reproduction and the upstream patch this should be
+ * replaced by:
+ *
+ * ```js
+ * const reducedDependency = { ...dependency }.reduceNode(data, …).node as SchemaNode
+ * workingNode = mergeNode(workingNode, reducedDependency) as SchemaNode
+ * const nestedDynamicId = reducedDependency.dynamicId?.replace(node.dynamicId, '') ?? ''
+ * ```
+ *
+ * `mergeNode` accepts undefined, so the second line survives; the optional
+ * chaining on the third guards `dynamicId` rather than `reducedDependency`,
+ * and that is where it throws.
+ *
+ * So the question this asks is not "what kind of error was that" but "is this
+ * node in the state that reducer mishandles": is there a dependent schema
+ * applying at this instance location which, reduced on its own through the
+ * public API, reports failure the documented way.
+ *
+ * It searches the whole same-instance tree rather than the node's own
+ * `dependentSchemas`, and testing is what showed that mattered: a schema like
+ * `{ type: 'object', allOf: [ … the dependency … ] }` declares none of its own
+ * and still propagates the throw, so a predicate looking only at the node
+ * re-threw a failure it should have explained. If so, the throw is explained and
+ * the failure is one the projection already knows how to represent. If not,
+ * the error is something else and is re-thrown, because a renderer swallowing
+ * unexplained failures is how a defect becomes a mystery.
+ *
+ * Deliberately not keyed on the error class or message. A message is not a
+ * contract, and `TypeError` would only record which line upstream happens to
+ * fail on today.
+ */
+function isDependentReductionFailure(node: SchemaNode, data: unknown): boolean {
+  const record = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {}
+  let explained = false
+
+  forEachSameInstanceSchema(node, (schema) => {
+    if (explained) return
+
+    const dependentSchemas = schema.dependentSchemas
+    if (!dependentSchemas) return
+
+    const declared = (schema.schema as { required?: unknown }).required
+    const required = Array.isArray(declared) ? (declared as string[]) : []
+
+    for (const [property, dependency] of Object.entries(dependentSchemas)) {
+      if (!dependency || typeof dependency !== 'object') continue
+      // Upstream processes a dependency whose trigger is present in the data or
+      // named in `required`, so those are the ones whose failure it can reach.
+      if (!Object.prototype.hasOwnProperty.call(record, property) && !required.includes(property)) {
+        continue
+      }
+      try {
+        if ((dependency as SchemaNode).reduceNode(data).node === undefined) {
+          explained = true
+          return
+        }
+      } catch {
+        // A dependency that throws on its own is a different fault, and not one
+        // this predicate is entitled to vouch for.
+      }
+    }
+  })
+
+  return explained
+}
+
+/**
+ * `reduceNode`, reporting the one failure it wrongly throws on the way this
+ * file already handles it.
+ *
+ * An unresolved reduction is a state the projection has semantics for: the
+ * node keeps its own declared properties as the active set, and candidates a
+ * branch contributed project with `active: false`. Nothing downstream needed
+ * changing, because `reducedNode` was already optional. Note what is *not*
+ * done here: the data is never replaced with `{}` to coax a reduction out of
+ * it, because that would project a different instance, one where dependencies
+ * do not apply and `if`/`then` may select the other way.
+ *
+ * The trade this makes is worth stating. A renderer must not throw because a
+ * form's data is briefly invalid, so an explained failure becomes an
+ * unresolved branch. Anything unexplained is re-thrown, which is why the
+ * predicate exists rather than a bare catch.
+ *
+ * And one thing the suite does not prove, which is worth admitting rather than
+ * implying: replacing the predicate with a bare catch fails no test here. No
+ * schema is known that makes `reduceNode` throw for a reason other than this
+ * defect, other than upstream's own stack overflow on `if`/`then` nested
+ * around twenty deep, and where a stack runs out varies by platform, so
+ * asserting it would pin the wrong thing. That overflow is the concrete reason
+ * the predicate stays: under a bare catch it would become a silently inactive
+ * form rather than a visible failure, which is precisely the trade this
+ * comment argues against making by default.
+ *
+ * No diagnostic is emitted. The channel describes schemas that cannot be
+ * projected, and this schema projects perfectly well for data that satisfies a
+ * branch: the condition tracks the value, so reporting it would flap on every
+ * keystroke. That an upstream bug throws while computing the state does not
+ * change what the schema means.
+ */
+function reduceAgainst(node: SchemaNode, data: unknown): SchemaNode | undefined {
+  try {
+    return node.reduceNode(data).node ?? undefined
+  } catch (error) {
+    if (isDependentReductionFailure(node, data)) return undefined
+    throw error
+  }
+}
+
+/**
  * Every property key that could appear at this node's own instance location,
  * across every branch that might apply to it.
  *
@@ -231,38 +407,14 @@ interface CandidateProperty {
  * set data-driven would delete a pointer the moment its branch stopped
  * matching, which is exactly the flicker the contract exists to prevent.
  *
- * **Recursion is through applicators only, and only those acting on this same
- * instance location**: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
- * `dependentSchemas`, and whatever a `$ref` resolves to. draft-07
- * `dependencies` needs no separate handling, because json-schema-library
- * normalises it into `dependentSchemas` at parse time.
- *
- * Three things are deliberately not followed:
- *
- * - **`not`**, because a subschema inside it describes a shape the instance
- *   must *not* satisfy. Collecting its properties as candidates would invert
- *   its meaning.
- * - **the values of `properties`**, because those describe a child location,
- *   not this one. `owner` is collected; the walk descends into `/owner`
- *   separately and collects `name` there. Following it here would make `name` a
- *   sibling of `owner`.
- * - **`items` and `prefixItems`**, for the same reason: an array's items are
- *   their own locations.
- *
- * The cycle guard keys on `schemaLocation` rather than on node identity, which
- * was measured rather than assumed and is the opposite of what it looks like it
- * should be: `resolveRef()` returns a fresh `SchemaNode` on every call, and the
- * raw `schema` object it wraps is fresh too, so an identity `Set` never matches
- * and a recursive `$ref` would not terminate. `schemaLocation` is stable, is
- * distinct for each inline branch position, and repeats when a reference closes
- * a cycle, which is precisely the three properties needed. The set is per call,
- * because deduplicating a schema location is only sound while collecting names
- * for one instance location; the same schema legitimately recurs at a deeper
- * pointer, and `walk` visits it again there.
+ * The traversal, its boundary and its termination are
+ * `forEachSameInstanceSchema`; this only decides what to do with each
+ * schema it is handed. A key the node declares itself is the more specific
+ * statement about that location, so it is kept apart from the keys branches
+ * contribute.
  */
 function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
   const candidates = new Map<string, CandidateProperty>()
-  const visited = new Set<string | SchemaNode>()
 
   const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
     const entry = candidates.get(key) ?? { alternatives: [] }
@@ -271,47 +423,12 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
     candidates.set(key, entry)
   }
 
-  const visit = (current: SchemaNode, own: boolean): void => {
-    const resolved = dereference(current)
-
-    // Keyed on `schemaLocation` where there is one, and on the node itself
-    // where there is not, which together cover every way the traversal can
-    // come back to where it started.
-    //
-    // Neither alone is sufficient and each covers what the other cannot. A
-    // cycle requires a `$ref`, because an inline schema cannot nest into
-    // itself, and `resolveRef()` returns a fresh `SchemaNode` on every call
-    // whose raw `schema` object is fresh too, so identity never matches across
-    // one; those nodes do carry a location. An inline branch is never resolved
-    // through a ref, so its identity is stable within one traversal.
-    //
-    // This deliberately replaced a depth cap. A cap terminates, but it does so
-    // by dropping candidates a valid schema declared, which is the silent
-    // disappearance the whole projection-diagnostic design exists to prevent:
-    // a field nested under 70 applicators is still a field.
-    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
-    const key = typeof location === 'string' ? location : resolved
-    if (visited.has(key)) return
-    visited.add(key)
-
-    for (const [key, propNode] of Object.entries(resolved.properties ?? {})) {
+  forEachSameInstanceSchema(node, (schema, own) => {
+    for (const [key, propNode] of Object.entries(schema.properties ?? {})) {
       record(key, propNode, own)
     }
+  })
 
-    for (const branch of [resolved.if, resolved.then, resolved.else]) {
-      if (branch) visit(branch, false)
-    }
-    for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
-      for (const branch of branches ?? []) visit(branch, false)
-    }
-    for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
-      if (dependency && typeof dependency === 'object') {
-        visit(dependency as SchemaNode, false)
-      }
-    }
-  }
-
-  visit(node, true)
   return candidates
 }
 
@@ -408,7 +525,7 @@ function walk(
 
   if (!type && (original.oneOf || original.anyOf)) {
     composedAgainstData = true
-    const { node: branchNode } = original.reduceNode(data)
+    const branchNode = reduceAgainst(original, data)
     if (branchNode) {
       resolved = branchNode
       schema = branchNode.schema as Record<string, unknown>
@@ -515,8 +632,7 @@ function walk(
     // wrapper case), it has already been reduced against the real `data` at this
     // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
-    const reducedNode =
-      resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
+    const reducedNode = resolved === original ? reduceAgainst(resolved, dataRecord ?? {}) : resolved
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
