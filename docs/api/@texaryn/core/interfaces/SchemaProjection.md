@@ -21,8 +21,16 @@ field the form silently never collects is the failure mode this exists to
 make visible.
 
 The rule the codes divide up: an explicit `type` is used, an unambiguous
-structural shape is derived, and everything else is reported here. Nothing
-is guessed and nothing disappears without a word.
+structural shape is derived, and a schema that yields neither is reported
+here. Nothing is guessed and no schema disappears without a word.
+
+The boundary worth stating, because it is what keeps this channel worth
+reading: these describe schemas, not data. A schema whose `oneOf` or
+`anyOf` branches the current value happens not to match is not reported,
+because that same schema projects a shape for a value that does match one.
+Whether the value is acceptable is validation's subject, and a form's data
+fails to match for most of the time someone is filling it in, so
+reporting it here would mean a diagnostic that flaps on every keystroke.
 
 Optional, so an adapter that reports nothing stays valid, and empty rather
 than absent means "nothing to report".

@@ -289,7 +289,14 @@ function walk(
   // type until its active branch is resolved against `data`. `original` is kept
   // separately so every branch's properties can still be collected below for the
   // inactive-node contract, even though only the matching branch's schema is used here.
+  // Whether a branch of this node's own `oneOf`/`anyOf` was resolved against
+  // `data`. Recorded so an unresolved shape can be attributed correctly below:
+  // on this path, "no shape" means the current value matches no branch, which
+  // is a fact about the data rather than about the schema.
+  let composedAgainstData = false
+
   if (!type && (original.oneOf || original.anyOf)) {
+    composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data)
     if (branchNode) {
       resolved = branchNode
@@ -318,11 +325,20 @@ function walk(
     const shape = inferProjectionShape(schema)
     if (shape.kind === 'resolved') {
       type = shape.type
+    } else if (shape.kind === 'none' && composedAgainstData) {
+      // Deliberately silent. A projection diagnostic describes a schema this
+      // adapter cannot turn into a shape, and this is not that: the schema
+      // projects perfectly well for a value that matches one of its branches,
+      // and the only thing wrong here is the current value. That is validation's
+      // subject, it is already reported there, and a form's data is in this
+      // state for most of the time someone is filling it in. A diagnostic that
+      // appears and disappears on each keystroke would train a caller to
+      // ignore the channel.
     } else {
-      // Reported rather than dropped in silence, either way. The field cannot
-      // be drawn without a shape, so the caller is told which pointer was
-      // skipped and why, instead of finding out from a form that never
-      // collected the value.
+      // Reported rather than dropped in silence. The field cannot be drawn
+      // without a shape, so the caller is told which pointer was skipped and
+      // why, instead of finding out from a form that never collected the
+      // value.
       diagnostics.push(
         shape.kind === 'ambiguous'
           ? {

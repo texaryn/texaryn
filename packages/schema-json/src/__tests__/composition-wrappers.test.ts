@@ -49,24 +49,48 @@ describe('typeless composition wrappers', () => {
   })
 
   /**
-   * Data-dependent, and correctly so: `project` takes data, and "no branch
-   * applies to this value" is a true statement about what can be rendered
-   * right now. Declaring `type` on the wrapper is what resolves it, which is
-   * what the message says.
+   * The line between the two channels, and the reason this is silent.
+   *
+   * A projection diagnostic describes a schema this adapter cannot turn into a
+   * shape. A wrapper whose branches the current value happens not to match is
+   * not that: the same schema projects fine for a value that does match one,
+   * so nothing is wrong with the schema and the only thing wrong is the value.
+   * Validation already owns that, and reports it.
+   *
+   * An earlier version of this file asserted the opposite and called it
+   * "correctly so", on the grounds that `project` takes data. That reasoning
+   * was wrong in a way worth recording: a form's data is in this state for
+   * most of the time someone is filling it in, so the diagnostic would appear
+   * and disappear on each keystroke, and a channel that flaps is a channel a
+   * caller learns to ignore.
    */
-  it('reports a wrapper whose branches the data does not select', async () => {
+  it('stays silent when the data merely matches no branch', async () => {
     const { pointers, codes } = await projectWith(
       { anyOf: [{ type: 'object', required: ['a'] }, { type: 'string' }] },
       42,
     )
     expect(pointers).toEqual([])
-    expect(codes).toEqual([':unresolved-projection-shape'])
+    expect(codes).toEqual([])
   })
 
-  it('stops reporting the same wrapper once the data selects a branch', async () => {
+  it('reports nothing for the same wrapper in either data state', async () => {
     const schema = { anyOf: [{ type: 'object', required: ['a'] }, { type: 'string' }] }
-    expect((await projectWith(schema, 42)).codes).toEqual([':unresolved-projection-shape'])
+    expect((await projectWith(schema, 42)).codes).toEqual([])
     expect((await projectWith(schema, { a: 1 })).codes).toEqual([])
+  })
+
+  /**
+   * The contrast that shows the rule is about the schema and not the data: an
+   * `allOf` wrapper has no branch to select, so it is unprojectable whatever
+   * the value is, and it reports in every data state.
+   */
+  it('reports an unprojectable wrapper in every data state', async () => {
+    const schema = { allOf: [{ properties: { a: { type: 'string' } } }] }
+    for (const data of [undefined, {}, { a: 'x' }, 42, null]) {
+      expect((await projectWith(schema, data)).codes, JSON.stringify(data)).toEqual([
+        ':unresolved-projection-shape',
+      ])
+    }
   })
 
   /**
