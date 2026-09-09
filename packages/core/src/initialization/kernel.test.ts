@@ -60,11 +60,14 @@ describe('what counts as absent', () => {
    * Refusing to write through a scalar is the guard issue #124 records at the
    * root: `setAtPointer` would spread `'plain'` into character keys.
    */
-  it('refuses to write through an ancestor that cannot hold a property', () => {
+  it('refuses to write through an ancestor that cannot hold a property, and says so', () => {
     const result = initialized(
       initializeDefaults({ owner: 'plain' }, fixed({ '/owner/team': one('platform') })),
     )
     expect(result.data).toEqual({ owner: 'plain' })
+    expect(result.refusals).toEqual([
+      { location: '/owner/team', reason: 'non-container-ancestor' },
+    ])
   })
 
   it('creates every parent a deeply nested child default needs', () => {
@@ -73,10 +76,9 @@ describe('what counts as absent', () => {
   })
 
   it('refuses to write through a scalar several levels up', () => {
-    const result = initialized(
-      initializeDefaults({ a: 'plain' }, fixed({ '/a/b/c': one(1) })),
-    )
+    const result = initialized(initializeDefaults({ a: 'plain' }, fixed({ '/a/b/c': one(1) })))
     expect(result.data).toEqual({ a: 'plain' })
+    expect(result.refusals).toEqual([{ location: '/a/b/c', reason: 'non-container-ancestor' }])
   })
 
   /**
@@ -84,9 +86,12 @@ describe('what counts as absent', () => {
    * between `{}` and `[]`, and ADR-003 leaves array rows to whatever #120 and
    * identity keys settle. The pass refuses rather than guessing.
    */
-  it('refuses to create a missing level that would have to be an array', () => {
+  it('refuses to create a missing level whose kind the pointer does not give, and says so', () => {
     const result = initialized(initializeDefaults({}, fixed({ '/rows/0/name': one('x') })))
     expect(result.data).toEqual({})
+    expect(result.refusals).toEqual([
+      { location: '/rows/0/name', reason: 'unknown-container-kind' },
+    ])
   })
 
   it('fills into an array the caller already supplied', () => {
@@ -107,6 +112,50 @@ describe('what counts as absent', () => {
     const data = { keep: 1 }
     initialized(initializeDefaults(data, fixed({ '/added': one(2) })))
     expect(data).toEqual({ keep: 1 })
+  })
+})
+
+describe('pointer segments that need escaping', () => {
+  /**
+   * `parsePointer` decodes `~1` to `/`, so anything that rebuilds a pointer by
+   * joining segments with `/` turns one property into two. Everything internal
+   * travels as segments for this reason.
+   */
+  it('treats a property whose name contains a slash as one level', () => {
+    const result = initialized(initializeDefaults({}, fixed({ '/a/b~1c': one(1) })))
+    expect(result.data).toEqual({ a: { 'b/c': 1 } })
+  })
+
+  it('treats a property whose name contains a tilde as one level', () => {
+    const result = initialized(initializeDefaults({}, fixed({ '/a/b~0c': one(1) })))
+    expect(result.data).toEqual({ a: { 'b~c': 1 } })
+  })
+
+  it('shadows a descendant of a container whose name needs escaping', () => {
+    const result = initialized(
+      initializeDefaults(
+        {},
+        fixed({ '/a~1b': one({ team: 'whole' }), '/a~1b/team': one('part') }),
+      ),
+    )
+    expect(result.data).toEqual({ 'a/b': { team: 'whole' } })
+  })
+
+  it('barriers a descendant of a conflicted container whose name needs escaping', () => {
+    const result = initialized(
+      initializeDefaults(
+        {},
+        fixed({
+          '/a~1b': [
+            { value: { team: 'x' }, sourceId: 'first' },
+            { value: { team: 'y' }, sourceId: 'second' },
+          ],
+          '/a~1b/team': one('part'),
+        }),
+      ),
+    )
+    expect(result.data).toEqual({})
+    expect(result.conflicts).toEqual([{ location: '/a~1b', sourceIds: ['first', 'second'] }])
   })
 })
 
@@ -194,6 +243,28 @@ describe('declarations that agree and declarations that do not', () => {
     )
     expect(result.data).toEqual({ name: 'unrelated' })
     expect(result.conflicts).toEqual([{ location: '/owner', sourceIds: ['first', 'second'] }])
+  })
+
+  /**
+   * The root is an ancestor of everything, so a conflict there has to stop the
+   * pass reaching through it. Leaving the root out of the ancestor walk let any
+   * child default defeat a root conflict and manufacture the root.
+   */
+  it('does not create a conflicted root to hold a descendant default', () => {
+    const result = initialized(
+      initializeDefaults(
+        undefined,
+        fixed({
+          '': [
+            { value: { a: 1 }, sourceId: 'first' },
+            { value: { a: 2 }, sourceId: 'second' },
+          ],
+          '/x': one(1),
+        }),
+      ),
+    )
+    expect(result.data).toBeUndefined()
+    expect(result.conflicts).toEqual([{ location: '', sourceIds: ['first', 'second'] }])
   })
 
   it('fills beneath a conflicted location once the caller supplied it', () => {

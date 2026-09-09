@@ -18,14 +18,13 @@ import { parsePointer } from '../json-pointer.js'
  */
 
 /**
- * Where a default applies.
+ * Where a default applies, as a JSON Pointer.
  *
- * The prototype addresses locations by JSON Pointer, which is enough for
- * objects and wrong for array rows: removing a row renumbers the pointers of
- * the rows after it, so a pointer does not identify a row across edits. Core
- * already has `IdentityKey` for that, and production has to use it. Recorded
- * here rather than worked around, because the pass below never removes a row
- * and so cannot observe the difference.
+ * A pointer is enough here because the pass carries no materialization history
+ * across edits: a location is an address within one snapshot, not the identity
+ * of a row over time. Persistent per-location state, if a later revision of the
+ * contract needs it, has to use core's stable item identity instead, because
+ * removing a row renumbers the pointers of the rows after it.
  */
 export type Location = JsonPointer
 
@@ -54,12 +53,28 @@ export interface DefaultConflict {
   readonly sourceIds: readonly string[]
 }
 
+/**
+ * A default the pass declined to apply. Reported rather than skipped, because an
+ * absent location that nothing explains is the failure mode the applicator depth
+ * cap in #118 taught against.
+ */
+export interface DefaultRefusal {
+  readonly location: Location
+  readonly reason:
+    /** An ancestor holds a scalar, so writing would destroy it. */
+    | 'non-container-ancestor'
+    /** An ancestor is absent and the pointer does not say what kind of container it is. */
+    | 'unknown-container-kind'
+}
+
 export type InitializationResult =
   | {
       readonly outcome: 'initialized'
       readonly data: unknown
       /** Locations left absent because their declarations disagreed. */
       readonly conflicts: readonly DefaultConflict[]
+      /** Locations left absent because the pass would have had to guess or destroy. */
+      readonly refusals: readonly DefaultRefusal[]
       readonly passes: number
     }
   /**
@@ -89,12 +104,12 @@ export function initializeDefaults(
   let current = data
 
   for (let pass = 1; pass <= maxPasses; pass += 1) {
-    const { writes, conflicts } = collect(current, view(current))
+    const { writes, conflicts, refusals } = collect(current, view(current))
     if (writes.length === 0) {
-      return { outcome: 'initialized', data: current, conflicts, passes: pass }
+      return { outcome: 'initialized', data: current, conflicts, refusals, passes: pass }
     }
     for (const write of writes) {
-      current = writeAtPointer(current, write.location, deepCopy(write.value))
+      current = writeAtSegments(current, write.segments, deepCopy(write.value))
     }
   }
 
@@ -102,23 +117,31 @@ export function initializeDefaults(
 }
 
 interface Write {
-  readonly location: Location
+  readonly segments: readonly string[]
   readonly value: unknown
 }
 
 function collect(
   data: unknown,
   view: InitializationView,
-): { writes: Write[]; conflicts: DefaultConflict[] } {
+): { writes: Write[]; conflicts: DefaultConflict[]; refusals: DefaultRefusal[] } {
   const candidates: Write[] = []
   const conflicts: DefaultConflict[] = []
+  const refusals: DefaultRefusal[] = []
   const conflicted = new Set<Location>()
 
   for (const location of view.reachable) {
     const declarations = view.defaults.get(location)
     if (!declarations || declarations.length === 0) continue
-    if (!isAbsent(data, location)) continue
-    if (!isWritable(data, location)) continue
+
+    const segments = parsePointer(location)
+    if (!isAbsent(data, segments)) continue
+
+    const refusal = refuse(data, segments)
+    if (refusal !== undefined) {
+      refusals.push({ location, reason: refusal })
+      continue
+    }
 
     const resolved = resolve(declarations)
     if (resolved === undefined) {
@@ -126,24 +149,24 @@ function collect(
       conflicts.push({ location, sourceIds: declarations.map((d) => d.sourceId) })
       continue
     }
-    candidates.push({ location, value: resolved.value })
+    candidates.push({ segments, value: resolved.value })
   }
 
   // A container default is materialised whole and recursed into on a later
   // pass, so a descendant write in this pass would be the precedence rule the
   // whole-value decision exists to avoid.
   const withoutDescendants = candidates.filter(
-    (write) => !candidates.some((other) => isStrictDescendant(write.location, other.location)),
+    (write) => !candidates.some((other) => isStrictDescendant(write.segments, other.segments)),
   )
 
   // A conflict produces no write, so the filter above has nothing to shadow a
   // descendant against, and creating the parent would materialise the location
   // the conflict said to leave absent.
   const writes = withoutDescendants.filter(
-    (write) => !hasConflictedAbsentAncestor(data, write.location, conflicted),
+    (write) => !hasConflictedAbsentAncestor(data, write.segments, conflicted),
   )
 
-  return { writes, conflicts }
+  return { writes, conflicts, refusals }
 }
 
 /** One declaration, or several that agree, resolve. Several that differ do not. */
@@ -158,8 +181,7 @@ function resolve(declarations: readonly DefaultCandidate[]): DefaultCandidate | 
  * from a missing key is the whole reason this cannot use `getAtPointer`, which
  * returns `undefined` for both.
  */
-function isAbsent(data: unknown, location: Location): boolean {
-  const segments = parsePointer(location)
+function isAbsent(data: unknown, segments: readonly string[]): boolean {
   if (segments.length === 0) return data === undefined
   let current: unknown = data
   for (const segment of segments.slice(0, -1)) {
@@ -171,32 +193,85 @@ function isAbsent(data: unknown, location: Location): boolean {
 }
 
 /**
- * Whether a write can reach the location without destroying something or
- * guessing.
+ * Why a write cannot be applied, or `undefined` when it can.
  *
  * An absent ancestor is created as an object. An ancestor holding a scalar is
  * refused, because writing through it would spread the scalar into character
  * keys, which is the corruption issue #124 records at the root. An absent
- * ancestor whose child segment is an array index is also refused: creating it
- * would mean choosing between `{}` and `[]`, and ADR-003 leaves array rows to
- * whatever #120 and identity keys settle. Refusing is not the same as skipping
- * silently, which is why a refusal is reported alongside the conflicts.
+ * ancestor whose next segment could be an array index is also refused: a
+ * pointer does not say whether `0` addresses the first element of an array or a
+ * property literally named `0`, so creating the container would mean guessing,
+ * and ADR-003 leaves array rows to whatever #120 and identity keys settle.
  */
-function isWritable(data: unknown, location: Location): boolean {
-  const segments = parsePointer(location)
+function refuse(data: unknown, segments: readonly string[]): DefaultRefusal['reason'] | undefined {
   let current: unknown = data
   for (let index = 0; index < segments.length; index += 1) {
     // `current` is the container that has to hold `segments[index]`.
-    if (current === undefined) return !isArrayIndex(segments[index]!)
-    if (!isContainer(current)) return false
-    if (index === segments.length - 1) return true
+    if (current === undefined) {
+      return couldBeArrayIndex(segments[index]!) ? 'unknown-container-kind' : undefined
+    }
+    if (!isContainer(current)) return 'non-container-ancestor'
+    if (index === segments.length - 1) return undefined
     current = (current as Record<string, unknown>)[segments[index]!]
   }
-  return true
+  return undefined
 }
 
-function isArrayIndex(segment: string): boolean {
+function couldBeArrayIndex(segment: string): boolean {
   return /^(0|[1-9][0-9]*)$/.test(segment)
+}
+
+function hasConflictedAbsentAncestor(
+  data: unknown,
+  segments: readonly string[],
+  conflicted: ReadonlySet<Location>,
+): boolean {
+  return properAncestors(segments).some(
+    (ancestor) => conflicted.has(ancestor.location) && isAbsent(data, ancestor.segments),
+  )
+}
+
+/**
+ * Every location strictly above this one, root first.
+ *
+ * The root is an ancestor of everything except itself, so a conflict there has
+ * to stop the pass reaching through it exactly as a conflict one level down
+ * does. Leaving the root out let a root conflict be defeated by any child
+ * default.
+ */
+function properAncestors(
+  segments: readonly string[],
+): { location: Location; segments: readonly string[] }[] {
+  if (segments.length === 0) return []
+  const ancestors = [{ location: '' as Location, segments: [] as readonly string[] }]
+  for (let length = 1; length < segments.length; length += 1) {
+    const prefix = segments.slice(0, length)
+    ancestors.push({ location: encodePointer(prefix), segments: prefix })
+  }
+  return ancestors
+}
+
+/**
+ * Rebuilds a pointer from decoded segments.
+ *
+ * `parsePointer` decodes `~1` to `/` and `~0` to `~`, so joining its results
+ * with `/` again would turn a property named `b/c` into two levels and let a
+ * property containing `~1` be read back as an escape. Everything internal
+ * therefore travels as segments, and this exists only where a `Location` has to
+ * be compared against the caller's own keys.
+ */
+function encodePointer(segments: readonly string[]): Location {
+  return segments
+    .map((segment) => `/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+    .join('') as Location
+}
+
+function isStrictDescendant(candidate: readonly string[], of: readonly string[]): boolean {
+  return candidate.length > of.length && of.every((segment, index) => candidate[index] === segment)
+}
+
+function isContainer(value: unknown): boolean {
+  return typeof value === 'object' && value !== null
 }
 
 /**
@@ -205,18 +280,16 @@ function isArrayIndex(segment: string): boolean {
  * `setAtPointer` is not used because it creates exactly one missing level and
  * throws a `TypeError` on two, which is a defect in its own right and is
  * tracked as #129. The pass needs the rule ADR-003 gives it, that a parent
- * object is created to hold a child default, at any depth. `isWritable` has
- * already established that nothing on the path is a scalar and that no missing
- * level would have to be an array.
+ * object is created to hold a child default, at any depth. `refuse` has already
+ * established that nothing on the path is a scalar and that no missing level
+ * would have to be an array.
  */
-function writeAtPointer(data: unknown, location: Location, value: unknown): unknown {
-  const segments = parsePointer(location)
+function writeAtSegments(data: unknown, segments: readonly string[], value: unknown): unknown {
   if (segments.length === 0) return value
 
   const [head, ...rest] = segments
   const child = isContainer(data) ? (data as Record<string, unknown>)[head!] : undefined
-  const written =
-    rest.length === 0 ? value : writeAtPointer(child, `/${rest.join('/')}` as Location, value)
+  const written = rest.length === 0 ? value : writeAtSegments(child, rest, value)
 
   if (Array.isArray(data)) {
     const copy = [...data]
@@ -224,31 +297,6 @@ function writeAtPointer(data: unknown, location: Location, value: unknown): unkn
     return copy
   }
   return { ...(isContainer(data) ? (data as Record<string, unknown>) : {}), [head!]: written }
-}
-
-function hasConflictedAbsentAncestor(
-  data: unknown,
-  location: Location,
-  conflicted: ReadonlySet<Location>,
-): boolean {
-  return properAncestors(location).some(
-    (ancestor) => conflicted.has(ancestor) && isAbsent(data, ancestor),
-  )
-}
-
-function properAncestors(location: Location): Location[] {
-  const segments = parsePointer(location)
-  return segments
-    .slice(0, -1)
-    .map((_, index) => `/${segments.slice(0, index + 1).join('/')}` as Location)
-}
-
-function isStrictDescendant(candidate: Location, of: Location): boolean {
-  return candidate !== of && candidate.startsWith(`${of}/`)
-}
-
-function isContainer(value: unknown): boolean {
-  return typeof value === 'object' && value !== null
 }
 
 /**
