@@ -172,11 +172,12 @@ describe('several dependent schemas', () => {
  * The upstream defect reached through an applicator rather than declared on the
  * node being reduced.
  *
- * Testing this rather than assuming it is what caught a real gap: the first
- * version of the guard asked whether the node carried a failing dependent
- * schema of its own, and a schema declaring none still propagated the throw
- * from a dependency nested inside its `allOf`. The predicate searches the
- * whole same-instance tree for that reason.
+ * Testing this rather than assuming it is what drove two redesigns. A first
+ * guard asked whether the node carried a failing dependent schema of its own,
+ * and a schema declaring none still propagated the throw from a dependency
+ * nested inside its `allOf`. Widening that search then created a worse bug of
+ * its own, and the attribution is now by experiment, which needs to know
+ * nothing about where the dependency sits.
  */
 describe('the same defect nested inside an applicator', () => {
   const dependency = {
@@ -215,26 +216,24 @@ describe('the same defect nested inside an applicator', () => {
 })
 
 /**
- * An unexplained failure must still reach the caller.
+ * A failure the dependency keywords do not account for must still reach the
+ * caller.
  *
- * The guard exists for one upstream defect, established from the library's own
- * return contract, and anything it cannot account for is re-thrown. Without
- * this the guard would be a bare catch wearing a predicate, and the next
- * upstream fault would become a quietly inactive branch instead of something
- * anybody noticed.
+ * Attribution is by experiment: the reduction is retried with those keywords
+ * removed, and only a failure that goes away with them is absorbed. Anything
+ * that survives the removal is re-thrown, so the next upstream fault stays
+ * visible instead of becoming a quietly inactive branch.
  */
-describe('failures the guard does not explain', () => {
-  it('re-throws when no dependent schema accounts for the error', async () => {
+describe('failures the dependency keywords do not explain', () => {
+  it('leaves an ordinary schema entirely alone', async () => {
     const adapter = await createJsonSchemaAdapter(
       { type: 'object', properties: { a: { type: 'string' } } },
       { defaultDialect: 'draft-07' },
     )
     const projection = adapter.project({ a: 'x' })
 
-    // A node with no dependent schemas cannot be in the state the upstream
-    // reducer mishandles, so a thrown reduction there is unexplained. Asserted
-    // through the predicate's own inputs rather than by breaking the library:
-    // the projection succeeds, which is only possible because nothing threw.
+    // No dependency keywords anywhere, so nothing is stripped and nothing is
+    // retried: the reduction is the one upstream would have done unaided.
     expect([...projection.nodes.keys()]).toEqual(['', '/a'])
   })
 })
@@ -242,18 +241,20 @@ describe('failures the guard does not explain', () => {
 /**
  * A dependency the data does not trigger, alongside one it does.
  *
- * The predicate only considers dependencies upstream would have processed,
- * which are those whose trigger is present in the data or named in `required`.
- * One that is neither is skipped rather than reduced, so an untriggered
- * dependency cannot accidentally explain a failure caused elsewhere.
+ * Which dependencies upstream chooses to process is upstream's business, and
+ * attribution by experiment never has to guess at it: the reduction either
+ * stops failing without the dependency keywords or it does not. An earlier
+ * guard did try to reproduce that rule and got it wrong, because upstream
+ * grows its `required` list as it walks, so a dependency whose trigger is
+ * absent can still run.
  */
 describe('an untriggered dependency beside a failing one', () => {
   const mixed = {
     type: 'object',
     properties: { other: { type: 'boolean' }, flag: { type: 'boolean' } },
     dependencies: {
-      // Declared first, and never triggered by the data below, so it is the
-      // one the predicate has to skip before reaching the failing dependency.
+      // Declared first and never triggered by the data below, so upstream
+      // reaches the failing dependency only after passing over this one.
       other: { properties: { fromOther: { type: 'string' } } },
       flag: {
         oneOf: [
@@ -282,11 +283,10 @@ describe('an untriggered dependency beside a failing one', () => {
 /**
  * A dependency whose own dependency carries the same defect.
  *
- * The predicate reduces each applicable dependent schema on its own to see
- * whether it reports failure the documented way. That reduction can itself
- * throw, when the dependency nests another one with the same shape, and a
- * throw there is a different fault which the predicate is not entitled to
- * treat as explaining anything.
+ * Nesting made the earlier prediction-based guards harder and harder to keep
+ * correct, and it costs the experimental one nothing: stripping the dependency
+ * keywords strips them at every depth, so a defect one level down goes with
+ * them exactly as one at the top does.
  */
 describe('a dependency nesting the same defect', () => {
   const nested = {
@@ -335,7 +335,7 @@ describe('the upstream defect the guard exists for', () => {
 
     expect(
       () => node.reduceNode({ includeName: true }),
-      'json-schema-library no longer throws here: remove reduceAgainst and its predicate',
+      'json-schema-library no longer throws here: remove reduceAgainst and withoutDependencies',
     ).toThrow()
   })
 
@@ -387,5 +387,87 @@ describe('the branch is identifiable but incomplete', () => {
     // field has to be filled for it to appear.
     const projection = await project(discriminated, { includeName: true, lastName: 'x' })
     expect(projection.nodes.get('/lastName' as JsonPointer)?.active).toBe(true)
+  })
+})
+
+/**
+ * The two cases that showed prediction was the wrong shape, kept because they
+ * are the reason the guard works by experiment.
+ *
+ * Both were written before the redesign and both failed against the guard that
+ * tried to predict which schemas the evaluator would visit.
+ */
+describe('why the failure is attributed by experiment', () => {
+  /**
+   * A branch the evaluator never reduces must not affect the branch it does.
+   *
+   * The outer `oneOf` has exactly one valid branch, the first, so upstream
+   * reduces that alone and never touches the broken dependency in the second.
+   * A guard that walked the schema statically found that dependency anyway and
+   * skipped the whole reduction, so `/visible` went inactive even though its
+   * branch was the selected one and the data was valid.
+   */
+  it('leaves the selected branch active when an unselected one is broken', async () => {
+    const schema = {
+      type: 'object',
+      properties: { kind: { type: 'string' }, flag: { type: 'boolean' } },
+      oneOf: [
+        { properties: { kind: { const: 'a' }, visible: { type: 'string' } } },
+        {
+          properties: { kind: { const: 'b' } },
+          dependencies: {
+            flag: {
+              oneOf: [
+                { properties: { flag: { const: false } } },
+                {
+                  properties: { flag: { const: true }, hidden: { type: 'string' } },
+                  required: ['hidden'],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    }
+    const data = { kind: 'a', flag: true }
+
+    expect(await verdict(schema, data)).toBe(true)
+    const projection = await project(schema, data)
+    expect(projection.nodes.get('/visible' as JsonPointer)?.active).toBe(true)
+    // The unselected branch's field is still a candidate, and inactive.
+    expect(projection.nodes.get('/hidden' as JsonPointer)?.active).toBe(false)
+  })
+
+  /**
+   * A dependency upstream processes although its trigger is absent.
+   *
+   * draft-07's array form of `dependencies` normalises to `dependentRequired`,
+   * and upstream grows the `required` list as it walks: `a` being present adds
+   * `b` to it, so dependency `b` runs even though `b` itself is absent from
+   * the data. A guard that decided which dependencies were applicable by
+   * reading the schema's own `required` missed that, and the crash it exists
+   * for still happened.
+   */
+  it('survives a dependency triggered through dependentRequired', async () => {
+    const schema = {
+      type: 'object',
+      properties: { a: { type: 'boolean' } },
+      dependencies: {
+        a: ['b'],
+        b: {
+          oneOf: [
+            { properties: { a: { const: false } } },
+            {
+              properties: { a: { const: true }, extra: { type: 'string' } },
+              required: ['extra'],
+            },
+          ],
+        },
+      },
+    }
+
+    const projectWith = await projector(schema)
+    expect(() => projectWith({ a: true })).not.toThrow()
+    expect([...projectWith({ a: true }).nodes.keys()]).toContain('/extra')
   })
 })

@@ -278,18 +278,86 @@ function forEachSameInstanceSchema(
   visitOne(node, true)
 }
 
+/** The keywords whose reducer carries the upstream defect, at any depth. */
+const DEPENDENCY_KEYWORDS = ['dependencies', 'dependentSchemas', 'dependentRequired']
+
 /**
- * Whether a thrown reduction is the one upstream defect this adapter works
- * around, established from the library's own return contract rather than from
- * the shape of the error.
+ * The same schema with every dependency keyword removed, at every depth.
  *
- * `reduceNode` models a reducer that cannot resolve as `{ node: undefined,
- * error }`, and `oneOf` deliberately returns an error when zero or several
- * branches match. json-schema-library 11.6.2 honours that everywhere except
- * its `dependencies` reducer, which discards the error half, casts the missing
- * node with `as SchemaNode`, and then dereferences it. Tracked as issue #121,
- * which carries the reproduction and the upstream patch this should be
- * replaced by:
+ * Operates on the raw schema rather than the compiled graph, so there is
+ * nothing to dereference and `$ref` stays the string it was. The `seen` set is
+ * for a caller who hands over a cyclic object, which is user input and cheap to
+ * guard against.
+ */
+function withoutDependencies(schema: unknown, seen = new Set<object>()): unknown {
+  if (Array.isArray(schema)) return schema.map((entry) => withoutDependencies(entry, seen))
+  if (typeof schema !== 'object' || schema === null) return schema
+  if (seen.has(schema)) return schema
+  seen.add(schema)
+
+  const stripped: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(schema)) {
+    if (DEPENDENCY_KEYWORDS.includes(key)) continue
+    stripped[key] = withoutDependencies(value, seen)
+  }
+  return stripped
+}
+
+/**
+ * Reduces the same data against the same schema with the dependency keywords
+ * removed, so a failure can be attributed rather than guessed at.
+ *
+ * If the failure goes with those keywords this returns, and the caller has its
+ * answer: they caused it. If the failure survives them, this throws, and the
+ * caller has its answer just as directly: it was never theirs.
+ *
+ * The alternative was to predict which schemas the reducer would visit for
+ * this data, and that turned out to be the wrong shape twice over. Predicting
+ * statically was worse than imprecise: it visited branches the evaluator never
+ * reduces, so a `oneOf` whose first branch resolves cleanly had its reduction
+ * skipped because a branch that was never selected contained a broken
+ * dependency. Predicting dynamically means reproducing the evaluator, down to
+ * the `required` list it grows as it walks, which decides whether a dependency
+ * whose trigger is absent runs anyway. That is a reimplementation of the
+ * reducer inside a workaround for the reducer.
+ *
+ * Asking the question directly costs one extra reduction, only on the path
+ * that already failed, and needs to know nothing about how the evaluator
+ * chooses.
+ *
+ * What no test here can distinguish is this from a bare catch, and the reason
+ * is worth recording rather than leaving as an apparent oversight: nothing in
+ * json-schema-library 11.6.2 makes `reduceNode` throw for any other reason.
+ * An unresolvable `$ref`, in a property or inside a `then`, and a reference to
+ * an absent external document all reduce without complaint. The only other
+ * throw found anywhere is upstream's own stack overflow on `if`/`then` nested
+ * around twenty deep, and where a stack runs out varies by platform.
+ *
+ * So the difference this makes is entirely about a fault that does not exist
+ * yet: when one appears, it reaches the caller instead of becoming a silently
+ * inactive branch. What it is not is a guess about which schemas the evaluator
+ * visits, and that is the part two earlier versions got wrong in ways the
+ * tests could see.
+ */
+function reduceWithoutDependencies(node: SchemaNode, data: unknown): void {
+  node
+    .compileSchema(
+      withoutDependencies(node.schema) as Parameters<SchemaNode['compileSchema']>[0],
+      node.evaluationPath,
+      node.schemaLocation,
+    )
+    .reduceNode(data)
+}
+
+/**
+ * `reduceNode`, surviving the one failure upstream turns into an exception.
+ *
+ * json-schema-library 11.6.2, the latest release at the time of writing,
+ * mishandles a dependent schema that cannot be reduced. `reduceNode` models an
+ * unresolvable reducer as `{ node: undefined, error }`, and `oneOf`
+ * deliberately returns an error when zero or several branches match, but the
+ * `dependencies` reducer discards the error half, casts the missing node with
+ * `as SchemaNode`, and dereferences it:
  *
  * ```js
  * const reducedDependency = { ...dependency }.reduceNode(data, …).node as SchemaNode
@@ -298,109 +366,44 @@ function forEachSameInstanceSchema(
  * ```
  *
  * `mergeNode` accepts undefined, so the second line survives; the optional
- * chaining on the third guards `dynamicId` rather than `reducedDependency`,
- * and that is where it throws.
+ * chaining on the third guards `dynamicId` rather than `reducedDependency`.
+ * Tracked as issue #121, which carries the reproduction and the patch upstream
+ * should take. Confirmed upstream rather than a misuse of the API: the same
+ * throw arrives whether or not the options upstream passes internally are
+ * supplied, and the dependent schema reduced on its own returns
+ * `{ node: undefined, error }` correctly.
  *
- * So the question this asks is not "what kind of error was that" but "is this
- * node in the state that reducer mishandles": is there a dependent schema
- * applying at this instance location which, reduced on its own through the
- * public API, reports failure the documented way.
+ * The condition matters for a form because it is the ordinary path, not an
+ * edge case: a revealed branch requires a field which has no value at the
+ * moment it is revealed, so the keystroke that sets the discriminator is what
+ * throws.
  *
- * It searches the whole same-instance tree rather than the node's own
- * `dependentSchemas`, and testing is what showed that mattered: a schema like
- * `{ type: 'object', allOf: [ … the dependency … ] }` declares none of its own
- * and still propagates the throw, so a predicate looking only at the node
- * re-threw a failure it should have explained. If so, the throw is explained and
- * the failure is one the projection already knows how to represent. If not,
- * the error is something else and is re-thrown, because a renderer swallowing
- * unexplained failures is how a defect becomes a mystery.
- *
- * Deliberately not keyed on the error class or message. A message is not a
- * contract, and `TypeError` would only record which line upstream happens to
- * fail on today.
- */
-function isDependentReductionFailure(node: SchemaNode, data: unknown): boolean {
-  const record = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {}
-  let explained = false
-
-  forEachSameInstanceSchema(node, (schema) => {
-    if (explained) return
-
-    const dependentSchemas = schema.dependentSchemas
-    if (!dependentSchemas) return
-
-    const declared = (schema.schema as { required?: unknown }).required
-    const required = Array.isArray(declared) ? (declared as string[]) : []
-
-    for (const [property, dependency] of Object.entries(dependentSchemas)) {
-      // Upstream processes a dependency whose trigger is present in the data or
-      // named in `required`, so those are the ones whose failure it can reach.
-      if (!Object.prototype.hasOwnProperty.call(record, property) && !required.includes(property)) {
-        continue
-      }
-      try {
-        // No check that `dependency` is a node: anything that is not one throws
-        // here and lands in the catch below, which reaches the same conclusion
-        // without a branch nothing can exercise.
-        if ((dependency as SchemaNode).reduceNode(data).node === undefined) {
-          explained = true
-          return
-        }
-      } catch {
-        // A dependency that throws while being reduced on its own is a
-        // different fault, and not one this predicate may vouch for. Reached by
-        // a dependency whose own dependency carries the same defect.
-      }
-    }
-  })
-
-  return explained
-}
-
-/**
- * `reduceNode`, refusing the one call upstream cannot survive rather than
- * catching what it throws.
- *
- * The condition is checked *before* the call, and that ordering is the point.
- * A predicate evaluated after an exception can only establish that the known
- * bad state coexists, never that it caused the throw. Two faults at once would
- * be enough to lose one: an applicable dependent `oneOf` reporting no node,
- * and something unrelated throwing, and the guard would attribute the second
- * to the first and swallow it. That is a structural weakness rather than a
- * missing test, which is why no test could be written for the re-throw this
- * used to need.
- *
- * Checking first also matches what a correct implementation upstream would do:
- * when an applicable dependent schema reduces to `{ node: undefined, error }`,
- * the parent reduction owes its caller no node either. So this returns none,
- * and every other call reaches `reduceNode` with no catch around it, leaving
- * real failures to propagate.
- *
- * An unresolved reduction is a state the projection already has semantics for:
- * the node keeps its own declared properties as the active set, and candidates
- * a branch contributed project with `active: false`. Nothing downstream needed
- * changing, because `reducedNode` was already optional. Note what is not done
- * either: the data is never replaced with `{}` to coax out a reduction,
- * because that projects a different instance, one where dependencies do not
- * apply and `if`/`then` may select the other way.
- *
- * The cost is a predicate on every object node rather than only on the failing
- * ones, which is the price of not guessing after the fact, and it was measured
- * rather than waved through. On schemas with no dependent schemas at all it is
- * inside the noise: 200 projections of a 100-field object take 69.2ms against
- * 69.5ms without it, and of a twelve-level nested one 96.0ms against 95.9ms.
- * Only a node that does carry a dependency pays, because only there is a
- * reduction actually run, at 0.107ms against 0.093ms per projection.
+ * An unresolved reduction is a state the projection already has semantics for.
+ * The node keeps its own declared properties as the active set, and candidates
+ * a branch contributed project with `active: false`; nothing downstream needed
+ * changing, because `reducedNode` was already optional. What is deliberately
+ * not done is replacing the data with `{}` to coax out a reduction, because
+ * that projects a different instance, one where dependencies do not apply and
+ * `if`/`then` may select the other way.
  *
  * No diagnostic is emitted. The channel describes schemas that cannot be
  * projected, and this schema projects perfectly well for data that satisfies a
  * branch: the condition tracks the value, so reporting it would flap on every
- * keystroke. That an upstream bug throws while computing the state does not
- * change what the schema means.
+ * keystroke.
  */
 function reduceAgainst(node: SchemaNode, data: unknown): SchemaNode | undefined {
-  if (isDependentReductionFailure(node, data)) return undefined
-  return node.reduceNode(data).node ?? undefined
+  try {
+    return node.reduceNode(data).node ?? undefined
+  } catch {
+    // The retry decides, and it needs no branch of its own: if the failure
+    // goes with the dependency keywords, there is no node to report, and if it
+    // survives them then it was never theirs and the retry throws it onward.
+    // The caller then sees the stripped schema's error rather than the
+    // original, which is the same fault by definition, since removing the
+    // dependencies made no difference to it.
+    reduceWithoutDependencies(node, data)
+    return undefined
+  }
 }
 
 /**
