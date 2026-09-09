@@ -42,6 +42,19 @@ last of those matters: a payload alone cannot distinguish an absent key from a
 key whose value is `undefined`, and that distinction is what the third reading
 below turns on.
 
+**The version alone would not make these Backstage's behaviour.** Backstage does
+not render a bare `Form`: `@backstage/plugin-scaffolder-react` 2.0.3 wraps
+`withTheme(Theme)` from `@rjsf/material-ui`, and its Stepper passes
+`experimental_defaultFormStateBehavior: { allOf: 'populateDefaults' }` where
+RJSF's own default is `skipDefaults`. A theme substitutes widgets and templates
+and cannot reach `getDefaultFormState`, but that option can, so every case below
+was measured both ways. They agree on all of them, including the defect: `if` and
+`then` are resolved into the schema before defaults are computed, so the `then`
+properties are already merged and the `allOf` traversal setting never applies to
+this shape. That equivalence is asserted in the same file rather than argued,
+because without it these would be measurements of RJSF rather than of the form a
+Backstage user fills in.
+
 | Case | RJSF |
 | --- | --- |
 | absent scalar with a default | filled |
@@ -81,7 +94,9 @@ the branch does apply to the instance the form starts from, the field is
 rendered, and its declared default is absent, because the initialization pass
 resolved the branch before filling `flag`. A click on the discriminator produces
 the value; the discriminator's own default does not. Same schema, same resulting
-instance, two answers.
+instance, two answers. It survives Backstage's `populateDefaults`, so it is a
+defect a template author meets rather than a consequence of measuring RJSF at
+its own defaults.
 
 **Third reading, wrong, and recorded because the payload alone supports it.**
 The reference fills on activation and does not refill a field the user cleared,

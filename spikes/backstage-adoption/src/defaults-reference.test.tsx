@@ -19,9 +19,20 @@ import type { RJSFSchema } from '@rjsf/utils'
  * action reads. RJSF is pinned at 5.24.13, the version
  * `plugins/scaffolder-react` pins.
  */
+/**
+ * Backstage's scaffolder passes one non-default RJSF option that could bear on
+ * defaults, `experimental_defaultFormStateBehavior: { allOf: 'populateDefaults' }`,
+ * read out of `@backstage/plugin-scaffolder-react` 2.0.3's Stepper. RJSF's own
+ * default for that key is `skipDefaults`, so every measurement here is taken
+ * both ways and the last test in this file asserts the two agree. Without that,
+ * these would be measurements of RJSF rather than of Backstage.
+ */
+const BACKSTAGE_BEHAVIOR = { allOf: 'populateDefaults' } as never
+
 function measure(
   schema: unknown,
   formData?: unknown,
+  behavior?: unknown,
 ): { payload: unknown; revealedValue: string | undefined } {
   let payload: unknown
   const { container } = render(
@@ -29,6 +40,7 @@ function measure(
       schema: schema as RJSFSchema,
       validator,
       formData,
+      experimental_defaultFormStateBehavior: behavior as never,
       onSubmit: ({ formData: submitted }) => {
         payload = submitted
       },
@@ -277,5 +289,54 @@ describe('what RJSF does with default', () => {
     expect(h.revealed()).toBeNull()
     expect(h.data()).toEqual({ flag: false, revealed: 'typed' })
     h.done()
+  })
+
+  /**
+   * The configuration check. Backstage does not render a bare `@rjsf/core`
+   * Form: `@backstage/plugin-scaffolder-react` 2.0.3 wraps
+   * `withTheme(Theme)` from `@rjsf/material-ui` and its Stepper passes
+   * `experimental_defaultFormStateBehavior: { allOf: 'populateDefaults' }`,
+   * against RJSF's own default of `skipDefaults`. A theme only substitutes
+   * widgets and templates, so it cannot reach `getDefaultFormState`, but that
+   * option can.
+   *
+   * It changes none of these answers, including the defect: `if`/`then` is
+   * resolved into the schema before defaults are computed, so the `then`
+   * properties are already merged and the `allOf` traversal setting never
+   * applies to this shape. The staleness therefore survives the configuration
+   * Backstage actually ships, which is what makes it Backstage's defect rather
+   * than an artefact of measuring RJSF's defaults.
+   */
+  it.each([
+    ['no formData, vacuous if', branchOn(false, false), undefined],
+    ['formData present, if fails', branchOn(false, false), { flag: false }],
+    ['formData present, if passes', branchOn(false, false), { flag: true }],
+    ['required in if, no formData', branchOn(false, true), undefined],
+    ['the staleness case', branchOn(true, true), undefined],
+  ])("Backstage's own allOf option changes nothing: %s", (_label, schema, formData) => {
+    const rjsfDefault = measure(schema, formData)
+    const backstage = measure(schema, formData, BACKSTAGE_BEHAVIOR)
+    expect(backstage.payload).toEqual(rjsfDefault.payload)
+    expect(backstage.revealedValue).toBe(rjsfDefault.revealedValue)
+  })
+
+  it.each([
+    [
+      'an object-level default stays discarded',
+      { type: 'object', properties: { owner: { type: 'object', default: { team: 'x' } } } },
+      {},
+    ],
+    [
+      'minItems still creates rows',
+      {
+        type: 'object',
+        properties: {
+          list: { type: 'array', minItems: 2, items: { type: 'string', default: 'i' } },
+        },
+      },
+      { list: ['i', 'i'] },
+    ],
+  ])("under Backstage's option, %s", (_label, schema, expected) => {
+    expect(measure(schema, undefined, BACKSTAGE_BEHAVIOR).payload).toEqual(expected)
   })
 })
