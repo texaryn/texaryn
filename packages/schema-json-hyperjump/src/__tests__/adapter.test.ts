@@ -328,11 +328,20 @@ describe('createHyperjumpAdapter', () => {
   })
 
   describe('oneOf with selected-but-incomplete branch', () => {
-    it('activates the discriminated branch even when required fields are missing', async () => {
+    /**
+     * The branch is identified and does not yet apply, so it is exposed as
+     * provisional rather than active. This used to report `active: true`, which
+     * reached the right form and said the wrong thing: JSON Schema rejects the
+     * branch while `radius` is absent, and `active` means the schema applies.
+     */
+    it('provisionally exposes the discriminated branch when required fields are missing', async () => {
       const adapter = await createHyperjumpAdapter(oneOfSchema)
       const projection = adapter.project({ kind: 'circle' })
-      expect(projection.nodes.get('/radius' as JsonPointer)?.active).toBe(true)
+      const radius = projection.nodes.get('/radius' as JsonPointer)
+      expect(radius?.active).toBe(false)
+      expect(radius?.provisional).toBe(true)
       expect(projection.nodes.get('/width' as JsonPointer)?.active).toBe(false)
+      expect(projection.nodes.get('/width' as JsonPointer)?.provisional).toBeUndefined()
       expect(projection.nodes.get('/height' as JsonPointer)?.active).toBe(false)
     })
 
@@ -340,7 +349,8 @@ describe('createHyperjumpAdapter', () => {
       const adapter = await createHyperjumpAdapter(oneOfSharedKeySchema)
       const projection = adapter.project({ kind: 'b' })
       const value = projection.nodes.get('/value' as JsonPointer)!
-      expect(value.active).toBe(true)
+      expect(value.active).toBe(false)
+      expect(value.provisional).toBe(true)
       expect(value.type).toBe('string')
       expect(value.annotations.title).toBe('Branch B Value')
     })
