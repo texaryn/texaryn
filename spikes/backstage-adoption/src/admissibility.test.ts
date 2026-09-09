@@ -78,7 +78,9 @@ describe('the packages under test are the published ones', () => {
   it('every package resolves inside this directory', () => {
     const resolved = resolvedByNode(Object.keys(published))
     for (const [name, url] of Object.entries(resolved)) {
-      expect(url, name).toMatch(new RegExp(`^${localModules.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+      expect(url, name).toMatch(
+        new RegExp(`^${localModules.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+      )
     }
   })
 
