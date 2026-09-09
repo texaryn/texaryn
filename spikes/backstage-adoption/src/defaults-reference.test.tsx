@@ -44,6 +44,26 @@ function measure(
   return { payload, revealedValue }
 }
 
+function live(schema: unknown) {
+  let latest: unknown
+  const { container } = render(
+    createElement(Form, {
+      schema: schema as RJSFSchema,
+      validator,
+      onChange: ({ formData }) => {
+        latest = formData
+      },
+      onError: () => {},
+    }),
+  )
+  return {
+    flag: () => container.querySelector<HTMLInputElement>('#root_flag')!,
+    revealed: () => container.querySelector<HTMLInputElement>('#root_revealed'),
+    data: () => latest,
+    done: () => cleanup(),
+  }
+}
+
 function submittedPayload(schema: unknown, formData?: unknown): unknown {
   return measure(schema, formData).payload
 }
@@ -200,5 +220,62 @@ describe('what RJSF does with default', () => {
     const { payload, revealedValue } = measure(schema)
     expect(payload).toEqual({ flag: true })
     expect(revealedValue).toBe('')
+  })
+
+  /**
+   * The transition, which is what makes the case above a defect rather than a
+   * design position. Activating the same branch by clicking the discriminator
+   * does apply the field's default, so the reference is willing to fill a
+   * default after the form exists. It only fails to when the activation came
+   * from the discriminator's own default instead of from a click.
+   */
+  it('applies a branch default when the user activates the branch', () => {
+    const h = live(branchOn(false, true))
+    expect(h.revealed()).toBeNull()
+    fireEvent.click(h.flag())
+    expect(h.revealed()?.value).toBe('appeared')
+    h.done()
+  })
+
+  /**
+   * Why a cleared field is not refilled, which is not the reason it first
+   * appears to be.
+   *
+   * Clearing the input leaves the key in place with the value `undefined`, and
+   * deactivating the branch does not remove it either. The default is then never
+   * reapplied because a present key beats a default, so nothing here is
+   * tracking that the location was already filled once. `JSON.stringify` drops
+   * an `undefined` value, which is what makes the submitted payload look as
+   * though the key had gone.
+   *
+   * This matters beyond defaults: a value typed into a branch that is then
+   * deactivated stays in the data and reaches the submission, so a scaffolder
+   * action can read a parameter from a branch the form no longer applies.
+   */
+  it('keeps a cleared key present as undefined, which is why no default returns', () => {
+    const h = live(branchOn(false, true))
+    fireEvent.click(h.flag())
+    expect(h.data()).toEqual({ flag: true, revealed: 'appeared' })
+
+    fireEvent.change(h.revealed()!, { target: { value: '' } })
+    fireEvent.click(h.flag())
+    fireEvent.click(h.flag())
+
+    const data = h.data() as Record<string, unknown>
+    expect('revealed' in data).toBe(true)
+    expect(data.revealed).toBeUndefined()
+    expect(h.revealed()?.value).toBe('')
+    h.done()
+  })
+
+  it('submits a value typed into a branch that is no longer active', () => {
+    const h = live(branchOn(false, true))
+    fireEvent.click(h.flag())
+    fireEvent.change(h.revealed()!, { target: { value: 'typed' } })
+    fireEvent.click(h.flag())
+
+    expect(h.revealed()).toBeNull()
+    expect(h.data()).toEqual({ flag: false, revealed: 'typed' })
+    h.done()
   })
 })
