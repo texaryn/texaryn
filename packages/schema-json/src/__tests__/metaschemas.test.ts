@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { createJsonSchemaAdapter } from '../index.js'
 import { loadMetaschemas, referencedDialects } from '../metaschemas/index.js'
 import type { Dialect } from '../dialect.js'
 
@@ -32,6 +33,56 @@ describe('metaschema documents', () => {
     const first = await loadMetaschemas(['2020-12'])
     const second = await loadMetaschemas(['2020-12'])
     expect(first[0]).not.toBe(second[0])
+  })
+
+  // The invariant, rather than the upstream quirk that motivated it: the
+  // documents cross the dependency boundary as copies, so compiling cannot
+  // leave the vendored data altered for whoever compiles next. compileSchema
+  // normalises `$id` in place, and sharing a module-level array would mean the
+  // first caller silently repairs the input for everyone after it, which is
+  // exactly what once hid a resolution bug.
+  // Asserted against the vendored module rather than the loader's output, and
+  // on Draft 7 rather than a later dialect, because those are the conditions
+  // under which the mutation is observable at all: only Draft 7 publishes a
+  // fragment for compileSchema to strip. On 2020-12 the same test would pass
+  // whether or not the boundary copied anything.
+  it('leaves the vendored document untouched when a compile consumes it', async () => {
+    const { metaschemas } = await import('../metaschemas/draft-07.js')
+    const published = 'http://json-schema.org/draft-07/schema#'
+    expect((metaschemas[0] as { $id?: string }).$id).toBe(published)
+
+    const adapter = await createJsonSchemaAdapter(
+      { $ref: published },
+      { defaultDialect: 'draft-07' },
+    )
+    expect((await adapter.validate({ type: 'integer' })).valid).toBe(true)
+
+    expect((metaschemas[0] as { $id?: string }).$id).toBe(published)
+  })
+
+  // Draft 7 publishes `$id` ending in `#` and the registry keys on that string
+  // while a reference resolves with the fragment stripped, so this used to
+  // depend on where the document sat: it resolved at index 13 of a
+  // 16-document array and failed at index 0. Normalising on the way in makes
+  // position irrelevant, and both positions are asserted so it stays that way.
+  it('resolves draft-07 wherever it sits in the closure', async () => {
+    const alone = await loadMetaschemas(['draft-07'])
+    expect((alone[0] as { $id?: string }).$id).toBe('http://json-schema.org/draft-07/schema')
+
+    const first = await loadMetaschemas(['draft-07', '2020-12'])
+    const last = await loadMetaschemas(['2020-12', 'draft-07'])
+    expect((first[0] as { $id?: string }).$id).toBe('http://json-schema.org/draft-07/schema')
+    expect((last[last.length - 1] as { $id?: string }).$id).toBe(
+      'http://json-schema.org/draft-07/schema',
+    )
+
+    // And through the public surface, where draft-07 is the only document.
+    const adapter = await createJsonSchemaAdapter(
+      { $ref: 'http://json-schema.org/draft-07/schema#' },
+      { defaultDialect: 'draft-07' },
+    )
+    expect((await adapter.validate({ type: 'integer' })).valid).toBe(true)
+    expect((await adapter.validate({ type: 1 })).valid).toBe(false)
   })
 })
 
