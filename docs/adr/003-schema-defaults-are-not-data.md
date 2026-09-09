@@ -295,7 +295,9 @@ that the user never edited that field. That combination is correct rather than
 merely tolerable: the value does differ from the baseline, and the user did not
 type it. The user may have changed a discriminator, or nothing at all. The four
 flags together say exactly that, and all four need pinning, because carried node
-interaction state is not recomputed just because the data changed.
+interaction state is not recomputed just because the data changed. `NodeState`
+exposes only `dirty` and `touched`, so they are pinned at the runtime and
+command-state level rather than by widening the public surface for a test.
 
 ### What stays open
 

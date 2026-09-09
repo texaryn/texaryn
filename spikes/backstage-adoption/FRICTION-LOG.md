@@ -183,6 +183,16 @@ peers only `react` and `@rjsf/utils`; `@rjsf/validator-ajv8@5.24.13` peers only
 verdict and error pointers, the submit payload) come from RJSF's core and its
 ajv8 validator. A theme changes markup, and markup is explicitly not compared.
 
+**Sharper than first recorded, found while measuring defaults.** This entry
+frames the blocker as Texaryn's `@mui/material@9` being unable to coexist with
+Backstage's Material UI generation. The stronger fact is that
+`@material-ui/core@4.12.4` peers `react@^16.8.0 || ^17.0.0`, so it cannot be
+installed alongside React 19 at all, whatever Texaryn peers. An attempt to add
+`@rjsf/material-ui@5.24.13` to this spike for one measurement was refused by npm
+for exactly that reason. That is a reason to reach Backstage through the default
+React binding rather than a MUI v4 build, independent of the argument this entry
+already makes.
+
 So the reference side installs the exact versions Backstage pins, 5.24.13,
 with RJSF's own unthemed templates and no MUI, and the whole exercise is one
 npm project with `@mui/material@9` present only for the Texaryn side. That is
@@ -469,7 +479,7 @@ differences:
 | `format: time` given `17:30:00` | Texaryn rejects, RJSF accepts | Texaryn, by the specification. RFC 3339 `full-time` requires an offset. But `<input type="time">` emits `HH:MM` or `HH:MM:SS` and cannot produce one, so a `format: time` field is fillable through its natural widget in RJSF and unfillable in Texaryn. Neither library has a bug; the specification and the HTML control disagree. |
 | `uniqueItems` on a duplicated array | RJSF blames `/features`, Texaryn blames `/features/1` | Both defensible. It decides which field shows the message. |
 
-ajv additionally reports the failing `if` at the root of the conditional step,
+ajv also reports the failing `if` at the root of the conditional step,
 which RJSF itself surfaces on no field, so that one is reporting noise rather
 than disagreement.
 
@@ -665,7 +675,7 @@ being a record of anything.
 | 2, no shape without an explicit `type` | fixed, pending release |
 | 3, the conditional validated but not projected | fixed, pending release |
 | 4, the `oneOf`-inside-`dependencies` crash | open, upstream, [#121](https://github.com/texaryn/texaryn/issues/121) |
-| 7, `default` never applied | contract decided, `docs/adr/003-schema-defaults-are-not-data.md`, nothing implemented |
+| 7, `default` never applied | contract **Proposed** as `docs/adr/003-schema-defaults-are-not-data.md`, PR #125; nothing implemented, blocked on [#120](https://github.com/texaryn/texaryn/issues/120), prerequisites [#124](https://github.com/texaryn/texaryn/issues/124), [#127](https://github.com/texaryn/texaryn/issues/127), [#128](https://github.com/texaryn/texaryn/issues/128) |
 
 And one finding the fixes uncovered rather than closed: with the crash out of
 the way, a branch the data identifies but leaves incomplete still hides the
