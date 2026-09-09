@@ -332,6 +332,124 @@ function candidatePrototype(candidate: CandidateProperty): SchemaNode {
 }
 
 /**
+ * The `oneOf` branch the current data uniquely identifies, when the evaluator
+ * selected none.
+ *
+ * `oneOf` selects on full validity, so a branch the data plainly identifies
+ * stays unselected while one of its own required properties is absent, and
+ * hiding it leaves the user no way to supply the property that would make it
+ * apply. This picks that branch so a form can expose it, and the node it
+ * returns is reported `provisional` rather than `active`: JSON Schema still
+ * says the branch does not apply, and that fact is not this function's to
+ * overwrite.
+ *
+ * Deliberately narrow, because a form that guesses is worse than one that shows
+ * nothing:
+ *
+ * - only an explicit `const` or `enum` on a property discriminates, and both
+ *   together are conjunctive rather than alternatives
+ * - a discriminator has to be present in the data by own-property presence,
+ *   never read from a `default` annotation, since a declared default is not a
+ *   value anyone supplied
+ * - a key discriminates only if every branch constrains it, so branches that
+ *   simply differ in shape do not vote
+ * - every present discriminator has to agree on one branch
+ * - zero or several surviving branches select nothing
+ *
+ * `type` is excluded: it says almost nothing about intent when every branch is
+ * an object. `anyOf` is excluded because several of its branches may apply at
+ * once, which is a different question from which one the user means.
+ *
+ * Nothing else about a branch participates. A branch stays identified when some
+ * other constraint of its own fails, or selection would quietly become validity
+ * again and the field that completes the branch would stay hidden for a second
+ * reason.
+ */
+function selectProvisionalBranch(
+  node: SchemaNode,
+  dataRecord: Record<string, unknown> | undefined,
+): SchemaNode | undefined {
+  const branches = node.oneOf
+  if (!branches || branches.length === 0 || dataRecord === undefined) return undefined
+
+  const resolvedBranches = branches.map(dereference)
+  const discriminators = [...discriminatorKeys(resolvedBranches)].filter((key) =>
+    Object.prototype.hasOwnProperty.call(dataRecord, key),
+  )
+  if (discriminators.length === 0) return undefined
+
+  const accepted = resolvedBranches.filter((branch) =>
+    discriminators.every((key) => branchAccepts(branch, key, dataRecord[key])),
+  )
+  return accepted.length === 1 ? accepted[0] : undefined
+}
+
+/** Keys every branch constrains with `const` or `enum`. */
+function discriminatorKeys(branches: readonly SchemaNode[]): Set<string> {
+  const first = branches[0]
+  if (!first) return new Set()
+  const shared = new Set(
+    Object.keys((first.schema as Record<string, unknown>).properties ?? {}).filter((key) =>
+      isDiscriminator(first, key),
+    ),
+  )
+  for (const branch of branches.slice(1)) {
+    for (const key of [...shared]) {
+      if (!isDiscriminator(branch, key)) shared.delete(key)
+    }
+  }
+  return shared
+}
+
+function discriminatorSchema(
+  branch: SchemaNode,
+  key: string,
+): Record<string, unknown> | undefined {
+  const property = branch.properties?.[key]
+  if (!property) return undefined
+  return dereference(property).schema as Record<string, unknown>
+}
+
+function isDiscriminator(branch: SchemaNode, key: string): boolean {
+  const schema = discriminatorSchema(branch, key)
+  if (!schema) return false
+  return 'const' in schema || Array.isArray(schema.enum)
+}
+
+/** `const` and `enum` are separate constraints, so a value has to satisfy both. */
+function branchAccepts(branch: SchemaNode, key: string, value: unknown): boolean {
+  const schema = discriminatorSchema(branch, key)
+  if (!schema) return false
+  if ('const' in schema && !deepEqual(schema.const, value)) return false
+  if (Array.isArray(schema.enum) && !schema.enum.some((member) => deepEqual(member, value))) {
+    return false
+  }
+  return true
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, index) => deepEqual(item, b[index]))
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const left = Object.keys(a)
+    const right = Object.keys(b)
+    return (
+      left.length === right.length &&
+      left.every(
+        (key) => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]),
+      )
+    )
+  }
+  return false
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
  * Computes the currently-required property keys for an object node given its data.
  *
  * `reducedSchema.required` already reflects if/then/else and dependentSchemas (their
@@ -379,6 +497,12 @@ function walk(
   pointer: string,
   data: unknown,
   active: boolean,
+  /**
+   * Whether an ancestor's provisionally selected branch exposes this node. A
+   * node is never both: `active` is what the schema says, and this is what the
+   * projection selected so the user can complete it.
+   */
+  provisional: boolean,
   nodes: Map<JsonPointer, NodeProjection>,
   diagnostics: ProjectionDiagnostic[],
 ): void {
@@ -391,8 +515,8 @@ function walk(
   let type = resolveExplicitType(schema)
   // Whether this node's own active branch could be determined. Stays true for every
   // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
-  // (see below) — that node's own existence in the projection is itself provisional,
-  // not just its children's.
+  // (see below), where the node's own presence in the projection is the thing in
+  // doubt rather than only its children's.
   let branchResolved = true
 
   // A node whose own schema carries no `type` keyword, only `oneOf`/`anyOf` branches
@@ -497,6 +621,14 @@ function walk(
 
   if (!type) return
   const nodeActive = active && branchResolved
+  // A node the schema applies is never also provisional; the two report
+  // different facts and only the second is a choice this projection made. The
+  // `!nodeActive` term is belt and braces: `provisional` only ever arrives true
+  // from a parent that computed `!childActive`, so no caller can reach here
+  // with both, and dropping the term changes no observable behaviour.
+  const nodeProvisional = !nodeActive && provisional && branchResolved
+  // Whether a form shows this node at all, which is what a descendant inherits.
+  const nodeExposed = nodeActive || nodeProvisional
 
   if (type === 'object') {
     const dataRecord =
@@ -525,6 +657,22 @@ function walk(
     const activeKeys = new Set(Object.keys(reducedProperties))
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
 
+    // Only when the evaluator selected nothing, which is where provisional
+    // selection exists to help. Removing this guard is unobservable rather than
+    // wrong: a resolved branch is fully valid, so it accepts every present
+    // discriminator and the selector would return that same branch, whose keys
+    // are already the active set. Kept because doing the work is pointless and
+    // the condition states the intent.
+    const provisionalBranch =
+      reducedNode === undefined ? selectProvisionalBranch(original, dataRecord) : undefined
+    const provisionalSchema = provisionalBranch?.schema as Record<string, unknown> | undefined
+    const provisionalKeys = new Set(
+      Object.keys((provisionalSchema?.properties as Record<string, unknown> | undefined) ?? {}),
+    )
+    const provisionalRequired = new Set(
+      Array.isArray(provisionalSchema?.required) ? (provisionalSchema.required as string[]) : [],
+    )
+
     // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
@@ -533,11 +681,19 @@ function walk(
 
     const children: ChildProjection[] | undefined =
       propKeys.length > 0
-        ? propKeys.map((key) => ({
-            pointer: toPointer(`${pointer}/${escapeSegment(key)}`),
-            key,
-            required: requiredSet.has(key),
-          }))
+        ? propKeys.map((key) => {
+            // Gated on the node applying at all. A branch that does not apply
+            // demands nothing, so reporting its `required` array as a
+            // requirement would attribute to the validator something it is not
+            // asking for.
+            const required = nodeActive && requiredSet.has(key)
+            return {
+              pointer: toPointer(`${pointer}/${escapeSegment(key)}`),
+              key,
+              required,
+              provisionalRequired: !required && provisionalRequired.has(key) ? true : undefined,
+            }
+          })
         : undefined
 
     nodes.set(toPointer(pointer), {
@@ -547,15 +703,36 @@ function walk(
       children,
       enumValues: extractEnumValues(schema),
       active: nodeActive,
+      provisional: nodeProvisional ? true : undefined,
       annotations: extractAnnotations(schema),
     })
 
     for (const key of propKeys) {
       const childPointer = `${pointer}/${escapeSegment(key)}`
       const childActive = nodeActive && activeKeys.has(key)
+      // A descendant inherits exposure, not activity: under a provisionally
+      // selected ancestor its own locally applicable properties are
+      // provisional too, while a locally inactive one stays inactive.
+      const childProvisional =
+        !childActive && nodeExposed && (activeKeys.has(key) || provisionalKeys.has(key))
       const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
-      const childNode = reducedChildNode ?? candidatePrototype(candidateProps.get(key)!)
-      walk(childNode, childPointer, dataRecord?.[key], childActive, nodes, diagnostics)
+      // Precedence matters as much as the selection does. Marking the right
+      // branch provisional while taking its shape from `candidatePrototype`,
+      // which is first-wins across branches, would render another branch's
+      // widget and annotations under the selected branch's name, and would hand
+      // ADR-003's pass another branch's `default`.
+      const provisionalChildNode = provisionalBranch?.properties?.[key] as SchemaNode | undefined
+      const childNode =
+        reducedChildNode ?? provisionalChildNode ?? candidatePrototype(candidateProps.get(key)!)
+      walk(
+        childNode,
+        childPointer,
+        dataRecord?.[key],
+        childActive,
+        childProvisional,
+        nodes,
+        diagnostics,
+      )
     }
     return
   }
@@ -567,6 +744,7 @@ function walk(
     children: undefined,
     enumValues: extractEnumValues(schema),
     active: nodeActive,
+    provisional: nodeProvisional ? true : undefined,
     annotations: extractAnnotations(schema),
     itemAnnotations:
       type === 'array' && resolved.items
@@ -576,7 +754,15 @@ function walk(
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
     data.forEach((item, index) => {
-      walk(resolved.items!, `${pointer}/${index}`, item, nodeActive, nodes, diagnostics)
+      walk(
+        resolved.items!,
+        `${pointer}/${index}`,
+        item,
+        nodeActive,
+        nodeProvisional,
+        nodes,
+        diagnostics,
+      )
     })
   }
 }
@@ -594,6 +780,6 @@ function walk(
 export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
-  walk(root, '', data, true, nodes, diagnostics)
+  walk(root, '', data, true, false, nodes, diagnostics)
   return { nodes, diagnostics }
 }

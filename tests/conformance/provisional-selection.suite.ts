@@ -277,6 +277,70 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
       })
     })
 
+    /**
+     * A key discriminates only when every branch constrains it. One branch
+     * declaring `const` while another leaves the same property open says
+     * nothing about which the author meant, and treating it as evidence would
+     * let a single branch nominate itself.
+     */
+    it.each([
+      ['leaves it unconstrained', { kind: { type: 'string' }, org: { type: 'string' } }],
+      ['does not mention it', { org: { type: 'string' } }],
+    ])('selects nothing when the other branch %s', async (_label, otherProperties) => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' } },
+        oneOf: [
+          {
+            properties: { kind: { const: 'person' }, name: { type: 'string' } },
+            required: ['name'],
+          },
+          { properties: otherProperties, required: ['org'] },
+        ],
+      }
+      expect(await at(schema, { kind: 'person' }, '/name')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+
+    /**
+     * `const` and `enum` are separate assertions, so a declaration carrying
+     * both is satisfied only by a value satisfying both. Reading them as
+     * alternatives would accept a value the branch rejects and select a branch
+     * the data contradicts.
+     */
+    it('requires a value to satisfy const and enum together when a branch declares both', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' } },
+        oneOf: [
+          {
+            properties: {
+              kind: { const: 'person', enum: ['company', 'nonprofit'] },
+              name: { type: 'string' },
+            },
+            required: ['name'],
+          },
+          {
+            properties: { kind: { const: 'other', enum: ['other'] }, org: { type: 'string' } },
+            required: ['org'],
+          },
+        ],
+      }
+      // `person` satisfies the first branch's `const` and fails its `enum`, so
+      // no branch accepts it and nothing is selected.
+      expect(await at(schema, { kind: 'person' }, '/name')).toEqual({
+        active: false,
+        provisional: false,
+      })
+      // `other` satisfies both of the second branch's assertions.
+      expect(await at(schema, { kind: 'other' }, '/org')).toEqual({
+        active: false,
+        provisional: true,
+      })
+    })
+
     it('reports a satisfied branch active and not provisional', async () => {
       expect(await at(constDiscriminated, { kind: 'person', name: 'x' }, '/name')).toEqual({
         active: true,
