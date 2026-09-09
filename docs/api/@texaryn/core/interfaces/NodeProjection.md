@@ -60,3 +60,12 @@ them stays valid.
 ### type
 
 > **type**: [`JsonSchemaType`](../type-aliases/JsonSchemaType.md)
+
+The shape a renderer should present, which is not an assertion about the
+instance's JSON Schema type.
+
+For a schema declaring `type`, the two coincide. For one that does not,
+an adapter may still derive a shape from the schema's structural keywords,
+and doing so changes nothing about validation: `{ properties: {...} }`
+projects as an object and continues to accept a string, because the object
+keywords are inapplicable to one.

@@ -29,6 +29,7 @@
 - [NodeProjection](interfaces/NodeProjection.md)
 - [NodeRuntimeState](interfaces/NodeRuntimeState.md)
 - [NodeState](interfaces/NodeState.md)
+- [ProjectionDiagnostic](interfaces/ProjectionDiagnostic.md)
 - [ReconcileOptions](interfaces/ReconcileOptions.md)
 - [RendererRegistry](interfaces/RendererRegistry.md)
 - [RuntimeState](interfaces/RuntimeState.md)
@@ -58,6 +59,7 @@
 - [JsonSchemaType](type-aliases/JsonSchemaType.md)
 - [MaybePromise](type-aliases/MaybePromise.md)
 - [NodeId](type-aliases/NodeId.md)
+- [ProjectionDiagnosticCode](type-aliases/ProjectionDiagnosticCode.md)
 - [StableItemId](type-aliases/StableItemId.md)
 - [UINode](type-aliases/UINode.md)
 
