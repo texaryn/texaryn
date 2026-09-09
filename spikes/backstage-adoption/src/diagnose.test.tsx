@@ -1,31 +1,60 @@
 import { describe, it } from 'vitest'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 
-// Throwaway: narrowing down why every Backstage step produces no root node.
-describe('why the projection has no root', () => {
-  const cases: Array<[string, unknown]> = [
-    ['properties only, as Backstage writes it', { properties: { a: { type: 'string' } } }],
-    ['with an explicit type', { type: 'object', properties: { a: { type: 'string' } } }],
-    ['title plus properties', { title: 'S', properties: { a: { type: 'string' } } }],
-    ['required plus properties', { required: ['a'], properties: { a: { type: 'string' } } }],
-    ['a leaf property with no type', { type: 'object', properties: { a: {} } }],
-    ['a leaf property typed only by enum', { type: 'object', properties: { a: { enum: ['x'] } } }],
-    [
-      'a nested object with no type',
-      { type: 'object', properties: { a: { properties: { b: { type: 'string' } } } } },
-    ],
-    [
-      'an array whose items have no type',
-      { type: 'object', properties: { a: { type: 'array', items: {} } } },
-    ],
-  ]
+/**
+ * Throwaway probe: testing the theory that the crash happens exactly when the
+ * `oneOf` inside `dependencies` matches a number of branches other than one,
+ * because upstream then has no node to return and the projection walk
+ * dereferences it anyway.
+ */
+const oneOfInDependencies = (branches: unknown[]) => ({
+  type: 'object',
+  properties: { flag: { type: 'boolean' } },
+  dependencies: { flag: { oneOf: branches } },
+})
 
-  it.each(cases)('%s', async (_name, schema) => {
+const cases: Array<[string, unknown, unknown]> = [
+  [
+    'exactly one branch matches',
+    oneOfInDependencies([
+      { properties: { flag: { const: false } } },
+      { properties: { flag: { const: true } } },
+    ]),
+    { flag: true },
+  ],
+  [
+    'both branches match',
+    oneOfInDependencies([{ properties: { a: {} } }, { properties: { b: {} } }]),
+    { flag: true },
+  ],
+  [
+    'no branch matches: the branch for this value fails its own required',
+    oneOfInDependencies([
+      { properties: { flag: { const: false } } },
+      { properties: { flag: { const: true } }, required: ['extra'] },
+    ]),
+    { flag: true },
+  ],
+  [
+    'no branch matches, and the data satisfies the required',
+    oneOfInDependencies([
+      { properties: { flag: { const: false } } },
+      { properties: { flag: { const: true } }, required: ['extra'] },
+    ]),
+    { flag: true, extra: 'x' },
+  ],
+]
+
+describe('when exactly does the projection crash', () => {
+  it.each(cases)('%s', async (_label, schema, data) => {
     const port = await createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
-    const projection = port.project(undefined)
-    const pointers = [...projection.nodes.keys()]
-    console.log(`  node pointers: ${JSON.stringify(pointers)}`)
-    const root = projection.nodes.get('' as never)
-    console.log(`  root type: ${root ? root.type : 'MISSING'}`)
+    const verdict = await port.validate(data)
+    let projected: string
+    try {
+      projected = JSON.stringify([...port.project(data).nodes.keys()])
+    } catch (error) {
+      projected = `THREW ${(error as Error).constructor.name}`
+    }
+    console.log(`  data=${JSON.stringify(data)} valid=${verdict.valid} project -> ${projected}`)
   })
 })

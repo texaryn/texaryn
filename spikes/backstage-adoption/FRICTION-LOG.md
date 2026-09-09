@@ -239,3 +239,88 @@ minimum inference that makes Backstage's own schemas work, and it is applied
 only to the Texaryn side, because RJSF needs no such help. Every field the
 comparison later reports is therefore a field that survived this pass, which is
 worth remembering when reading the results: without it there is no form at all.
+
+### 3. Conditional fields: the validator honours the conditional, the form does not
+
+**Category: blocker. No workaround attempted, because there is nothing to work
+around: the behaviour is self-contradictory rather than missing.**
+
+**Tried:** the conditional step exactly as the Backstage documentation writes
+it, `dependencies` + `allOf` + `if`/`then`, with `includeName` revealing a
+required `lastName`.
+
+**Measured, per state of `includeName`:**
+
+| `includeName` | Texaryn projection | Texaryn verdict | RJSF renders |
+| --- | --- | --- | --- |
+| absent | `/includeName` | valid | `includeName`, `lastName` |
+| `true` | `/includeName` | **invalid, `/lastName: required`** | `includeName`, `lastName` |
+| `false` | `/includeName` | valid | `includeName` |
+
+The middle row is the finding. With `includeName` set to `true`, Texaryn's
+validator evaluates the conditional correctly and reports that `/lastName` is
+required. Its projection never contains `/lastName`, so the form renders no
+field for it. The form therefore declares the data invalid, names a property as
+missing, and offers no way to supply it. The user cannot submit and cannot fix
+it.
+
+That is worse than either alternative. Ignoring the conditional entirely would
+at least be consistent, and rendering the field would be correct. Validating
+against a schema the projection did not use is the one combination that
+produces a form nobody can complete.
+
+The `absent` row is correct on both sides and worth stating so it is not read
+as a divergence: draft-07 `dependencies` applies only when the named property
+is present, so an absent `includeName` triggers nothing. RJSF shows `lastName`
+there because it applies `default: true` on mount, which makes its state the
+`true` row.
+
+### 4. The conditional idiom Backstage recommends crashes the projection
+
+**Category: blocker.**
+
+**Tried:** the alternative from [Backstage issue #30090](https://github.com/backstage/backstage/issues/30090),
+`dependencies` + `oneOf`, which is what that issue recommends when
+`allOf`/`if`/`then` misbehaves.
+
+**Blocked:** `port.project(data)` throws.
+
+```
+TypeError: Cannot read properties of undefined (reading 'dynamicId')
+  at json-schema-library/src/keywords/dependencies.ts:122
+  at Object.reduceNode  json-schema-library/src/SchemaNode.ts:474
+  at walk               @texaryn/schema-json/src/projection.ts:233
+  at buildProjection    @texaryn/schema-json/src/projection.ts:310
+  at Object.project     @texaryn/schema-json/src/adapter.ts:31
+```
+
+**The condition, minimised.** The throw happens exactly when the `oneOf` inside
+`dependencies` does not resolve to exactly one matching branch:
+
+| Branches matching | `validate` | `project` |
+| --- | --- | --- |
+| exactly one | valid | `""`, `/flag` |
+| both | invalid | **TypeError** |
+| none (branch fails its own `required`) | invalid | **TypeError** |
+| exactly one, after the data satisfies `required` | valid | `""`, `/flag` |
+
+The correlation is exact across every case tried: whenever the data is invalid
+against that `oneOf`, projecting it throws. `anyOf` in the same position does
+not throw, nor does a plain subschema, nor a top-level `oneOf`, so this is
+specific to `oneOf` nested inside `dependencies`.
+
+**Why the timing makes this severe.** A form's data is invalid for nearly all
+of the time someone is filling it in. The revealed branch requires a field that
+by definition has no value yet at the moment it is revealed, so this is not an
+edge case reachable by unusual input: it is the normal path. The first
+keystroke that sets the discriminator crashes the render.
+
+**Which side is wrong.** The message comes from upstream, and
+`json-schema-library` returning an unresolved node from `reduceNode` is
+arguably its own defect. But the dereference is on Texaryn's side of the line:
+`projection.ts` walks whatever `reduceNode` hands back without considering that
+it may be undefined, and a schema being unsatisfiable is a normal state for a
+form rather than an exceptional one. A guard there turns a crash into a missing
+field, which is entry 3's problem rather than this one, and entry 3 is the
+better problem to have. Reporting it upstream is worth doing either way, and
+does not remove the need for the guard.

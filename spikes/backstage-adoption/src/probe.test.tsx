@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import type { RJSFSchema } from '@rjsf/utils'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { TexarynStepForm } from './candidate/TexarynStepForm.js'
+import { inferTypes } from './candidate/infer-types.js'
 
 /**
  * Not an assertion, a measurement. The two sides name their DOM differently
@@ -24,10 +25,11 @@ describe('what each side puts in the DOM', () => {
     const steps = await resolveTemplateParameters(templateYaml, read)
     for (const [index, step] of steps.entries()) {
       const { schema } = extractSchemaFromStep(step)
+      const typed = inferTypes(schema)
       console.log(`\n--- Texaryn step ${index}: ${String(step.title)} ---`)
       let container: HTMLElement
       try {
-        const port = await createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
+        const port = await createJsonSchemaAdapter(typed, { defaultDialect: 'draft-07' })
         container = render(createElement(TexarynStepForm, { port })).container
       } catch (error) {
         console.log(`  THREW: ${(error as Error).name}: ${(error as Error).message}`)
