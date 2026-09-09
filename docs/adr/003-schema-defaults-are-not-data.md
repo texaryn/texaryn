@@ -232,6 +232,10 @@ them. Projection never mutates data.**
   traversal order. This is the same answer `ambiguous-projection-shape` already
   gives for a shape two keyword families disagree about.
 
+  A conflict at an absent location also stops the pass reaching through it: see
+  step 5 below, since leaving a location absent is worth nothing if a child's
+  default creates it anyway.
+
   **This rule is prose until the port can carry the case.**
   `AnnotationSet.default` is a single value and `extractAnnotations` reads it
   from the already-reduced schema, so the evaluator has merged the branches
@@ -251,7 +255,9 @@ Each pass reads one snapshot and writes once:
 3. resolve conflicts by the rule above,
 4. drop any write whose location is a strict descendant of another write in this
    pass,
-5. apply the rest as one step.
+5. drop any write that could only be applied by creating an absent ancestor
+   whose own defaults are in unresolved conflict,
+6. apply the rest as one step.
 
 Step 4 is what makes "materialised whole" true rather than merely intended.
 Without it, `{}` against a schema declaring `default` at both `/owner` and
@@ -261,6 +267,18 @@ with its own default; the next pass reprojects, finds `/owner/team` present, and
 writes nothing. When the container's default omits `team`, that next pass finds
 it absent and the property-level default applies, which is the case the rule
 above says should still fill.
+
+**Step 5 exists because step 4 keys on surviving writes, and a conflict removes
+one.** Take `/owner` declaring two defaults that disagree and `/owner/region`
+declaring `'eu'`, against `{}`. Step 3 reports the conflict and leaves `/owner`
+absent, so step 4 has no `/owner` write to shadow `/owner/region` against, and
+the rule about creating parent objects to hold a child default would then
+create `/owner` and produce `{ owner: { region: 'eu' } }`. That materialises,
+by a side door, the location the conflict said to leave alone, and it invents a
+container whose declared default nobody could choose. So an unresolved conflict
+at an absent location is a barrier: nothing beneath it is filled while filling
+would require creating it. Defaults elsewhere in the same pass are unaffected,
+and the location stays absent with its conflict reported.
 
 Repeat until a pass writes nothing. More than one pass is needed rather than
 merely tidy: `a` defaults to `true`, which reveals `b`, which defaults to
