@@ -98,11 +98,15 @@ the kitchen sink supplies unaided, and should be read that way.
 The official doc uses `dependencies` + `allOf` + `if`/`then`. Backstage
 [issue #30090](https://github.com/backstage/backstage/issues/30090) reports
 `allOf`/`if`-`then` as broken in the scaffolder, with `dependencies` + `oneOf`
-as the working alternative. I am using the **documented** form verbatim and
-recording what RJSF and Texaryn each do with it. If they agree, the doc is fine
-and the issue is narrower than it reads. If RJSF does not reveal the field,
-that is a finding about Backstage rather than about Texaryn, and the comparison
-is still the thing that establishes it.
+as the working alternative. I used the **documented** form verbatim and recorded what
+each side does with it.
+
+**Answered by the exercise: the documented form works in RJSF.** With
+`includeName` at its default of `true`, RJSF renders `lastName` and reports it
+as required. So the documentation is correct and issue #30090 is narrower than
+its title suggests, at least for a single `if`/`then` under `dependencies`. It
+also means the divergence in entry 3 is Texaryn's alone and not a case of two
+libraries both struggling with an idiom Backstage itself cannot support.
 
 ## Standing question for the external-resource API
 
@@ -110,7 +114,9 @@ The roadmap has a possible PR for a JSON Schema external-resource registry.
 This exercise is meant to be able to contradict that.
 
 **Did Texaryn ever need to resolve a URI it did not already have?** Answered at
-the end of this log, from what the integration actually required.
+the end of this log, from what the integration actually required. The short
+version: no, not once, and the evidence says the external-resource API would
+have been the wrong thing to build first.
 
 ## Friction log
 
@@ -324,3 +330,268 @@ form rather than an exceptional one. A guard there turns a crash into a missing
 field, which is entry 3's problem rather than this one, and entry 3 is the
 better problem to have. Reporting it upstream is worth doing either way, and
 does not remove the need for the guard.
+
+### 5. `ui:*` has to be lifted into a pointer-keyed map, and most of it lands nowhere
+
+**Category: adapter, plus a set of gaps it makes visible.**
+
+Splitting the `ui:*` keys out of the schema is not Texaryn's problem: Backstage
+does it already, in `extractSchemaFromStep`, because RJSF takes them as a
+separate prop. Both sides of this comparison consume the same cleaned schema.
+
+What Texaryn needs is a second conversion, from RJSF's uiSchema to `UIHints`.
+The two disagree on shape and on vocabulary: uiSchema is a tree mirroring the
+schema and carrying `ui:`-prefixed keys, while `UIHints` is a flat map keyed by
+JSON pointer. That conversion is `src/candidate/ui-hints.ts`, and it is an
+adapter rather than a rename.
+
+**What the conversion cannot deliver**, measured against `createMuiRegistry()`,
+which dispatches on the node's type and enum and reads `widget` for exactly one
+value:
+
+| Template asks for | Result |
+| --- | --- |
+| `ui:widget: textarea` | honoured |
+| `ui:widget: password` | text input |
+| `ui:widget: color` | text input |
+| `ui:widget: range` | number input |
+| `ui:widget: radio` | select |
+| `ui:widget: checkboxes` | generic array control, one input per element |
+| `ui:widget: date`, `date-time`, `time` | text input |
+| `ui:widget: file` | text input |
+| `ui:widget: hidden` | **visible text input**, see entry 7 |
+| `ui:field: <11 different pickers>` | text input unless a widget is registered |
+
+Most of these are missing widgets rather than a design problem, and a template
+still collects the right data through the fallback. Two are worse than a
+downgrade: `checkboxes` loses the "choose from this fixed set" affordance
+entirely and shows a free-text row per element, and `hidden` shows the user a
+value the template intended to keep out of sight.
+
+**One thing this exercise did not settle.** `items` is where the two hint
+representations stop lining up: RJSF states a hint once for every element of an
+array, and a Texaryn pointer names one element, so `/contacts/items/name` and
+`/contacts/0/name` are not the same address. The kitchen sink puts no `ui:*`
+inside `items`, so nothing forced a choice, and the adapter records the gap
+instead of guessing at it.
+
+**And one thing that was easier than the reference.** Texaryn puts the field's
+JSON pointer directly on the input's `name`, so recovering which field an input
+belongs to needs no mapping. RJSF names an input `root_owner_displayName`, and
+recovering a pointer from that means splitting on underscores, which is
+ambiguous the moment a property name contains one. The harness asserts no
+property name does, because otherwise the comparison would be quietly wrong.
+
+### 6. Validation: the verdict always agreed, the reported violations did not
+
+**Category: findings, no workaround needed.**
+
+Across seven steps and three input states each, the two sides agreed on
+accept-or-reject in all 21 cases, and on the list of violations in 17. The four
+differences:
+
+| Case | Difference | Which side is right |
+| --- | --- | --- |
+| `format: uri` on a value with spaces | RJSF rejects, Texaryn accepts | RJSF. `json-schema-library` does not assert `uri` for any value tried, including the empty string, so this is an unimplemented format rather than leniency. `email`, `date`, `date-time` and `time` all assert. |
+| `format: data-url` | RJSF rejects, Texaryn accepts | Texaryn. `data-url` is RJSF's own addition, and ignoring an unknown format is what the specification requires. The template still loses a check it was relying on. |
+| `format: time` given `17:30:00` | Texaryn rejects, RJSF accepts | Texaryn, by the specification. RFC 3339 `full-time` requires an offset. But `<input type="time">` emits `HH:MM` or `HH:MM:SS` and cannot produce one, so a `format: time` field is fillable through its natural widget in RJSF and unfillable in Texaryn. Neither library has a bug; the specification and the HTML control disagree. |
+| `uniqueItems` on a duplicated array | RJSF blames `/features`, Texaryn blames `/features/1` | Both defensible. It decides which field shows the message. |
+
+ajv additionally reports the failing `if` at the root of the conditional step,
+which RJSF itself surfaces on no field, so that one is reporting noise rather
+than disagreement.
+
+**Two of the differences the comparison first reported were defects in this
+harness.** Both validators already attribute `required` to the absent property,
+so appending `params.missingProperty` produced `/name/name` on the RJSF side;
+and RJSF reports a location as `".website"` for `format` but `"name"` for
+`required`, with no leading separator on the second. The `cutoffTime` fixture
+was also genuinely invalid under RFC 3339, so Texaryn rejecting it was correct
+and the fixture was corrected rather than the finding recorded. Worth writing
+down: three of the first ten divergences were mine, which is the argument for
+checking a difference before reporting it.
+
+### 7. `default` is never applied, so a defaulted parameter is absent from the submission
+
+**Category: finding. Not worked around: it is a documented design position, and
+the exercise measures its cost rather than disputing it.**
+
+An empty fill of the "Numbers, ranges and toggles" step submits
+`{ replicas: 3, confidence: 50, enabled: true, consent: false }` through RJSF
+and `{}` through Texaryn. The step comparison did not catch this, because its
+fixtures fill every field and never reach a default; it needed a test of its
+own.
+
+The cost is specific to what Backstage does next. A scaffolder action reads
+`${{ parameters.replicas }}`, and the template author wrote `default: 3` to
+mean "3 unless someone changes it". Through RJSF the action receives 3. Through
+Texaryn it receives nothing, and every action consuming a defaulted parameter
+has to be changed to supply the default a second time. The kitchen sink
+declares defaults on `secret`, `replicas`, `confidence`, `enabled`, `consent`,
+`environment` and `includeName`.
+
+The value is not lost from the form: `AnnotationSet.default` carries it, so a
+binding could display it as a placeholder or prefill. It is absent from the
+data.
+
+Related and smaller, from the same step: `ui:widget: hidden` renders as an
+ordinary visible text input. `FieldHints.hidden` exists but is deprecated and
+documented as never applied, with a comment saying a visibility contract has to
+be decided first. That reasoning is sound; the consequence for this template is
+that `secret` is shown to the user and its default is missing, which is two
+divergences from one field.
+
+### 8. A field extension registers cleanly; its validation needs a wrapper
+
+**Category: half no friction, half an adapter.**
+
+`ui:field` is how a Backstage template names a custom field extension, and the
+kitchen sink uses eleven. Implementing one, `EntityNamePicker`, split into two
+halves that went very differently.
+
+**Registering the component took no adapter.** `RendererRegistry.register` is
+public API, `createMuiRegistry()` can be extended rather than replaced, and a
+tester ranked above the type-based entries selects the field. The one thing
+needed was a channel for the tester to read: `UIHints` has no notion of a field
+extension, so the hint adapter carries `ui:field` across as `widget`, and the
+tester matches on `node.widget === 'EntityNamePicker'`. That is a small
+liberty, and it works.
+
+**Its validation needed a wrapper around the port.** A field extension owns a
+rule the schema does not express, and nothing lets a widget report a violation:
+`Command` has seven variants and none of them carries an error,
+`SchemaEvaluationPort` is the only source of a `ValidationResult`, and a widget
+receives neither. So the rule is applied by wrapping `validate` and appending
+to what it returns.
+
+That works, and the errors reach the field and block submission, both verified.
+What it costs is the property that made the extension local. The rule now lives
+beside the schema instead of beside the component, so adding a second
+`ui:field` means editing the wrapper too, and a wrapper that forgets a field
+fails silently rather than loudly. Eleven pickers would mean eleven entries in
+a list nothing checks.
+
+### 9. Arrays: add and remove work, reorder is absent from the binding
+
+**Category: finding.**
+
+Add and remove both work through the rendered controls, verified on the kitchen
+sink's array of objects: clicking add appends a row, clicking the first row's
+remove leaves the second row's data in place rather than truncating.
+
+Reorder is not there. `MuiArrayControl` renders a remove button per row and one
+add button, and nothing else. RJSF renders move-up and move-down per row.
+
+This is a gap in `@texaryn/react-mui` rather than in the runtime:
+`@texaryn/core` exports a `MoveItem` command, `ArrayHints.canReorder` and
+`moveItem`, and `@texaryn/react` exports `moveUpActionName`, so the plumbing is
+complete and only the control is missing. An adopter cannot add it without
+writing their own array widget, because `useArrayActions` exposes `removeName`
+and `addName` and no move equivalent.
+
+**Where Texaryn is clearly better.** Every control it renders has an accessible
+name: "Remove item 1 from Contacts", "Add item to Contacts". All seven of
+RJSF's array buttons have no accessible name at all, no text and no
+`aria-label`, so the only thing distinguishing move-up from remove is a CSS
+class. That is why this test matches RJSF on class names. A screen reader user
+can operate the Texaryn form's array and cannot operate RJSF's.
+
+### 10. Smaller packaging notes
+
+- No `@texaryn` package lists `./package.json` in its `exports`, so the usual
+  way to read an installed version programmatically fails. Minor, and it did
+  cost a detour in the admissibility check.
+- Every `@texaryn` package declares only an `import` condition, so a `require`
+  resolution fails outright. Correct for a modern package, and worth knowing
+  for Backstage specifically, whose own tooling (`@backstage/cli`, Jest) has
+  needed configuration for ESM-only dependencies.
+
+## Did Texaryn ever need to resolve a URI it did not already have?
+
+**No. Not once.**
+
+The evidence is threefold and points the same way each time.
+
+**The `$yaml` mechanism resolves before a schema exists.** Backstage's catalog
+replaces the placeholder while processing the Template entity, so by the time
+any form layer is handed `spec.parameters`, the fragment is an ordinary inline
+step and its origin is gone. The resolver test asserts exactly that: the spliced
+step contains no `$yaml` and no trace of the URL it came from. Texaryn never saw
+a URI, and no schema-level resolver could have participated even in principle.
+
+**No real template uses a JSON Schema `$ref` at all.** GitHub code search for
+`"$ref" filename:template.yaml org:backstage` returns zero results, across the
+sample templates and everything else the organisation publishes.
+
+**And Backstage's own processor deliberately leaves `$ref` alone**, for exactly
+the reason that would matter here. From `PlaceholderProcessor.ts`, on the branch
+taken when a `$`-prefixed key has no registered resolver:
+
+> If there was no such placeholder resolver, we err on the side of safety and
+> assume that this is something that's best left alone. For example, if the
+> input contains JSONSchema, there may be `$ref`: `#/definitions/node` nodes in
+> the document.
+
+So a `$ref` in a Backstage template would survive placeholder processing intact
+and arrive at the form layer as a JSON Schema keyword. Nobody writes one,
+because RJSF resolves only local `#/...` references and a remote one would not
+work there either.
+
+**What that means for the proposed external-resource API.** It is a
+standards-completeness gap, not the first adoption blocker for this user. If it
+had been built before this exercise, it would have been the wrong thing built
+first: nothing here would have exercised it, and the ten entries above would
+still be waiting. The ordering the exercise argues for is unambiguous, and it
+puts external resolution below every one of them.
+
+## What the exercise found, in the order it should be read
+
+The acceptance test is met. All seven steps of a real Backstage template render
+through published Texaryn APIs, and of 49 step comparisons 43 are identical to
+RJSF, with the six differences recorded individually and asserted exactly. Add,
+remove, a nested object, a custom field extension, validation failure, submit
+refusal and a remotely composed `$yaml` fragment all work.
+
+It also found that this template could not be adopted today, for reasons that
+have nothing to do with the roadmap item this exercise was scheduled to inform.
+
+**Blockers, in the order an adopter would hit them:**
+
+1. **No step renders at all** (entry 2). No Backstage step declares
+   `type: object`, and a node without an explicit `type` is not projected. This
+   is the first thing that happens. One level down it is silent: an untyped
+   nested object is dropped from the form with no error, which is the shape of
+   bug that reaches production.
+2. **The conditional produces an unfillable form** (entry 3). The validator
+   reports `/lastName` as required and the projection provides no field for it,
+   so the step cannot be completed or corrected.
+3. **The recommended alternative crashes** (entry 4). A `oneOf` inside
+   `dependencies` throws a `TypeError` from the projection whenever the data is
+   invalid against it, which for a form being filled in is the normal state.
+4. **The MUI binding cannot pair with Backstage's MUI** (entry 1). The
+   scaffolder runs `@material-ui/core@4`; `@texaryn/react-mui` requires
+   `@mui/material@^9`.
+
+**Costs an adopter would carry but could live with:** defaults absent from the
+submission (7), no reorder control (9), one widget honoured out of eleven
+`ui:widget` values (5), no non-submitting field for `Secret` (8), a wrapper for
+each field extension's validation (8), `format: uri` unasserted (6).
+
+**Where Texaryn was better than the reference:** every array control has an
+accessible name where all seven of RJSF's have none (9); the field's JSON
+pointer is on the input's `name`, needing no reverse mapping (5); `format: time`
+is asserted correctly where ajv is lenient, and an unknown format is ignored as
+the specification requires (6).
+
+**Two things this exercise deliberately did not do.** It changed nothing in the
+monorepo: every workaround lives in this directory, so no finding was quietly
+made to disappear. And it did not design the fix for anything it found; each
+entry states which side is wrong and what the choice is, and stops there.
+
+**One caveat on the two added acceptance criteria.** Neither `dependencies` nor
+`$yaml` appears in any real template in the backstage organisation, so the
+conditional step and the remote fragment came from the official documentation
+rather than from found usage. Entries 3, 4 and the `$yaml` result rest on
+documented idioms applied to a real template, which is weaker evidence than the
+entries the kitchen sink supplied unaided. Entries 1, 2, 5, 6, 7, 8, 9 and 10
+need no such discount.

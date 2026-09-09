@@ -32,6 +32,7 @@ export interface MappedHints {
 
 const mapped = new Set([
   'ui:widget',
+  'ui:field',
   'ui:placeholder',
   'ui:description',
   'ui:help',
@@ -53,7 +54,11 @@ export function toUiHints(uiSchema: UiSchema): MappedHints {
     for (const [key, value] of Object.entries(node)) {
       if (!key.startsWith('ui:')) continue
 
-      if (key === 'ui:widget' && typeof value === 'string') {
+      // `ui:field` names a Backstage field extension, which is a component
+      // registration rather than a hint. It is carried across as `widget`
+      // because that is the only channel a `RendererRegistry` tester can read,
+      // so a registered widget can select on it. See `custom-field.test.tsx`.
+      if ((key === 'ui:widget' || key === 'ui:field') && typeof value === 'string') {
         fieldHints.widget = value
         // Only `textarea` resolves to a widget. The rest are recorded as lost
         // even though they are technically carried across, because carrying a
