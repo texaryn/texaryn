@@ -257,8 +257,8 @@ the form. `{ properties: { name: … } }` accepts a string under JSON Schema, an
 after this pass it does not. That is tolerable in a harness measuring form
 shape and wrong in the library.
 
-**Status: addressed upstream, pending release.** `@texaryn/schema-json` now
-derives a form shape from structural keywords without touching the schema.
+**Status: fixed, pending release.** `@texaryn/schema-json` now derives a form
+shape from structural keywords without touching the schema.
 Measured by installing the packed tarball into this spike and deleting the
 workaround: all 49 step comparisons pass, along with the array, enum-array,
 defaults, secrets, custom-field, format and resolver files, 90 of 92 tests. The
@@ -356,15 +356,43 @@ by definition has no value yet at the moment it is revealed, so this is not an
 edge case reachable by unusual input: it is the normal path. The first
 keystroke that sets the discriminator crashes the render.
 
-**Which side is wrong.** The message comes from upstream, and
-`json-schema-library` returning an unresolved node from `reduceNode` is
-arguably its own defect. But the dereference is on Texaryn's side of the line:
-`projection.ts` walks whatever `reduceNode` hands back without considering that
-it may be undefined, and a schema being unsatisfiable is a normal state for a
-form rather than an exceptional one. A guard there turns a crash into a missing
-field, which is entry 3's problem rather than this one, and entry 3 is the
-better problem to have. Reporting it upstream is worth doing either way, and
-does not remove the need for the guard.
+**Which side is wrong, and a correction to what I first wrote here.** I
+recorded that the dereference was on Texaryn's side of the line and that a
+guard there would turn the crash into a missing field. The first half is wrong:
+the dereference is upstream's, inside its own `dependencies` reducer, which
+discards the `{ node: undefined, error }` its own API returned and then reads a
+property off the missing node. Established two ways, in
+[#121](https://github.com/texaryn/texaryn/issues/121): the same throw arrives
+whether or not the options upstream passes internally are supplied, and the
+dependent schema reduced alone reports failure correctly without throwing.
+
+**Status: not fixed, and not worked around.** Three local guards were attempted
+and all three were rejected on review, written up on
+[#122](https://github.com/texaryn/texaryn/pull/122), which is closed. Two tried
+to predict which schemas the evaluator would visit for given data, one by
+reusing the static traversal candidate discovery uses and one by modelling the
+evaluator's own rules; the third abandoned prediction and attributed the failure
+by experiment, retrying with the `dependencies` keyword removed to see whether
+the failure went with it.
+
+The third is the one worth remembering, because it failed for a reason no fix
+addresses: removing a subtree establishes that the failing execution depended on
+code under that keyword, not that this defect caused it. Put the unrelated
+deep-`if`/`then` stack overflow inside a dependency and the retry deletes the
+throwing subtree along with everything else and absorbs the wrong bug. Its other
+defects turned out to be unobservable through the public API, since the retry's
+result is discarded, so they could not even be pinned. A design whose known
+defects cannot be observed cannot be verified.
+
+So the fix belongs upstream, where the information still exists, and the patch
+is a few lines with one correct answer. The interim to reach for, if the crash
+ever becomes urgent, is an exact-version `pnpm` patch of the dependency rather
+than any guard in this codebase.
+
+**Entry 4 is therefore still open, and the second half of entry 3's problem
+came back through it.** Even with the exception gone, a branch the data
+identifies but leaves incomplete hides the field that would complete it, which
+is [#120](https://github.com/texaryn/texaryn/issues/120).
 
 ### 5. `ui:*` has to be lifted into a pointer-keyed map, and most of it lands nowhere
 
@@ -616,6 +644,22 @@ is not preserved. Four blockers stop this template being adopted as it stands,
 and six recorded divergences change observable behaviour where it is not
 blocked. None of them has anything to do with the roadmap item this exercise
 was scheduled to inform.
+
+**Where each blocker stands, as of the roadmap work that followed.** Recorded
+here because a friction log whose findings are silently overtaken by fixes stops
+being a record of anything.
+
+| Blocker | State |
+| --- | --- |
+| 1, the Material UI major | open, and a positioning question rather than a defect |
+| 2, no shape without an explicit `type` | fixed, pending release |
+| 3, the conditional validated but not projected | fixed, pending release |
+| 4, the `oneOf`-inside-`dependencies` crash | open, upstream, [#121](https://github.com/texaryn/texaryn/issues/121) |
+
+And one finding the fixes uncovered rather than closed: with the crash out of
+the way, a branch the data identifies but leaves incomplete still hides the
+field that would complete it, [#120](https://github.com/texaryn/texaryn/issues/120).
+So entry 4's underlying problem outlives its exception.
 
 **Blockers, in the order an adopter would hit them:**
 
