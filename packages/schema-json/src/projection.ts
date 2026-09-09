@@ -2,6 +2,7 @@ import type { SchemaNode } from 'json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,
+  ProjectionDiagnostic,
   ChildProjection,
   AnnotationSet,
   JsonPointer,
@@ -28,7 +29,8 @@ function escapeSegment(segment: string): string {
   return segment.replace(/~/g, '~0').replace(/\//g, '~1')
 }
 
-function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefined {
+/** The `type` the schema itself declares, and nothing else. */
+function resolveExplicitType(schema: Record<string, unknown>): JsonSchemaType | undefined {
   const type = schema.type
   if (Array.isArray(type)) {
     return type.find((t): t is JsonSchemaType => VALID_TYPES.has(t as JsonSchemaType))
@@ -37,6 +39,104 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
     return type as JsonSchemaType
   }
   return undefined
+}
+
+/**
+ * Keywords that apply to exactly one JSON type, grouped by that type.
+ *
+ * Two different jobs are done with these, and only one of them infers
+ * anything. Every family takes part in detecting a conflict, because a schema
+ * drawing keywords from two families implies no single shape. Only `object`
+ * and `array` are shapes a form can be given, so those are the only two ever
+ * inferred: `string` and `number` are here to be noticed, not chosen.
+ *
+ * Inferring a scalar would need a rule that is right rather than symmetrical,
+ * and there is not one. `minimum` cannot tell `number` from `integer`, and a
+ * wrong scalar guess selects the wrong widget, which is harder to notice than
+ * a field that never appeared at all.
+ *
+ * `format` is deliberately absent: it annotates a string's contents rather
+ * than describing structure, and schemas apply it to non-strings in practice.
+ */
+const KEYWORD_FAMILIES = {
+  object: [
+    'properties',
+    'patternProperties',
+    'additionalProperties',
+    'propertyNames',
+    'required',
+    'minProperties',
+    'maxProperties',
+    'dependentSchemas',
+    'dependentRequired',
+    // json-schema-library normalises draft-07 `dependencies` into the two
+    // above at parse time. Listed anyway, so the rule does not rely on that.
+    'dependencies',
+    'unevaluatedProperties',
+  ],
+  array: [
+    'items',
+    'prefixItems',
+    'additionalItems',
+    'contains',
+    'minItems',
+    'maxItems',
+    'uniqueItems',
+    'minContains',
+    'maxContains',
+    'unevaluatedItems',
+  ],
+  string: ['minLength', 'maxLength', 'pattern'],
+  number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
+} as const satisfies Record<string, readonly string[]>
+
+type KeywordFamily = keyof typeof KEYWORD_FAMILIES
+
+/** Which families a schema draws keywords from, computed over all of them at once. */
+function projectionTypeFamilies(schema: Record<string, unknown>): Set<KeywordFamily> {
+  const families = new Set<KeywordFamily>()
+  for (const [family, keywords] of Object.entries(KEYWORD_FAMILIES)) {
+    if (keywords.some((keyword) => schema[keyword] !== undefined)) {
+      families.add(family as KeywordFamily)
+    }
+  }
+  return families
+}
+
+/**
+ * The shape a renderer should present for a schema that declares no `type`,
+ * which is a different question from what that schema asserts about an
+ * instance.
+ *
+ * A schema is not obliged to declare `type`, and one declaring `properties`
+ * without it is both valid and widespread: not one parameter step in a
+ * Backstage Software Template declares `type: object`, and every such step used
+ * to project nothing at all.
+ *
+ * Deriving a shape here changes nothing about validation. No `type` is written
+ * into the schema and the schema is never mutated, so `{ properties: { … } }`
+ * goes on accepting a string, a number and null, because its object keywords
+ * are inapplicable to those. The shape exists so a form can be drawn, and it
+ * is not an assertion that the instance is an object.
+ *
+ * The family count decides, never keyword order: exactly one family is a
+ * shape, more than one is ambiguous, none is nothing to go on.
+ */
+type ProjectionShape =
+  | { kind: 'resolved'; type: JsonSchemaType }
+  | { kind: 'ambiguous'; families: KeywordFamily[] }
+  | { kind: 'none' }
+
+function inferProjectionShape(schema: Record<string, unknown>): ProjectionShape {
+  const families = projectionTypeFamilies(schema)
+
+  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort() }
+
+  if (families.size === 1) {
+    const [family] = families
+    if (family === 'object' || family === 'array') return { kind: 'resolved', type: family }
+  }
+  return { kind: 'none' }
 }
 
 function extractConstraints(schema: Record<string, unknown>): FieldConstraints {
@@ -169,6 +269,7 @@ function walk(
   data: unknown,
   active: boolean,
   nodes: Map<JsonPointer, NodeProjection>,
+  diagnostics: ProjectionDiagnostic[],
 ): void {
   const original = dereference(node)
   const originalSchema = original.schema as Record<string, unknown>
@@ -176,7 +277,7 @@ function walk(
 
   let resolved = original
   let schema = originalSchema
-  let type = resolveType(schema)
+  let type = resolveExplicitType(schema)
   // Whether this node's own active branch could be determined. Stays true for every
   // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
   // (see below) — that node's own existence in the projection is itself provisional,
@@ -193,11 +294,11 @@ function walk(
     if (branchNode) {
       resolved = branchNode
       schema = branchNode.schema as Record<string, unknown>
-      type = resolveType(schema)
+      type = resolveExplicitType(schema)
     } else {
       // reduceNode() returned no node at all: this is oneOf's behavior when data
       // matches zero or multiple branches (anyOf instead returns a node with an
-      // empty merged schema in that case, which resolveType() also fails to type,
+      // empty merged schema in that case, which carries no explicit type either,
       // but which does not reach this branch). This test suite's oneOf wrappers put
       // an object schema on every branch, so 'object' is a safe stand-in type here:
       // it lets this pointer and every candidate branch property still appear in the
@@ -206,6 +307,30 @@ function walk(
       // primitives (not objects) is not handled by this fallback.
       type = 'object'
       branchResolved = false
+    }
+  }
+
+  // Last resort, after the oneOf/anyOf branch above has had its chance: that
+  // path handles a typeless wrapper whose type only exists once a branch is
+  // chosen, and inferring first would take a schema carrying both `properties`
+  // and `oneOf` down the object path without ever resolving its branch.
+  if (!type) {
+    const shape = inferProjectionShape(schema)
+    if (shape.kind === 'resolved') {
+      type = shape.type
+    } else if (shape.kind === 'ambiguous') {
+      // Reported rather than dropped in silence. The field cannot be drawn
+      // without a shape, so the caller is told which pointer was skipped and
+      // what made it undecidable, instead of finding out from a form that
+      // never collected the value.
+      diagnostics.push({
+        pointer: toPointer(pointer),
+        code: 'ambiguous-projection-shape',
+        message:
+          `No explicit "type", and keywords from more than one type apply ` +
+          `(${shape.families.join(', ')}), so the form shape is undecidable. ` +
+          `Declare "type" on this schema to resolve it.`,
+      })
     }
   }
 
@@ -269,7 +394,7 @@ function walk(
       const childActive = nodeActive && activeKeys.has(key)
       const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
       const childNode = reducedChildNode ?? candidateProps[key]
-      walk(childNode, childPointer, dataRecord?.[key], childActive, nodes)
+      walk(childNode, childPointer, dataRecord?.[key], childActive, nodes, diagnostics)
     }
     return
   }
@@ -290,7 +415,7 @@ function walk(
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
     data.forEach((item, index) => {
-      walk(resolved.items!, `${pointer}/${index}`, item, nodeActive, nodes)
+      walk(resolved.items!, `${pointer}/${index}`, item, nodeActive, nodes, diagnostics)
     })
   }
 }
@@ -307,6 +432,7 @@ function walk(
  */
 export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
-  walk(root, '', data, true, nodes)
-  return { nodes }
+  const diagnostics: ProjectionDiagnostic[] = []
+  walk(root, '', data, true, nodes, diagnostics)
+  return { nodes, diagnostics }
 }

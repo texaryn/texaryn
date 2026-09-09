@@ -37,6 +37,7 @@ config enumerates its projects explicitly.
 | `src/comparison.test.tsx` | The acceptance test: 49 comparisons across seven steps and three input states. |
 | `src/divergences.ts` | The six differences, each with a reason and a log entry. Asserted exactly. |
 | `src/findings.test.ts` | The blockers, pinned so a fix makes a test fail. |
+| `src/workarounds.test.ts` | The ratchet: each workaround asserted still necessary against the installed packages, so a released fix fails a test and says to delete it. |
 
 ## What is compared
 
