@@ -178,3 +178,64 @@ npm project with `@mui/material@9` present only for the Texaryn side. That is
 more faithful on what matters (the validator and the RJSF version are
 Backstage's own) and it removes a dependency conflict from the harness without
 pretending the conflict above does not exist.
+
+### 2. A schema node without an explicit `type` produces no field, silently
+
+**Category: blocker, worked around with a preprocessing pass. The most
+consequential finding in the exercise.**
+
+**Tried:** feeding each resolved step straight to
+`createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })` and rendering
+it, which is the whole of the integration as the published API describes it.
+
+**Blocked:** every one of the seven steps threw
+
+```
+Error: Schema projection missing root node
+```
+
+**Cause, measured rather than guessed.** The projection is empty unless the
+schema carries an explicit `type`. Probing one keyword at a time:
+
+| Schema | Projected pointers |
+| --- | --- |
+| `{ properties: { a: { type: 'string' } } }` | none |
+| `{ title: 'S', properties: { a: { type: 'string' } } }` | none |
+| `{ required: ['a'], properties: { a: { type: 'string' } } }` | none |
+| `{ type: 'object', properties: { a: { type: 'string' } } }` | `""`, `"/a"` |
+| `{ type: 'object', properties: { a: {} } }` | `""` only |
+| `{ type: 'object', properties: { a: { enum: ['x'] } } }` | `""` only |
+| `{ type: 'object', properties: { a: { properties: { b: … } } } }` | `""` only |
+| `{ type: 'object', properties: { a: { type: 'array', items: {} } } }` | `""`, `"/a"` |
+
+The rule is the same at every depth: a node with no `type` keyword is not
+projected. `properties` does not imply an object, and `enum` does not imply the
+type of its members.
+
+**Why this is the finding that matters most.** No Backstage parameter step
+declares `type: object`. Not the kitchen sink's six, not the one in the
+official documentation, and there is no reason for one to: `type` is not
+required by JSON Schema, and `properties` alone is a valid object schema that
+ajv and RJSF both handle. So the very first thing an adopter does, hand a real
+template step to the adapter, fails on all of them.
+
+**And the failure mode is worse than the failure.** At the root it throws, which
+is at least loud. One level down it does not: a property whose type is left
+implicit is dropped from the form with no error, no warning and a successful
+render. A template with `owner: { properties: { displayName: … } }` would
+render a form that silently cannot collect an owner, and would submit happily
+without it. That is the shape of bug that reaches production.
+
+Two separate things are worth deciding, and they are not the same decision:
+whether to infer `type` from `properties` and `items`, and whether an
+unprojectable node should be silent. The second one stands even if inference is
+deliberately refused, because "this schema declares a field I cannot
+represent" is information the caller can act on and currently cannot obtain.
+
+**Resolution in the harness:** a preprocessing pass, `inferTypes`, that adds
+`type: 'object'` to any node with `properties` and `type: 'array'` to any node
+with `items`, recursively, before the schema reaches the adapter. It is the
+minimum inference that makes Backstage's own schemas work, and it is applied
+only to the Texaryn side, because RJSF needs no such help. Every field the
+comparison later reports is therefore a field that survived this pass, which is
+worth remembering when reading the results: without it there is no form at all.
