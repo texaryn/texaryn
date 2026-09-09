@@ -132,10 +132,13 @@ absent again.
 `minItems` constrains an instance; it does not describe one. Creating rows to
 satisfy it is the reference being helpful.
 
-**Ignoring an object-level `default` discards an ordinary annotation.** A schema
-that says `default: { team: 'platform' }` on an object has stated that object's
-default value. The reference applies it only in the sense that a nested
-property-level declaration wins; with no nested declaration it applies nothing.
+**An object-level `default` is treated two ways, and only one of them is a
+loss.** A schema that says `default: { team: 'platform' }` on an object has
+stated that object's default value, and with no nested declaration the reference
+applies nothing, which discards an ordinary annotation. With a nested
+declaration it lets that one win. The first is the reference losing information;
+the second is a precedence choice, and the contract below makes the opposite one
+for consistency rather than because the reference is wrong about it.
 
 ## Decision
 
