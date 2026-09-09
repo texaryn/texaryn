@@ -1,0 +1,72 @@
+# Extracted from the "Catalog and repo pickers" step of
+# bui-kitchen-sink-demo/template.yaml so the step arrives through
+# Backstage's $yaml placeholder rather than inlined. The content is the
+# template's own: dedenting is the only change, because a fragment is a
+# document where the original was a list item.
+title: Catalog and repo pickers
+properties:
+  componentName:
+    title: Component name
+    type: string
+    ui:field: EntityNamePicker
+  ownerRef:
+    title: Owner
+    type: string
+    ui:field: OwnerPicker
+    ui:options:
+      catalogFilter:
+        kind: [User, Group]
+  relatedEntity:
+    title: Related entity
+    type: string
+    ui:field: EntityPicker
+    ui:options:
+      catalogFilter:
+        kind: [Component]
+  relatedEntities:
+    title: Related entities (multi)
+    type: array
+    ui:field: MultiEntityPicker
+    ui:options:
+      catalogFilter:
+        kind: [Component]
+  myGroups:
+    title: My groups
+    type: string
+    ui:field: MyGroupsPicker
+  ownedEntity:
+    title: An entity I own
+    type: string
+    ui:field: OwnedEntityPicker
+    ui:options:
+      catalogFilter:
+        kind: [Component]
+  entityTags:
+    title: Entity tags
+    type: array
+    ui:field: EntityTagsPicker
+  repoUrl:
+    title: Repository URL
+    type: string
+    ui:field: RepoUrlPicker
+    ui:options:
+      allowedHosts:
+        - github.com
+        - gitlab.com
+  repoOwner:
+    title: Repo owner
+    type: string
+    ui:field: RepoOwnerPicker
+    ui:options:
+      allowedOwners:
+        - backstage
+        - example-org
+  repoBranch:
+    title: Repo branch
+    type: string
+    ui:field: RepoBranchPicker
+  deployToken:
+    title: Deploy token
+    type: string
+    ui:field: Secret
+    description: Captured to the scaffolder secret store

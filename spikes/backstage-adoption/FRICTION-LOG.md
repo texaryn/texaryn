@@ -115,3 +115,66 @@ the end of this log, from what the integration actually required.
 ## Friction log
 
 Entries are appended in the order they were hit.
+
+### 1. Texaryn's MUI binding cannot pair with the MUI that Backstage runs
+
+**Category: blocker for the MUI binding specifically. The harness routes around
+it; a real adopter could not.**
+
+**Tried:** one npm project holding both renderers, so the comparison could run
+in a single process, with `@texaryn/react-mui` and `@rjsf/mui` side by side.
+
+**Blocked:** `npm install` fails with `ERESOLVE`. `@texaryn/react-mui@0.3.0`
+peers `@mui/material@^9.0.0`; `@rjsf/mui@5.24` peers
+`@mui/material@^5.2.2 || ^6.0.0`. No published `@mui/material` satisfies both.
+
+**Then I checked what Backstage actually runs, and it is neither.**
+`plugins/scaffolder-react/package.json` on `master`:
+
+```
+"@material-ui/core": "^4.12.2",
+"@rjsf/core": "5.24.13",
+"@rjsf/material-ui": "5.24.13",
+"@rjsf/utils": "5.24.13",
+"@rjsf/validator-ajv8": "5.24.13",
+```
+
+`packages/core-components/package.json` agrees: `@material-ui/core@^4.12.2`.
+
+So the scaffolder form renders on Material UI **v4**, under the pre-rename
+package name `@material-ui/core`. `@texaryn/react-mui` requires
+`@mui/material@^9.0.0`: a different major *and* a different package. A team
+adopting the MUI binding into a Backstage plugin cannot satisfy that peer with
+the MUI their application has. They would ship a second, complete MUI copy
+alongside the first. Backstage does tolerate that pattern, because its own
+v4-to-v5 migration has plugins running both at once, so this is a bundle-size
+and theming cost rather than an impossibility. It is still a cost that lands
+entirely on the adopter.
+
+**Correcting my own first reading of this.** I initially recorded that RJSF has
+no release line reaching MUI 9. That is wrong: `@rjsf/mui@6.8.0` peers
+`@mui/material@^7.0.0 || ^9.0.0`, so RJSF v6 and `@texaryn/react-mui` would
+coexist. The obstacle is not RJSF's range, it is that Backstage pins RJSF
+5.24.13 and MUI v4. Stated as a version floor: adopting `@texaryn/react-mui`
+into the scaffolder form the way Backstage ships it today is not possible
+without a second MUI; adopting it into a Backstage plugin that has already
+migrated to `@mui/material` v7 or v9 is.
+
+The pin itself is defensible. Tracking one current major is a reasonable policy
+for a young package, and `^9.0.0` is not a mistake. What it encodes is that the
+binding targets new applications rather than existing MUI codebases, and
+Backstage is a large existing one. That is a positioning question for whoever
+owns the roadmap, not a bug to fix here.
+
+**Resolution: the comparison does not need a MUI theme at all.** `@rjsf/core@5.24.13`
+peers only `react` and `@rjsf/utils`; `@rjsf/validator-ajv8@5.24.13` peers only
+`@rjsf/utils`. The three observables being compared (which fields render, the
+verdict and error pointers, the submit payload) come from RJSF's core and its
+ajv8 validator. A theme changes markup, and markup is explicitly not compared.
+
+So the reference side installs the exact versions Backstage pins, 5.24.13,
+with RJSF's own unthemed templates and no MUI, and the whole exercise is one
+npm project with `@mui/material@9` present only for the Texaryn side. That is
+more faithful on what matters (the validator and the RJSF version are
+Backstage's own) and it removes a dependency conflict from the harness without
+pretending the conflict above does not exist.
