@@ -89,7 +89,27 @@ export interface NodeProjection {
   constraints: FieldConstraints
   children?: ChildProjection[]
   enumValues?: EnumOption[]
+  /**
+   * Whether JSON Schema evaluation says this node applies to the data as it
+   * stands. Nothing else: it is an assertion about the schema, not about what a
+   * form should show.
+   */
   active: boolean
+  /**
+   * Whether the form exposes this node so the user can complete it, when
+   * `active` is false.
+   *
+   * These are two facts rather than three states, and they are allowed to
+   * disagree because that disagreement is the point. A `oneOf` branch the data
+   * uniquely identifies but has not yet satisfied does not apply, so `active`
+   * is false, and hiding it would leave the user no way to supply the property
+   * that would make it apply. `provisional` says the projection has selected
+   * that branch for the user to finish.
+   *
+   * Only meaningful while `active` is false, and absent means false, so an
+   * adapter that does not select provisionally keeps its current behaviour.
+   */
+  provisional?: boolean
   annotations: AnnotationSet
   /**
    * Annotations of an array's item template, for arrays only.
@@ -105,7 +125,20 @@ export interface NodeProjection {
 export interface ChildProjection {
   pointer: JsonPointer
   key: string
+  /** Whether JSON Schema evaluation demands this property of the current data. */
   required: boolean
+  /**
+   * Whether the branch the projection provisionally selected demands it.
+   *
+   * The same split as `NodeProjection.provisional`, for the same reason.
+   * Exposing a provisionally selected branch's field while reporting it
+   * optional would say the form does not need what the validator will demand
+   * the moment the branch applies, which is half a model rather than a
+   * conservative one.
+   *
+   * Absent means false.
+   */
+  provisionalRequired?: boolean
 }
 
 export interface AnnotationSet {
