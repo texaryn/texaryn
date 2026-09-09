@@ -30,6 +30,13 @@ and `unresolved-projection-shape` where there is nothing to go on at all. An
 `enum` without a `type` is the common case of the second, and deliberately not
 read as a string, because JSON Schema permits members of different types.
 
+Diagnostics describe schemas rather than data. One case is not reported: a
+`oneOf` or `anyOf` whose branches the current value does not match, where some
+branch would have rendered for a value that did. Whether the value is
+acceptable is validation's subject. A branch the value does match and that
+still supplies no shape is reported, as is a composition with no renderable
+branch at all, because those are limitations rather than data states.
+
 The rule in full: an explicit `type` is used, an unambiguous structural shape
 is derived, and everything else is reported. Nothing is guessed and nothing
 disappears without a word.

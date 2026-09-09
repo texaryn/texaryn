@@ -127,6 +127,26 @@ type ProjectionShape =
   | { kind: 'ambiguous'; families: KeywordFamily[] }
   | { kind: 'none' }
 
+/**
+ * Whether any branch of this node's `oneOf`/`anyOf` could be given a shape at
+ * all, for some value.
+ *
+ * This is what separates "the current value matches no branch" from "this
+ * composition is unrenderable whatever the value is". The first is validation's
+ * subject and transient; the second is a limitation of this adapter and worth
+ * reporting.
+ */
+function compositionHasRenderableAlternative(node: SchemaNode): boolean {
+  const branches = [...(node.oneOf ?? []), ...(node.anyOf ?? [])]
+  return branches.some((branch) => {
+    const resolved = dereference(branch)
+    const schema = resolved.schema as Record<string, unknown> | undefined
+    if (!schema || typeof schema !== 'object') return false
+    if (resolveExplicitType(schema)) return true
+    return inferProjectionShape(schema).kind === 'resolved'
+  })
+}
+
 function inferProjectionShape(schema: Record<string, unknown>): ProjectionShape {
   const families = projectionTypeFamilies(schema)
 
@@ -289,7 +309,14 @@ function walk(
   // type until its active branch is resolved against `data`. `original` is kept
   // separately so every branch's properties can still be collected below for the
   // inactive-node contract, even though only the matching branch's schema is used here.
+  // Whether a branch of this node's own `oneOf`/`anyOf` was resolved against
+  // `data`. Recorded so an unresolved shape can be attributed correctly below:
+  // on this path, "no shape" means the current value matches no branch, which
+  // is a fact about the data rather than about the schema.
+  let composedAgainstData = false
+
   if (!type && (original.oneOf || original.anyOf)) {
+    composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data)
     if (branchNode) {
       resolved = branchNode
@@ -310,6 +337,24 @@ function walk(
     }
   }
 
+  /**
+   * Whether the absence of a shape here is only the current value's fault.
+   *
+   * Two conditions, and both are needed. Nothing was merged in from a branch,
+   * which is what reducing against a value that satisfies none of them leaves
+   * behind; and some branch could have been rendered for a value that did
+   * satisfy it, so the composition is not unrenderable in itself.
+   *
+   * The first condition is what a coarser check missed. Entering the
+   * composition path says nothing on its own: a branch can be selected and
+   * still supply no shape, as `{ anyOf: [{ minLength: 1 }, { pattern: '^a' }] }`
+   * does for `"abc"`, where both branches match and neither describes anything
+   * this adapter renders, because scalar shapes are deliberately not inferred.
+   * That schema is genuinely unprojectable and has to be reported.
+   */
+  const isTransientBranchMiss = (): boolean =>
+    Object.keys(schema).length === 0 && compositionHasRenderableAlternative(original)
+
   // Last resort, after the oneOf/anyOf branch above has had its chance: that
   // path handles a typeless wrapper whose type only exists once a branch is
   // chosen, and inferring first would take a schema carrying both `properties`
@@ -318,11 +363,20 @@ function walk(
     const shape = inferProjectionShape(schema)
     if (shape.kind === 'resolved') {
       type = shape.type
+    } else if (shape.kind === 'none' && composedAgainstData && isTransientBranchMiss()) {
+      // Deliberately silent, and only for this one case. A projection
+      // diagnostic describes a schema this adapter cannot turn into a shape,
+      // and a value that matches none of a composition's branches is not that:
+      // the same schema renders for a value that does match one. That is
+      // validation's subject, it is already reported there, and a form's data
+      // is in this state for most of the time someone is filling it in, so a
+      // diagnostic here would appear and disappear on each keystroke and train
+      // a caller to ignore the channel.
     } else {
-      // Reported rather than dropped in silence, either way. The field cannot
-      // be drawn without a shape, so the caller is told which pointer was
-      // skipped and why, instead of finding out from a form that never
-      // collected the value.
+      // Reported rather than dropped in silence. The field cannot be drawn
+      // without a shape, so the caller is told which pointer was skipped and
+      // why, instead of finding out from a form that never collected the
+      // value.
       diagnostics.push(
         shape.kind === 'ambiguous'
           ? {
