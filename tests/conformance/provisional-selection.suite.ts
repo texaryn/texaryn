@@ -187,6 +187,96 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
       })
     })
 
+    /**
+     * `anyOf` is excluded from provisional selection because several of its
+     * branches may legitimately apply at once, so "pick the one the user means"
+     * is a different question. Excluding it from `provisional` is not the whole
+     * of it: a branch that is invalid for the current data must not be `active`
+     * either, whatever partial score it would win on. If `anyOf` ever needs
+     * form-oriented partial selection it gets its own semantics rather than
+     * borrowing this field.
+     */
+    it('leaves an anyOf branch with the best partial score neither active nor provisional', async () => {
+      const schema = {
+        type: 'object',
+        properties: { seen: { type: 'string' } },
+        anyOf: [
+          { properties: { seen: { minLength: 1 }, first: { type: 'string' } }, required: ['first'] },
+          {
+            properties: { other: { type: 'string' }, second: { type: 'string' } },
+            required: ['other', 'second'],
+          },
+        ],
+      }
+      expect(await at(schema, { seen: 'x' }, '/first')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+
+    /**
+     * Only `const` and `enum` are selection evidence. Another constraint of the
+     * same branch failing does not withdraw the identification, or selection
+     * would quietly become validity again and the field that completes the
+     * branch would stay hidden for a second reason.
+     */
+    it('selects despite an unrelated constraint of that branch failing', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' }, age: { type: 'integer' } },
+        oneOf: [
+          {
+            properties: {
+              kind: { const: 'person' },
+              age: { type: 'integer', minimum: 18 },
+              name: { type: 'string' },
+            },
+            required: ['name'],
+          },
+          { properties: { kind: { const: 'company' }, org: { type: 'string' } }, required: ['org'] },
+        ],
+      }
+      expect(await at(schema, { kind: 'person', age: 12 }, '/name')).toEqual({
+        active: false,
+        provisional: true,
+      })
+    })
+
+    /** One present discriminator is enough when it identifies a branch on its own. */
+    it('selects when one of several common discriminators is present and unique', async () => {
+      expect(await at(twoDiscriminators, { kind: 'person' }, '/first')).toEqual({
+        active: false,
+        provisional: true,
+      })
+    })
+
+    /**
+     * "`const` or `enum`" is a property of each declaration, not a style the
+     * branches have to share, so a discriminator expressed one way in one
+     * branch and the other way in another still discriminates.
+     */
+    it('selects when the branches express the discriminator with different keywords', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' } },
+        oneOf: [
+          { properties: { kind: { const: 'person' }, name: { type: 'string' } }, required: ['name'] },
+          {
+            properties: { kind: { enum: ['company', 'nonprofit'] }, org: { type: 'string' } },
+            required: ['org'],
+          },
+        ],
+      }
+      expect(await at(schema, { kind: 'nonprofit' }, '/org')).toEqual({
+        active: false,
+        provisional: true,
+      })
+      expect(await at(schema, { kind: 'person' }, '/name')).toEqual({
+        active: false,
+        provisional: true,
+      })
+    })
+
     it('reports a satisfied branch active and not provisional', async () => {
       expect(await at(constDiscriminated, { kind: 'person', name: 'x' }, '/name')).toEqual({
         active: true,
@@ -222,14 +312,26 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
         {
           properties: {
             kind: { const: 'a' },
-            value: { type: 'number', title: 'Branch A Value', minimum: 3 },
+            value: {
+              type: 'number',
+              title: 'Branch A Value',
+              minimum: 3,
+              default: 123,
+              readOnly: true,
+            },
           },
           required: ['value'],
         },
         {
           properties: {
             kind: { const: 'b' },
-            value: { type: 'string', title: 'Branch B Value', format: 'email' },
+            value: {
+              type: 'string',
+              title: 'Branch B Value',
+              format: 'email',
+              default: 'b@example.com',
+              readOnly: false,
+            },
           },
           required: ['value'],
         },
@@ -257,6 +359,28 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
       expect(value?.constraints.minimum).toBeUndefined()
       expect(value?.format).toBe('email')
     })
+
+    /**
+     * The consequential one, and the reason branch authority is not only about
+     * rendering. Once ADR-003 makes reachability `active || provisional`, the
+     * initialization pass reads `annotations.default` from whatever node the
+     * projection produced. An implementation that marks the right branch
+     * provisional while taking the default from a first-branch fallback would
+     * render correctly and then materialise the wrong branch's data.
+     */
+    it('takes the default from the selected branch', async () => {
+      const port = await createAdapter(sharedKey)
+      const value = port.project({ kind: 'b' }).nodes.get('/value' as JsonPointer)
+
+      expect(value?.annotations.default).toBe('b@example.com')
+    })
+
+    it('takes the other annotations from the selected branch too', async () => {
+      const port = await createAdapter(sharedKey)
+      const value = port.project({ kind: 'b' }).nodes.get('/value' as JsonPointer)
+
+      expect(value?.annotations.readOnly).toBe(false)
+    })
   })
 
   describe(`${name}: requiredness follows the same split`, () => {
@@ -278,6 +402,33 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
       expect(await child(constDiscriminated, { kind: 'person', name: 'x' }, 'name')).toEqual({
         required: true,
         provisionalRequired: false,
+      })
+    })
+
+    /**
+     * The two are additive facts, not a tri-state wearing two booleans. A
+     * property the schema requires unconditionally stays required while a
+     * branch is only provisionally selected, so an adapter cannot pass the
+     * three cases above by treating `provisionalRequired` as a third value of
+     * one field.
+     */
+    it('keeps an unconditional requirement while a branch is provisionally selected', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' }, value: { type: 'string' } },
+        required: ['value'],
+        oneOf: [
+          { properties: { kind: { const: 'a' }, first: { type: 'string' } }, required: ['first'] },
+          { properties: { kind: { const: 'b' }, second: { type: 'string' } }, required: ['second'] },
+        ],
+      }
+      expect(await child(schema, { kind: 'a' }, 'value')).toEqual({
+        required: true,
+        provisionalRequired: false,
+      })
+      expect(await child(schema, { kind: 'a' }, 'first')).toEqual({
+        required: false,
+        provisionalRequired: true,
       })
     })
   })
