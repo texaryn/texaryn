@@ -126,7 +126,7 @@ describe('recursive references', () => {
    * collector.
    *
    * Verified against `main` before this change, so it is not a regression from
-   * recursive candidate collection. Tracked as its own issue. When it is fixed
+   * recursive candidate collection. Tracked as issue #119. When it is fixed
    * this test fails, which is the intended way to find it.
    */
   it('overflows the stack on a self-referential property, still', async () => {
