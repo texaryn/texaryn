@@ -41,7 +41,13 @@ person filling the form can see.
   (see Admissibility).
 - **Friction is recorded before it is solved.** Each entry states what was
   tried, what blocked it, and which category it falls in (adapter, workaround,
-  private import, duplicated state, preprocessing) *before* the resolution.
+  private import, duplicated state, preprocessing) before the resolution.
+  Honoured for entries 1 to 4, which were written and committed at the moment
+  they blocked the work, before any code that dealt with them. Entries 5 to 10
+  were written after the harness ran, because they are what the comparison
+  measured rather than things that stopped it: the adapters they describe
+  already existed when the numbers arrived. The commit order shows this, and it
+  is a real weakening of the rule for those six entries.
 - **Provenance is explicit.** Every part of the template says whether it is
   verbatim from a real Backstage source or added for this exercise, with the
   URL. Constraints imposed by me are marked as such so the result can be
@@ -152,10 +158,9 @@ package name `@material-ui/core`. `@texaryn/react-mui` requires
 `@mui/material@^9.0.0`: a different major *and* a different package. A team
 adopting the MUI binding into a Backstage plugin cannot satisfy that peer with
 the MUI their application has. They would ship a second, complete MUI copy
-alongside the first. Backstage does tolerate that pattern, because its own
-v4-to-v5 migration has plugins running both at once, so this is a bundle-size
-and theming cost rather than an impossibility. It is still a cost that lands
-entirely on the adopter.
+alongside the first. Whether that is tolerable is not something this exercise
+measured: it is a bundle-size and theming question for whoever owns the
+frontend, and the cost lands entirely on the adopter.
 
 **Correcting my own first reading of this.** I initially recorded that RJSF has
 no release line reaching MUI 9. That is wrong: `@rjsf/mui@6.8.0` peers
@@ -281,6 +286,16 @@ is present, so an absent `includeName` triggers nothing. RJSF shows `lastName`
 there because it applies `default: true` on mount, which makes its state the
 `true` row.
 
+**One thing this proved in passing, and it is good news.** The payload
+comparison for this step agrees, with `lastName` present in what Texaryn
+submits, even though `/lastName` is never projected. So `runtime.data` carries
+keys the projection does not know about rather than filtering the data down to
+the fields it rendered. That is what makes Backstage's model workable at all:
+the scaffolder keeps one `formData` across the whole wizard and hands every
+step the accumulated object, so a step that dropped the keys belonging to other
+steps would destroy the answers as the user advanced. Texaryn passes them
+through.
+
 ### 4. The conditional idiom Backstage recommends crashes the projection
 
 **Category: blocker.**
@@ -356,17 +371,26 @@ value:
 | `ui:widget: color` | text input |
 | `ui:widget: range` | number input |
 | `ui:widget: radio` | select |
-| `ui:widget: checkboxes` | generic array control, one input per element |
+| `ui:widget: checkboxes` | generic array control, one enum select per element |
 | `ui:widget: date`, `date-time`, `time` | text input |
 | `ui:widget: file` | text input |
 | `ui:widget: hidden` | **visible text input**, see entry 7 |
 | `ui:field: <11 different pickers>` | text input unless a widget is registered |
 
 Most of these are missing widgets rather than a design problem, and a template
-still collects the right data through the fallback. Two are worse than a
-downgrade: `checkboxes` loses the "choose from this fixed set" affordance
-entirely and shows a free-text row per element, and `hidden` shows the user a
-value the template intended to keep out of sight.
+still collects the right data through the fallback.
+
+**A correction to my own first reading of the `checkboxes` case.** I recorded
+that it "shows a free-text row per element" and loses the "choose from this
+fixed set" constraint. That was wrong, and reading the DOM more carefully is
+what showed it: each element renders a MUI `Select`, and the `input type=text`
+that made it look like free text is the hidden native input a `Select` renders
+beside its combobox. The constraint survives. What actually differs is the shape
+of the control: RJSF renders four checkboxes for the array as a whole, and
+Texaryn renders one select per element plus add and remove, so choosing two
+features takes two adds and two selections rather than two clicks. Pinned in
+`src/enum-arrays.test.ts`. `hidden` (entry 7) is the one case in this table that
+is worse than a downgrade rather than different from one.
 
 **One thing this exercise did not settle.** `items` is where the two hint
 representations stop lining up: RJSF states a hint once for every element of an
@@ -489,12 +513,21 @@ complete and only the control is missing. An adopter cannot add it without
 writing their own array widget, because `useArrayActions` exposes `removeName`
 and `addName` and no move equivalent.
 
-**Where Texaryn is clearly better.** Every control it renders has an accessible
-name: "Remove item 1 from Contacts", "Add item to Contacts". All seven of
-RJSF's array buttons have no accessible name at all, no text and no
-`aria-label`, so the only thing distinguishing move-up from remove is a CSS
-class. That is why this test matches RJSF on class names. A screen reader user
-can operate the Texaryn form's array and cannot operate RJSF's.
+**Where Texaryn is better, stated no wider than what was measured.** Every
+control Texaryn renders has an accessible name: "Remove item 1 from Contacts",
+"Add item to Contacts". All seven of RJSF's array buttons have no accessible
+name at all, no text and no `aria-label`, so the only thing telling move-up
+from remove is a CSS class, which is why this test matches RJSF on class names.
+
+The limit on that claim: this measures `@rjsf/core`'s own unthemed templates,
+which is what the reference side installs. Backstage does not render those. It
+renders `@rjsf/material-ui`, whose array buttons are `IconButton`s that carry a
+`title`, so the accessible names there are very likely present and this
+comparison says nothing about them. The theme was left out for the reason entry
+1 gives, that its Material UI major cannot coexist with Texaryn's, and because
+the three observables the exercise compares do not depend on a theme. Accessible
+names do depend on it, so this one finding is about RJSF's defaults and not
+about the form a Backstage user sees.
 
 ### 10. Smaller packaging notes
 
@@ -533,9 +566,10 @@ taken when a `$`-prefixed key has no registered resolver:
 > the document.
 
 So a `$ref` in a Backstage template would survive placeholder processing intact
-and arrive at the form layer as a JSON Schema keyword. Nobody writes one,
-because RJSF resolves only local `#/...` references and a remote one would not
-work there either.
+and arrive at the form layer as a JSON Schema keyword. Nobody writes one. RJSF also resolves
+only local `#/...` references, so a remote one would not work there either,
+though whether that is why nobody writes one is not something this exercise
+measured.
 
 **What that means for the proposed external-resource API.** It is a
 standards-completeness gap, not the first adoption blocker for this user. If it
@@ -546,22 +580,30 @@ puts external resolution below every one of them.
 
 ## What the exercise found, in the order it should be read
 
-The acceptance test is met. All seven steps of a real Backstage template render
-through published Texaryn APIs, and of 49 step comparisons 43 are identical to
-RJSF, with the six differences recorded individually and asserted exactly. Add,
-remove, a nested object, a custom field extension, validation failure, submit
-refusal and a remotely composed `$yaml` fragment all work.
+**Every criterion was exercised to completion, and the preservation clause
+fails.** Those are two separate results, and the second is the answer.
 
-It also found that this template could not be adopted today, for reasons that
-have nothing to do with the roadmap item this exercise was scheduled to inform.
+Exercised: all seven steps of a real Backstage template render through
+published Texaryn APIs; at least two form steps, required and optional fields,
+a nested object, an array with add and remove, a conditional choice, one custom
+field extension, a validation failure with submit refused, and one remotely
+composed `$yaml` fragment. Of 49 step comparisons, 43 are identical to RJSF and
+the six differences are recorded individually and asserted exactly.
+
+Not met: the acceptance test asks for the RJSF-backed rendering to be replaced
+"while preserving the template's observable form/submission behavior", and it
+is not preserved. Four blockers stop this template being adopted as it stands,
+and six recorded divergences change observable behaviour where it is not
+blocked. None of them has anything to do with the roadmap item this exercise
+was scheduled to inform.
 
 **Blockers, in the order an adopter would hit them:**
 
-1. **No step renders at all** (entry 2). No Backstage step declares
-   `type: object`, and a node without an explicit `type` is not projected. This
-   is the first thing that happens. One level down it is silent: an untyped
-   nested object is dropped from the form with no error, which is the shape of
-   bug that reaches production.
+1. **No step renders at all** (entry 2), which is the first thing that happens.
+   No Backstage step declares `type: object`, and a node without an explicit
+   `type` is not projected. One level down it is silent: an untyped nested
+   object is dropped from the form with no error, which is the shape of bug
+   that reaches production.
 2. **The conditional produces an unfillable form** (entry 3). The validator
    reports `/lastName` as required and the projection provides no field for it,
    so the step cannot be completed or corrected.

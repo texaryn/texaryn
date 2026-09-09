@@ -23,9 +23,11 @@ export const fieldDivergences: Record<string, Divergence> = {
     texarynOnly: ['/features/0', '/features/1'],
     why:
       'The step asks for `ui:widget: checkboxes` on an array of enum strings. RJSF renders one ' +
-      'control for the whole array. `@texaryn/react-mui` has no checkbox-group widget, so the ' +
-      'array falls back to the generic array control and renders one input per element. Both ' +
-      'collect the same data; the second cannot express "choose from this fixed set". Entry 5.',
+      'control for the whole array, four checkboxes sharing its name. `@texaryn/react-mui` has ' +
+      'no checkbox-group widget, so the array falls back to the generic array control and ' +
+      'renders one element per row. Each row is still an enum select rather than a text field, ' +
+      'so the constraint survives and only the shape of the control differs: two adds and two ' +
+      'selections where RJSF takes two clicks. See `enum-arrays.test.tsx` and entry 5.',
   },
   'Fill in some steps': {
     rjsfOnly: ['/lastName'],
