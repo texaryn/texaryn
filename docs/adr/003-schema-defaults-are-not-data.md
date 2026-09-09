@@ -238,7 +238,9 @@ One measured behaviour is deliberately **not** listed as a divergence, because
 it is not one: both runtimes keep the data of a branch that has stopped
 applying, and both therefore submit it. That is a question about what a
 submission contains rather than about defaults, it predates this contract, and
-it is tracked separately.
+it is tracked as #126. How that one is resolved matters here: pruning data when
+a branch deactivates would break rule 5's dependency, filtering at submission
+time would leave it intact.
 
 Nothing about validation changes, so no conformance result moves.
 
@@ -284,3 +286,5 @@ larger hole than the problem being solved.
   while measuring this and deliberately separate
 - Issue #120, branch selection, which decides what "reachable" means for a
   provisional branch and therefore blocks implementation
+- Issue #126, a submission carrying data from a branch that no longer applies,
+  measured here; rule 5 depends on how it is resolved
