@@ -54,8 +54,13 @@ throw). There is no wildcard: a reason names one exact upstream test, so "skip
 all `unevaluatedProperties` tests" is not expressible. Recording the outcome is
 what stops a deviation covering a test that later fails for a new reason.
 
+A schema may reference its dialect's own metaschema to assert that it is itself
+a valid schema. Both adapters resolve those without any configuration, so that
+is not among the failures below; the published metaschemas are loaded on demand
+and never fetched over the network.
+
 **External schema resolution** accounts for every failure of both adapters
-except the two classes below. The suite expects documents to be retrieved from
+except the class below. The suite expects documents to be retrieved from
 `http://localhost:1234`, and neither adapter factory exposes a resolver hook.
 
 Both fail closed, which is the part worth knowing, and they do it at different
@@ -65,14 +70,6 @@ referenced schema would have said; constraints beside the reference are still
 applied. `@texaryn/schema-json-hyperjump` refuses to compile at all. Neither
 silently drops the constraint, so an unresolvable reference cannot let data
 through unchecked.
-
-**Standard metaschema** is kept separate, because it is a different promise. A
-handful of cases `$ref` the dialect's own metaschema by its canonical URI to
-check a schema is itself valid. A validator can reasonably be expected to know
-the metaschema of a dialect it claims without any user-supplied resolver, and
-that is not a hypothetical: `@texaryn/schema-json-hyperjump` passes these and
-`@texaryn/schema-json` does not. Folding them into the category above would
-have hidden a real difference between the two.
 
 **Upstream validator deviations** are departures from the suite's expectations
 observed through the reference adapter. They are recorded that way on purpose:
@@ -95,6 +92,14 @@ That is why Draft 7's optional count sits above the other two. Those cases
 deliberately measure an implementation with format assertion switched on, so a
 dialect that correctly leaves it off scores lower there. It is the one place in
 this report where a lower number is the specification-correct one.
+
+One consequence is worth knowing before it surprises you. Validating a schema
+against its metaschema inherits the dialect's `format` rule, so a malformed
+`pattern` regex or `$id` is caught under Draft 7, which asserts, and not under
+2019-09 or 2020-12, which do not. The same invalid schema can therefore pass
+its metaschema on one dialect and fail on another. That is the specification
+working as written rather than an inconsistency here, and strict schema linting
+would be a separate capability rather than a change to validation semantics.
 
 The mandatory suite cannot see any of this, which is worth knowing about the
 suite rather than about the adapter. Only 2020-12's `format.json` carries the

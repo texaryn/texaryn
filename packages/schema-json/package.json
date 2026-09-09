@@ -37,7 +37,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "CHANGELOG.md"],
+  "files": ["dist", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md"],
   "dependencies": {
     "@texaryn/core": "workspace:^",
     "json-schema-library": "^11.6.2"

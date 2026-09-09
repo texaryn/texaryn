@@ -189,12 +189,71 @@ describe('createJsonSchemaAdapter', () => {
       })
     }
 
-    it('reads the dialect from $schema rather than the fallback', async () => {
+    it('reads the dialect from $schema rather than the fallback (format)', async () => {
       const adapter = await createJsonSchemaAdapter(
         { $schema: 'https://json-schema.org/draft/2019-09/schema', type: 'string', format: 'email' },
         { defaultDialect: 'draft-07' },
       )
       expect((await adapter.validate('2962')).valid).toBe(true)
+    })
+  })
+
+  // Both halves per dialect on purpose. Accepting a valid schema proves the
+  // metaschema resolved; rejecting an invalid one proves it is actually being
+  // applied. Without the second, a registration whose internal references were
+  // half broken would look identical to a working one, because an unresolved
+  // reference rejects everything.
+  describe('metaschema resolution', () => {
+    const metaschemas = {
+      'draft-07': 'http://json-schema.org/draft-07/schema#',
+      '2019-09': 'https://json-schema.org/draft/2019-09/schema',
+      '2020-12': 'https://json-schema.org/draft/2020-12/schema',
+    } as const
+
+    for (const [dialect, uri] of Object.entries(metaschemas) as Array<
+      [keyof typeof metaschemas, string]
+    >) {
+      describe(dialect, () => {
+        const schemaOfSchemas =
+          dialect === 'draft-07' ? { $ref: uri } : { $schema: uri, $ref: uri }
+
+        it('accepts a valid schema document', async () => {
+          const adapter = await createJsonSchemaAdapter(schemaOfSchemas, {
+            defaultDialect: dialect,
+          })
+          const result = await adapter.validate({ type: 'integer', minimum: 3 })
+          expect(result.errors.map((error) => error.message)).toEqual([])
+          expect(result.valid).toBe(true)
+        })
+
+        it('rejects a schema document that breaks the metaschema', async () => {
+          const adapter = await createJsonSchemaAdapter(schemaOfSchemas, {
+            defaultDialect: dialect,
+          })
+          // `type` must be a string or an array of them, and `required` an array.
+          expect((await adapter.validate({ type: 1 })).valid).toBe(false)
+          expect((await adapter.validate({ required: 'notAnArray' })).valid).toBe(false)
+        })
+      })
+    }
+
+    it('resolves the referenced dialect, not the detected one', async () => {
+      const adapter = await createJsonSchemaAdapter(
+        { $ref: 'https://json-schema.org/draft/2020-12/schema' },
+        { defaultDialect: 'draft-07' },
+      )
+      expect((await adapter.validate({ type: 'integer' })).valid).toBe(true)
+      expect((await adapter.validate({ type: 1 })).valid).toBe(false)
+    })
+
+    it('leaves an unrelated absolute reference unresolved', async () => {
+      const adapter = await createJsonSchemaAdapter(
+        { $ref: 'https://example.com/not-a-metaschema.json' },
+        { defaultDialect: '2020-12' },
+      )
+      const result = await adapter.validate({ anything: true })
+      expect(result.valid).toBe(false)
+      expect(result.errors.map((error) => error.keyword)).toEqual(['$ref'])
     })
   })
 })
