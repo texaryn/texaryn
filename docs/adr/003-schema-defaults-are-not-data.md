@@ -65,9 +65,11 @@ to make a choice, and the last six are one finding.
 
 ### The conditional rows, read three times
 
-The first reading is that the reference contradicts itself: a `then` branch's
+**First reading, wrong.** The reference contradicts itself: a `then` branch's
 default is filled with no `formData` and not filled with
-`formData: { flag: false }`, which describes the same instance. It does not.
+`formData: { flag: false }`, which describes the same instance.
+
+**Second reading, and it stands.** It does not contradict itself.
 `if: { properties: { flag: { const: true } } }` constrains a property it does not
 require, so an absent `flag` satisfies it vacuously; adding `required: ['flag']`
 makes the default disappear, which is what identifies the mechanism. Conditionals
@@ -81,21 +83,27 @@ resolved the branch before filling `flag`. A click on the discriminator produces
 the value; the discriminator's own default does not. Same schema, same resulting
 instance, two answers.
 
-The second reading is that the reference nevertheless fills on activation and
-does not refill a field the user cleared, which would make it a coherent
-once-per-location policy with one pass in the wrong order. **That reading is
-wrong, and the mechanism matters more than the conclusion.** Clearing a text
-input leaves the key present with the value `undefined`, and deactivating the
-branch does not remove it either. The default never returns because a present
-key beats a default, not because anything recorded that the location was already
-filled. `JSON.stringify` drops an `undefined` value, which is what made the
-submitted payload look as though the key had gone.
+**Third reading, wrong, and recorded because the payload alone supports it.**
+The reference fills on activation and does not refill a field the user cleared,
+which looks like a coherent once-per-location policy with one pass in the wrong
+order. It is not one. Clearing a text input leaves the key present with the
+value `undefined`, and deactivating the branch does not remove it either. The
+default never returns because a present key beats a default, not because
+anything recorded that the location was already filled. `JSON.stringify` drops
+an `undefined` value, which is what made the payload look as though the key had
+gone.
 
-So nothing in the reference tracks what it has already materialised, and its
-protection against an unclearable default is that it never removes a key. The
-last row is what that costs: a value typed into a branch that is then
-deactivated stays in the data and reaches the submission, so a scaffolder action
-can read a parameter from a branch the form no longer applies.
+So nothing in the reference tracks what it has already materialised, and what
+protects it from an unclearable default is that it never removes a key. The last
+row is the same mechanism seen from the other side: a value typed into a branch
+that is then deactivated stays in the data and reaches the submission.
+
+**Texaryn's runtime behaves the same way, which is what makes this decidable
+without new state.** Measured on the published `@texaryn/core` 0.7.0:
+`SetValue` with `undefined` leaves the key present holding `undefined`, and
+setting a discriminator so a branch stops applying leaves that branch's data in
+place. So in this runtime too, a location that has been filled never becomes
+absent again.
 
 ### Two smaller divergences
 
@@ -127,22 +135,32 @@ Concretely:
    `FormRuntimeOptions.initialization: 'schema-defaults'` (default `'none'`).
 5. **A location is materialised the first time it becomes reachable, and never
    again.** Construction is the first reachability event, so a schema with no
-   conditionals is fully materialised there and nothing happens afterwards. A
-   branch the user activates later materialises the locations it reveals, once.
-   The bookkeeping this needs is Texaryn's own and is not copied from the
-   reference, which tracks nothing: it is what allows filling on activation
-   without either refilling a field the user cleared or keeping a key alive to
-   prevent the refill. Those are the only three options and the other two are
-   both worse.
+   conditionals is finished there. A branch the user activates later, or a row
+   `InsertItem` creates, materialises the locations it reveals.
+
+   **This needs no record of what has already been filled.** The rule follows
+   from "fill only absent locations" plus the measured fact that this runtime
+   never removes a key: clearing a field leaves the key present holding
+   `undefined`, and deactivating a branch leaves its data in place, so a filled
+   location cannot become absent and a second pass over it cannot fill it. That
+   is the one non-obvious dependency in this contract, so it is stated rather
+   than assumed: **if the runtime ever starts removing keys, whether on clear or
+   by pruning an inactive branch, this rule needs an explicit set of
+   materialised locations to keep its meaning, and for array rows that set
+   cannot be keyed by JSON pointer, because removing a row renumbers the
+   pointers of the rows after it.**
 6. **What was materialised at construction is `state.initialData`.**
    `createFormRuntime` runs the construction pass against `options.initialData`
    and uses the result, so `handleReset` (`cmd.data ?? state.initialData`) and
    `handleSetValue`'s `modified` computation need no new code for it.
-7. **`Reset` restores the construction snapshot, bookkeeping included.** The
-   data returns to `state.initialData` and the set of materialised locations
-   returns to what it was at construction, so a reset form behaves like a fresh
-   one and re-activating a branch seeds it again. A reset form that seeds
-   differently from a fresh one is the divergence that would bite later.
+7. **`Reset` restores data and nothing else**, since rule 5 keeps no state to
+   restore. `Reset` with no `cmd.data` returns to `state.initialData`, which is
+   what construction materialised, so a reset form is a fresh one. `Reset` with
+   `cmd.data` replaces the data wholesale and materialisation does **not** run
+   again on it: a caller passing explicit data is stating what the form holds,
+   and re-running the pass would overwrite their intent for any location they
+   left absent. A caller who wants defaults over their reset data can ask for
+   them the same way they did at construction, by constructing again.
 
 ### Rules for the pass
 
@@ -150,7 +168,9 @@ From the measurements:
 
 - **Fill only absent locations.** Absent means the property is not present;
   `false`, `0`, `''` and `null` are values and are never defaulted over.
-- **Never fill a location twice**, whatever happens to its value in between.
+- **Never fill a location twice.** Given the rule above and a runtime that does
+  not remove keys, this follows rather than needing enforcement, which is what
+  rule 5 depends on.
 - **Nearest declaration wins, per key.** A property-level default beats its
   container's for that key, and the container's default still supplies the keys
   no property declares: container `{ team: 'a', extra: 'x' }` with a
@@ -176,18 +196,13 @@ deleted valid candidates in #118.
 
 ### What this costs
 
-The runtime carries a set of materialised pointers for the form's life, reset
-with the data. Nothing in the reference needs that state, so it is a cost this
-contract adds deliberately. What buys it is that the two cheaper answers both
-fail: seeding on activation with no bookkeeping refills a field the user
-cleared every time the branch comes back, and preventing that the way the
-reference does, by never removing a key, submits values from branches that do
-not apply.
-
 A location seeded after construction is not in `state.initialData`, so it
 reports `modified: true`. That is the honest answer, since the user did change
 the form, but it means "modified" can be true for a field the user never typed
 into. Recorded rather than hidden.
+
+The rest of the cost is the dependency in rule 5. Nothing new is stored, and
+that is only sound while keys are never removed.
 
 ### What stays open
 
@@ -198,6 +213,13 @@ locations are reachable for this purpose. Seeding from a provisional branch and
 seeding from an active one are different promises. Not decided here, and it
 blocks implementation rather than the contract.
 
+**Where the iteration-bound diagnostic goes.** There is no channel for it yet.
+`SchemaProjection.diagnostics` is documented as describing schemas rather than
+data and belongs to the projection, while the bound is reached inside
+`createFormRuntime` and is a fact about one initialization run. Reusing the
+projection channel would break the boundary that channel was given; a new one
+is a public API addition that this ADR does not decide. Undecided, and small.
+
 ## Consequences
 
 An adopter who needs RJSF's payload has to ask for it, at the call site, in one
@@ -206,17 +228,17 @@ implied by the schema.
 
 For an adopter who does ask, the behaviour matches the reference on every
 uncontroversial case and on the user-activated conditional that Backstage's own
-documented template uses. Four divergences remain, and in all four the reference
-is the one that is wrong: it discards an object-level default, it creates array
-rows to satisfy a constraint rather than a description, it leaves a branch
-activated by its own discriminator default unfilled while rendering the field,
-and it submits values from branches that do not apply.
+documented template uses. Three divergences remain, and in all three the
+reference is the one that is wrong: it discards an object-level default, it
+creates array rows to satisfy a constraint rather than a description, and it
+leaves a branch activated by its own discriminator default unfilled while
+rendering the field.
 
-The fourth is not about defaults and is the widest of them. It is recorded here
-because it was measured here and because it is the reason this contract pays for
-bookkeeping instead of copying the reference's mechanism. Whether Texaryn's
-runtime already prunes data for a deactivated branch is a separate question this
-ADR does not answer.
+One measured behaviour is deliberately **not** listed as a divergence, because
+it is not one: both runtimes keep the data of a branch that has stopped
+applying, and both therefore submit it. That is a question about what a
+submission contains rather than about defaults, it predates this contract, and
+it is tracked separately.
 
 Nothing about validation changes, so no conformance result moves.
 
@@ -226,21 +248,19 @@ Nothing about validation changes, so no conformance result moves.
 is the failure named at the top: an annotation becoming data with nobody having
 asked.
 
-**Materialise once at construction and never again.** Simpler, and it needs no
-per-location bookkeeping: the runtime holds one snapshot and reprojection is
-inert. Its stated reason, that a cleared field would otherwise refill and could
-not be emptied, is real. It is rejected because the bookkeeping answers that
-reason at the cost of one set of pointers, while the rule itself would leave a
-user-activated branch's fields empty. The reference does fill them, and the
-template the adoption exercise uses is exactly that shape, so this is the one
-place where the cheaper rule costs observable parity for no correctness gain.
+**Materialise once at construction and never again.** This was the first
+decision written here, on the grounds that filling later would make a cleared
+field refill and become unclearable. It is rejected because the premise is
+false in this runtime: a cleared field keeps its key, so a later pass cannot
+refill it. With the objection gone, refusing to fill on activation only buys a
+user-activated branch's fields starting empty, and the template the adoption
+exercise uses is exactly that shape.
 
-**Keep a key alive to block the refill, as the reference does.** This is the
-mechanism measured above, and it needs no bookkeeping at all. It is rejected
-because the price is paid somewhere worse: a value typed into a branch that is
-then deactivated stays in the data and is submitted, so a scaffolder action can
-read a parameter belonging to a branch the form no longer applies. Trading a
-silent data leak for a set of pointers is not a trade worth making.
+**Carry an explicit set of materialised locations.** The second decision written
+here, and it is what rule 5 would need if keys were ever removed. It is rejected
+now because nothing removes them, so the set would be state that can never
+change an outcome. Rule 5 names the condition under which this becomes the right
+answer instead.
 
 **Resolve conditionals once, against the data as supplied.** This is what the
 reference does, and it is one pass rather than a fixpoint. It is rejected
