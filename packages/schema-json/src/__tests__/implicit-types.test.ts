@@ -253,28 +253,31 @@ describe('ambiguity is reported, not guessed', () => {
   })
 })
 
-describe('nothing scalar or generic is inferred', () => {
+describe('nothing scalar or generic is inferred, and nothing disappears quietly', () => {
   /**
    * A scalar shape would need a rule that is right rather than symmetrical,
-   * and there is not one: `minimum` cannot tell `number` from `integer`. A
-   * single scalar family therefore resolves to nothing, which is not the same
-   * as ambiguous, so no diagnostic is raised either.
+   * and there is not one: `minimum` cannot tell `number` from `integer`. So a
+   * single scalar family resolves to no shape, which is a different outcome
+   * from ambiguity and carries its own code, but it is still reported. The
+   * whole reason diagnostics exist is that a field which never renders must
+   * not also be a field nobody was told about.
    */
   it.each([
     ['minLength alone', { minLength: 1 }],
     ['pattern alone', { pattern: '^a' }],
     ['minimum alone', { minimum: 0 }],
     ['multipleOf alone', { multipleOf: 2 }],
-  ])('%s resolves to no shape and no diagnostic', async (_label, schema) => {
+  ])('%s is reported as unresolved rather than inferred', async (_label, schema) => {
     const projection = await project(schema)
     expect(projection.nodes.size).toBe(0)
-    expect(projection.diagnostics).toEqual([])
+    expect(projection.diagnostics).toHaveLength(1)
+    expect(projection.diagnostics?.[0]?.code).toBe('unresolved-projection-shape')
+    expect(projection.diagnostics?.[0]?.pointer).toBe('')
   })
 
   /**
-   * Generic keywords describe or compose a schema without belonging to a type,
-   * so none of them may decide a shape. `enum` is the tempting one: its
-   * members are strings here and it still resolves to nothing.
+   * Generic keywords describe or compose a schema without belonging to any
+   * type, so none of them may decide a shape.
    */
   it.each([
     ['title', { title: 'A' }],
@@ -285,11 +288,40 @@ describe('nothing scalar or generic is inferred', () => {
     ['writeOnly', { writeOnly: true }],
     ['deprecated', { deprecated: true }],
     ['const', { const: 'a' }],
-    ['enum', { enum: ['a', 'b'] }],
     ['not', { not: { type: 'number' } }],
     ['an empty schema', {}],
-  ])('%s decides nothing', async (_label, schema) => {
-    expect(await pointers(schema)).toEqual([])
+  ])('%s decides nothing and is reported', async (_label, schema) => {
+    const projection = await project(schema)
+    expect([...projection.nodes.keys()]).toEqual([])
+    expect(projection.diagnostics?.map((d) => d.code)).toEqual(['unresolved-projection-shape'])
+  })
+
+  /**
+   * `enum` is the case worth stating on its own, because inferring `string`
+   * from it is the tempting wrong rule. JSON Schema permits heterogeneous
+   * members, so an `enum` says what the values are and not what type they
+   * have. It is reported rather than guessed at, and the message says why.
+   */
+  it('reports an enum without a type, whether its members share one or not', async () => {
+    for (const schema of [
+      { enum: ['a', 'b'] },
+      { enum: ['a', 1, null, true] },
+      { enum: [1, 2, 3] },
+    ]) {
+      const projection = await project(schema)
+      expect(projection.nodes.size, JSON.stringify(schema)).toBe(0)
+      expect(projection.diagnostics?.[0]?.code).toBe('unresolved-projection-shape')
+      expect(projection.diagnostics?.[0]?.message).toContain('enum')
+    }
+  })
+
+  it('renders an enum normally once its type is declared', async () => {
+    const projection = await project({ type: 'string', enum: ['a', 'b'] })
+    expect(projection.nodes.get('' as JsonPointer)?.enumValues).toEqual([
+      { value: 'a' },
+      { value: 'b' },
+    ])
+    expect(projection.diagnostics).toEqual([])
   })
 
   /**
@@ -297,7 +329,38 @@ describe('nothing scalar or generic is inferred', () => {
    * and schemas apply it to non-strings in practice, so it is not a signal.
    */
   it('does not infer a string from format', async () => {
-    expect(await pointers({ format: 'email' })).toEqual([])
+    const projection = await project({ format: 'email' })
+    expect(projection.nodes.size).toBe(0)
+    expect(projection.diagnostics?.[0]?.code).toBe('unresolved-projection-shape')
+  })
+
+  /**
+   * The case that matters most in a real form: the rest of the step still
+   * renders, and the one field that could not be given a shape is named.
+   */
+  it('names an unresolved property and keeps its siblings', async () => {
+    const projection = await project({
+      properties: {
+        good: { type: 'string' },
+        choices: { enum: ['a', 'b'] },
+        nothing: {},
+      },
+    })
+
+    expect([...projection.nodes.keys()]).toEqual(['', '/good'])
+    expect(projection.diagnostics?.map((d) => `${d.pointer}:${d.code}`)).toEqual([
+      '/choices:unresolved-projection-shape',
+      '/nothing:unresolved-projection-shape',
+    ])
+  })
+
+  /** The two codes are distinct, so a caller can tell the cases apart. */
+  it('separates insufficient information from conflicting information', async () => {
+    const unresolved = await project({ properties: { a: { enum: ['x'] } } })
+    const ambiguous = await project({ properties: { a: { properties: {}, minLength: 1 } } })
+
+    expect(unresolved.diagnostics?.[0]?.code).toBe('unresolved-projection-shape')
+    expect(ambiguous.diagnostics?.[0]?.code).toBe('ambiguous-projection-shape')
   })
 })
 

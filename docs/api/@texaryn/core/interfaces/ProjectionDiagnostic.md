@@ -15,7 +15,7 @@ person reading a log and is not a contract.
 
 ### code
 
-> **code**: `"ambiguous-projection-shape"`
+> **code**: [`ProjectionDiagnosticCode`](../type-aliases/ProjectionDiagnosticCode.md)
 
 ***
 

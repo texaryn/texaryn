@@ -24,4 +24,12 @@ exactly as JSON Schema says it should, while the form renders as an object.
 
 `SchemaProjection` gains an optional `diagnostics` array, with the
 `ProjectionDiagnostic` and `ProjectionDiagnosticCode` types, so a pointer that
-could not be given a shape is reported rather than silently absent.
+could not be given a shape is reported rather than silently absent. Two codes:
+`ambiguous-projection-shape` where keywords from more than one type conflict,
+and `unresolved-projection-shape` where there is nothing to go on at all. An
+`enum` without a `type` is the common case of the second, and deliberately not
+read as a string, because JSON Schema permits members of different types.
+
+The rule in full: an explicit `type` is used, an unambiguous structural shape
+is derived, and everything else is reported. Nothing is guessed and nothing
+disappears without a word.

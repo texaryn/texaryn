@@ -318,19 +318,35 @@ function walk(
     const shape = inferProjectionShape(schema)
     if (shape.kind === 'resolved') {
       type = shape.type
-    } else if (shape.kind === 'ambiguous') {
-      // Reported rather than dropped in silence. The field cannot be drawn
-      // without a shape, so the caller is told which pointer was skipped and
-      // what made it undecidable, instead of finding out from a form that
-      // never collected the value.
-      diagnostics.push({
-        pointer: toPointer(pointer),
-        code: 'ambiguous-projection-shape',
-        message:
-          `No explicit "type", and keywords from more than one type apply ` +
-          `(${shape.families.join(', ')}), so the form shape is undecidable. ` +
-          `Declare "type" on this schema to resolve it.`,
-      })
+    } else {
+      // Reported rather than dropped in silence, either way. The field cannot
+      // be drawn without a shape, so the caller is told which pointer was
+      // skipped and why, instead of finding out from a form that never
+      // collected the value.
+      diagnostics.push(
+        shape.kind === 'ambiguous'
+          ? {
+              pointer: toPointer(pointer),
+              code: 'ambiguous-projection-shape',
+              message:
+                `No explicit "type", and keywords from more than one type apply ` +
+                `(${shape.families.join(', ')}), so the shape to render is undecidable. ` +
+                `Declare "type" on this schema to resolve it.`,
+            }
+          : {
+              pointer: toPointer(pointer),
+              code: 'unresolved-projection-shape',
+              message:
+                `No explicit "type", and no keyword that implies one, so there is no ` +
+                `shape to render. Declare "type" on this schema.` +
+                // Said only where it applies, because inferring `string` from
+                // an enum is the tempting wrong rule and the reason deserves
+                // to travel with the case rather than every message.
+                (schema.enum !== undefined
+                  ? ` An "enum" alone does not imply a type, because its members may be of different types.`
+                  : ''),
+            },
+      )
     }
   }
 
