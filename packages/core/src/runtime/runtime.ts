@@ -150,7 +150,10 @@ export function createFormRuntime(
   port: SchemaEvaluationPort,
   options: FormRuntimeOptions = {},
 ): FormRuntime {
-  const initialData = options.initialData ?? {}
+  // Not `?? {}`, which treated `null` as "not supplied" while `false`, `0` and
+  // `''` survived, so a caller could not say the instance is `null` and which
+  // falsy values lived was arbitrary. `null` is a legal instance.
+  const initialData = options.initialData === undefined ? {} : options.initialData
   const projection = port.project(initialData)
   const initialCompile = compile(projection, initialData, options.hints)
 
