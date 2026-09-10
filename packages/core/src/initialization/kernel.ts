@@ -1,5 +1,5 @@
 import type { JsonPointer } from '../types.js'
-import { parsePointer } from '../json-pointer.js'
+import { isArrayIndexSegment, parsePointer } from '../json-pointer.js'
 
 /**
  * The initialization pass from ADR-003, over a normalized view of a schema
@@ -208,17 +208,13 @@ function refuse(data: unknown, segments: readonly string[]): DefaultRefusal['rea
   for (let index = 0; index < segments.length; index += 1) {
     // `current` is the container that has to hold `segments[index]`.
     if (current === undefined) {
-      return couldBeArrayIndex(segments[index]!) ? 'unknown-container-kind' : undefined
+      return isArrayIndexSegment(segments[index]!) ? 'unknown-container-kind' : undefined
     }
     if (!isContainer(current)) return 'non-container-ancestor'
     if (index === segments.length - 1) return undefined
     current = (current as Record<string, unknown>)[segments[index]!]
   }
   return undefined
-}
-
-function couldBeArrayIndex(segment: string): boolean {
-  return /^(0|[1-9][0-9]*)$/.test(segment)
 }
 
 function hasConflictedAbsentAncestor(
@@ -277,12 +273,13 @@ function isContainer(value: unknown): boolean {
 /**
  * Sets a value, creating every missing object level on the way.
  *
- * `setAtPointer` is not used because it creates exactly one missing level and
- * throws a `TypeError` on two, which is a defect in its own right and is
- * tracked as #129. The pass needs the rule ADR-003 gives it, that a parent
- * object is created to hold a child default, at any depth. `refuse` has already
- * established that nothing on the path is a scalar and that no missing level
- * would have to be an array.
+ * `setAtPointer` now does the same thing, since #129 fixed the defect this was
+ * written around: it created exactly one missing level and threw on two. This
+ * stays because the pass carries parsed segments rather than pointers, and
+ * because `refuse` has already established what `setAtPointer` re-checks, that
+ * nothing on the path is a scalar and that no missing level would have to be an
+ * array. Collapsing the two is worth doing when the pass stops being a
+ * prototype, not while its diagnostics still depend on refusing before writing.
  */
 function writeAtSegments(data: unknown, segments: readonly string[], value: unknown): unknown {
   if (segments.length === 0) return value
