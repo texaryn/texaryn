@@ -494,6 +494,95 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
         provisional: false,
       })
     })
+
+    /**
+     * And the requirement it carries, which a visibility assertion alone does
+     * not reach. Storing the identified branch where the evaluator's resolved
+     * node goes exposes the field but loses the reason it is being asked for,
+     * so it renders as optional when the branch requires it.
+     */
+    it('reports a typeless wrapper branch requirement as provisional', async () => {
+      const schema = {
+        oneOf: [
+          {
+            type: 'object',
+            properties: { kind: { const: 'a' }, value: { type: 'string' } },
+            required: ['value'],
+          },
+          {
+            type: 'object',
+            properties: { kind: { const: 'b' }, other: { type: 'string' } },
+            required: ['other'],
+          },
+        ],
+      }
+      expect(await child(schema, { kind: 'a' }, 'value')).toEqual({
+        required: false,
+        provisionalRequired: true,
+      })
+    })
+
+    /**
+     * Selection is local, but exposure is the ancestor's to grant. A subtree
+     * nothing exposes must not select a branch off data it happens to retain:
+     * the compiler collapses `required || provisionalRequired` into the one
+     * flag a binding reads, so a hidden field would acquire a requirement.
+     */
+    it.each([
+      [
+        'a typed wrapper',
+        {
+          type: 'object',
+          properties: { kind: { type: 'string' } },
+          oneOf: [
+            { properties: { kind: { const: 'a' }, x: { type: 'string' } }, required: ['x'] },
+            { properties: { kind: { const: 'b' }, y: { type: 'string' } }, required: ['y'] },
+          ],
+        },
+      ],
+      [
+        'a typeless wrapper',
+        {
+          oneOf: [
+            {
+              type: 'object',
+              properties: { kind: { const: 'a' }, x: { type: 'string' } },
+              required: ['x'],
+            },
+            {
+              type: 'object',
+              properties: { kind: { const: 'b' }, y: { type: 'string' } },
+              required: ['y'],
+            },
+          ],
+        },
+      ],
+    ])('selects nothing inside %s no ancestor exposes', async (_label, group) => {
+      const schema = {
+        type: 'object',
+        properties: { flag: { type: 'boolean' } },
+        allOf: [
+          {
+            if: { properties: { flag: { const: true } }, required: ['flag'] },
+            then: { properties: { group } },
+          },
+        ],
+      }
+      // `flag` is absent, so the `then` scope does not apply and nothing
+      // exposes `group`, whatever data it retains. Both shapes are covered
+      // because they reach the selector by different routes: the typed wrapper
+      // through the object path, the typeless one through the identification
+      // that gives it a shape at all.
+      const data = { group: { kind: 'a' } }
+      expect(await at(schema, data, '/group')).toEqual({ active: false, provisional: false })
+      expect(await at(schema, data, '/group/x')).toEqual({ active: false, provisional: false })
+
+      const port = await createAdapter(schema)
+      const groupNode = port.project(data).nodes.get('/group' as JsonPointer)
+      const x = groupNode?.children?.find((c) => c.key === 'x')
+      expect(x?.required).toBe(false)
+      expect(x?.provisionalRequired).not.toBe(true)
+    })
   })
 
   describe(`${name}: what a selected branch is authoritative for`, () => {
@@ -612,21 +701,26 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
     })
 
     /**
-     * And the unconditional constraint survives branch selection, in both
-     * directions. A selected branch beats an unselected sibling; it does not
-     * beat the node's own declaration, because those constraints are
-     * conjunctive and the validator enforces the base one regardless. Supplying
-     * only the property that turns the branch active must not make the base
-     * constraint appear or disappear.
+     * The unconditional declaration and the selected branch's compose, in both
+     * directions. The two are conjunctive: the validator enforces the base one
+     * whatever branch applies, and the branch's own the moment it does.
+     *
+     * Both halves matter, for the same reason. Preferring the branch drops the
+     * base constraint, so the form accepts what the submission rejects.
+     * Preferring the base drops the branch's until the branch activates, so
+     * supplying the one property that completes the branch makes an unrelated
+     * limit appear from nowhere. Completing a branch must change only what the
+     * user's own data changed.
      */
     it.each([
       ['a provisionally selected branch', { kind: 'a' }],
       ['the same branch once it applies', { kind: 'a', extra: 'x' }],
-    ])('keeps the unconditional constraint under %s', async (_label, data) => {
+    ])('composes the unconditional and branch constraints under %s', async (_label, data) => {
       const port = await createAdapter(unconditionalPlusBranch)
       const value = port.project(data).nodes.get('/value' as JsonPointer)
 
       expect(value?.constraints.minLength).toBe(2)
+      expect(value?.constraints.maxLength).toBe(5)
     })
 
     /**

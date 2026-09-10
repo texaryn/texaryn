@@ -1,4 +1,4 @@
-import type { SchemaNode } from 'json-schema-library'
+import { mergeNode, type SchemaNode } from 'json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -324,11 +324,42 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
  * declaration wins, and failing that the first branch the schema declares. It
  * is a stable placeholder and deliberately not a claim that one branch matters
  * more, which is why `CandidateProperty` keeps the alternatives instead of
- * discarding them. Whenever a branch *is* active, `walk` uses the reduced
- * node instead and this is not consulted.
+ * discarding them.
+ *
+ * Last of three, and only reached when no branch has claimed the location: an
+ * active branch gives `walk` the reduced node, and a provisionally selected one
+ * gives it `composeChild`, so this is consulted for neither.
  */
 function candidatePrototype(candidate: CandidateProperty): SchemaNode {
   return candidate.direct ?? candidate.alternatives[0]
+}
+
+/**
+ * The two statements that both apply to a child location, as one node.
+ *
+ * A selected branch beats an unselected sibling, and it does not beat the
+ * node's own unconditional declaration: in JSON Schema the two are conjunctive,
+ * so the instance has to satisfy both. Replacing in either direction is wrong,
+ * and visibly so from the form. Dropping the base constraint makes the form
+ * accept what the submission rejects. Dropping the branch's makes an unrelated
+ * limit appear from nowhere the moment the branch activates, when all the user
+ * supplied was the property that completed it.
+ *
+ * `mergeNode` is the library's own routine, the one `reduceNode` uses to fold a
+ * reducer's result into the node it is building, called here in that same order:
+ * base first, branch second, so the branch wins a keyword both sides declare.
+ * Matching it is the point. It makes the provisional projection *equal* the
+ * active projection of the same branch rather than merely resemble it, which is
+ * what a hand-written conjunction could not promise.
+ *
+ * Both sides are dereferenced first because `mergeNode` carries `$ref` over
+ * from the base, and `walk` dereferences whatever it is handed: an unresolved
+ * `$ref` on the result would resolve back to the base alone and discard the
+ * branch.
+ */
+function composeChild(base?: SchemaNode, branch?: SchemaNode): SchemaNode | undefined {
+  if (!base || !branch) return base ?? branch
+  return mergeNode(dereference(base), dereference(branch))
 }
 
 /**
@@ -554,23 +585,31 @@ function walk(
       // silently dropping the whole subtree. A oneOf/anyOf wrapper whose branches are
       // primitives (not objects) is not handled by this fallback.
       type = 'object'
+      branchResolved = false
       // The wrapper's own branch could not be resolved, so the schema applies
       // none of them. It may still be identifiable: a discriminator present in
-      // the data can pick one, and then the wrapper is exposed provisionally
-      // rather than not at all. Without this, the same schema behaves
+      // the data picks one, and the wrapper is then exposed provisionally
+      // rather than not at all. Without that, the same schema behaves
       // differently for having declared `type` or not, since the typed path
       // reaches the selector below and this one used to stop here.
-      branchResolved = false
-      const identified = selectProvisionalBranch(
-        original,
-        typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined,
-      )
-      if (identified) {
-        resolved = identified
-        schema = identified.schema as Record<string, unknown>
-        type = resolveExplicitType(schema) ?? 'object'
-        wrapperIdentified = true
-      }
+      //
+      // Only the flag is recorded, deliberately. Assigning the branch to
+      // `resolved` erases the difference between what the evaluator resolved
+      // and what this projection selected, and the object path reads `resolved`
+      // as the former: it would take the branch's `required` as active
+      // requiredness, find `nodeActive` false because no branch applies, and
+      // report the field as neither required nor provisionally required.
+      // Left alone, that path selects the same branch through
+      // `selectProvisionalBranch` and attributes it to the right one of the two.
+      //
+      // Gated on this node already being exposed, for the reason the object
+      // path is: selection is local, exposure is the ancestor's to grant.
+      wrapperIdentified =
+        (active || provisional) &&
+        selectProvisionalBranch(
+          original,
+          typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined,
+        ) !== undefined
     }
   }
 
@@ -679,14 +718,24 @@ function walk(
     const activeKeys = new Set(Object.keys(reducedProperties))
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
 
-    // Only when the evaluator selected nothing, which is where provisional
-    // selection exists to help. Removing this guard is unobservable rather than
-    // wrong: a resolved branch is fully valid, so it accepts every present
-    // discriminator and the selector would return that same branch, whose keys
-    // are already the active set. Kept because doing the work is pointless and
-    // the condition states the intent.
+    // Two conditions, and they are not the same kind of condition.
+    //
+    // Exposure is load-bearing. Selection is local, but whether this node is
+    // shown at all is its ancestors' to decide, and a subtree nothing exposes
+    // must not select a branch off data it happens to retain: the compiler
+    // collapses `required || provisionalRequired` into the one flag a binding
+    // reads, so a hidden field would acquire a requirement.
+    //
+    // The evaluator having selected nothing is where provisional selection
+    // exists to help, and that half is unobservable rather than wrong: a
+    // resolved branch is fully valid, so it accepts every present discriminator
+    // and the selector would return that same branch, whose keys are already
+    // the active set. Kept because doing the work is pointless and the
+    // condition states the intent.
     const provisionalBranch =
-      reducedNode === undefined ? selectProvisionalBranch(original, dataRecord) : undefined
+      nodeExposed && reducedNode === undefined
+        ? selectProvisionalBranch(original, dataRecord)
+        : undefined
     const provisionalSchema = provisionalBranch?.schema as Record<string, unknown> | undefined
     const provisionalKeys = new Set(
       Object.keys((provisionalSchema?.properties as Record<string, unknown> | undefined) ?? {}),
@@ -745,13 +794,15 @@ function walk(
       // ADR-003's pass another branch's `default`.
       const provisionalChildNode = provisionalBranch?.properties?.[key] as SchemaNode | undefined
       const candidate = candidateProps.get(key)!
-      // A selected branch beats an unselected sibling, and not the node's own
-      // unconditional declaration: those constraints are conjunctive, and the
-      // validator enforces the base one whatever branch applies. Preferring the
-      // branch here would drop it, so the form would accept what the submission
-      // rejects.
+      // Three states, in order of authority. What the evaluator reduced against
+      // the data is the schema as it actually applies. Failing that, the node's
+      // own declaration composed with the selected branch, which is what the
+      // reduction would have produced had the branch been complete. Failing
+      // both, a stated placeholder for a location no branch has claimed.
       const childNode =
-        reducedChildNode ?? candidate.direct ?? provisionalChildNode ?? candidatePrototype(candidate)
+        reducedChildNode ??
+        composeChild(candidate.direct, provisionalChildNode) ??
+        candidatePrototype(candidate)
       walk(
         childNode,
         childPointer,
