@@ -145,6 +145,19 @@ describe('Reset with an explicit null', () => {
     expect(runtime.data.getSnapshot()).toBeNull()
   })
 
+  /**
+   * An explicit `undefined` is not a third case. `data?: unknown` makes it
+   * indistinguishable from omitted under TypeScript's optional-property
+   * semantics, and `initialData` treats it the same way, so the two stay
+   * consistent. `null` is the case that had to become expressible.
+   */
+  it('treats an explicit undefined as no data, as initialData does', () => {
+    const runtime = createFormRuntime(objectWithChild(), { initialData: { a: 'first' } })
+    runtime.dispatch({ type: 'SetValue', nodeId: nodeIdFor(runtime, '/a'), value: 'second' })
+    runtime.dispatch({ type: 'Reset', data: undefined })
+    expect(runtime.data.getSnapshot()).toEqual({ a: 'first' })
+  })
+
   it('still resets to the initial data when no data is given', () => {
     const runtime = createFormRuntime(objectWithChild(), { initialData: { a: 'first' } })
     runtime.dispatch({ type: 'SetValue', nodeId: nodeIdFor(runtime, '/a'), value: 'second' })
