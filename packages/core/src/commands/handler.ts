@@ -191,7 +191,9 @@ function handleReset(
   cmd: { type: 'Reset'; data?: unknown },
   document: UIDocument,
 ): CommandResult {
-  const newData = cmd.data ?? state.initialData
+  // `data` is optional rather than nullable, so an explicit `null` is a reset
+  // to `null` and not a reset to the initial data.
+  const newData = cmd.data === undefined ? state.initialData : cmd.data
   const nodes = new Map<NodeId, NodeRuntimeState>()
   for (const [id] of state.nodes) {
     const node = document.nodes[id as string]
