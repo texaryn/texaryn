@@ -166,11 +166,31 @@ them. Projection never mutates data.**
    inactive-node contract: the walker keeps them so a form can show what could
    exist, and `NodeProjection.active` is the bit that says whether one applies
    now. Filling from a node merely because it is in `nodes` would seed every
-   branch of every `oneOf` at once. So reachable means **the node applies to the
-   data as it stands**, which before #120 means `active` is true and nothing
-   else qualifies. Construction is the first moment anything is reachable, so a
-   schema without conditionals is finished there; a branch the user activates
-   later becomes reachable then.
+   branch of every `oneOf` at once. So reachable means **the node is exposed to
+   the user**, which is `active || provisional`. Construction is the first
+   moment anything is reachable, so a schema without conditionals is finished
+   there; a branch the user activates later becomes reachable then.
+
+   **The second half is what #120 settled**, and the reason it is not simply
+   `active` is that the two flags answer different questions. `active` says
+   JSON Schema evaluation applies the node. `provisional` says the projection
+   selected the branch so the user can complete it, which happens exactly
+   because `oneOf` selects on full validity and a branch the data plainly
+   identifies stays unselected while one of its own required properties is
+   absent. A field shown to the user with a `default` the mechanism refused to
+   fill is the friction this ADR exists to remove, reappearing one branch
+   deeper: the user sees an empty field whose schema says what it should hold.
+   Exposure is therefore the right line, and it is the same line the compiler
+   already draws when it collapses the two flags into the one `visible` bit a
+   binding reads.
+
+   The narrow selection rule is what makes this safe to seed from. Only an
+   explicit `const` or `enum` constrained by every branch discriminates, every
+   present discriminator has to agree, and zero or several surviving branches
+   select nothing, so a provisional branch is one the data identifies rather
+   than one guessed at. Both adapters implement that same rule, asserted in
+   `tests/conformance/provisional-selection.suite.ts`, which is what keeps
+   adapter choice from changing what this mechanism writes.
 
    **This is the contract, and "once per location" is not.** An earlier revision
    promised a location would be materialised once and never again, and that
@@ -319,14 +339,6 @@ command-state level rather than by widening the public surface for a test.
 
 ### What stays open
 
-**Whether a provisionally selected branch is reachable.** Rule 5 turns on
-"reachable", and #120 has not settled whether a `oneOf` branch the data
-identifies but leaves incomplete exposes its locations. Seeding from a
-provisional branch and seeding from a settled one are different promises, so
-this is a hole in the contract and not only in its implementation. **ADR-003
-stays Proposed until #120 answers it**, and
-`initialization: 'schema-defaults'` is not published before then.
-
 **Root defaults.** Once initialization exists, `initialData` omitted,
 `initialData: {}` and a root-level `default` are three different inputs, and the
 runtime currently turns the first into the second before projection, which is
@@ -439,8 +451,10 @@ default as a placeholder and forbids it as a control's value for this reason.
 - Friction log entry 7, `spikes/backstage-adoption/FRICTION-LOG.md`
 - Issue #124, what the runtime does with a non-object `initialData` root, found
   while measuring this and deliberately separate
-- Issue #120, branch selection, which decides what "reachable" means for a
-  provisional branch and therefore blocks implementation
+- Issue #120, branch selection, which decided what "reachable" means for a
+  provisional branch. Its semantics are settled and rule 5 now records them; the
+  issue stays open on #121, an upstream crash in `json-schema-library` that its
+  original fixture still triggers
 - Issue #126, a submission carrying data from a branch that no longer applies,
   measured here; rule 5's consequence depends on how it is resolved
 - Issue #127, an omitted `InsertItem` value becoming `null`, measured here and a
