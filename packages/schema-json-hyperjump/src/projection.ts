@@ -24,11 +24,13 @@ import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
  *
  * `then`/`else` resolve through the *if* scope's validity.
  *
- * `oneOf`/`anyOf`: when exactly one branch is directly valid, it wins. When no
- * branch is directly valid (the normal state when a user has selected a
- * discriminator value but hasn't yet filled the branch's required fields), the
- * branch with the most valid sub-scopes is the best match: its discriminator
- * properties matched even though its other constraints (like `required`) didn't.
+ * `oneOf`/`anyOf`: a branch is selected when it is directly valid, and for
+ * `oneOf` only when no sibling is. When none is valid, none is selected, which
+ * is what `active` has to say: the schema applies no branch to this data. That
+ * state is the normal one for a form mid-edit, where the user has supplied a
+ * discriminator and not yet the branch's required fields, and exposing the
+ * branch then is provisional selection's job rather than this function's. See
+ * `selectProvisionalBranch`.
  */
 function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
   return (schemaPointer: string, instancePointer: string, suffix: string): boolean => {
@@ -66,40 +68,18 @@ function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
       if (/^\d+$/.test(segment)) return false
     }
 
-    // No branch is directly valid. Count valid sub-scopes per branch to find
-    // the best match (the branch whose discriminator properties matched).
-    // Sub-scope entries are keyed as `<schemaPointer>@<instancePointer>` where
-    // the instance pointer is a child of the current one (e.g. `/kind` under
-    // root `""`), so we parse at the `@` separator instead of requiring an
-    // exact instance pointer suffix match.
-    const counts = new Map<number, number>()
-    for (const [key, valid] of scopeValidity) {
-      if (!valid || !key.startsWith(prefix)) continue
-      const atIdx = key.lastIndexOf('@')
-      if (atIdx === -1) continue
-      const keyInstance = key.slice(atIdx + 1)
-      if (instancePointer === '') {
-        // root: any instance pointer is a descendant
-      } else if (keyInstance !== instancePointer && !keyInstance.startsWith(instancePointer + '/')) {
-        continue
-      }
-      const schemaRest = key.slice(prefix.length, atIdx)
-      const slashIdx = schemaRest.indexOf('/')
-      if (slashIdx === -1) continue
-      const idx = parseInt(schemaRest.slice(0, slashIdx), 10)
-      if (!isNaN(idx)) counts.set(idx, (counts.get(idx) ?? 0) + 1)
-    }
-
-    const myCount = counts.get(branchIndex) ?? 0
-    if (myCount === 0) return false
-    for (const [idx, count] of counts) {
-      if (idx !== branchIndex) {
-        // oneOf: tied score is ambiguous, so no branch wins
-        // anyOf: only a strictly higher score beats this branch
-        if (keyword === 'oneOf' ? count >= myCount : count > myCount) return false
-      }
-    }
-    return true
+    // No branch is directly valid, so none applies. `active` means JSON Schema
+    // evaluation says the node applies, and nothing here does.
+    //
+    // This used to pick a best match by counting each branch's valid
+    // sub-scopes, which reached the useful answer for a form mid-edit and
+    // reached it in the wrong field: a branch validation rejects was reported
+    // active. It was broader than any discriminator rule too, since a generic
+    // constraint like `minLength` being satisfied could decide the winner, and
+    // it applied to `anyOf` as well with an even looser tie-break. Exposing an
+    // identified but unsatisfied branch is provisional selection's job, on an
+    // explicit `const` or `enum`, which `staticWalk` does for `oneOf` alone.
+    return false
   }
 }
 
@@ -197,6 +177,7 @@ export function buildProjection(
     '',
     '',
     true,
+    false,
     makeBranchChecker(plugin.scopeValidity),
     nodes,
     new Set(),
