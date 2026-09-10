@@ -357,45 +357,53 @@ export function staticWalk(
   }> = []
 
   if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
-    const thenActive = active && isBranchActive(schemaPointer, pointer, '/then')
-    const elseActive = active && isBranchActive(schemaPointer, pointer, '/else')
+    // The local fact is which branch the *if* scope selects, which is
+    // independent of whether this node is active. Reading it separately is what
+    // keeps an exposed ancestor from exposing both branches: inheriting
+    // `provisional` wholesale would show `then` and `else` at once.
+    const thenLocal = isBranchActive(schemaPointer, pointer, '/then')
+    const elseLocal = isBranchActive(schemaPointer, pointer, '/else')
     if (isRecord(schema.then)) {
       dynamicBranches.push({
         schema: schema.then,
         schemaPointer: `${schemaPointer}/then`,
-        active: thenActive,
-        provisional: !thenActive && provisional,
+        active: active && thenLocal,
+        provisional: !active && provisional && thenLocal,
       })
     }
     if (isRecord(schema.else)) {
       dynamicBranches.push({
         schema: schema.else,
         schemaPointer: `${schemaPointer}/else`,
-        active: elseActive,
-        provisional: !elseActive && provisional,
+        active: active && elseLocal,
+        provisional: !active && provisional && elseLocal,
       })
     }
   }
 
   if (Array.isArray(schema.oneOf)) {
     const branches = schema.oneOf as unknown[]
-    const branchActive = branches.map(
-      (_, i) => active && isBranchActive(schemaPointer, pointer, `/oneOf/${i}`),
+    const branchLocal = branches.map((_, i) =>
+      isBranchActive(schemaPointer, pointer, `/oneOf/${i}`),
     )
     // Provisional selection runs only where the evaluator selected nothing,
     // which is the state issue #120 is about. A resolved branch is fully valid,
     // so it accepts every present discriminator and the selector would return
     // that same branch anyway.
     const selected =
-      (active || provisional) && !branchActive.some(Boolean)
+      (active || provisional) && !branchLocal.some(Boolean)
         ? selectProvisionalBranch(branches, data, rootSchema)
         : undefined
     branches.forEach((branch, i) => {
+      const branchActive = active && branchLocal[i]!
       dynamicBranches.push({
         schema: branch,
         schemaPointer: `${schemaPointer}/oneOf/${i}`,
-        active: branchActive[i]!,
-        provisional: !branchActive[i]! && (i === selected || provisional),
+        active: branchActive,
+        // Selection is local. An exposed ancestor lets a branch be shown; it
+        // does not choose it, or every nested branch would be exposed at once,
+        // which is the guessing the narrow rule exists to avoid.
+        provisional: !branchActive && (i === selected || (provisional && branchLocal[i]!)),
       })
     })
   }
@@ -406,12 +414,12 @@ export function staticWalk(
     // different question with a different answer. A branch of it is therefore
     // active when it is valid and nothing otherwise.
     ;(schema.anyOf as unknown[]).forEach((branch, i) => {
-      const branchActive = active && isBranchActive(schemaPointer, pointer, `/anyOf/${i}`)
+      const branchLocal = isBranchActive(schemaPointer, pointer, `/anyOf/${i}`)
       dynamicBranches.push({
         schema: branch,
         schemaPointer: `${schemaPointer}/anyOf/${i}`,
-        active: branchActive,
-        provisional: !branchActive && provisional,
+        active: active && branchLocal,
+        provisional: !active && provisional && branchLocal,
       })
     })
   }
@@ -541,7 +549,7 @@ function selectProvisionalBranch(
   if (!isRecord(data)) return undefined
 
   const resolved = branches.map((branch) => resolveBranch(branch, rootSchema))
-  const discriminators = discriminatorKeys(resolved).filter((key) =>
+  const discriminators = discriminatorKeys(resolved, rootSchema).filter((key) =>
     Object.prototype.hasOwnProperty.call(data, key),
   )
   if (discriminators.length === 0) return undefined
@@ -563,28 +571,44 @@ function resolveBranch(branch: unknown, rootSchema: unknown): Record<string, unk
 }
 
 /** Keys every branch constrains with `const` or `enum`. */
-function discriminatorKeys(branches: readonly (Record<string, unknown> | undefined)[]): string[] {
+function discriminatorKeys(
+  branches: readonly (Record<string, unknown> | undefined)[],
+  rootSchema: unknown,
+): string[] {
   const first = branches[0]
   if (!first || !isRecord(first.properties)) return []
-  const shared = Object.keys(first.properties).filter((key) => isDiscriminator(first, key))
-  return shared.filter((key) => branches.every((branch) => isDiscriminator(branch, key)))
+  const shared = Object.keys(first.properties).filter((key) =>
+    isDiscriminator(first, key, rootSchema),
+  )
+  return shared.filter((key) =>
+    branches.every((branch) => isDiscriminator(branch, key, rootSchema)),
+  )
 }
 
 function discriminatorSchema(
   branch: Record<string, unknown> | undefined,
   key: string,
-  rootSchema?: unknown,
+  rootSchema: unknown,
 ): Record<string, unknown> | undefined {
   if (!branch || !isRecord(branch.properties)) return undefined
   const property = branch.properties[key]
   if (!isRecord(property)) return undefined
-  const ref = rootSchema === undefined ? undefined : resolveRef(property, rootSchema)
+  const ref = resolveRef(property, rootSchema)
   const target = ref ? ref.schema : property
   return isRecord(target) ? target : undefined
 }
 
-function isDiscriminator(branch: Record<string, unknown> | undefined, key: string): boolean {
-  const schema = discriminatorSchema(branch, key)
+/**
+ * Discovery has to resolve a local `$ref` the same way acceptance does, or a
+ * discriminator declared through one is never recognised as a candidate and the
+ * rule would depend on how the author factored the document.
+ */
+function isDiscriminator(
+  branch: Record<string, unknown> | undefined,
+  key: string,
+  rootSchema: unknown,
+): boolean {
+  const schema = discriminatorSchema(branch, key, rootSchema)
   if (!schema) return false
   return 'const' in schema || Array.isArray(schema.enum)
 }

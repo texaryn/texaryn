@@ -529,6 +529,12 @@ function walk(
   // on this path, "no shape" means the current value matches no branch, which
   // is a fact about the data rather than about the schema.
   let composedAgainstData = false
+  /**
+   * Whether a typeless wrapper's branch was picked by the discriminator rather
+   * than by the evaluator. The wrapper is then shown provisionally: the schema
+   * still applies no branch, and that is what `active` reports.
+   */
+  let wrapperIdentified = false
 
   if (!type && (original.oneOf || original.anyOf)) {
     composedAgainstData = true
@@ -548,7 +554,23 @@ function walk(
       // silently dropping the whole subtree. A oneOf/anyOf wrapper whose branches are
       // primitives (not objects) is not handled by this fallback.
       type = 'object'
+      // The wrapper's own branch could not be resolved, so the schema applies
+      // none of them. It may still be identifiable: a discriminator present in
+      // the data can pick one, and then the wrapper is exposed provisionally
+      // rather than not at all. Without this, the same schema behaves
+      // differently for having declared `type` or not, since the typed path
+      // reaches the selector below and this one used to stop here.
       branchResolved = false
+      const identified = selectProvisionalBranch(
+        original,
+        typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined,
+      )
+      if (identified) {
+        resolved = identified
+        schema = identified.schema as Record<string, unknown>
+        type = resolveExplicitType(schema) ?? 'object'
+        wrapperIdentified = true
+      }
     }
   }
 
@@ -626,7 +648,7 @@ function walk(
   // `!nodeActive` term is belt and braces: `provisional` only ever arrives true
   // from a parent that computed `!childActive`, so no caller can reach here
   // with both, and dropping the term changes no observable behaviour.
-  const nodeProvisional = !nodeActive && provisional && branchResolved
+  const nodeProvisional = !nodeActive && (provisional || wrapperIdentified) && (branchResolved || wrapperIdentified)
   // Whether a form shows this node at all, which is what a descendant inherits.
   const nodeExposed = nodeActive || nodeProvisional
 
@@ -722,8 +744,14 @@ function walk(
       // widget and annotations under the selected branch's name, and would hand
       // ADR-003's pass another branch's `default`.
       const provisionalChildNode = provisionalBranch?.properties?.[key] as SchemaNode | undefined
+      const candidate = candidateProps.get(key)!
+      // A selected branch beats an unselected sibling, and not the node's own
+      // unconditional declaration: those constraints are conjunctive, and the
+      // validator enforces the base one whatever branch applies. Preferring the
+      // branch here would drop it, so the form would accept what the submission
+      // rejects.
       const childNode =
-        reducedChildNode ?? provisionalChildNode ?? candidatePrototype(candidateProps.get(key)!)
+        reducedChildNode ?? candidate.direct ?? provisionalChildNode ?? candidatePrototype(candidate)
       walk(
         childNode,
         childPointer,
