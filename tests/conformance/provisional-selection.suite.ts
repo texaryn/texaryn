@@ -367,6 +367,135 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
     })
   })
 
+  describe(`${name}: selection composes rather than cascading`, () => {
+    /**
+     * A provisional ancestor exposes the node, and the node's own branches are
+     * still selected locally. Inheriting provisional wholesale would expose
+     * every nested branch at once, which is the guessing the narrow rule exists
+     * to avoid, and would contradict the rule that a locally inactive branch
+     * stays inactive.
+     */
+    const nestedOneOf = {
+      type: 'object',
+      properties: { outer: { type: 'string' } },
+      oneOf: [
+        {
+          properties: {
+            outer: { const: 'a' },
+            nested: {
+              type: 'object',
+              properties: { inner: { type: 'string' } },
+              oneOf: [
+                {
+                  properties: { inner: { const: 'x' }, xOnly: { type: 'string' } },
+                  required: ['xOnly'],
+                },
+                {
+                  properties: { inner: { const: 'y' }, yOnly: { type: 'string' } },
+                  required: ['yOnly'],
+                },
+              ],
+            },
+          },
+          required: ['mustHave'],
+        },
+        { properties: { outer: { const: 'b' }, bOnly: { type: 'string' } }, required: ['bOnly'] },
+      ],
+    }
+
+    it('selects the inner branch locally under a provisional outer branch', async () => {
+      const data = { outer: 'a', nested: { inner: 'x' } }
+      expect(await at(nestedOneOf, data, '/nested')).toEqual({
+        active: false,
+        provisional: true,
+      })
+      expect(await at(nestedOneOf, data, '/nested/xOnly')).toEqual({
+        active: false,
+        provisional: true,
+      })
+      expect(await at(nestedOneOf, data, '/nested/yOnly')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+
+    it('selects no inner branch when the inner discriminator is absent', async () => {
+      const data = { outer: 'a', nested: {} }
+      expect(await at(nestedOneOf, data, '/nested/xOnly')).toEqual({
+        active: false,
+        provisional: false,
+      })
+      expect(await at(nestedOneOf, data, '/nested/yOnly')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+
+    /** The same question for a different local selection mechanism. */
+    it('resolves a nested if/then locally under a provisional outer branch', async () => {
+      const schema = {
+        type: 'object',
+        properties: { outer: { type: 'string' } },
+        oneOf: [
+          {
+            properties: {
+              outer: { const: 'a' },
+              nested: {
+                type: 'object',
+                properties: { flag: { type: 'boolean' } },
+                if: { properties: { flag: { const: true } }, required: ['flag'] },
+                then: { properties: { whenTrue: { type: 'string' } } },
+                else: { properties: { whenFalse: { type: 'string' } } },
+              },
+            },
+            required: ['mustHave'],
+          },
+          { properties: { outer: { const: 'b' }, bOnly: { type: 'string' } }, required: ['bOnly'] },
+        ],
+      }
+      const data = { outer: 'a', nested: { flag: true } }
+      expect(await at(schema, data, '/nested/whenTrue')).toEqual({
+        active: false,
+        provisional: true,
+      })
+      expect(await at(schema, data, '/nested/whenFalse')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+
+    /**
+     * A wrapper whose only type comes from its branches. Inferring the shape is
+     * #115's work; selecting a branch for it is this rule's, and the two have to
+     * meet or the same schema behaves differently for having declared `type` or
+     * not.
+     */
+    it('selects a branch of a typeless oneOf wrapper', async () => {
+      const schema = {
+        oneOf: [
+          {
+            type: 'object',
+            properties: { kind: { const: 'a' }, value: { type: 'string' } },
+            required: ['value'],
+          },
+          {
+            type: 'object',
+            properties: { kind: { const: 'b' }, other: { type: 'string' } },
+            required: ['other'],
+          },
+        ],
+      }
+      expect(await at(schema, { kind: 'a' }, '/value')).toEqual({
+        active: false,
+        provisional: true,
+      })
+      expect(await at(schema, { kind: 'a' }, '/other')).toEqual({
+        active: false,
+        provisional: false,
+      })
+    })
+  })
+
   describe(`${name}: what a selected branch is authoritative for`, () => {
     /** The same property declared differently by each branch. */
     const sharedKey = {
@@ -444,6 +573,87 @@ export function provisionalSelectionSuite(name: string, createAdapter: AdapterFa
       const value = port.project({ kind: 'b' }).nodes.get('/value' as JsonPointer)
 
       expect(value?.annotations.readOnly).toBe(false)
+    })
+
+    /**
+     * A selected branch beats an unselected sibling. It does not beat the
+     * node's own unconditional declaration, because those constraints are
+     * conjunctive in JSON Schema: the instance has to satisfy both. Replacing
+     * rather than composing would drop a constraint the validator still
+     * enforces, so the form would accept what the submission rejects.
+     */
+    const unconditionalPlusBranch = {
+      type: 'object',
+      properties: { kind: { type: 'string' }, value: { type: 'string', minLength: 2 } },
+      oneOf: [
+        {
+          properties: {
+            kind: { const: 'a' },
+            value: { type: 'string', maxLength: 5 },
+            extra: { type: 'string' },
+          },
+          required: ['extra'],
+        },
+        { properties: { kind: { const: 'b' }, value: { type: 'string' } } },
+      ],
+    }
+
+    /**
+     * A property the node declares unconditionally is active whatever branch is
+     * selected, because the schema applies it either way. Selecting a branch
+     * must not restate that as provisional.
+     */
+    it('leaves an unconditionally declared property active under a provisional branch', async () => {
+      const port = await createAdapter(unconditionalPlusBranch)
+      const value = port.project({ kind: 'a' }).nodes.get('/value' as JsonPointer)
+
+      expect(value?.active).toBe(true)
+      expect(value?.provisional).toBeUndefined()
+    })
+
+    /**
+     * And the unconditional constraint survives branch selection, in both
+     * directions. A selected branch beats an unselected sibling; it does not
+     * beat the node's own declaration, because those constraints are
+     * conjunctive and the validator enforces the base one regardless. Supplying
+     * only the property that turns the branch active must not make the base
+     * constraint appear or disappear.
+     */
+    it.each([
+      ['a provisionally selected branch', { kind: 'a' }],
+      ['the same branch once it applies', { kind: 'a', extra: 'x' }],
+    ])('keeps the unconditional constraint under %s', async (_label, data) => {
+      const port = await createAdapter(unconditionalPlusBranch)
+      const value = port.project(data).nodes.get('/value' as JsonPointer)
+
+      expect(value?.constraints.minLength).toBe(2)
+    })
+
+    /**
+     * A discriminator declared behind a local `$ref`. Both adapters resolve
+     * local references everywhere else, so refusing to see one here would make
+     * the rule depend on how the author happened to factor the document.
+     */
+    it('sees a discriminator declared behind a local $ref', async () => {
+      const schema = {
+        $defs: { personKind: { const: 'person' } },
+        type: 'object',
+        properties: { kind: { type: 'string' } },
+        oneOf: [
+          {
+            properties: {
+              kind: { $ref: '#/$defs/personKind' },
+              name: { type: 'string' },
+            },
+            required: ['name'],
+          },
+          { properties: { kind: { const: 'company' }, org: { type: 'string' } }, required: ['org'] },
+        ],
+      }
+      expect(await at(schema, { kind: 'person' }, '/name')).toEqual({
+        active: false,
+        provisional: true,
+      })
     })
   })
 
