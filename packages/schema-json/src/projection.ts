@@ -182,7 +182,15 @@ function extractConstraints(schema: Record<string, unknown>): FieldConstraints {
   return constraints
 }
 
-function extractAnnotations(schema: Record<string, unknown>): AnnotationSet {
+function extractAnnotations(
+  schema: Record<string, unknown>,
+  /**
+   * Set where two declarations apply to this location whatever the instance is
+   * and disagree. The merged schema still carries one of them, and which one is
+   * the merge's traversal order rather than an answer.
+   */
+  omitDefault = false,
+): AnnotationSet {
   const annotations: AnnotationSet = {}
   if (typeof schema.title === 'string') annotations.title = schema.title
   if (typeof schema.description === 'string') annotations.description = schema.description
@@ -190,7 +198,7 @@ function extractAnnotations(schema: Record<string, unknown>): AnnotationSet {
   if (typeof schema.writeOnly === 'boolean') annotations.writeOnly = schema.writeOnly
   if (typeof schema.deprecated === 'boolean') annotations.deprecated = schema.deprecated
   if (Array.isArray(schema.examples)) annotations.examples = schema.examples
-  if ('default' in schema) annotations.default = schema.default
+  if (!omitDefault && 'default' in schema) annotations.default = schema.default
   return annotations
 }
 
@@ -202,6 +210,117 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
 function dereference(node: SchemaNode): SchemaNode {
   return node.$ref ? node.resolveRef() : node
+}
+
+/**
+ * The position of a schema within the document it was authored in, as a JSON
+ * Pointer with the root as the empty string.
+ *
+ * `schemaLocation` is already that, prefixed with the `#` of a URI fragment,
+ * and it names what a `$ref` resolves to rather than the reference. Both
+ * adapters report sources in this form so a diagnostic means the same thing
+ * whichever one produced it.
+ */
+function documentPointer(node: SchemaNode): string {
+  const location = (node as { schemaLocation?: unknown }).schemaLocation
+  return typeof location === 'string' ? location.replace(/^#/, '') : ''
+}
+
+/** One `default` declaration, and the schema position that makes it. */
+interface DefaultDeclaration {
+  value: unknown
+  source: string
+}
+
+/**
+ * Visits every schema position that applies to one location whatever the
+ * instance is.
+ *
+ * The edges followed are the unconditional ones: a schema's own keywords, its
+ * `allOf` branches, and whatever a `$ref` resolves to. Nothing about an
+ * instance can make one of those not apply, so two of them declaring different
+ * values is a fact about the schema and there is no instance that resolves it.
+ *
+ * `oneOf`, `anyOf`, `if`/`then`/`else` and `dependentSchemas` are deliberately
+ * not followed, and not because their conflicts are less real. A declaration
+ * one of them carries competes with the base only while its branch is
+ * selected, so whether the disagreement holds is a state of the data, and
+ * `SchemaProjection.diagnostics` carries facts about schemas. Reporting it
+ * there would mean a diagnostic that appears and disappears as a discriminator
+ * is typed.
+ *
+ * `roots` is a set rather than one node because a location can be declared in
+ * several places at once: `properties/x` on the node's own schema and on each
+ * of its `allOf` branches are all declarations of the same location.
+ */
+function eachUnconditional(
+  roots: readonly SchemaNode[],
+  visitor: (node: SchemaNode) => void,
+): void {
+  const visited = new Set<string | SchemaNode>()
+
+  const visit = (current: SchemaNode): void => {
+    const resolved = dereference(current)
+    // The same guard, and for the same measured reason, as
+    // `collectCandidateProperties`: `resolveRef()` returns a fresh node every
+    // call, so identity alone never closes a cycle, and an inline branch has no
+    // location of its own to key on.
+    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
+    const key = typeof location === 'string' ? location : resolved
+    if (visited.has(key)) return
+    visited.add(key)
+
+    visitor(resolved)
+    for (const branch of resolved.allOf ?? []) visit(branch)
+  }
+
+  for (const root of roots) visit(root)
+}
+
+function collectUnconditionalDefaults(roots: readonly SchemaNode[]): DefaultDeclaration[] {
+  const declarations: DefaultDeclaration[] = []
+  eachUnconditional(roots, (node) => {
+    const schema = node.schema as Record<string, unknown>
+    if (schema !== null && typeof schema === 'object' && 'default' in schema) {
+      declarations.push({ value: schema.default, source: documentPointer(node) })
+    }
+  })
+  return declarations
+}
+
+/** The positions that unconditionally declare one property of `roots`. */
+function unconditionalChildren(roots: readonly SchemaNode[], key: string): SchemaNode[] {
+  const children: SchemaNode[] = []
+  eachUnconditional(roots, (node) => {
+    const child = node.properties?.[key] as SchemaNode | undefined
+    if (child) children.push(child)
+  })
+  return children
+}
+
+/** The positions that unconditionally declare the elements of `roots`. */
+function unconditionalItems(roots: readonly SchemaNode[]): SchemaNode[] {
+  const items: SchemaNode[] = []
+  eachUnconditional(roots, (node) => {
+    if (node.items) items.push(node.items)
+  })
+  return items
+}
+
+/**
+ * The declarations to report, or nothing where the schema states one answer.
+ *
+ * One declaration needs no report, and several that agree state the same
+ * answer more than once, which is not a disagreement however many times it is
+ * said. Compared by value, as ADR-003's own pass compares them: two branches
+ * declaring an equal object have nothing to choose between.
+ */
+function disagreeingDefaults(
+  declarations: readonly DefaultDeclaration[],
+): readonly DefaultDeclaration[] | undefined {
+  if (declarations.length < 2) return undefined
+  const [first, ...rest] = declarations
+  return rest.every((other) => deepEqual(other.value, first!.value)) ? undefined : declarations
 }
 
 /**
@@ -536,6 +655,12 @@ function walk(
   provisional: boolean,
   nodes: Map<JsonPointer, NodeProjection>,
   diagnostics: ProjectionDiagnostic[],
+  /**
+   * The schema positions that declare this location whatever the instance is,
+   * which `node` alone cannot supply: by the time the caller has a node to walk
+   * it holds the merge of them, and the merge is what loses a disagreement.
+   */
+  declaredAt: readonly SchemaNode[],
 ): void {
   const original = dereference(node)
   const originalSchema = original.schema as Record<string, unknown>
@@ -681,6 +806,24 @@ function walk(
   }
 
   if (!type) return
+
+  // Reported at the location it is about, and after the shape gate above: a
+  // pointer with no node has nothing to omit an annotation from, and saying
+  // that its `default` is undecidable on top of saying it cannot be drawn at
+  // all would be the same schema reported twice.
+  const ambiguousDefault = disagreeingDefaults(collectUnconditionalDefaults(declaredAt))
+  if (ambiguousDefault) {
+    diagnostics.push({
+      pointer: toPointer(pointer),
+      code: 'ambiguous-default',
+      message:
+        `${ambiguousDefault.length} "default" declarations apply here whatever the ` +
+        `instance is, and they disagree, so there is no value to report. Declare one ` +
+        `of them, or make them equal.`,
+      sources: ambiguousDefault.map((declaration) => declaration.source),
+    })
+  }
+
   const nodeActive = active && branchResolved
   // A node the schema applies is never also provisional; the two report
   // different facts and only the second is a choice this projection made. The
@@ -775,7 +918,7 @@ function walk(
       enumValues: extractEnumValues(schema),
       active: nodeActive,
       provisional: nodeProvisional ? true : undefined,
-      annotations: extractAnnotations(schema),
+      annotations: extractAnnotations(schema, ambiguousDefault !== undefined),
     })
 
     for (const key of propKeys) {
@@ -811,6 +954,7 @@ function walk(
         childProvisional,
         nodes,
         diagnostics,
+        unconditionalChildren([original], key),
       )
     }
     return
@@ -824,7 +968,7 @@ function walk(
     enumValues: extractEnumValues(schema),
     active: nodeActive,
     provisional: nodeProvisional ? true : undefined,
-    annotations: extractAnnotations(schema),
+    annotations: extractAnnotations(schema, ambiguousDefault !== undefined),
     itemAnnotations:
       type === 'array' && resolved.items
         ? extractAnnotations(dereference(resolved.items).schema as Record<string, unknown>)
@@ -832,6 +976,7 @@ function walk(
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
+    const itemPositions = unconditionalItems([original])
     data.forEach((item, index) => {
       walk(
         resolved.items!,
@@ -841,6 +986,7 @@ function walk(
         nodeProvisional,
         nodes,
         diagnostics,
+        itemPositions,
       )
     })
   }
@@ -859,6 +1005,6 @@ function walk(
 export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
-  walk(root, '', data, true, false, nodes, diagnostics)
+  walk(root, '', data, true, false, nodes, diagnostics, [root])
   return { nodes, diagnostics }
 }
