@@ -5,8 +5,8 @@ import { collectDefaultConflicts } from '../default-conflicts.js'
  * The traversal's own bound, tested here rather than in the shared conformance
  * suite because `@texaryn/schema-json` cannot host the fixture: an `allOf`
  * anywhere inside a recursive `$ref` cycle overflows json-schema-library
- * 11.6.2 while it compiles, before any projection runs. Measured on `main`
- * with the adapter's conflict detection reverted, so it is not this change's.
+ * 11.6.2. Measured on `main` with the adapter's conflict detection reverted, so
+ * it is not this change's; tracked as #143.
  */
 describe('collectDefaultConflicts, recursive $ref', () => {
   const schema = {
