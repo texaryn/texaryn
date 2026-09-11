@@ -1,5 +1,111 @@
 # @texaryn/schema-json
 
+## 0.4.0
+
+### Minor Changes
+
+- 7bd64e5: Project conditional fields declared inside nested applicators
+  
+  A property that only a nested branch declares was never projected, so the form
+  could not collect a value its own validation demanded. Given the conditional
+  idiom Backstage's documentation tells template authors to write,
+  `dependencies` containing `allOf` containing `if`/`then`, the validator
+  reported `/lastName` as required and the projection had no `/lastName` at all:
+  a step that cannot be completed or corrected.
+  
+  Candidate discovery now recurses through the applicators that act on the same
+  instance location (`if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
+  `dependentSchemas`, and `$ref` targets) rather than reading one level of each.
+  It does not follow `not`, whose subschema describes what an instance must not
+  be, nor the values of `properties` or `items`, which describe other locations.
+  
+  The defect was never specific to `dependencies`: a top-level `allOf` containing
+  `if`/`then` failed the same way.
+- 7f22daf: Provisionally selects the `oneOf` branch the current data uniquely identifies,
+  so a form can show the field that would make that branch apply.
+  
+  `oneOf` selects on full validity, so a branch identified by an explicit
+  discriminator stays unselected while one of its own required properties is
+  absent. The branch's fields were therefore inactive, which hid the very field
+  needed to complete it: the exit from the state existed and the form could not
+  reach it. Those fields now report `provisional`, and the branch's requirements
+  report `provisionalRequired`, both added to the port in `@texaryn/core` 0.8.0.
+  
+  The rule is narrow on purpose. Only an explicit `const` or `enum` on a property
+  discriminates, and only where every branch constrains that property; both
+  keywords together are conjunctive; the discriminator has to be present in the
+  data rather than declared as a `default`; every present discriminator has to
+  agree; and zero or several surviving branches select nothing. `type` and `anyOf`
+  are excluded. Nothing else about a branch participates, so a branch stays
+  identified when some other constraint of its own fails.
+  
+  A selected branch also supplies its children's shape and annotations, ahead of
+  the previous first-declaration fallback, so an exposed field carries its own
+  branch's widget, title and `default` rather than another branch's.
+  
+  One correction comes with it: `ChildProjection.required` is now gated on the
+  containing node applying. A branch that does not apply demands nothing, and
+  reporting its `required` array attributed to the validator something it was not
+  asking for. Previously such a child was reported required while `validate`
+  reported no errors.
+- f548009: Resolve the published JSON Schema metaschemas, so a schema can assert that it is itself a valid schema.
+  
+  A schema may reference its dialect's metaschema by canonical URI, which is how the specification's own test suite checks schema validity. `json-schema-library` carries the draft definitions but not the metaschema documents, and an unresolved reference fails closed, so previously a perfectly valid schema was reported invalid with `Could not resolve $ref`. Draft 7, 2019-09 and 2020-12 all work now, including the vocabulary documents the later two reference.
+  
+  The documents are vendored, so nothing is fetched over the network, and they are loaded on demand: a form that never asks the question does not carry them. Loading is keyed on `$ref`, `$dynamicRef` and `$recursiveRef`, never on `$schema`, because every schema declares one of those and the validator maps it to a draft without retrieving anything. The dialect comes from the URI that was referenced rather than the one detected, so a Draft 7 schema referencing the 2020-12 metaschema gets the right closure.
+  
+  One inherited consequence is worth knowing: metaschema validation follows the dialect's `format` rule, so a malformed `pattern` or `$id` is rejected under Draft 7, which asserts `format`, and not under 2019-09 or 2020-12, which treat it as an annotation. Strict schema linting would be a separate capability rather than a change to validation semantics.
+  
+  Against the official test suite this closes all six standard-metaschema failures, taking mandatory results to 917/929 for Draft 7, 1244/1261 for 2019-09 and 1278/1301 for 2020-12, with no other result moving in either adapter.
+- 748b250: Derive a form shape for schemas that declare structure without `type`
+  
+  A schema is not obliged to declare `type`, and one that declares `properties`
+  without it is both valid and widespread: not one parameter step in a Backstage
+  Software Template declares `type: object`. Every such schema used to project no
+  node at all, which threw at the root and, one level down, dropped the field
+  from the form with no error at all.
+  
+  The projection now derives a shape from type-specific structural keywords when
+  exactly one JSON type's keywords are present, and reports the pointer as
+  ambiguous when more than one type's are. Nothing scalar is inferred, because
+  `minimum` cannot distinguish `number` from `integer` and a wrong guess selects
+  the wrong widget.
+  
+  This is a projection decision and not a type assertion. No `type` is written
+  into the schema and the schema is never mutated, so
+  `{ properties: { name: … } }` continues to accept a string, a number and null,
+  exactly as JSON Schema says it should, while the form renders as an object.
+  
+  `SchemaProjection` gains an optional `diagnostics` array, with the
+  `ProjectionDiagnostic` and `ProjectionDiagnosticCode` types, so a pointer that
+  could not be given a shape is reported rather than silently absent. Two codes:
+  `ambiguous-projection-shape` where keywords from more than one type conflict,
+  and `unresolved-projection-shape` where there is nothing to go on at all. An
+  `enum` without a `type` is the common case of the second, and deliberately not
+  read as a string, because JSON Schema permits members of different types.
+  
+  Diagnostics describe schemas rather than data. One case is not reported: a
+  `oneOf` or `anyOf` whose branches the current value does not match, where some
+  branch would have rendered for a value that did. Whether the value is
+  acceptable is validation's subject. A branch the value does match and that
+  still supplies no shape is reported, as is a composition with no renderable
+  branch at all, because those are limitations rather than data states.
+  
+  The rule in full: an explicit `type` is used, an unambiguous structural shape
+  is derived, and everything else is reported. Nothing is guessed and nothing
+  disappears without a word.
+
+### Patch Changes
+
+- Updated dependencies [89c44e5]
+- Updated dependencies [43e4370]
+- Updated dependencies [b2bb9d6]
+- Updated dependencies [55ce8d6]
+- Updated dependencies [a835e87]
+- Updated dependencies [9b262d3]
+- Updated dependencies [748b250]
+  - @texaryn/core@0.8.0
+
 ## 0.3.0
 
 ### Minor Changes
