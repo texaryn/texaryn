@@ -46,6 +46,11 @@ excuse them.
 Optional, so an adapter that reports nothing stays valid, and empty rather
 than absent means "nothing to report".
 
+"Nothing to report" is per code rather than per adapter, and the
+conformance suite is what says which codes an adapter detects. An empty
+array is therefore not a claim that no code applies, only that none of the
+ones this adapter detects did.
+
 ***
 
 ### nodes

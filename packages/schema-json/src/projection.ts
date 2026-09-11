@@ -968,6 +968,12 @@ function walk(
     active: nodeActive,
     provisional: nodeProvisional ? true : undefined,
     annotations: extractAnnotations(schema, ambiguousDefault !== undefined),
+    // Deliberately not given the flag above. A conflict under `items` belongs
+    // to the element locations, and each of those reports its own; this field
+    // describes the item schema rather than being one of those locations, so
+    // omitting its `default` would be an omission no pointer could report. It
+    // is also the only annotation set nothing reads a `default` from, and the
+    // only one the other adapter does not produce at all.
     itemAnnotations:
       type === 'array' && resolved.items
         ? extractAnnotations(dereference(resolved.items).schema as Record<string, unknown>)

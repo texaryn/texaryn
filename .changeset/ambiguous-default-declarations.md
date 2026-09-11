@@ -46,5 +46,12 @@ the empty string. A position reached through `$ref` is named by what it resolves
 to. Both adapters report in that form, so a diagnostic means the same thing
 whichever produced it.
 
-`@texaryn/schema-json-hyperjump` reports projection diagnostics for the first
-time; it previously returned none.
+`@texaryn/schema-json-hyperjump` returns a `diagnostics` array for the first
+time, carrying `ambiguous-default` and only that code. It does not detect the
+two shape codes, so an empty array from it is not a claim that no schema in the
+projection was ambiguous.
+
+`NodeProjection.itemAnnotations.default` is unchanged and still collapses. It
+describes an array's item schema rather than being an instance location, so
+there is no pointer an omission there could be reported at, and the element
+locations the data provides each report their own conflict.
