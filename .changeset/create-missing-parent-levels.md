@@ -22,6 +22,12 @@ a JSON Pointer cannot say whether `/rows/0` means an array or an object keyed
 `{ rows: { '0': 'x' } }`, quietly choosing one of the two; it now throws,
 naming the segment. Writing into an array that already exists is unchanged.
 
+Both refusals also name the offending location with a correctly escaped
+pointer. `parsePointer` unescapes, so rebuilding a pointer from its segments
+without re-escaping printed `/a/b` for the single key `a/b`, and a caller who
+copied that pointer out of the message would have addressed a different
+location. The writes themselves were always correct; only the message was.
+
 No runtime path reaches that refusal: every array command writes the whole
 array at the container's own pointer, and item nodes are minted only from rows
 already present in the data, so the level above an index is never the missing

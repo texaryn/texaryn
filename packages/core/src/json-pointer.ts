@@ -62,9 +62,28 @@ export function isArrayIndexSegment(segment: string): boolean {
   return /^(0|[1-9][0-9]*)$/.test(segment)
 }
 
-/** Where a value sits, for an error message: the root, or its pointer. */
+/**
+ * The inverse of what `parsePointer` undoes, so a rebuilt pointer addresses the
+ * location it names. `~` first, or escaping `/` to `~1` would then have its own
+ * `~` escaped again.
+ */
+function escapeSegment(segment: string): string {
+  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+}
+
+/**
+ * Where a value sits, for an error message: the root, or its pointer.
+ *
+ * Segments are re-escaped rather than joined raw. `parsePointer` unescapes, so
+ * joining its output would print `/a/b` for the single key `a/b`, and a caller
+ * who copied that pointer out of the message would address somewhere else.
+ */
 function locationOf(segments: string[], depth: number): string {
-  return depth === 0 ? 'the root value' : `the value at "/${segments.slice(0, depth).join('/')}"`
+  const path = segments
+    .slice(0, depth)
+    .map((segment) => `/${escapeSegment(segment)}`)
+    .join('')
+  return depth === 0 ? 'the root value' : `the value at "${path}"`
 }
 
 function setRecursive(

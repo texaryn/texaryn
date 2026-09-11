@@ -83,6 +83,27 @@ describe('setAtPointer with missing parents', () => {
     },
   )
 
+  /**
+   * The pointer in the message has to address the location it names.
+   * `parsePointer` unescapes, so rebuilding from its output without re-escaping
+   * printed `/a/b` for the single key `a/b`, and a caller copying that pointer
+   * out of the message would have addressed somewhere else. The write itself
+   * was always correct; only the message lied.
+   */
+  it('re-escapes the segments it names in a refusal', () => {
+    expect(() => setAtPointer({ 'a/b': 'plain' }, at('/a~1b/inner'), 'x')).toThrow(
+      /the value at "\/a~1b"/,
+    )
+    expect(() => setAtPointer({}, at('/a~1b/0'), 'x')).toThrow(/the value at "\/a~1b"/)
+    expect(() => setAtPointer({ 'c~d': 'plain' }, at('/c~0d/inner'), 'x')).toThrow(
+      /the value at "\/c~0d"/,
+    )
+  })
+
+  it('writes an escaped key to the location the pointer names', () => {
+    expect(setAtPointer({}, at('/a~1b/inner'), 'x')).toEqual({ 'a/b': { inner: 'x' } })
+  })
+
   it('still refuses to write through a scalar, which is the other refusal', () => {
     expect(() => setAtPointer({ a: 'plain' }, at('/a/b/c'), 1)).toThrow(
       /cannot hold a property/,
