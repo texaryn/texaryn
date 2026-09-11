@@ -51,18 +51,6 @@ function canHoldProperty(current: unknown): boolean {
 }
 
 /**
- * Whether a segment is in the canonical form of an array index.
- *
- * Canonical rather than merely digit-bearing: `0` and `12` are indices, while
- * `01`, `1.0`, `-1` and `1x` are ordinary object keys, so creating an object
- * for those is not a guess. Shared with the ADR-003 initialization prototype,
- * which needs the same distinction for the same reason.
- */
-export function isArrayIndexSegment(segment: string): boolean {
-  return /^(0|[1-9][0-9]*)$/.test(segment)
-}
-
-/**
  * The inverse of what `parsePointer` undoes, so a rebuilt pointer addresses the
  * location it names. `~` first, or escaping `/` to `~1` would then have its own
  * `~` escaped again.
@@ -100,25 +88,13 @@ function setRecursive(
         `which cannot hold a property`,
     )
   }
-  // A level that is not there has to be created, and its kind is decidable
-  // from the key it must hold in every case but one. An index needs an array,
-  // and a JSON Pointer cannot say whether `/rows/0` means an array or an
-  // object keyed "0", so this refuses rather than guessing: either guess
-  // silently produces a shape the schema may not describe.
-  //
-  // Unreachable through the runtime. Every array command writes the whole
-  // array at the container's own pointer, and item nodes are minted only from
-  // rows already present in the data, so the level above an index is never the
-  // missing one. It is reachable by a host calling this helper directly.
-  if (current === undefined || current === null) {
-    if (isArrayIndexSegment(key)) {
-      throw new Error(
-        `Cannot write to "${pointer}": ${locationOf(segments, depth)} is absent, and the ` +
-          `pointer cannot tell whether "${key}" is an array index or an object key, so there ` +
-          `is no container to create. Create it explicitly first.`,
-      )
-    }
-  }
+  // A missing level is created as an object, whatever its key looks like. A
+  // numeric segment does not imply an array: an object property may be named
+  // "0", and the runtime generates such a pointer from the schema's own
+  // property names. Refusing it would break a legitimate schema to guard a
+  // case that cannot arise, because an array item's pointer only exists once
+  // its row is in the data, which means its array already exists. An array
+  // that has to be created is created by the caller.
   if (depth === segments.length - 1) {
     if (Array.isArray(current)) {
       const copy = [...current]

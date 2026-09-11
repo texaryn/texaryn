@@ -1,5 +1,5 @@
 import type { JsonPointer } from '../types.js'
-import { isArrayIndexSegment, parsePointer } from '../json-pointer.js'
+import { parsePointer } from '../json-pointer.js'
 
 /**
  * The initialization pass from ADR-003, over a normalized view of a schema
@@ -208,13 +208,23 @@ function refuse(data: unknown, segments: readonly string[]): DefaultRefusal['rea
   for (let index = 0; index < segments.length; index += 1) {
     // `current` is the container that has to hold `segments[index]`.
     if (current === undefined) {
-      return isArrayIndexSegment(segments[index]!) ? 'unknown-container-kind' : undefined
+      return couldBeArrayIndex(segments[index]!) ? 'unknown-container-kind' : undefined
     }
     if (!isContainer(current)) return 'non-container-ancestor'
     if (index === segments.length - 1) return undefined
     current = (current as Record<string, unknown>)[segments[index]!]
   }
   return undefined
+}
+
+/**
+ * Whether a segment could be an array index, in canonical form so `01` and
+ * `1x` are ordinary keys. The pass refuses to create a container it cannot
+ * name; `setAtPointer` makes the opposite choice and always creates an object,
+ * because it is writing what a user typed rather than manufacturing a default.
+ */
+function couldBeArrayIndex(segment: string): boolean {
+  return /^(0|[1-9][0-9]*)$/.test(segment)
 }
 
 function hasConflictedAbsentAncestor(

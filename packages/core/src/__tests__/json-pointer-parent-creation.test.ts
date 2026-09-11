@@ -16,15 +16,16 @@ const at = (s: string) => s as JsonPointer
  * returns `void` from an event handler, so the exception landed in the host's
  * render. That was #129.
  *
- * The decision this file previously deferred is the container kind. A missing
- * level whose key is an array index would have to become `[]`, and a JSON
- * Pointer cannot say whether `/rows/0` means an array or an object keyed
- * `"0"`. Rather than guess, that case refuses. It is unreachable through the
- * runtime: every array command writes the whole array at the container's own
- * pointer, and the compiler mints item nodes only from rows already present in
- * the data, so the level above an index is never the missing one. What is left
- * is a host calling the exported helper directly, where either guess would
- * silently produce a shape the schema may not describe.
+ * The decision this file previously deferred is the container kind, and it is
+ * that a missing level is created as an object whatever its key looks like.
+ *
+ * A numeric segment does not imply an array. An object property may be named
+ * `"0"`, and the runtime generates exactly that pointer from the schema's own
+ * property names, so refusing `/rows/0` would break a legitimate schema. It
+ * would also guard a case that cannot arise: an array item's pointer exists
+ * only once its row is in the data, which means its array already exists, so
+ * the level above an index is never the missing one. An array that has to be
+ * created is the caller's to create.
  */
 describe('setAtPointer with missing parents', () => {
   it('creates one missing level', () => {
@@ -52,16 +53,16 @@ describe('setAtPointer with missing parents', () => {
   })
 
   /**
-   * The refusal names the segment, so a caller can tell it from the scalar
-   * refusal #124 introduced in the same function.
+   * A numeric key creates an object, which is the case that decides the rule:
+   * a schema may declare a property named `"0"`, and the projection builds
+   * `/rows/0` for it from the property name.
    */
-  it('refuses when the missing level would have to be an array', () => {
-    expect(() => setAtPointer({}, at('/rows/0/name'), 'x')).toThrow(/cannot tell/)
-    expect(() => setAtPointer({}, at('/rows/0/name'), 'x')).toThrow(/"0"/)
+  it('creates an object for a numeric key, because a property may be named 0', () => {
+    expect(setAtPointer({}, at('/rows/0/name'), 'x')).toEqual({ rows: { '0': { name: 'x' } } })
   })
 
-  it('refuses the same way when the index is the last segment', () => {
-    expect(() => setAtPointer({}, at('/rows/0'), 'x')).toThrow(/cannot tell/)
+  it('creates an object when the numeric key is the last segment', () => {
+    expect(setAtPointer({}, at('/rows/0'), 'x')).toEqual({ rows: { '0': 'x' } })
   })
 
   it('writes into an array that is already there', () => {
@@ -71,13 +72,8 @@ describe('setAtPointer with missing parents', () => {
     })
   })
 
-  /**
-   * A key that merely contains digits is not an index. The predicate is the
-   * canonical form, so `01` and `1x` are ordinary object keys and creating an
-   * object for them is not a guess.
-   */
-  it.each([['01'], ['1x'], ['-1'], ['1.0']])(
-    'treats %s as an ordinary key rather than an index',
+  it.each([['0'], ['12'], ['01'], ['1x'], ['-1'], ['1.0']])(
+    'creates an object level for the key %s',
     (segment) => {
       expect(setAtPointer({}, at(`/a/${segment}/b`), 1)).toEqual({ a: { [segment]: { b: 1 } } })
     },
@@ -94,7 +90,6 @@ describe('setAtPointer with missing parents', () => {
     expect(() => setAtPointer({ 'a/b': 'plain' }, at('/a~1b/inner'), 'x')).toThrow(
       /the value at "\/a~1b"/,
     )
-    expect(() => setAtPointer({}, at('/a~1b/0'), 'x')).toThrow(/the value at "\/a~1b"/)
     expect(() => setAtPointer({ 'c~d': 'plain' }, at('/c~0d/inner'), 'x')).toThrow(
       /the value at "\/c~0d"/,
     )
