@@ -50,6 +50,30 @@ function canHoldProperty(current: unknown): boolean {
   return current === undefined || typeof current === 'object'
 }
 
+/**
+ * The inverse of what `parsePointer` undoes, so a rebuilt pointer addresses the
+ * location it names. `~` first, or escaping `/` to `~1` would then have its own
+ * `~` escaped again.
+ */
+function escapeSegment(segment: string): string {
+  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+}
+
+/**
+ * Where a value sits, for an error message: the root, or its pointer.
+ *
+ * Segments are re-escaped rather than joined raw. `parsePointer` unescapes, so
+ * joining its output would print `/a/b` for the single key `a/b`, and a caller
+ * who copied that pointer out of the message would address somewhere else.
+ */
+function locationOf(segments: string[], depth: number): string {
+  const path = segments
+    .slice(0, depth)
+    .map((segment) => `/${escapeSegment(segment)}`)
+    .join('')
+  return depth === 0 ? 'the root value' : `the value at "${path}"`
+}
+
 function setRecursive(
   current: unknown,
   segments: string[],
@@ -57,15 +81,20 @@ function setRecursive(
   value: unknown,
   pointer: JsonPointer,
 ): unknown {
-  const key = segments[depth]
+  const key = segments[depth]!
   if (!canHoldProperty(current)) {
-    const location =
-      depth === 0 ? 'the root value' : `the value at "/${segments.slice(0, depth).join('/')}"`
     throw new Error(
-      `Cannot write to "${pointer}": ${location} is a ${typeof current}, ` +
+      `Cannot write to "${pointer}": ${locationOf(segments, depth)} is a ${typeof current}, ` +
         `which cannot hold a property`,
     )
   }
+  // A missing level is created as an object, whatever its key looks like. A
+  // numeric segment does not imply an array: an object property may be named
+  // "0", and the runtime generates such a pointer from the schema's own
+  // property names. Refusing it would break a legitimate schema to guard a
+  // case that cannot arise, because an array item's pointer only exists once
+  // its row is in the data, which means its array already exists. An array
+  // that has to be created is created by the caller.
   if (depth === segments.length - 1) {
     if (Array.isArray(current)) {
       const copy = [...current]
@@ -74,7 +103,14 @@ function setRecursive(
     }
     return { ...(current as Record<string, unknown>), [key]: value }
   }
-  const child = (current as Record<string, unknown>)[key]
+  // Read through a missing level rather than into it. Indexing `undefined`
+  // here is what raised a `TypeError` on the second absent level, while the
+  // last-segment branch above tolerated absence because `{ ...undefined }` is
+  // `{}`, which is why one level used to work and two did not.
+  const child =
+    current === undefined || current === null
+      ? undefined
+      : (current as Record<string, unknown>)[key]
   const updated = setRecursive(child, segments, depth + 1, value, pointer)
   if (Array.isArray(current)) {
     const copy = [...current]
