@@ -318,6 +318,11 @@ The helpers:
 - `setAtPointer`
 - `parsePointer`
 
+`setAtPointer` states its contract in full on the function itself: own members
+only, what an absent or `null` level becomes, which tokens address an array
+element, and which writes are refused rather than guessed. `getAtPointer` is
+total and returns `undefined` for anything it cannot address.
+
 ### Stable array identity
 
 - `createIdentityMap`
