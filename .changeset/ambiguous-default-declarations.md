@@ -1,7 +1,6 @@
 ---
 '@texaryn/core': minor
 '@texaryn/schema-json': minor
-'@texaryn/schema-json-hyperjump': minor
 ---
 
 Report two disagreeing applicable defaults rather than merging them
@@ -38,7 +37,8 @@ Those still collapse, tracked as #142.
 **Behaviour change.** A caller reading `annotations.default` for such a location
 used to get a value and now gets `undefined`. That value was one library's
 traversal order, so relying on it was relying on the adapter rather than on the
-schema, but it is a change and this is why the bump is `minor`.
+schema, but it is a change and this is why the bump is `minor`, which is the
+break bump under 0.x.
 
 `ProjectionDiagnostic` gains an optional `sources`, the schema positions a
 diagnostic is about, as JSON Pointers into the schema document with the root as
@@ -46,10 +46,11 @@ the empty string. A position reached through `$ref` is named by what it resolves
 to. Both adapters report in that form, so a diagnostic means the same thing
 whichever produced it.
 
-`@texaryn/schema-json-hyperjump` returns a `diagnostics` array for the first
-time, carrying `ambiguous-default` and only that code. It does not detect the
-two shape codes, so an empty array from it is not a claim that no schema in the
-projection was ambiguous.
+`@texaryn/schema-json-hyperjump` implements the same rule and gains the same
+break. It is unpublished, so it carries no version here. It also returns a
+`diagnostics` array for the first time, carrying `ambiguous-default` and only
+that code: it detects neither shape code, so an empty array from it is not a
+claim that no schema in the projection was ambiguous.
 
 `NodeProjection.itemAnnotations.default` is unchanged and still collapses. It
 describes an array's item schema rather than being an instance location, so
