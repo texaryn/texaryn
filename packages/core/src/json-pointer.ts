@@ -9,12 +9,28 @@ export function parsePointer(pointer: JsonPointer): string[] {
     .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))
 }
 
+/**
+ * The member a JSON object actually has at `key`, or `undefined`.
+ *
+ * Own properties only. `current[key]` finds inherited ones, so `{}` appears to
+ * have `constructor`, `toString` and a `__proto__` leading out of the
+ * document, none of which are members of the instance. `"constructor"` is a
+ * legal JSON Schema property name, and before this a schema declaring it could
+ * not be filled in: the inherited function is not something a property can be
+ * written into, so the guard below refused it.
+ */
+function ownMember(current: unknown, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(current as object, key)
+    ? (current as Record<string, unknown>)[key]
+    : undefined
+}
+
 export function getAtPointer(data: unknown, pointer: JsonPointer): unknown {
   const segments = parsePointer(pointer)
   let current: unknown = data
   for (const seg of segments) {
     if (current == null || typeof current !== 'object') return undefined
-    current = (current as Record<string, unknown>)[seg]
+    current = ownMember(current, seg)
   }
   return current
 }
@@ -108,9 +124,7 @@ function setRecursive(
   // last-segment branch above tolerated absence because `{ ...undefined }` is
   // `{}`, which is why one level used to work and two did not.
   const child =
-    current === undefined || current === null
-      ? undefined
-      : (current as Record<string, unknown>)[key]
+    current === undefined || current === null ? undefined : ownMember(current, key)
   const updated = setRecursive(child, segments, depth + 1, value, pointer)
   if (Array.isArray(current)) {
     const copy = [...current]
