@@ -1,8 +1,14 @@
 import { interpret, BASIC, type CompiledSchema } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
-import type { SchemaProjection, EnumOption } from '@texaryn/core'
+import type {
+  SchemaProjection,
+  EnumOption,
+  JsonPointer,
+  ProjectionDiagnostic,
+} from '@texaryn/core'
 import { ProjectionPlugin, type KeywordRecord } from './plugin.js'
 import { schemaFragment, resolveJsonPointer } from './pointer-utils.js'
+import { collectDefaultConflicts } from './default-conflicts.js'
 import {
   staticWalk,
   ensureNode,
@@ -184,5 +190,33 @@ export function buildProjection(
     rawSchema,
   )
 
-  return { nodes: finalizeNodes(nodes) }
+  // After both passes, because either can have written the annotation: pass 1
+  // reads the keyword off the schema position that fired, pass 2 fills the gap
+  // for a location no data has reached. Which of them got there first is not
+  // the question; a location with two declarations that disagree has no value
+  // to report whoever wrote one.
+  const conflicts = collectDefaultConflicts(rawSchema, data)
+  for (const pointer of conflicts.keys()) {
+    const node = nodes.get(pointer)
+    if (node) delete node.annotations.default
+  }
+
+  const projected = finalizeNodes(nodes)
+  const diagnostics: ProjectionDiagnostic[] = []
+  for (const [pointer, sources] of conflicts) {
+    // A pointer that projects no node has nothing to omit an annotation from,
+    // which is the only reason a conflict goes unreported here.
+    if (!projected.has(pointer as JsonPointer)) continue
+    diagnostics.push({
+      pointer: pointer as JsonPointer,
+      code: 'ambiguous-default',
+      message:
+        `${sources.length} "default" declarations apply here whatever the instance ` +
+        `is, and they disagree, so there is no value to report. Declare one of them, ` +
+        `or make them equal.`,
+      sources,
+    })
+  }
+
+  return { nodes: projected, diagnostics }
 }

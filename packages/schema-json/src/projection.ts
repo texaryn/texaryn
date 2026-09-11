@@ -318,7 +318,6 @@ function unconditionalItems(roots: readonly SchemaNode[]): SchemaNode[] {
 function disagreeingDefaults(
   declarations: readonly DefaultDeclaration[],
 ): readonly DefaultDeclaration[] | undefined {
-  if (declarations.length < 2) return undefined
   const [first, ...rest] = declarations
   return rest.every((other) => deepEqual(other.value, first!.value)) ? undefined : declarations
 }
