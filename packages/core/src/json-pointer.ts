@@ -25,6 +25,15 @@ function ownMember(current: unknown, key: string): unknown {
     : undefined
 }
 
+/**
+ * The value at `pointer`, or `undefined`.
+ *
+ * Total: any pointer that does not address an own member of a container on the
+ * path yields `undefined` rather than throwing. That includes a token that
+ * could not index an array, such as `/01` or `/-`, which address nothing.
+ * `setAtPointer` throws for those instead, because writing to a location that
+ * cannot exist is a mistake while reading one is just a miss.
+ */
 export function getAtPointer(data: unknown, pointer: JsonPointer): unknown {
   const segments = parsePointer(pointer)
   let current: unknown = data
@@ -35,6 +44,34 @@ export function getAtPointer(data: unknown, pointer: JsonPointer): unknown {
   return current
 }
 
+/**
+ * Returns `data` with `value` written at `pointer`, without mutating it.
+ *
+ * The contract, because this is exported and its behaviour was previously
+ * stated nowhere:
+ *
+ * 1. Only own members are read on the way. Inherited JavaScript properties are
+ *    not members of a JSON document.
+ * 2. The empty pointer replaces the whole document.
+ * 3. A level that is absent is created as an object, whatever its key looks
+ *    like. A numeric key does not imply an array.
+ * 4. `null` is created through, like absence: neither holds a payload to
+ *    preserve, so an explicit write may turn either into a container.
+ * 5. A scalar on the path throws. Turning it into a container would destroy a
+ *    value the caller supplied.
+ * 6. On an array, a canonical index (`0`, or digits with no leading zero)
+ *    writes that element, and `-` appends, both per RFC 6901.
+ * 7. Any other token on an array throws. `01` and `1x` are not indices, and
+ *    coercing them wrote to an element the reader could never address.
+ * 8. An index past `length` throws. Extending an array leaves holes, which
+ *    serialize as `null`, so the caller would submit values no schema
+ *    described.
+ *
+ * The reader is total where this throws, and that asymmetry is deliberate:
+ * reading a location that does not exist yields `undefined`, while writing
+ * where nothing can be written is an error. Both agree on what the location
+ * is; they differ on what to do about it.
+ */
 export function setAtPointer(
   data: unknown,
   pointer: JsonPointer,
@@ -90,6 +127,45 @@ function locationOf(segments: string[], depth: number): string {
   return depth === 0 ? 'the root value' : `the value at "${path}"`
 }
 
+/**
+ * The element a token addresses in `array`, or a refusal.
+ *
+ * RFC 6901: an array token is digits with no leading zero, or `-` for the
+ * position after the last element. Everything else is an error condition, and
+ * `getAtPointer` already treats it as addressing nothing, so coercing it here
+ * with `Number()` wrote to an element the reader could never address, or, for
+ * a token that coerces to `NaN`, to a property that serialization silently
+ * drops.
+ *
+ * Past the end is refused for the same reason rather than extending: the gap
+ * would be holes, and a hole serializes as `null`, so the caller would submit
+ * values no schema described. `-` and an index equal to `length` both append,
+ * which is the one position past the last that creates no gap.
+ */
+function arrayIndexFor(
+  array: readonly unknown[],
+  key: string,
+  segments: string[],
+  depth: number,
+  pointer: JsonPointer,
+): number {
+  if (key === '-') return array.length
+  if (!/^(0|[1-9][0-9]*)$/.test(key)) {
+    throw new Error(
+      `Cannot write to "${pointer}": ${locationOf(segments, depth)} is an array and "${key}" ` +
+        `is not an array index, so it addresses no element`,
+    )
+  }
+  const index = Number(key)
+  if (index > array.length) {
+    throw new Error(
+      `Cannot write to "${pointer}": ${locationOf(segments, depth)} is an array of length ` +
+        `${array.length}, and "${key}" is past the end, so writing it would leave holes`,
+    )
+  }
+  return index
+}
+
 function setRecursive(
   current: unknown,
   segments: string[],
@@ -114,7 +190,7 @@ function setRecursive(
   if (depth === segments.length - 1) {
     if (Array.isArray(current)) {
       const copy = [...current]
-      copy[Number(key)] = value
+      copy[arrayIndexFor(current, key, segments, depth, pointer)] = value
       return copy
     }
     return { ...(current as Record<string, unknown>), [key]: value }
@@ -123,12 +199,17 @@ function setRecursive(
   // here is what raised a `TypeError` on the second absent level, while the
   // last-segment branch above tolerated absence because `{ ...undefined }` is
   // `{}`, which is why one level used to work and two did not.
+  // Validated before descending, so a refusal names the array rather than
+  // surfacing from somewhere deeper as a confusing message about its element.
+  const index = Array.isArray(current)
+    ? arrayIndexFor(current, key, segments, depth, pointer)
+    : undefined
   const child =
     current === undefined || current === null ? undefined : ownMember(current, key)
   const updated = setRecursive(child, segments, depth + 1, value, pointer)
   if (Array.isArray(current)) {
     const copy = [...current]
-    copy[Number(key)] = updated
+    copy[index!] = updated
     return copy
   }
   return { ...(current as Record<string, unknown>), [key]: updated }
