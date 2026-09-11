@@ -455,6 +455,26 @@ export function createFormRuntime(
   function dispatch(command: Command): void {
     if (destroyed) return
     const mutatesData = isDataMutatingCommand(command)
+
+    // Nothing observable happens until the handler has returned. A command is
+    // not guaranteed to happen: `setAtPointer` refuses to write through a
+    // value that cannot hold a property, which is reachable whenever the
+    // caller's data contradicts its schema. Tearing down validation first and
+    // then throwing left the form wedged, because `invalidate` drops the
+    // in-flight result as stale and every repair below runs past the throw.
+    //
+    // A refused write changed no data, so the validation already running
+    // against that unchanged data is still the right answer and is left alone.
+    // `isDataMutatingCommand` reads the command and not the state, so deciding
+    // it above and acting on it here observes nothing in between.
+    //
+    // Only `invalidate` is observably load-bearing: a mutation that moves it
+    // back turns the pins red, while one that moves only the `Reset` block
+    // back does not, because `Reset` never reaches `setAtPointer` and so
+    // cannot throw today. It moves with the rest because the invariant is the
+    // ordering, not the one line that currently demonstrates it.
+    const { nextState, effects } = processCommand(state, command, currentDoc)
+
     if (mutatesData) {
       scheduler.invalidate()
       if (command.type === 'Reset') {
@@ -464,7 +484,6 @@ export function createFormRuntime(
       }
     }
 
-    const { nextState, effects } = processCommand(state, command, currentDoc)
     state = nextState
 
     const isAcceptedSubmit = effects.some(
