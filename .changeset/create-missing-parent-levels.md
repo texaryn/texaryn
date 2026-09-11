@@ -26,7 +26,7 @@ Both refusals also name the offending location with a correctly escaped
 pointer. `parsePointer` unescapes, so rebuilding a pointer from its segments
 without re-escaping printed `/a/b` for the single key `a/b`, and a caller who
 copied that pointer out of the message would have addressed a different
-location. The writes themselves were always correct; only the message was.
+location. The writes themselves were always correct; only the message was wrong.
 
 No runtime path reaches that refusal: every array command writes the whole
 array at the container's own pointer, and item nodes are minted only from rows
