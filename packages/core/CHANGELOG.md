@@ -1,5 +1,184 @@
 # @texaryn/core
 
+## 0.8.0
+
+### Minor Changes
+
+- 89c44e5: Makes a pointer segment mean the same thing to `setAtPointer` as it does to
+  `getAtPointer` when the container is an array, and writes down the contract.
+  
+  The writer coerced the token with `Number(key)` while the reader used it as a
+  property key, so the two addressed different places. `getAtPointer(['a','b'], '/01')`
+  was `undefined` while `setAtPointer(['a','b'], '/01', 'x')` wrote element 1.
+  Worse, `Number('1x')` and `Number('-')` are `NaN`, so those writes set a
+  property named `"NaN"` on the array, which `JSON.stringify` drops: the value
+  was accepted, stored, and then silently absent from the submission.
+  
+  Per RFC 6901 an array token is digits with no leading zero, or `-` for the
+  position after the last element. A canonical index now writes that element and
+  `-` appends. Anything else throws.
+  
+  Two behaviour changes come with it. A non-index token that previously coerced,
+  such as `/01`, now throws instead of writing a different element. And an index
+  past the end now throws instead of extending the array, because the gap would
+  be holes and a hole serializes as `null`, which would submit values no schema
+  described. An index equal to the length still appends, since that creates no
+  gap. Objects keyed `"01"` or `"-"` are untouched; this is about arrays.
+  
+  `setAtPointer` now carries its contract in full, and `getAtPointer` states that
+  it is total. The asymmetry is deliberate: reading a location that does not
+  exist yields `undefined`, while writing where nothing can be written is an
+  error.
+- 43e4370: Creates every missing parent level on a write, instead of one and then
+  throwing.
+  
+  `setAtPointer` created exactly one absent level and raised a `TypeError` on
+  two, because it read the child before recursing and reading a missing level
+  threw. The last segment tolerated absence, since `{ ...undefined }` is `{}`,
+  which is why one level worked and two did not. A form built with
+  `initialData: {}` over a schema nested two levels deep therefore threw out of
+  `dispatch` on the first keystroke in that field, and `dispatch` returns `void`
+  from an event handler, so the exception landed in the host's render with
+  nothing able to handle it. `setAtPointer({}, '/a/b/c/d', 1)` now returns four
+  nested objects, and an absent or `null` level is created at any depth.
+  
+  A missing level is created as an object whatever its key looks like, including
+  a numeric one. A numeric segment does not imply an array: an object property
+  may be named `"0"`, and the projection builds `/rows/0` for it from the
+  property name. Writing into an array that already exists is unchanged, and an
+  array that has to be created is the caller's to create.
+  
+  Both refusals also name the offending location with a correctly escaped
+  pointer. `parsePointer` unescapes, so rebuilding a pointer from its segments
+  without re-escaping printed `/a/b` for the single key `a/b`, and a caller who
+  copied that pointer out of the message would have addressed a different
+  location. The writes themselves were always correct; only the message was wrong.
+  
+  Nor does anything need such a level to become an array: an array item's pointer
+  exists only once its row is in the data, which means its array already exists,
+  so the level above an index is never the missing one.
+- a835e87: Separates two facts a projection had been collapsing into one boolean.
+  `NodeProjection.active` keeps its meaning, that JSON Schema evaluation says the
+  node applies, and `NodeProjection.provisional` is new: the form exposes the node
+  so the user can complete it. `ChildProjection.provisionalRequired` is the same
+  split for requiredness.
+  
+  A renderer shows a node when either holds, and reports a field required when
+  either holds, which the compiler decides so the two facts stay apart on the
+  port. Both new fields are optional and absent means false, so an adapter that
+  does not select provisionally behaves exactly as before and no binding changes.
+  
+  Nothing emits `provisional` yet. It exists so a `oneOf` branch the data uniquely
+  identifies but has not yet satisfied can be shown rather than hidden, which is
+  issue #120: hiding it leaves the user no way to supply the property that would
+  make the branch apply.
+- 9b262d3: Refuses to write through a value that cannot hold a property, and stops
+  treating a `null` root as absent.
+  
+  `setAtPointer` used to spread whatever it found on the path. `{ ...'plain' }` is
+  `{0:'p',1:'l',2:'a',3:'i',4:'n'}` and `{ ...7 }` is `{}`, so a form whose data
+  had a scalar where the schema expected an object turned that scalar into
+  character keys, or discarded it, on the first write to a child. Both produced an
+  instance no schema described, from data the caller had supplied, and the string
+  case did it silently. It now throws, naming the pointer being written, the
+  location of the offending value and its type.
+  
+  Absent still creates, which is how a nested field is written at all, and `null`
+  creates with it: `getAtPointer` reads through `null` and `undefined`
+  identically, so writing agrees with reading, and a schema of
+  `{ type: ['object', 'null'] }` may legitimately start at `null`.
+  
+  `createFormRuntime` no longer coerces `initialData: null` to `{}`, and `Reset`
+  no longer treats `data: null` as no data. Both used `??`, which conflated `null`
+  with absent while `false`, `0` and `''` survived, so a caller could not express
+  a `null` instance and which falsy values lived was arbitrary. Both now test for
+  `undefined`.
+  
+  A scalar root is unaffected where the schema says the root is the field: writing
+  at the root pointer replaces the document rather than walking into it. The
+  refusal is about the write, not about the root.
+- 748b250: Derive a form shape for schemas that declare structure without `type`
+  
+  A schema is not obliged to declare `type`, and one that declares `properties`
+  without it is both valid and widespread: not one parameter step in a Backstage
+  Software Template declares `type: object`. Every such schema used to project no
+  node at all, which threw at the root and, one level down, dropped the field
+  from the form with no error at all.
+  
+  The projection now derives a shape from type-specific structural keywords when
+  exactly one JSON type's keywords are present, and reports the pointer as
+  ambiguous when more than one type's are. Nothing scalar is inferred, because
+  `minimum` cannot distinguish `number` from `integer` and a wrong guess selects
+  the wrong widget.
+  
+  This is a projection decision and not a type assertion. No `type` is written
+  into the schema and the schema is never mutated, so
+  `{ properties: { name: … } }` continues to accept a string, a number and null,
+  exactly as JSON Schema says it should, while the form renders as an object.
+  
+  `SchemaProjection` gains an optional `diagnostics` array, with the
+  `ProjectionDiagnostic` and `ProjectionDiagnosticCode` types, so a pointer that
+  could not be given a shape is reported rather than silently absent. Two codes:
+  `ambiguous-projection-shape` where keywords from more than one type conflict,
+  and `unresolved-projection-shape` where there is nothing to go on at all. An
+  `enum` without a `type` is the common case of the second, and deliberately not
+  read as a string, because JSON Schema permits members of different types.
+  
+  Diagnostics describe schemas rather than data. One case is not reported: a
+  `oneOf` or `anyOf` whose branches the current value does not match, where some
+  branch would have rendered for a value that did. Whether the value is
+  acceptable is validation's subject. A branch the value does match and that
+  still supplies no shape is reported, as is a composition with no renderable
+  branch at all, because those are limitations rather than data states.
+  
+  The rule in full: an explicit `type` is used, an unambiguous structural shape
+  is derived, and everything else is reported. Nothing is guessed and nothing
+  disappears without a word.
+
+### Patch Changes
+
+- b2bb9d6: Stops `dispatch` from tearing down validation for a command that then throws.
+  
+  `dispatch` invalidated the validation scheduler before running the command, on
+  the assumption that a dispatched command always happens. Since the pointer
+  write began refusing to write through a value that cannot hold a property, one
+  does not, and the two steps disagreed: `invalidate` bumps the epoch, which is
+  how an in-flight validation result is recognised as stale and dropped without
+  calling back, and everything that would repair the state runs past the throw.
+  
+  The result was not a lost update but a wedged form. With a validation in
+  flight, a refused write left the submission at `validating` and its nodes at
+  `pending` permanently, with no writer left to move them, and a later `Submit`
+  could not recover it because the submission was already `validating`.
+  
+  Every side effect now happens after the handler returns, so nothing observable
+  is torn down for a command that turns out not to happen. A refused write
+  changed no data, so the validation already running against that unchanged data
+  is left to finish.
+- 55ce8d6: Stops the pointer helpers treating JavaScript's inherited properties as members
+  of the JSON document.
+  
+  Both walked with `current[key]`, so `{}` appeared to have `constructor`,
+  `toString` and a `__proto__` leading out of the document. `getAtPointer({}, '/constructor')`
+  returned a function rather than `undefined`, and a deeper pointer through
+  `/__proto__` surfaced prototype members as if they were the instance's data.
+  
+  The write side turned that into a visible failure. `"constructor"` is a legal
+  JSON Schema property name, and since the pointer write began refusing to write
+  through a value that cannot hold a property, a function cannot, so a form over
+  a schema declaring that property could not be filled in:
+  `setAtPointer({}, '/constructor/name', 'x')` threw instead of creating the
+  object. It now writes it.
+  
+  Both helpers change together, because `getAtPointer` is what seeds every node's
+  initial value and fixing only the writer would leave the reader exposing
+  inherited members.
+  
+  Writing `__proto__` lands as an ordinary own property and does not reassign the
+  prototype, which object spread already guaranteed and is now pinned. An array's
+  `length` is an own property and is still read; whether a pointer should address
+  it is a question about array semantics and is tracked separately.
+
 ## 0.7.0
 
 ### Minor Changes
