@@ -30,12 +30,23 @@ declares disappears without a word.
 The boundary worth stating, because it is what keeps this channel worth
 reading: these describe schemas, not data.
 
-One case is therefore not reported, and only one: a `oneOf` or `anyOf`
-whose branches the current value does not match, where some branch would
-have rendered for a value that did. That same schema projects a shape for
-such a value, whether the value is acceptable is validation's subject, and
-a form's data fails to match for most of the time someone is filling it
-in, so reporting it would mean a diagnostic that flaps on every keystroke.
+Two cases are therefore not reported here, and only two.
+
+A `oneOf` or `anyOf` whose branches the current value does not match, where
+some branch would have rendered for a value that did. That same schema
+projects a shape for such a value, whether the value is acceptable is
+validation's subject, and a form's data fails to match for most of the time
+someone is filling it in, so reporting it would mean a diagnostic that
+flaps on every keystroke.
+
+A disagreement between `default` declarations that a conditional branch
+carries, which holds exactly while that branch is selected and so flaps for
+the same reason. It is reported on `NodeProjection.defaultConflict`, which
+describes this projection rather than the schema and which also carries the
+unconditional case, so a consumer acting on a location reads one place.
+`ambiguous-default` here is the subset that holds whatever the instance is:
+a contradiction in the schema wherever it is used, which is worth telling
+whoever wrote it.
 
 Everything else about a composition is reported, including a branch that
 the value does match and that still supplies no shape, and a composition

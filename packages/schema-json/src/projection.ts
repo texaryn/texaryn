@@ -277,9 +277,121 @@ function eachUnconditional(
   for (const root of roots) visit(root)
 }
 
-function collectUnconditionalDefaults(roots: readonly SchemaNode[]): DefaultDeclaration[] {
+/**
+ * Whether a conditional subschema applies to the instance at this location.
+ *
+ * Asked of the branch itself rather than of the whole instance, because each
+ * branch is evaluated independently of whether `oneOf` ends up satisfied: a
+ * form mid-edit routinely satisfies none, and a branch the data does match is
+ * still the one carrying declarations that compete.
+ *
+ * A branch whose evaluation throws is treated as not applying. The projection's
+ * own descent already survives the shapes that throw (#119, #121), and a
+ * conflict is the wrong place to surface one.
+ */
+function branchApplies(branch: SchemaNode, data: unknown): boolean {
+  try {
+    return branch.validate(data).valid === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Every position that declares this location for the instance as it stands:
+ * the unconditional edges above, plus the conditional branches this instance
+ * selects.
+ *
+ * Applicability is exposure rather than validity, which is one place it
+ * deliberately parts from JSON Schema: a provisionally selected `oneOf` branch
+ * is entered even though it does not validate, because the projection exposes
+ * it and ADR-003 fills from it, so a disagreement it carries has to be visible
+ * where the fill would happen. `selectProvisionalBranch` is the same narrow
+ * rule the projection uses to expose that branch, so the two cannot disagree
+ * about which branch it is.
+ */
+function eachApplicable(
+  roots: readonly SchemaNode[],
+  data: unknown,
+  visitor: (node: SchemaNode) => void,
+): void {
+  const visited = new Set<string | SchemaNode>()
+
+  const visit = (current: SchemaNode): void => {
+    const resolved = dereference(current)
+    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
+    const key = typeof location === 'string' ? location : resolved
+    if (visited.has(key)) return
+    visited.add(key)
+
+    visitor(resolved)
+    for (const branch of resolved.allOf ?? []) visit(branch)
+
+    // `oneOf` contributes the one branch it selects, which is the evaluator's
+    // rule and not "every branch the data matches": an empty object matches
+    // every permissive branch, and treating all of them as applicable would
+    // report a disagreement in a schema where the user has typed nothing. Zero
+    // or several matching selects none, and then the provisionally identified
+    // branch stands in, which is what the projection exposes.
+    const oneOf = resolved.oneOf ?? []
+    if (oneOf.length > 0) {
+      const matching = oneOf.filter((branch) => branchApplies(branch, data))
+      const selected =
+        matching.length === 1
+          ? matching[0]
+          : selectProvisionalBranch(
+              resolved,
+              typeof data === 'object' && data !== null
+                ? (data as Record<string, unknown>)
+                : undefined,
+            )
+      if (selected) visit(selected)
+    }
+
+    // `anyOf` is the opposite case and needs no such rule: several of its
+    // branches applying at once is ordinary, and each that validates
+    // contributes its annotations, so each competes.
+    for (const branch of resolved.anyOf ?? []) {
+      if (branchApplies(branch, data)) visit(branch)
+    }
+
+    if (resolved.if) {
+      const taken = branchApplies(resolved.if, data) ? resolved.then : resolved.else
+      if (taken) visit(taken)
+    }
+
+    const dependent = resolved.dependentSchemas as Record<string, SchemaNode> | undefined
+    if (dependent && typeof data === 'object' && data !== null && !Array.isArray(data)) {
+      for (const [dependency, subschema] of Object.entries(dependent)) {
+        if (Object.prototype.hasOwnProperty.call(data, dependency)) visit(subschema)
+      }
+    }
+  }
+
+  for (const root of roots) visit(root)
+}
+
+/**
+ * The two position sets a location travels with.
+ *
+ * `unconditional` feeds `diagnostics`, which describes the schema, so it holds
+ * only what applies whatever the instance is. `applicable` feeds
+ * `NodeProjection.defaultConflict`, which describes this projection, so it also
+ * holds whatever the instance currently selects. They are carried together
+ * rather than derived from one another because neither is a subset of the other
+ * once a conditional branch has been entered: everything below that branch is
+ * conditional, however unconditional it looks from inside.
+ */
+interface DeclarationPositions {
+  readonly unconditional: readonly SchemaNode[]
+  readonly applicable: readonly SchemaNode[]
+}
+
+function declarationsFrom(
+  walkRoots: (visitor: (node: SchemaNode) => void) => void,
+): DefaultDeclaration[] {
   const declarations: DefaultDeclaration[] = []
-  eachUnconditional(roots, (node) => {
+  walkRoots((node) => {
     const schema = node.schema as Record<string, unknown>
     if (schema !== null && typeof schema === 'object' && 'default' in schema) {
       declarations.push({ value: schema.default, source: documentPointer(node) })
@@ -288,23 +400,51 @@ function collectUnconditionalDefaults(roots: readonly SchemaNode[]): DefaultDecl
   return declarations
 }
 
-/** The positions that unconditionally declare one property of `roots`. */
-function unconditionalChildren(roots: readonly SchemaNode[], key: string): SchemaNode[] {
-  const children: SchemaNode[] = []
-  eachUnconditional(roots, (node) => {
-    const child = node.properties?.[key] as SchemaNode | undefined
-    if (child) children.push(child)
-  })
-  return children
+function collectUnconditionalDefaults(roots: readonly SchemaNode[]): DefaultDeclaration[] {
+  return declarationsFrom((visitor) => eachUnconditional(roots, visitor))
 }
 
-/** The positions that unconditionally declare the elements of `roots`. */
-function unconditionalItems(roots: readonly SchemaNode[]): SchemaNode[] {
-  const items: SchemaNode[] = []
-  eachUnconditional(roots, (node) => {
-    if (node.items) items.push(node.items)
+function collectApplicableDefaults(
+  roots: readonly SchemaNode[],
+  data: unknown,
+): DefaultDeclaration[] {
+  return declarationsFrom((visitor) => eachApplicable(roots, data, visitor))
+}
+
+/** The positions that declare one property of `roots`, by both reachability rules. */
+function childPositions(
+  roots: DeclarationPositions,
+  key: string,
+  data: unknown,
+): DeclarationPositions {
+  const unconditional: SchemaNode[] = []
+  eachUnconditional(roots.unconditional, (node) => {
+    const child = node.properties?.[key] as SchemaNode | undefined
+    if (child) unconditional.push(child)
   })
-  return items
+
+  const applicable: SchemaNode[] = []
+  eachApplicable(roots.applicable, data, (node) => {
+    const child = node.properties?.[key] as SchemaNode | undefined
+    if (child) applicable.push(child)
+  })
+
+  return { unconditional, applicable }
+}
+
+/** The positions that declare the elements of `roots`, by both reachability rules. */
+function itemPositions(roots: DeclarationPositions, data: unknown): DeclarationPositions {
+  const unconditional: SchemaNode[] = []
+  eachUnconditional(roots.unconditional, (node) => {
+    if (node.items) unconditional.push(node.items)
+  })
+
+  const applicable: SchemaNode[] = []
+  eachApplicable(roots.applicable, data, (node) => {
+    if (node.items) applicable.push(node.items)
+  })
+
+  return { unconditional, applicable }
 }
 
 /**
@@ -655,11 +795,11 @@ function walk(
   nodes: Map<JsonPointer, NodeProjection>,
   diagnostics: ProjectionDiagnostic[],
   /**
-   * The schema positions that declare this location whatever the instance is,
-   * which `node` alone cannot supply: by the time the caller has a node to walk
-   * it holds the merge of them, and the merge is what loses a disagreement.
+   * The schema positions that declare this location, which `node` alone cannot
+   * supply: by the time the caller has a node to walk it holds the merge of
+   * them, and the merge is what loses a disagreement.
    */
-  declaredAt: readonly SchemaNode[],
+  declaredAt: DeclarationPositions,
 ): void {
   const original = dereference(node)
   const originalSchema = original.schema as Record<string, unknown>
@@ -810,7 +950,9 @@ function walk(
   // pointer with no node has nothing to omit an annotation from, and saying
   // that its `default` is undecidable on top of saying it cannot be drawn at
   // all would be the same schema reported twice.
-  const ambiguousDefault = disagreeingDefaults(collectUnconditionalDefaults(declaredAt))
+  const ambiguousDefault = disagreeingDefaults(
+    collectUnconditionalDefaults(declaredAt.unconditional),
+  )
   if (ambiguousDefault) {
     diagnostics.push({
       pointer: toPointer(pointer),
@@ -822,6 +964,18 @@ function walk(
       sources: ambiguousDefault.map((declaration) => declaration.source),
     })
   }
+
+  // The node's own answer, which includes whatever branches this instance
+  // selects. A superset of the diagnostic's: every unconditional disagreement
+  // is also an applicable one, so the node carries both kinds and a consumer
+  // reads one place.
+  const applicableConflict = disagreeingDefaults(
+    collectApplicableDefaults(declaredAt.applicable, data),
+  )
+  const conflictedDefault = applicableConflict !== undefined || ambiguousDefault !== undefined
+  const defaultConflict = (applicableConflict ?? ambiguousDefault)?.map(
+    (declaration) => declaration.source,
+  )
 
   const nodeActive = active && branchResolved
   // A node the schema applies is never also provisional; the two report
@@ -917,7 +1071,8 @@ function walk(
       enumValues: extractEnumValues(schema),
       active: nodeActive,
       provisional: nodeProvisional ? true : undefined,
-      annotations: extractAnnotations(schema, ambiguousDefault !== undefined),
+      defaultConflict,
+      annotations: extractAnnotations(schema, conflictedDefault),
     })
 
     for (const key of propKeys) {
@@ -953,7 +1108,11 @@ function walk(
         childProvisional,
         nodes,
         diagnostics,
-        unconditionalChildren([original], key),
+        // This node's own data, not the child's: the branches being entered
+        // are this location's, so they are decided by the instance here. The
+        // child's own conditional edges are entered by the child's walk, with
+        // the child's data.
+        childPositions(declaredAt, key, data),
       )
     }
     return
@@ -967,7 +1126,8 @@ function walk(
     enumValues: extractEnumValues(schema),
     active: nodeActive,
     provisional: nodeProvisional ? true : undefined,
-    annotations: extractAnnotations(schema, ambiguousDefault !== undefined),
+    defaultConflict,
+    annotations: extractAnnotations(schema, conflictedDefault),
     // Deliberately not given the flag above. A conflict under `items` belongs
     // to the element locations, and each of those reports its own; this field
     // describes the item schema rather than being one of those locations, so
@@ -981,7 +1141,7 @@ function walk(
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
-    const itemPositions = unconditionalItems([original])
+    const elementPositions = itemPositions(declaredAt, data)
     data.forEach((item, index) => {
       walk(
         resolved.items!,
@@ -991,7 +1151,7 @@ function walk(
         nodeProvisional,
         nodes,
         diagnostics,
-        itemPositions,
+        elementPositions,
       )
     })
   }
@@ -1010,6 +1170,6 @@ function walk(
 export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
-  walk(root, '', data, true, false, nodes, diagnostics, [root])
+  walk(root, '', data, true, false, nodes, diagnostics, { unconditional: [root], applicable: [root] })
   return { nodes, diagnostics }
 }

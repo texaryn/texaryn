@@ -86,7 +86,27 @@ describe('what counts as a declaration', () => {
 })
 
 describe('what counts as a conflict', () => {
-  it('takes an ambiguous-default diagnostic and the positions it names', () => {
+  it('takes the node own conflict and the positions it names', () => {
+    const view = viewFromProjection(
+      projection({
+        '/a': node({ defaultConflict: ['/allOf/0/properties/a', '/properties/a'] }),
+      }),
+    )
+    expect(view.conflicts.get('/a' as JsonPointer)).toEqual([
+      '/allOf/0/properties/a',
+      '/properties/a',
+    ])
+  })
+
+  /**
+   * The node rather than `projection.diagnostics`, which is #142's answer.
+   * Diagnostics describe the schema, so they carry only the disagreements that
+   * hold whatever the instance is; a `oneOf` branch competing with the base
+   * applies exactly while its branch is selected, and the pass has to see that
+   * one too. An adapter puts every conflict on the node, so reading the one
+   * channel loses nothing.
+   */
+  it('does not read the conflict off the diagnostics channel', () => {
     const view = viewFromProjection(
       projection({ '/a': node({}) }, [
         {
@@ -97,29 +117,20 @@ describe('what counts as a conflict', () => {
         },
       ]),
     )
-    expect(view.conflicts.get('/a' as JsonPointer)).toEqual([
-      '/allOf/0/properties/a',
-      '/properties/a',
-    ])
-  })
-
-  // The channel carries more than one kind of report, and only this one says a
-  // value was withheld. A shape the adapter could not draw is a different fact
-  // and the pass has nothing to do about it.
-  it('ignores a diagnostic about a shape', () => {
-    const view = viewFromProjection(
-      projection({ '/a': node({}) }, [
-        {
-          pointer: '/a' as JsonPointer,
-          code: 'ambiguous-projection-shape',
-          message: 'two families',
-        },
-      ]),
-    )
     expect(view.conflicts.size).toBe(0)
   })
 
   it('reads no conflicts from an adapter that reports none', () => {
     expect(viewFromProjection(projection({ '/a': node({}) })).conflicts.size).toBe(0)
+  })
+
+  // The same rule the declarations follow: an unreachable node states nothing
+  // the pass acts on, and reporting a conflict there would explain a location
+  // it was never going to fill.
+  it('does not read a conflict off an unreachable node', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ active: false, defaultConflict: ['/properties/a'] }) }),
+    )
+    expect(view.conflicts.size).toBe(0)
   })
 })

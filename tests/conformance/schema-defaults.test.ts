@@ -329,6 +329,72 @@ describe.each([
   })
 
   /**
+   * #142, at the level it was costing something: the submitted payload.
+   *
+   * Each of these filled a value before the fix, and the two adapters filled
+   * different ones for the same schema and the same data, so which value an
+   * application submitted depended on which library it happened to depend on.
+   * They are left absent now, and the report names the positions that
+   * disagreed.
+   */
+  it.each([
+    [
+      'a selected oneOf branch against the base',
+      {
+        type: 'object',
+        properties: { kind: { type: 'string' }, x: { type: 'string', default: 'own' } },
+        oneOf: [
+          { properties: { kind: { const: 'a' }, x: { default: 'from-a' } } },
+          { properties: { kind: { const: 'b' }, x: { default: 'from-b' } } },
+        ],
+      },
+      { kind: 'b' },
+      '/x',
+    ],
+    [
+      'two matching anyOf branches',
+      {
+        type: 'object',
+        properties: { x: { type: 'string' } },
+        anyOf: [
+          { properties: { flag: { type: 'boolean' }, x: { default: 'from-first' } } },
+          { properties: { other: { type: 'string' }, x: { default: 'from-second' } } },
+        ],
+      },
+      { flag: true, other: 'y' },
+      '/x',
+    ],
+    [
+      'a provisionally selected branch against the base',
+      {
+        type: 'object',
+        properties: { kind: { type: 'string' }, nickname: { type: 'string', default: 'base' } },
+        oneOf: [
+          {
+            properties: { kind: { const: 'person' }, nickname: { default: 'from-branch' } },
+            required: ['name'],
+          },
+          { properties: { kind: { const: 'company' } }, required: ['org'] },
+        ],
+      },
+      { kind: 'person' },
+      '/nickname',
+    ],
+  ])('leaves a location absent where %s disagrees', async (_label, schema, data, location) => {
+    const runtime = await runtimeFor(schema as Record<string, unknown>, {
+      initialization: 'schema-defaults',
+      initialData: data,
+    })
+
+    expect(runtime.data.getSnapshot()).toEqual(data)
+
+    const report = runtime.initialization.getSnapshot()
+    if (report?.outcome !== 'initialized') throw new Error('expected an initialized report')
+    expect(report.conflicts.map((conflict) => conflict.location)).toEqual([location])
+    expect(report.conflicts[0]!.sources.length).toBe(2)
+  })
+
+  /**
    * The row the contract matches the reference on, measured in
    * `spikes/backstage-adoption/src/defaults-reference.test.tsx`: RJSF fills a
    * branch default when the user activates the branch by clicking the

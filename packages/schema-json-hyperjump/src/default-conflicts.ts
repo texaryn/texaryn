@@ -1,5 +1,6 @@
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
-import { deepEqual } from './static-walk.js'
+import { deepEqual, selectProvisionalBranch } from './static-walk.js'
+import type { BranchChecker } from './static-walk.js'
 
 /** One `default` declaration, and the schema position that makes it. */
 interface DefaultDeclaration {
@@ -43,6 +44,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function collectDefaultConflicts(
   rootSchema: unknown,
   data: unknown,
+  /**
+   * Given, the walk also enters the conditional branches this instance selects,
+   * which answers a different question: what applies to the data as it stands
+   * rather than to every instance. That is what
+   * `NodeProjection.defaultConflict` reports, and the schema-level diagnostic
+   * stays the run without it.
+   *
+   * It is the projection's own checker rather than a second evaluator, so a
+   * branch cannot be counted here and reported inactive on the node, or the
+   * other way round.
+   */
+  isBranchActive?: BranchChecker,
 ): Map<string, readonly string[]> {
   const declarations = new Map<string, DefaultDeclaration[]>()
 
@@ -89,6 +102,60 @@ export function collectDefaultConflicts(
       schema.allOf.forEach((branch, index) => {
         visit(branch, current, pointer, `${schemaPointer}/allOf/${index}`, visited)
       })
+    }
+
+    // The conditional edges, entered only where the caller asked for them and
+    // only where this instance selects them. The rules mirror `staticWalk`'s
+    // exactly, because they are the same question: `then`/`else` resolve
+    // through the `if` scope's own validity, `oneOf` contributes one branch or
+    // the provisionally identified one, `anyOf` contributes every branch that
+    // validates, and `dependentSchemas` follows key presence.
+    if (isBranchActive !== undefined) {
+      if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
+        if (isRecord(schema.then) && isBranchActive(schemaPointer, pointer, '/then')) {
+          visit(schema.then, current, pointer, `${schemaPointer}/then`, visited)
+        }
+        if (isRecord(schema.else) && isBranchActive(schemaPointer, pointer, '/else')) {
+          visit(schema.else, current, pointer, `${schemaPointer}/else`, visited)
+        }
+      }
+
+      if (Array.isArray(schema.oneOf)) {
+        const branches = schema.oneOf as unknown[]
+        const local = branches.map((_, index) =>
+          isBranchActive(schemaPointer, pointer, `/oneOf/${index}`),
+        )
+        // A provisionally identified branch competes, though it does not
+        // validate: the projection exposes it and a policy fills from it, so a
+        // disagreement it carries has to be visible where the fill happens.
+        const selected = local.some(Boolean)
+          ? undefined
+          : selectProvisionalBranch(branches, current, rootSchema)
+        branches.forEach((branch, index) => {
+          if (!local[index] && index !== selected) return
+          visit(branch, current, pointer, `${schemaPointer}/oneOf/${index}`, visited)
+        })
+      }
+
+      if (Array.isArray(schema.anyOf)) {
+        ;(schema.anyOf as unknown[]).forEach((branch, index) => {
+          if (!isBranchActive(schemaPointer, pointer, `/anyOf/${index}`)) return
+          visit(branch, current, pointer, `${schemaPointer}/anyOf/${index}`, visited)
+        })
+      }
+
+      if (isRecord(schema.dependentSchemas)) {
+        for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
+          if (!isRecord(current) || !(key in current)) continue
+          visit(
+            branch,
+            current,
+            pointer,
+            `${schemaPointer}/dependentSchemas/${escapeSegment(key)}`,
+            visited,
+          )
+        }
+      }
     }
 
     if (isRecord(schema.properties)) {

@@ -273,12 +273,22 @@ them. Projection never mutates data.**
   both would agree on, so omission is the only answer that is not one library's
   traversal order.
 
-  **What stays conditional.** A declaration carried by `oneOf`, `anyOf`,
+  **A conditional declaration competes while its branch applies, and the port
+  carries that too.** #142 settled it on a second channel rather than by
+  widening the first. A declaration carried by `oneOf`, `anyOf`,
   `if`/`then`/`else` or `dependentSchemas` competes with the base only while its
-  branch applies, so whether it disagrees is a state of the data rather than a
-  fact about the schema, and `SchemaProjection.diagnostics` carries the latter.
-  Those conflicts still collapse to one adapter-dependent value, and the pass
-  will use it. Tracked as #142.
+  branch is selected, so whether it disagrees is a state of the data, and
+  `SchemaProjection.diagnostics` describes schemas. It is reported on
+  `NodeProjection.defaultConflict` instead, beside `active` and `provisional`,
+  which come and go with the data for the same reason. Every conflict appears
+  there, conditional or not, so this pass reads one channel; the diagnostic
+  stays for the unconditional case, which is a contradiction worth telling
+  whoever wrote the schema.
+
+  **Applicability there is exposure rather than validity**, which is a small,
+  deliberate divergence from JSON Schema. A provisionally selected branch does
+  not validate, and this pass fills from one anyway under rule 5, so a
+  disagreement it carries has to be visible where the fill would happen.
 
 ### The pass, precisely
 
@@ -404,13 +414,6 @@ omitted element still needs a representation; a row should be initialized before
 its array value becomes externally observable rather than by leaving a hole or
 an `undefined` in public data.
 
-**A conditional disagreement between defaults.** #128 settled the case that
-holds whatever the instance is, and left the one that holds only while a branch
-applies. A `oneOf` branch's declaration competing with the base still collapses
-to one value, and which one depends on the adapter, so the pass will write
-something no schema chose. Tracked as #142, which needs a channel other than
-`diagnostics`: the fact appears and disappears as a discriminator is typed.
-
 ## Consequences
 
 An adopter who needs RJSF's payload has to ask for it, at the call site, in one
@@ -507,7 +510,10 @@ default as a placeholder and forbids it as a control's value for this reason.
 - Issue #126, a submission carrying data from a branch that no longer applies,
   measured here; rule 5's consequence depends on how it is resolved
 - Issue #127, an omitted `InsertItem` value becoming `null`, measured here and a
-  prerequisite for initializing a new row
+  prerequisite for initializing a new row, resolved by the handler naming the
+  row it created rather than by reading the value back
 - Issue #128, the port collapsing two disagreeing defaults, measured here and
-  resolved by reporting them; the conflict rule holds for declarations that
-  apply to every instance, and #142 carries the conditional remainder
+  resolved by reporting them, for declarations that apply to every instance
+- Issue #142, the same collapse for a declaration a conditional branch carries,
+  resolved on `NodeProjection.defaultConflict` because that one is a state of
+  the data
