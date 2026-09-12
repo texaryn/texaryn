@@ -12,7 +12,7 @@ import { batch } from '../state/signal.js'
 import { getAtPointer, parsePointer } from '../json-pointer.js'
 import { identityKey } from '../identity/key.js'
 import type { IdentityKey, IdentitySegment } from '../identity/key.js'
-import type { NodeId, ValidationError, ValidationResult, VisibleError } from '../types.js'
+import type { JsonPointer, NodeId, ValidationError, ValidationResult, VisibleError } from '../types.js'
 import type {
   FormRuntime,
   FormRuntimeOptions,
@@ -187,8 +187,12 @@ export function createFormRuntime(
    */
   const initialize =
     options.initialization === 'schema-defaults'
-      ? (data: unknown): InitializationResult =>
-          initializeDefaults(data, (current) => viewFromProjection(port.project(current)))
+      ? (data: unknown, provisional?: readonly JsonPointer[]): InitializationResult =>
+          initializeDefaults(
+            data,
+            (current) => viewFromProjection(port.project(current)),
+            provisional === undefined ? {} : { provisional },
+          )
       : undefined
 
   const construction = initialize?.(suppliedData)
@@ -547,7 +551,7 @@ export function createFormRuntime(
     // back does not, because `Reset` never reaches `setAtPointer` and so
     // cannot throw today. It moves with the rest because the invariant is the
     // ordering, not the one line that currently demonstrates it.
-    const { nextState, effects } = processCommand(state, command, currentDoc)
+    const { nextState, effects, provisional } = processCommand(state, command, currentDoc)
 
     if (mutatesData) {
       scheduler.invalidate()
@@ -565,7 +569,12 @@ export function createFormRuntime(
     // seeded above, before the handler, because its result becomes one.
     let seeded: readonly string[] = []
     if (initialize !== undefined && mutatesData && command.type !== 'Reset') {
-      const result = initialize(state.data)
+      // A row the command created without a value stated for it reads as absent
+      // to the pass while the data holds the `null` standing in for it, so an
+      // array never has a hole and nothing but JSON reaches the port. If the
+      // pass writes nothing there, or the run is discarded, that `null` is what
+      // the caller gets, which is the behaviour without a policy.
+      const result = initialize(state.data, provisional)
       report = reportOf(result)
       if (result.outcome === 'initialized') {
         state = { ...state, data: result.data }

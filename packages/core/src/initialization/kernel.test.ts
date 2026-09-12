@@ -395,6 +395,78 @@ describe('nothing reachable, nothing declared', () => {
 })
 
 /**
+ * A location the caller created without stating a value for it. The data holds
+ * `null` there, because an array cannot hold a hole, and the pass has to read
+ * past that to the absence it stands for.
+ */
+describe('a provisional location', () => {
+  const provisional = { provisional: ['/rows/0' as Location] }
+
+  it('reads as absent even though the data holds null', () => {
+    const result = initialized(
+      initializeDefaults({ rows: [null] }, fixed({ '/rows/0': { seeded: true } }), provisional),
+    )
+    expect(result.data).toEqual({ rows: [{ seeded: true }] })
+  })
+
+  // The `null` standing in for the row reads as a scalar ancestor otherwise, and
+  // every one of the row's own properties is refused.
+  it('is walked through as an absent level, not a scalar ancestor', () => {
+    const result = initialized(
+      initializeDefaults({ rows: [null] }, fixed({ '/rows/0/name': 'anon' }), provisional),
+    )
+    expect(result.data).toEqual({ rows: [{ name: 'anon' }] })
+    expect(result.refusals).toEqual([])
+  })
+
+  it('leaves the placeholder where nothing is declared', () => {
+    const result = initialized(
+      initializeDefaults({ rows: [null] }, fixed({ '/elsewhere': 1 }), provisional),
+    )
+    expect(result.data).toEqual({ rows: [null], elsewhere: 1 })
+  })
+
+  /**
+   * Consumed by the write, not recognised from the value. Held for the run, the
+   * location reads as absent again on the next pass, the same default is written
+   * again, and the budget decides the outcome. The declared value here is `null`,
+   * which is exactly what stood in for the row, so a value-based rule cannot see
+   * that anything happened.
+   */
+  it('stops being provisional once a declared null has been written', () => {
+    const result = initializeDefaults({ rows: [null] }, fixed({ '/rows/0': null }), provisional)
+    expect(result.outcome).toBe('initialized')
+    expect(initialized(result).data).toEqual({ rows: [null] })
+    expect(initialized(result).written).toEqual(['/rows/0'])
+    expect(initialized(result).passes).toBe(2)
+  })
+
+  /**
+   * At or beneath, not at. An object row is created by a write to one of its
+   * properties, and a rule keyed on the row itself would leave it reading as
+   * absent while it holds a real object, which a later declaration could
+   * overwrite.
+   */
+  it('stops being provisional when a write lands beneath it', () => {
+    let pass = 0
+    const view: ProjectView = () => {
+      pass += 1
+      // `/rows/0` declares nothing on the first pass and something on the next,
+      // so a rule keyed on the row itself would overwrite what pass 1 built.
+      const defaults: Record<string, unknown> =
+        pass === 1 ? { '/rows/0/name': 'anon' } : { '/rows/0': { replaced: true } }
+      return {
+        reachable: new Set(Object.keys(defaults) as Location[]),
+        defaults: new Map(Object.entries(defaults)) as Map<Location, unknown>,
+        conflicts: new Map(),
+      }
+    }
+    const result = initialized(initializeDefaults({ rows: [null] }, view, provisional))
+    expect(result.data).toEqual({ rows: [{ name: 'anon' }] })
+  })
+})
+
+/**
  * What the run wrote, which the runtime needs and cannot work out afterwards. A
  * seeding between construction and the next `Reset` happens against a baseline
  * that is already fixed, so those locations are `modified`, and by the time the

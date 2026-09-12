@@ -114,6 +114,27 @@ export interface InitializeOptions {
    * writing nothing is the end.
    */
   readonly maxPasses?: number
+  /**
+   * Locations the caller created without stating a value for them, which read
+   * as absent until something is written.
+   *
+   * An `InsertItem` with no `value` adds a row holding `null`, because an array
+   * cannot hold a hole and `undefined` is not JSON. That `null` is a value by
+   * every rule here, so without this the row's own declarations are refused and
+   * the caller gets `null` where a default was declared.
+   *
+   * **Consumed by the first write at or beneath the location, never held for
+   * the run.** Held, an item declaring `default: 'seed'` would read as absent
+   * again on the next pass, be written again, and run to the budget, which
+   * discards everything. "At or beneath" rather than "at", because an object
+   * item is created by a write to one of its properties: a rule keyed on the
+   * row itself would leave it reading as absent while it holds a real object,
+   * which a later declaration could then overwrite.
+   *
+   * Keyed on the write rather than on the value, because a row that has just
+   * been filled with a declared `null` holds exactly what the placeholder does.
+   */
+  readonly provisional?: readonly Location[]
 }
 
 const DEFAULT_MAX_PASSES = 32
@@ -126,15 +147,17 @@ export function initializeDefaults(
   const maxPasses = options.maxPasses ?? DEFAULT_MAX_PASSES
   let current = data
   const written: Location[] = []
+  const provisional = new Set(options.provisional ?? [])
 
   for (let pass = 1; pass <= maxPasses; pass += 1) {
-    const { writes, conflicts, refusals } = collect(current, view(current))
+    const { writes, conflicts, refusals } = collect(current, view(current), provisional)
     if (writes.length === 0) {
       return { outcome: 'initialized', data: current, written, conflicts, refusals, passes: pass }
     }
     for (const write of writes) {
       current = writeAtSegments(current, write.segments, deepCopy(write.value))
       written.push(write.location)
+      consumeProvisional(provisional, write.segments)
     }
   }
 
@@ -147,9 +170,23 @@ interface Write {
   readonly value: unknown
 }
 
+/**
+ * Ends the provisional status of every location the write landed at or beneath.
+ *
+ * A write to `/rows/0/name` creates `/rows/0`, so both stop being locations
+ * nobody has stated a value for.
+ */
+function consumeProvisional(provisional: Set<Location>, segments: readonly string[]): void {
+  if (provisional.size === 0) return
+  for (let length = 0; length <= segments.length; length += 1) {
+    provisional.delete(encodePointer(segments.slice(0, length)))
+  }
+}
+
 function collect(
   data: unknown,
   view: InitializationView,
+  provisional: ReadonlySet<Location>,
 ): { writes: Write[]; conflicts: DefaultConflict[]; refusals: DefaultRefusal[] } {
   const candidates: Write[] = []
   const conflicts: DefaultConflict[] = []
@@ -168,7 +205,7 @@ function collect(
   // there the ancestor has no node and so no diagnostic either.
   for (const [location, sources] of view.conflicts) {
     if (!view.reachable.has(location)) continue
-    if (!isAbsent(data, parsePointer(location))) continue
+    if (!isAbsent(data, parsePointer(location), provisional)) continue
     conflicted.add(location)
     conflicts.push({ location, sources })
   }
@@ -177,9 +214,9 @@ function collect(
     if (!view.defaults.has(location)) continue
 
     const segments = parsePointer(location)
-    if (!isAbsent(data, segments)) continue
+    if (!isAbsent(data, segments, provisional)) continue
 
-    const refusal = refuse(data, segments)
+    const refusal = refuse(data, segments, provisional)
     if (refusal !== undefined) {
       refusals.push({ location, reason: refusal })
       continue
@@ -199,7 +236,7 @@ function collect(
   // descendant against, and creating the parent would materialise the location
   // the conflict said to leave absent.
   const writes = withoutDescendants.filter(
-    (write) => !hasConflictedAbsentAncestor(data, write.segments, conflicted),
+    (write) => !hasConflictedAbsentAncestor(data, write.segments, conflicted, provisional),
   )
 
   return { writes, conflicts, refusals }
@@ -211,7 +248,15 @@ function collect(
  * from a missing key is the whole reason this cannot use `getAtPointer`, which
  * returns `undefined` for both.
  */
-function isAbsent(data: unknown, segments: readonly string[]): boolean {
+function isAbsent(
+  data: unknown,
+  segments: readonly string[],
+  provisional: ReadonlySet<Location>,
+): boolean {
+  // A location nobody stated a value for reads as absent, whatever stands in
+  // for it in the data. An ancestor needs no such check: whatever it holds is
+  // not a container, so everything beneath it is already absent.
+  if (provisional.has(encodePointer(segments))) return true
   if (segments.length === 0) return data === undefined
   let current: unknown = data
   for (const segment of segments.slice(0, -1)) {
@@ -233,7 +278,11 @@ function isAbsent(data: unknown, segments: readonly string[]): boolean {
  * property literally named `0`, so creating the container would mean guessing,
  * and ADR-003 leaves array rows to whatever #120 and identity keys settle.
  */
-function refuse(data: unknown, segments: readonly string[]): DefaultRefusal['reason'] | undefined {
+function refuse(
+  data: unknown,
+  segments: readonly string[],
+  provisional: ReadonlySet<Location>,
+): DefaultRefusal['reason'] | undefined {
   let current: unknown = data
   for (let index = 0; index < segments.length; index += 1) {
     // `current` is the container that has to hold `segments[index]`.
@@ -243,6 +292,10 @@ function refuse(data: unknown, segments: readonly string[]): DefaultRefusal['rea
     if (!isContainer(current)) return 'non-container-ancestor'
     if (index === segments.length - 1) return undefined
     current = (current as Record<string, unknown>)[segments[index]!]
+    // The walk has to descend through a provisional level as the absent one it
+    // is, or the `null` holding its place reads as a scalar ancestor and the
+    // row's own properties are refused, which is the defect #127 records.
+    if (provisional.has(encodePointer(segments.slice(0, index + 1)))) current = undefined
   }
   return undefined
 }
@@ -261,9 +314,11 @@ function hasConflictedAbsentAncestor(
   data: unknown,
   segments: readonly string[],
   conflicted: ReadonlySet<Location>,
+  provisional: ReadonlySet<Location>,
 ): boolean {
   return properAncestors(segments).some(
-    (ancestor) => conflicted.has(ancestor.location) && isAbsent(data, ancestor.segments),
+    (ancestor) =>
+      conflicted.has(ancestor.location) && isAbsent(data, ancestor.segments, provisional),
   )
 }
 
