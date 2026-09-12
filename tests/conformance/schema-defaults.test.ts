@@ -109,34 +109,133 @@ describe.each([
   })
 
   /**
-   * #127's symptom, now on a public store rather than only in a spike.
-   * `handleInsertItem` writes `cmd.value ?? null`, so a row inserted with no
-   * value holds `null`, and a scalar ancestor is one the pass refuses to write
-   * through: filling would spread the `null` into keys. The refusal is the
-   * honest answer while the command cannot say "no value"; when #127 makes the
-   * three cases distinguishable this row changes to the row being filled.
+   * #127. A row inserted with no value is a location nobody stated a value for,
+   * so the pass reads it as absent and the item's declarations apply. The `null`
+   * standing in for it in the data is what keeps the array free of holes while
+   * that happens, so nothing but JSON ever reaches the port.
    */
-  it('refuses to fill inside a row inserted with no value', async () => {
+  const rowsSchema = {
+    type: 'object',
+    properties: {
+      rows: {
+        type: 'array',
+        items: { type: 'object', properties: { name: { type: 'string', default: 'anon' } } },
+      },
+    },
+  }
+
+  it('fills a row inserted with no value', async () => {
+    const runtime = await runtimeFor(rowsSchema, {
+      initialization: 'schema-defaults',
+      initialData: { rows: [] },
+    })
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/rows'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [{ name: 'anon' }] })
+    expect(runtime.initialization.getSnapshot()).toMatchObject({
+      outcome: 'initialized',
+      refusals: [],
+    })
+  })
+
+  it('leaves a row inserted as an explicit null', async () => {
+    const runtime = await runtimeFor(rowsSchema, {
+      initialization: 'schema-defaults',
+      initialData: { rows: [] },
+    })
+    runtime.dispatch({
+      type: 'InsertItem',
+      containerId: nodeIdFor(runtime, '/rows'),
+      index: 0,
+      value: null,
+    })
+
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [null] })
+  })
+
+  it('inserts null with no policy configured', async () => {
+    const runtime = await runtimeFor(rowsSchema, { initialData: { rows: [] } })
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/rows'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [null] })
+  })
+
+  it('fills a scalar row with the item default', async () => {
+    const runtime = await runtimeFor(
+      {
+        type: 'object',
+        properties: { tags: { type: 'array', items: { type: 'string', default: 'seed' } } },
+      },
+      { initialization: 'schema-defaults', initialData: { tags: [] } },
+    )
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/tags'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ tags: ['seed'] })
+    expect(runtime.initialization.getSnapshot()).toMatchObject({ outcome: 'initialized' })
+  })
+
+  /**
+   * The case that proves provisional status is ended by the write and not
+   * recognised from the value: after this write the row holds `null`, which is
+   * exactly what stood in for it. A value-based implementation reads it as still
+   * unstated, writes again, and runs to the budget.
+   *
+   * The data cannot tell the two apart, since a discarded run also leaves
+   * `[null]`. The outcome can. A `default` need not validate against its own
+   * schema, which ADR-003 already decides, so this shape is legal.
+   */
+  it('converges on an item whose declared default is null', async () => {
+    const runtime = await runtimeFor(
+      {
+        type: 'object',
+        properties: { items: { type: 'array', items: { type: 'string', default: null } } },
+      },
+      { initialization: 'schema-defaults', initialData: { items: [] } },
+    )
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/items'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ items: [null] })
+    expect(runtime.initialization.getSnapshot()).toMatchObject({ outcome: 'initialized' })
+  })
+
+  /**
+   * An item-level container default is taken whole and recursed into, exactly as
+   * at any other absent location: `team` comes from the container declaration
+   * rather than the property one, and `region` fills on the next pass.
+   */
+  it('takes an item container default whole, then fills what it left absent', async () => {
     const runtime = await runtimeFor(
       {
         type: 'object',
         properties: {
           rows: {
             type: 'array',
-            items: { type: 'object', properties: { name: { type: 'string', default: 'anon' } } },
+            items: {
+              type: 'object',
+              default: { team: 'a' },
+              properties: {
+                team: { type: 'string', default: 'b' },
+                region: { type: 'string', default: 'eu' },
+              },
+            },
           },
         },
       },
       { initialization: 'schema-defaults', initialData: { rows: [] } },
     )
-    const rowsId = nodeIdFor(runtime, '/rows')
-    runtime.dispatch({ type: 'InsertItem', containerId: rowsId, index: 0 })
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/rows'), index: 0 })
 
-    expect(runtime.data.getSnapshot()).toEqual({ rows: [null] })
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [{ team: 'a', region: 'eu' }] })
+  })
 
-    const report = runtime.initialization.getSnapshot()
-    if (report?.outcome !== 'initialized') throw new Error('expected an initialized report')
-    expect(report.refusals).toEqual([{ location: '/rows/0/name', reason: 'non-container-ancestor' }])
+  it('fills a row inserted before an existing one, at the right index', async () => {
+    const runtime = await runtimeFor(rowsSchema, {
+      initialization: 'schema-defaults',
+      initialData: { rows: [{ name: 'first' }] },
+    })
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/rows'), index: 0 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [{ name: 'anon' }, { name: 'first' }] })
   })
 
   it('creates no row from an item default', async () => {

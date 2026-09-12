@@ -274,6 +274,76 @@ describe('Reset re-establishes the baseline under the policy', () => {
 })
 
 /**
+ * A row inserted with no value, against a schema whose projection never runs
+ * out of locations beneath that row. The seeding writes into the row and then
+ * fails to converge, which is the half of the transactional rule criterion 4
+ * cannot reach: there the pass writes nothing at all.
+ */
+describe('an insert whose seeding does not converge', () => {
+  const port = makePort((data) => {
+    const rows = ((data as { rows?: unknown[] } | null)?.rows ?? []) as unknown[]
+    const nodes = new Map<JsonPointer, NodeProjection>([
+      [
+        toPointer(''),
+        field({
+          type: 'object',
+          children: [{ pointer: toPointer('/rows'), key: 'rows', required: false }],
+        }),
+      ],
+      [
+        toPointer('/rows'),
+        field({
+          type: 'array',
+          children: rows.map((_, index) => ({
+            pointer: toPointer(`/rows/${index}`),
+            key: String(index),
+            required: false,
+          })),
+        }),
+      ],
+    ])
+    // Each row declares one more level than it currently holds, so every pass
+    // has somewhere new to write.
+    rows.forEach((row, index) => {
+      let depth = 0
+      let current: unknown = row
+      while (
+        typeof current === 'object' &&
+        current !== null &&
+        'next' in (current as Record<string, unknown>)
+      ) {
+        depth += 1
+        current = (current as Record<string, unknown>).next
+      }
+      const base = `/rows/${index}`
+      nodes.set(toPointer(base), field({ type: 'object' }))
+      for (let level = 1; level <= depth; level += 1) {
+        nodes.set(toPointer(`${base}${'/next'.repeat(level)}`), field({ type: 'object' }))
+      }
+      nodes.set(
+        toPointer(`${base}${'/next'.repeat(depth + 1)}`),
+        field({ type: 'object', annotations: { default: {} } }),
+      )
+    })
+    return { nodes }
+  })
+
+  it('keeps the row and leaves it holding null', () => {
+    const runtime = createFormRuntime(port, {
+      initialization: 'schema-defaults',
+      initialData: { rows: [] },
+    })
+    runtime.dispatch({ type: 'InsertItem', containerId: nodeIdFor(runtime, '/rows'), index: 0 })
+
+    // The insert establishes no baseline, so ADR-003 keeps it. The seeding is
+    // transactional, so none of it survives, and what the row holds is the
+    // fallback rather than the object the discarded passes were building.
+    expect(runtime.data.getSnapshot()).toEqual({ rows: [null] })
+    expect(runtime.initialization.getSnapshot()).toMatchObject({ outcome: 'budget-exhausted' })
+  })
+})
+
+/**
  * A location is filled when it becomes reachable, and construction is only the
  * first moment that happens. Clicking a discriminator is another, which is the
  * row where the contract matches the reference: RJSF fills a branch default on

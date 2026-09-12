@@ -1,7 +1,7 @@
 import type { UIDocument, UINode } from '../ir/types.js'
 import type { RuntimeState, NodeRuntimeState } from '../ir/runtime-state.js'
 import type { Command, CommandResult } from './types.js'
-import type { NodeId } from '../types.js'
+import type { JsonPointer, NodeId } from '../types.js'
 import type { IdentityKey } from '../identity/key.js'
 import { getAtPointer, setAtPointer } from '../json-pointer.js'
 import { insertItem, removeItem, moveItem } from '../identity/map.js'
@@ -88,12 +88,21 @@ function handleInsertItem(
 
   const arr = (getAtPointer(state.data, container.dataPointer) as unknown[]) ?? []
   if (cmd.index < 0 || cmd.index > arr.length) return { nextState: state, effects: [] }
-  const newArr = [...arr.slice(0, cmd.index), cmd.value ?? null, ...arr.slice(cmd.index)]
+
+  // `undefined` rather than `?? null`, so an explicit `null` is a row holding
+  // `null` and not a row nobody stated a value for. Both put `null` in the
+  // array, because an array cannot hold a hole and `undefined` is not JSON, so
+  // the difference travels beside the data rather than in it.
+  const stated = cmd.value !== undefined
+  const newArr = [...arr.slice(0, cmd.index), stated ? cmd.value : null, ...arr.slice(cmd.index)]
   const newData = setAtPointer(state.data, container.dataPointer, newArr)
   const { map: newIdentities } = insertItem(state.identities, key, cmd.index)
 
   return {
     nextState: { ...state, data: newData, identities: newIdentities },
+    provisional: stated
+      ? undefined
+      : [`${container.dataPointer}/${cmd.index}` as JsonPointer],
     effects: [
       { type: 'recompile', reason: 'data-changed' },
       { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
