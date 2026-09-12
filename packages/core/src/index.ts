@@ -51,8 +51,18 @@ export { createStore } from './state/index.js'
 export type { Command, Effect, CommandResult } from './commands/index.js'
 export { processCommand } from './commands/index.js'
 
-export type { FormRuntime, FormRuntimeOptions, NodeState } from './runtime/index.js'
+export type {
+  FormRuntime,
+  FormRuntimeOptions,
+  InitializationPolicy,
+  InitializationReport,
+  NodeState,
+} from './runtime/index.js'
 export { createFormRuntime } from './runtime/index.js'
+
+// The pass itself stays unexported. What a caller needs is what the report
+// carries, which is why these two travel and `initializeDefaults` does not.
+export type { DefaultConflict, DefaultRefusal } from './initialization/index.js'
 
 export { getAtPointer, setAtPointer, parsePointer } from './json-pointer.js'
 

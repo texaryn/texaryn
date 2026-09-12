@@ -20,6 +20,19 @@
 
 ***
 
+### initialization
+
+> `readonly` **initialization**: [`Store`](Store.md)\<[`InitializationReport`](../type-aliases/InitializationReport.md) \| `undefined`\>
+
+The last initialization run, or `undefined` where no policy is configured.
+
+`dispatch` returns void and is typically called from an event handler, so a
+`Reset` that exhausts the budget reports here rather than throwing into the
+host's render. It is not the projection's diagnostics channel, which
+describes a schema rather than one run over data.
+
+***
+
 ### submission
 
 > `readonly` **submission**: [`Store`](Store.md)\<[`SubmissionState`](SubmissionState.md)\>

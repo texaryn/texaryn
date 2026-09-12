@@ -186,14 +186,25 @@ function handleSubmit(state: RuntimeState): CommandResult {
 }
 
 /** Reset replaces state wholesale: identity is re-matched, so nested arrays under a reordered row may be minted afresh. */
+/**
+ * What a `Reset` establishes as the new baseline, before any policy runs over
+ * it.
+ *
+ * `data` is optional rather than nullable, so an explicit `null` is a reset to
+ * `null` and not a reset to the initial data. Exported because the runtime has
+ * to initialize that target before the command reaches this handler, and the
+ * two would drift if each decided separately what `undefined` means.
+ */
+export function resetTarget(state: RuntimeState, cmd: { data?: unknown }): unknown {
+  return cmd.data === undefined ? state.initialData : cmd.data
+}
+
 function handleReset(
   state: RuntimeState,
   cmd: { type: 'Reset'; data?: unknown },
   document: UIDocument,
 ): CommandResult {
-  // `data` is optional rather than nullable, so an explicit `null` is a reset
-  // to `null` and not a reset to the initial data.
-  const newData = cmd.data === undefined ? state.initialData : cmd.data
+  const newData = resetTarget(state, cmd)
   const nodes = new Map<NodeId, NodeRuntimeState>()
   for (const [id] of state.nodes) {
     const node = document.nodes[id as string]

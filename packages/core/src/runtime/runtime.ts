@@ -2,8 +2,10 @@ import type { SchemaEvaluationPort } from '../schema/port.js'
 import { compile } from '../ir/compiler.js'
 import type { UIDocument, UINode } from '../ir/types.js'
 import type { RuntimeState, NodeRuntimeState, SubmissionState } from '../ir/runtime-state.js'
-import { processCommand } from '../commands/handler.js'
+import { processCommand, resetTarget } from '../commands/handler.js'
 import type { Command, Effect } from '../commands/types.js'
+import { initializeDefaults, viewFromProjection } from '../initialization/index.js'
+import type { InitializationResult } from '../initialization/index.js'
 import { createStore, createComputedStore } from '../state/store.js'
 import type { WritableStore, Store } from '../state/store.js'
 import { batch } from '../state/signal.js'
@@ -11,7 +13,12 @@ import { getAtPointer, parsePointer } from '../json-pointer.js'
 import { identityKey } from '../identity/key.js'
 import type { IdentityKey, IdentitySegment } from '../identity/key.js'
 import type { NodeId, ValidationError, ValidationResult, VisibleError } from '../types.js'
-import type { FormRuntime, FormRuntimeOptions, NodeState } from './types.js'
+import type {
+  FormRuntime,
+  FormRuntimeOptions,
+  InitializationReport,
+  NodeState,
+} from './types.js'
 import { createValidationScheduler } from './validation-scheduler.js'
 import type { ValidationScheduler, ValidationTrigger } from './validation-scheduler.js'
 
@@ -146,6 +153,17 @@ function createNodeStoreBundle(
   }
 }
 
+function reportOf(result: InitializationResult): InitializationReport {
+  return result.outcome === 'initialized'
+    ? {
+        outcome: 'initialized',
+        conflicts: result.conflicts,
+        refusals: result.refusals,
+        passes: result.passes,
+      }
+    : { outcome: 'budget-exhausted', passes: result.passes }
+}
+
 export function createFormRuntime(
   port: SchemaEvaluationPort,
   options: FormRuntimeOptions = {},
@@ -153,7 +171,38 @@ export function createFormRuntime(
   // Not `?? {}`, which treated `null` as "not supplied" while `false`, `0` and
   // `''` survived, so a caller could not say the instance is `null` and which
   // falsy values lived was arbitrary. `null` is a legal instance.
-  const initialData = options.initialData === undefined ? {} : options.initialData
+  //
+  // An omitted root is still substituted before the pass runs, so a root-level
+  // `default` never applies: `{}` is present and the rule fills absent
+  // locations. Distinguishing the two would mean projecting `undefined`, which
+  // is not JSON and which the hyperjump adapter refuses. Tracked separately.
+  const suppliedData = options.initialData === undefined ? {} : options.initialData
+
+  /**
+   * ADR-003 fills a location when it becomes reachable, so the pass runs again
+   * whenever an edit can have changed what is reachable. Construction is only
+   * the first such moment; a branch the user activates by clicking a
+   * discriminator is another, which is the case the contract measured against
+   * the reference and matched.
+   */
+  const initialize =
+    options.initialization === 'schema-defaults'
+      ? (data: unknown): InitializationResult =>
+          initializeDefaults(data, (current) => viewFromProjection(port.project(current)))
+      : undefined
+
+  const construction = initialize?.(suppliedData)
+  if (construction !== undefined && construction.outcome === 'budget-exhausted') {
+    // This surface returns a value, so it throws: the caller is in a position
+    // to catch a runtime it never received. `Reset` is not, and reports.
+    throw new Error(
+      `Initialization did not converge in ${construction.passes} passes, so nothing was written.`,
+    )
+  }
+
+  // Rule 6: what the pass materialised is the baseline, so a seeded location is
+  // not modified against it and `handleSetValue` needs no new code.
+  const initialData = construction === undefined ? suppliedData : construction.data
   const projection = port.project(initialData)
   const initialCompile = compile(projection, initialData, options.hints)
 
@@ -162,6 +211,9 @@ export function createFormRuntime(
   const dataStore = createStore<unknown>(initialData)
   const submissionStore = createStore<SubmissionState>({ status: 'idle', attempts: 0 })
   const visibleErrorsStore = createStore<VisibleError[]>([])
+  const initializationStore = createStore<InitializationReport | undefined>(
+    construction === undefined ? undefined : reportOf(construction),
+  )
   const attemptsStore = createStore(0)
   const nodeStores = new Map<NodeId, NodeStoreBundle>()
 
@@ -452,8 +504,30 @@ export function createFormRuntime(
     }
   }
 
-  function dispatch(command: Command): void {
+  function dispatch(incoming: Command): void {
     if (destroyed) return
+
+    // `Reset` establishes a new baseline, so the policy that produced the first
+    // one produces this one, with or without `cmd.data`. It runs before the
+    // handler and before any teardown, so an exhausted budget leaves the
+    // runtime exactly as it was: a baseline that was never initialized under
+    // its own policy is the incoherence rule 7 exists to prevent, and refusing
+    // the whole command is the only way to avoid establishing one.
+    //
+    // An ordinary edit establishes no baseline, so it is seeded after the
+    // handler instead, and an exhausted budget there discards only the seeding.
+    let report: InitializationReport | undefined
+    let command = incoming
+    if (initialize !== undefined && incoming.type === 'Reset') {
+      const result = initialize(resetTarget(state, incoming))
+      if (result.outcome === 'budget-exhausted') {
+        initializationStore.set(reportOf(result))
+        return
+      }
+      report = reportOf(result)
+      command = { type: 'Reset', data: result.data }
+    }
+
     const mutatesData = isDataMutatingCommand(command)
 
     // Nothing observable happens until the handler has returned. A command is
@@ -486,6 +560,19 @@ export function createFormRuntime(
 
     state = nextState
 
+    // An ordinary edit can change what is reachable, so it seeds too, and this
+    // is the only moment whose result is not also the baseline. `Reset` was
+    // seeded above, before the handler, because its result becomes one.
+    let seeded: readonly string[] = []
+    if (initialize !== undefined && mutatesData && command.type !== 'Reset') {
+      const result = initialize(state.data)
+      report = reportOf(result)
+      if (result.outcome === 'initialized') {
+        state = { ...state, data: result.data }
+        seeded = result.written
+      }
+    }
+
     const isAcceptedSubmit = effects.some(
       (e) => e.type === 'validate' && e.trigger === 'submit',
     )
@@ -509,12 +596,38 @@ export function createFormRuntime(
 
     batch(() => {
       dataStore.set(state.data)
+      if (report !== undefined) initializationStore.set(report)
       publishSubmission()
       syncNodeStores()
       for (const effect of effects) {
         handleEffect(effect)
       }
+      // After the recompile, which builds the node the seeded location now has.
+      if (seeded.length > 0) markSeeded(seeded)
     })
+  }
+
+  /**
+   * `modified` for a location the pass filled against a baseline that was
+   * already fixed. The value does differ from `state.initialData`, and the user
+   * did not type it, so `dirty`, `touched` and `pristine` are left alone.
+   *
+   * Neither of the two paths a node can take works this out on its own:
+   * `defaultNodeState` builds a new node with every flag fresh, and
+   * `carryNodeState` carries the answer from before the seeding.
+   */
+  function markSeeded(pointers: readonly string[]): void {
+    const wanted = new Set(pointers)
+    const nextNodes = new Map(state.nodes)
+    for (const [nodeId, nodeRuntimeState] of nextNodes) {
+      const pointer = currentDoc.nodes[nodeId as string]?.dataPointer
+      if (pointer == null || !wanted.has(pointer)) continue
+      nextNodes.set(nodeId, {
+        ...nodeRuntimeState,
+        interaction: { ...nodeRuntimeState.interaction, modified: true },
+      })
+    }
+    state = { ...state, nodes: nextNodes }
   }
 
   function getNodeState(nodeId: NodeId): NodeState | undefined {
@@ -534,6 +647,7 @@ export function createFormRuntime(
     data: dataStore,
     submission: submissionStore,
     visibleErrors: visibleErrorsStore,
+    initialization: initializationStore,
     dispatch,
     getNodeState,
     destroy,

@@ -5,10 +5,10 @@ import { parsePointer } from '../json-pointer.js'
  * The initialization pass from ADR-003, over a normalized view of a schema
  * rather than a `SchemaProjection`.
  *
- * Nothing here is exported from the package. ADR-003 is Proposed, and moving it
- * to Accepted is a decision rather than a consequence of the port being able to
- * express it, so publishing `FormRuntimeOptions.initialization` would ship a
- * contract nobody has accepted.
+ * Reached through `FormRuntimeOptions.initialization`, which is the whole of the
+ * published surface. `initializeDefaults` itself is not exported: a caller who
+ * could run the pass over arbitrary data could produce a baseline the runtime
+ * never agreed to, and rule 6 makes what the pass wrote the baseline.
  *
  * The input stays a normalized view now that the port can supply one, because
  * the two are different questions. What a projection says is `view.ts`, which
@@ -85,6 +85,15 @@ export type InitializationResult =
   | {
       readonly outcome: 'initialized'
       readonly data: unknown
+      /**
+       * Locations this run filled, in the order they were written.
+       *
+       * A seeding between construction and the next `Reset` happens against a
+       * baseline that is already fixed, so those locations are `modified` and
+       * nothing else can work that out: the runtime builds node state fresh or
+       * carries the answer from before the run.
+       */
+      readonly written: readonly Location[]
       /** Locations left absent because their declarations disagreed. */
       readonly conflicts: readonly DefaultConflict[]
       /** Locations left absent because the pass would have had to guess or destroy. */
@@ -116,14 +125,16 @@ export function initializeDefaults(
 ): InitializationResult {
   const maxPasses = options.maxPasses ?? DEFAULT_MAX_PASSES
   let current = data
+  const written: Location[] = []
 
   for (let pass = 1; pass <= maxPasses; pass += 1) {
     const { writes, conflicts, refusals } = collect(current, view(current))
     if (writes.length === 0) {
-      return { outcome: 'initialized', data: current, conflicts, refusals, passes: pass }
+      return { outcome: 'initialized', data: current, written, conflicts, refusals, passes: pass }
     }
     for (const write of writes) {
       current = writeAtSegments(current, write.segments, deepCopy(write.value))
+      written.push(write.location)
     }
   }
 
@@ -131,6 +142,7 @@ export function initializeDefaults(
 }
 
 interface Write {
+  readonly location: Location
   readonly segments: readonly string[]
   readonly value: unknown
 }
@@ -173,7 +185,7 @@ function collect(
       continue
     }
 
-    candidates.push({ segments, value: view.defaults.get(location) })
+    candidates.push({ location, segments, value: view.defaults.get(location) })
   }
 
   // A container default is materialised whole and recursed into on a later
@@ -336,24 +348,4 @@ function deepCopy(value: unknown): unknown {
     return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, deepCopy(v)]))
   }
   return value
-}
-
-function deepEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (Array.isArray(a) && Array.isArray(b)) {
-    return a.length === b.length && a.every((item, index) => deepEqual(item, b[index]))
-  }
-  if (isContainer(a) && isContainer(b) && !Array.isArray(a) && !Array.isArray(b)) {
-    const left = Object.keys(a as object)
-    const right = Object.keys(b as object)
-    return (
-      left.length === right.length &&
-      left.every(
-        (key) =>
-          Object.prototype.hasOwnProperty.call(b, key) &&
-          deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
-      )
-    )
-  }
-  return false
 }

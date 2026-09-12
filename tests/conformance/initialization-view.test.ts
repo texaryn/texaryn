@@ -8,9 +8,11 @@ import { initializeDefaults } from '../../packages/core/src/initialization/kerne
  * ADR-003's pass driven by a real projection, through both adapters.
  *
  * Reached by relative path rather than through `@texaryn/core`, because neither
- * module is exported: the contract is Proposed and publishing
- * `FormRuntimeOptions.initialization` would ship it. The import says as much by
- * being awkward.
+ * module is exported: `FormRuntimeOptions.initialization` is the whole of the
+ * published surface, and the pass and its translation stay inside it so that
+ * nothing outside can produce a baseline the runtime did not agree to. What a
+ * caller reads is `tests/conformance/schema-defaults.test.ts`; this file reads
+ * the seam underneath it, where a wrong answer is legible.
  *
  * The kernel's own tests hand it a view written by hand, which cannot catch the
  * translation being wrong, and one such gap is why this file exists. The port
