@@ -383,20 +383,26 @@ baseline that is already fixed, and `modified` has to be computed, because
 answer from before the seeding. The pass therefore reports which locations it
 wrote.
 
+### A location nobody stated a value for
+
+Two inputs mean "the caller said nothing about this location", and neither can
+say so in the data, because the data has to stay JSON at every moment a port
+might see it. An `InsertItem` with no `value` has to put *something* in the
+array, since an array cannot hold a hole. An omitted `initialData` has to be
+projected as something, since `undefined` is not an instance.
+
+Both put `null` or `{}` there and carry the absence beside the data: the command
+names the row it created, the runtime names the root, and the pass reads those
+locations as absent while the port receives JSON. The status ends at the first
+write at or beneath the location, never held for the run, or a declaration of
+`'seed'` would be rewritten on every pass until the budget discarded everything.
+
+That is what makes `initialData` omitted and `initialData: {}` two different
+inputs under this contract: a root-level `default` applies to the first and not
+to the second, which is #150. Without it the substitution would silently make
+them one input and the declaration would never apply.
+
 ### What stays open
-
-**Root defaults.** `initialData` omitted and `initialData: {}` are two different
-inputs, and the runtime turns the first into the second before anything projects
-it, so the root is present and a root-level `default` never applies. #124 read
-as the prerequisite while this was Proposed, and it is not: it closed by fixing
-how a non-object root is coerced, which leaves the substitution in place.
-
-The constraint that remains is smaller and harder. Telling the two apart means
-projecting `undefined`, and `undefined` is not JSON: the hyperjump adapter
-refuses it at the root, which #148 established while making a cleared field
-legible one level down. So the runtime would have to carry the root's absence
-beside the data rather than in it. Pinned as a limitation in
-`tests/conformance/schema-defaults.test.ts` and tracked as #150.
 
 **Exact replacement on `Reset`.** Rule 7 says a caller who wants their data
 installed without the policy running over it "needs to say so explicitly", and

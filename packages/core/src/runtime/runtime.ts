@@ -153,6 +153,9 @@ function createNodeStoreBundle(
   }
 }
 
+/** The root, as a JSON Pointer: the whole instance rather than a place in it. */
+const ROOT_LOCATION = '' as JsonPointer
+
 function reportOf(result: InitializationResult): InitializationReport {
   return result.outcome === 'initialized'
     ? {
@@ -171,12 +174,21 @@ export function createFormRuntime(
   // Not `?? {}`, which treated `null` as "not supplied" while `false`, `0` and
   // `''` survived, so a caller could not say the instance is `null` and which
   // falsy values lived was arbitrary. `null` is a legal instance.
-  //
-  // An omitted root is still substituted before the pass runs, so a root-level
-  // `default` never applies: `{}` is present and the rule fills absent
-  // locations. Distinguishing the two would mean projecting `undefined`, which
-  // is not JSON and which the hyperjump adapter refuses. Tracked separately.
   const suppliedData = options.initialData === undefined ? {} : options.initialData
+
+  /**
+   * An omitted `initialData` is a root nobody stated a value for, which is a
+   * different input from `initialData: {}` and has to stay one: a root-level
+   * `default` applies to the first and not to the second.
+   *
+   * The substitution above stays, because `undefined` is not JSON and the
+   * hyperjump adapter refuses it at the root. So the absence travels beside the
+   * data rather than in it, as the provisional location an `InsertItem` with no
+   * value already uses: the port receives `{}` at every moment while the pass
+   * reads the root as absent, and if nothing is declared there the `{}` is what
+   * the caller gets.
+   */
+  const unstatedRoot = options.initialData === undefined ? [ROOT_LOCATION] : undefined
 
   /**
    * ADR-003 fills a location when it becomes reachable, so the pass runs again
@@ -195,7 +207,7 @@ export function createFormRuntime(
           )
       : undefined
 
-  const construction = initialize?.(suppliedData)
+  const construction = initialize?.(suppliedData, unstatedRoot)
   if (construction !== undefined && construction.outcome === 'budget-exhausted') {
     // This surface returns a value, so it throws: the caller is in a position
     // to catch a runtime it never received. `Reset` is not, and reports.

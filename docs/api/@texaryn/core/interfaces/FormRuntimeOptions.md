@@ -38,6 +38,10 @@ What the run wrote is the baseline at construction and on `Reset`, and is
 not between them: a location seeded by an edit differs from
 `state.initialData`, which is what `modified` reports.
 
+Omitting `initialData` is not the same as passing `{}`. The first states
+nothing about the root, so a root-level `default` applies to it; the second
+is a root the caller supplied, and nothing is written over it.
+
 ***
 
 ### onSubmit?
