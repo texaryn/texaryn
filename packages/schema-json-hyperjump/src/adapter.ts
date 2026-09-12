@@ -7,6 +7,7 @@ import type { Output } from '@hyperjump/json-schema'
 import type { SchemaProjection, ValidationResult } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { buildProjection } from './projection.js'
+import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
 
@@ -46,7 +47,7 @@ export async function createHyperjumpAdapter(
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(schema, compiled, data)
+      return buildProjection(schema, compiled, toJsonInstance(data))
     },
 
     // hyperjump's async work (registerSchema -> getSchema -> compile) already happened
@@ -55,12 +56,19 @@ export async function createHyperjumpAdapter(
     // inverse of json-schema-library's adapter (sync factory, sync methods): both
     // shapes satisfy the port's MaybePromise<ValidationResult> return type.
     validate(data: unknown): ValidationResult {
+      // `undefined` is not a JSON value and `Instance.fromJs` refuses it, while
+      // the runtime holds it for a field the user has cleared. Read as absence
+      // here, once, so both the interpreter and the error mapping below see the
+      // same instance: `normalizeRequiredError` works out which required keys
+      // are missing from the data it is given, and would report a cleared
+      // property as present if it were handed the unconverted object.
+      const instance = toJsonInstance(data)
       const output = interpret(
         compiled,
-        Instance.fromJs(data as Parameters<typeof Instance.fromJs>[0]),
+        Instance.fromJs(instance as Parameters<typeof Instance.fromJs>[0]),
         BASIC,
       ) as Output
-      return mapErrors(output, schema, data)
+      return mapErrors(output, schema, instance)
     },
   }
 }
