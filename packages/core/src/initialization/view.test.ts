@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest'
+import { viewFromProjection } from './view.js'
+import type { JsonPointer } from '../types.js'
+import type { AnnotationSet, NodeProjection, SchemaProjection } from '../schema/port.js'
+
+function node(partial: Partial<NodeProjection> & { annotations?: AnnotationSet }): NodeProjection {
+  return {
+    type: 'string',
+    constraints: {},
+    active: true,
+    annotations: {},
+    ...partial,
+  }
+}
+
+function projection(
+  nodes: Record<string, NodeProjection>,
+  diagnostics?: SchemaProjection['diagnostics'],
+): SchemaProjection {
+  return {
+    nodes: new Map(Object.entries(nodes) as [JsonPointer, NodeProjection][]),
+    diagnostics,
+  }
+}
+
+describe('what counts as reachable', () => {
+  it('takes an active node', () => {
+    const view = viewFromProjection(projection({ '/a': node({ active: true }) }))
+    expect([...view.reachable]).toEqual(['/a'])
+  })
+
+  /**
+   * Exposure, not activity, which is rule 5 as #120 settled it. A `oneOf` branch
+   * the data identifies but has not yet satisfied does not apply, so `active` is
+   * false, and the projection exposes it so the user can finish it. Filling only
+   * the active locations would leave that branch's own defaults unwritten, which
+   * is the defect ADR-003 exists to remove, one branch deeper.
+   */
+  it('takes a provisionally exposed node', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ active: false, provisional: true }) }),
+    )
+    expect([...view.reachable]).toEqual(['/a'])
+  })
+
+  it('leaves out a node that is neither', () => {
+    const view = viewFromProjection(projection({ '/a': node({ active: false }) }))
+    expect([...view.reachable]).toEqual([])
+  })
+})
+
+describe('what counts as a declaration', () => {
+  it('takes the annotation where the schema declares one', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ annotations: { default: 'seed' } }) }),
+    )
+    expect(view.defaults.get('/a' as JsonPointer)).toBe('seed')
+  })
+
+  it('declares nothing where the annotation is absent', () => {
+    const view = viewFromProjection(projection({ '/a': node({ annotations: { title: 'A' } }) }))
+    expect(view.defaults.has('/a' as JsonPointer)).toBe(false)
+  })
+
+  // Presence rather than truthiness, the same distinction the pass makes about
+  // the data. A truthiness test would drop every one of these.
+  it.each([
+    ['false', false],
+    ['zero', 0],
+    ['an empty string', ''],
+    ['null', null],
+  ])('takes a declared %s', (_label, value) => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ annotations: { default: value } }) }),
+    )
+    expect(view.defaults.has('/a' as JsonPointer)).toBe(true)
+    expect(view.defaults.get('/a' as JsonPointer)).toBe(value)
+  })
+
+  it('does not read a declaration off an unreachable node', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ active: false, annotations: { default: 'seed' } }) }),
+    )
+    expect(view.defaults.has('/a' as JsonPointer)).toBe(false)
+  })
+})
+
+describe('what counts as a conflict', () => {
+  it('takes an ambiguous-default diagnostic and the positions it names', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({}) }, [
+        {
+          pointer: '/a' as JsonPointer,
+          code: 'ambiguous-default',
+          message: 'two disagree',
+          sources: ['/allOf/0/properties/a', '/properties/a'],
+        },
+      ]),
+    )
+    expect(view.conflicts.get('/a' as JsonPointer)).toEqual([
+      '/allOf/0/properties/a',
+      '/properties/a',
+    ])
+  })
+
+  // The channel carries more than one kind of report, and only this one says a
+  // value was withheld. A shape the adapter could not draw is a different fact
+  // and the pass has nothing to do about it.
+  it('ignores a diagnostic about a shape', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({}) }, [
+        {
+          pointer: '/a' as JsonPointer,
+          code: 'ambiguous-projection-shape',
+          message: 'two families',
+        },
+      ]),
+    )
+    expect(view.conflicts.size).toBe(0)
+  })
+
+  it('reads no conflicts from an adapter that reports none', () => {
+    expect(viewFromProjection(projection({ '/a': node({}) })).conflicts.size).toBe(0)
+  })
+})

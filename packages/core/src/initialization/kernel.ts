@@ -5,16 +5,19 @@ import { parsePointer } from '../json-pointer.js'
  * The initialization pass from ADR-003, over a normalized view of a schema
  * rather than a `SchemaProjection`.
  *
- * Nothing here is exported from the package. ADR-003 is Proposed, and its rule
- * 5 turns on what "reachable" means for a provisionally selected branch, which
- * issue #120 has not settled. Until it does, this exists to be executed and
- * tested rather than to be called: wiring it to a real projection or publishing
- * `FormRuntimeOptions.initialization` would ship the undecided part.
+ * Nothing here is exported from the package. ADR-003 is Proposed, and moving it
+ * to Accepted is a decision rather than a consequence of the port being able to
+ * express it, so publishing `FormRuntimeOptions.initialization` would ship a
+ * contract nobody has accepted.
  *
- * The input is a function of a data snapshot, so the caller decides what
- * applies to the instance as it stands. That keeps the algorithm testable
- * without committing to how a port will eventually supply the information,
- * which is issue #128.
+ * The input stays a normalized view now that the port can supply one, because
+ * the two are different questions. What a projection says is `view.ts`, which
+ * is small and entirely about translation; what the pass does with it is here,
+ * and is the part ADR-003 argues.
+ *
+ * The view is a function of a data snapshot, so what applies is re-asked after
+ * every write. Rule 4 needs that: a default can reveal a branch whose own
+ * defaults were not reachable before it was written.
  */
 
 /**
@@ -28,21 +31,31 @@ import { parsePointer } from '../json-pointer.js'
  */
 export type Location = JsonPointer
 
-/** One `default` declaration that applies at a location. */
-export interface DefaultCandidate {
-  readonly value: unknown
-  /**
-   * Opaque, and only ever compared or reported. It exists so a disagreement can
-   * name which declarations disagreed rather than only that some did.
-   */
-  readonly sourceId: string
-}
-
-/** What applies to one data snapshot. */
+/**
+ * What applies to one data snapshot.
+ *
+ * This is what a `SchemaProjection` says, restated as the three things the pass
+ * reads. A location appears in at most one of `defaults` and `conflicts`, which
+ * the port guarantees: it omits `AnnotationSet.default` exactly where it reports
+ * `ambiguous-default`.
+ */
 export interface InitializationView {
   /** Locations the schema exposes for the instance as it stands. */
   readonly reachable: ReadonlySet<Location>
-  readonly defaults: ReadonlyMap<Location, readonly DefaultCandidate[]>
+  /** The one value declared at a location, where the schema declares one. */
+  readonly defaults: ReadonlyMap<Location, unknown>
+  /**
+   * Locations where declarations that apply whatever the instance is disagree,
+   * mapped to the schema positions that disagreed.
+   *
+   * Carried separately rather than as a list of candidates, because the port
+   * reports the disagreement without reporting the values: there is no merged
+   * value it could give, which is why it omits the annotation. Resolving
+   * declarations is therefore the port's job and not this pass's, and the pass
+   * needs only the fact, to leave the location alone and to stop a descendant
+   * creating it.
+   */
+  readonly conflicts: ReadonlyMap<Location, readonly string[]>
 }
 
 export type ProjectView = (data: unknown) => InitializationView
@@ -50,7 +63,8 @@ export type ProjectView = (data: unknown) => InitializationView
 /** Two or more applicable declarations that do not agree. */
 export interface DefaultConflict {
   readonly location: Location
-  readonly sourceIds: readonly string[]
+  /** The schema positions that disagreed, as the port reported them. */
+  readonly sources: readonly string[]
 }
 
 /**
@@ -130,9 +144,25 @@ function collect(
   const refusals: DefaultRefusal[] = []
   const conflicted = new Set<Location>()
 
+  // Both loops are over `reachable`, and both skip a location that is already
+  // filled. A conflict at a location holding a value explains nothing: the pass
+  // was not going to write there anyway, and reporting it would say a value was
+  // withheld that the data already has.
+  //
+  // A conflicted ancestor is found through this same set rather than a wider
+  // one, because exposure is inherited: a location the projection exposes has
+  // ancestors it also exposes, in both adapters. The one exception is an
+  // adapter that projects a node whose parent it dropped, which is #116, and
+  // there the ancestor has no node and so no diagnostic either.
+  for (const [location, sources] of view.conflicts) {
+    if (!view.reachable.has(location)) continue
+    if (!isAbsent(data, parsePointer(location))) continue
+    conflicted.add(location)
+    conflicts.push({ location, sources })
+  }
+
   for (const location of view.reachable) {
-    const declarations = view.defaults.get(location)
-    if (!declarations || declarations.length === 0) continue
+    if (!view.defaults.has(location)) continue
 
     const segments = parsePointer(location)
     if (!isAbsent(data, segments)) continue
@@ -143,13 +173,7 @@ function collect(
       continue
     }
 
-    const resolved = resolve(declarations)
-    if (resolved === undefined) {
-      conflicted.add(location)
-      conflicts.push({ location, sourceIds: declarations.map((d) => d.sourceId) })
-      continue
-    }
-    candidates.push({ segments, value: resolved.value })
+    candidates.push({ segments, value: view.defaults.get(location) })
   }
 
   // A container default is materialised whole and recursed into on a later
@@ -167,12 +191,6 @@ function collect(
   )
 
   return { writes, conflicts, refusals }
-}
-
-/** One declaration, or several that agree, resolve. Several that differ do not. */
-function resolve(declarations: readonly DefaultCandidate[]): DefaultCandidate | undefined {
-  const [first, ...rest] = declarations
-  return rest.every((other) => deepEqual(other.value, first!.value)) ? first : undefined
 }
 
 /**
