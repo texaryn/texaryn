@@ -2,8 +2,10 @@
 
 ## Status
 
-Proposed. The contract below is the decision being put up for review; the
-initialization facility it describes is not built yet.
+Accepted. `FormRuntimeOptions.initialization: 'schema-defaults'` is the whole of
+the published surface; the pass itself is not exported, because rule 6 makes
+what it wrote the runtime's baseline and a caller able to run it over arbitrary
+data could establish a baseline the runtime never agreed to.
 
 ## Context
 
@@ -326,16 +328,30 @@ partial writes would make the resulting data depend on the budget, which is an
 arbitrary number.
 
 **How that failure is delivered differs by call surface, and both are named
-rather than left to the implementation.** Initialization runs at two moments and
-they do not have the same shape: `createFormRuntime` returns a value, so it
-**throws**, and the caller is in a position to catch a runtime it never
-received. `dispatch` returns `void` and is typically called from an event
-handler, where throwing takes out the host's render, so a `Reset` that exhausts
-the budget **leaves the data untouched and reports on a store**, alongside
-`submission`. Both mean the same thing, that initialization did not happen and
-nothing was written, and neither uses the projection's diagnostics channel,
-which is documented as describing schemas rather than one run over data. The
-store's name is an API decision this ADR does not make.
+rather than left to the implementation.** Initialization reaches the runtime
+through two call surfaces and they do not have the same shape:
+`createFormRuntime` returns a value, so it **throws**, and the caller is in a
+position to catch a runtime it never received. `dispatch` returns `void` and is
+typically called from an event handler, where throwing takes out the host's
+render, so exhaustion there **reports on a store**, alongside `submission`. Both
+mean the same thing, that initialization did not happen and nothing was written,
+and neither uses the projection's diagnostics channel, which is documented as
+describing schemas rather than one run over data.
+
+"Leaving the caller's data as supplied" is not the same data at every moment
+`dispatch` runs the pass, and the difference follows from what the moment
+establishes. A `Reset` establishes a baseline, so a `Reset` that exhausts the
+budget is **refused whole**: the command does not land, and the data, the
+interaction flags and the submission state are what they were. An ordinary edit
+establishes no baseline, so the command lands and only the seeding is discarded;
+refusing the keystroke would make the user pay for a schema they cannot see.
+
+The store is `FormRuntime.initialization`, holding an `InitializationReport` or
+`undefined` where no policy is configured. It is the kernel's result without the
+data, which the runtime publishes on `data` like everything else, and it keeps
+that type's two arms: a discarded run reports only that it was discarded.
+Carrying the conflicts and refusals of the run that found them would say a run
+found them and then say nothing was written, and those are not the same claim.
 
 ### What this costs
 
@@ -349,14 +365,33 @@ interaction state is not recomputed just because the data changed. `NodeState`
 exposes only `dirty` and `touched`, so they are pinned at the runtime and
 command-state level rather than by widening the public surface for a test.
 
+Rule 6 is about construction and does not cover this: there the pass's output
+*is* the baseline, so nothing is modified against it, and `handleReset` makes
+the same true of a `Reset`. Between those two, a seeding happens against a
+baseline that is already fixed, and `modified` has to be computed, because
+`defaultNodeState` builds every node fresh and `carryNodeState` carries the
+answer from before the seeding. The pass therefore reports which locations it
+wrote.
+
 ### What stays open
 
-**Root defaults.** Once initialization exists, `initialData` omitted,
-`initialData: {}` and a root-level `default` are three different inputs, and the
-runtime currently turns the first into the second before projection, which is
-the `??` in #124. The implementation has to keep enough information to know
-whether the root was actually absent, so #124 is a prerequisite rather than a
-neighbour.
+**Root defaults.** `initialData` omitted and `initialData: {}` are two different
+inputs, and the runtime turns the first into the second before anything projects
+it, so the root is present and a root-level `default` never applies. #124 read
+as the prerequisite while this was Proposed, and it is not: it closed by fixing
+how a non-object root is coerced, which leaves the substitution in place.
+
+The constraint that remains is smaller and harder. Telling the two apart means
+projecting `undefined`, and `undefined` is not JSON: the hyperjump adapter
+refuses it at the root, which #148 established while making a cleared field
+legible one level down. So the runtime would have to carry the root's absence
+beside the data rather than in it. Pinned as a limitation in
+`tests/conformance/schema-defaults.test.ts` and tracked as #150.
+
+**Exact replacement on `Reset`.** Rule 7 says a caller who wants their data
+installed without the policy running over it "needs to say so explicitly", and
+no mechanism exists to say it. Whether one should is open; today the policy runs
+on every `Reset`.
 
 **An omitted `InsertItem` value.** `handleInsertItem` writes
 `cmd.value ?? null`, so an insert with no value cannot be told from an insert of

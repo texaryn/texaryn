@@ -393,3 +393,46 @@ describe('nothing reachable, nothing declared', () => {
     expect(result.data).toEqual({ flag: value })
   })
 })
+
+/**
+ * What the run wrote, which the runtime needs and cannot work out afterwards. A
+ * seeding between construction and the next `Reset` happens against a baseline
+ * that is already fixed, so those locations are `modified`, and by the time the
+ * runtime sees the data a seeded value looks like one that was always there.
+ */
+describe('what the run reports writing', () => {
+  it('names each location it filled', () => {
+    const result = initialized(initializeDefaults({}, fixed({ '/a': 1, '/b': 2 })))
+    expect([...result.written].sort()).toEqual(['/a', '/b'])
+  })
+
+  it('names nothing when it wrote nothing', () => {
+    const result = initialized(initializeDefaults({ a: 1 }, fixed({ '/a': 2 })))
+    expect(result.written).toEqual([])
+  })
+
+  it('names a location a later pass reached, not only the first pass', () => {
+    let seen = 0
+    const view: ProjectView = () => {
+      seen += 1
+      const defaults = seen > 1 ? { '/first': 1, '/second': 2 } : { '/first': 1 }
+      return {
+        reachable: new Set(Object.keys(defaults) as Location[]),
+        defaults: new Map(Object.entries(defaults)) as Map<Location, unknown>,
+        conflicts: new Map(),
+      }
+    }
+    const result = initialized(initializeDefaults({}, view))
+    expect([...result.written].sort()).toEqual(['/first', '/second'])
+  })
+
+  // A container default is materialised whole, so its own declaration is the
+  // only write and the descendant the next pass finds present is not named.
+  it('does not name a location the container default filled', () => {
+    const result = initialized(
+      initializeDefaults({}, fixed({ '/owner': { team: 'a' }, '/owner/team': 'b' })),
+    )
+    expect(result.data).toEqual({ owner: { team: 'a' } })
+    expect(result.written).toEqual(['/owner'])
+  })
+})

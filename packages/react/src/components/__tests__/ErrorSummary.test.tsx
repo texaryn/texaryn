@@ -10,6 +10,7 @@ import type {
   UIDocument,
   SubmissionState,
   SchemaEvaluationPort,
+  InitializationReport,
 } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { FormProvider } from '../../context.js'
@@ -28,6 +29,7 @@ function makeMockRuntime(visibleErrors: VisibleError[]): FormRuntime {
     data: createStore<unknown>({}),
     submission: createStore<SubmissionState>({ status: 'idle', attempts: 0 }),
     visibleErrors: createStore<VisibleError[]>(visibleErrors),
+    initialization: createStore<InitializationReport | undefined>(undefined),
     dispatch: () => {},
     getNodeState: () => undefined,
     destroy: () => {},

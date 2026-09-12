@@ -1,2 +1,8 @@
-export type { FormRuntime, FormRuntimeOptions, NodeState } from './types.js'
+export type {
+  FormRuntime,
+  FormRuntimeOptions,
+  InitializationPolicy,
+  InitializationReport,
+  NodeState,
+} from './types.js'
 export { createFormRuntime } from './runtime.js'

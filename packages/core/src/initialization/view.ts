@@ -10,8 +10,8 @@ import type { InitializationView, Location } from './kernel.js'
  * nothing more: every rule here is a restatement of something the port already
  * decided.
  *
- * Not exported from the package. ADR-003 is Proposed, and publishing
- * `FormRuntimeOptions.initialization` would ship a contract nobody has accepted.
+ * Not exported from the package, for the same reason the pass is not: the two
+ * together decide what the runtime's baseline is.
  */
 export function viewFromProjection(projection: SchemaProjection): InitializationView {
   const reachable = new Set<Location>()
