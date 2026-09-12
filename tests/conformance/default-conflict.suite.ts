@@ -16,14 +16,18 @@ type AdapterFactory = (schema: Record<string, unknown>) => Promise<SchemaEvaluat
  * adapters could agree on, so the port reports the disagreement and omits the
  * annotation.
  *
- * Scope, and it is deliberately narrow: declarations that apply to every
- * instance. A location's own declaration and those reached from it through
- * `allOf` and `$ref` are unconditional, so whether they disagree is a fact
- * about the schema. A `oneOf` branch's declaration competing with the base is
- * the same defect, and it is not reported here, because `SchemaProjection.
- * diagnostics` describes schemas rather than states of the data: that conflict
- * appears and disappears as the discriminator is typed, and a channel that
- * flaps is a channel callers learn to ignore.
+ * Two channels, because there are two facts. `NodeProjection.defaultConflict`
+ * carries every disagreement that applies to the instance as it stands, which
+ * is what a runtime acts on. `SchemaProjection.diagnostics` carries the subset
+ * that holds whatever the instance is: a location's own declaration against
+ * those reached through `allOf` and `$ref`, which is a contradiction in the
+ * schema and is worth telling whoever wrote it. A declaration carried by
+ * `oneOf`, `anyOf`, `if`/`then`/`else` or `dependentSchemas` appears on the node
+ * only, because it comes and goes as the discriminator is typed and a
+ * diagnostics channel that flaps is one callers learn to ignore.
+ *
+ * Applicability for the node channel is exposure rather than validity: a
+ * provisionally selected branch competes, because ADR-003 fills from one.
  *
  * `items` is an unconditional edge for the same reason `properties` is: it
  * addresses a different location rather than conditioning on the instance, so
@@ -36,11 +40,11 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
   }
 
   /**
-   * The annotation and the diagnostic at one pointer.
+   * The annotation, the node's own conflict, and the diagnostic at one pointer.
    *
-   * `sources` comes back sorted. Which order an adapter walks its own
-   * applicators in is not a contract, and pinning it would fail a suite over a
-   * traversal detail; that the set is exactly the conflicting declarations is
+   * `sources` and `conflict` come back sorted. Which order an adapter walks its
+   * own applicators in is not a contract, and pinning it would fail a suite over
+   * a traversal detail; that the set is exactly the conflicting declarations is
    * the contract.
    */
   const at = async (schema: Record<string, unknown>, data: unknown, pointer: string) => {
@@ -55,6 +59,7 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
       default: node?.annotations.default,
       reported: reported.length,
       sources: reported[0]?.sources ? [...reported[0].sources].sort() : undefined,
+      conflict: node?.defaultConflict ? [...node.defaultConflict].sort() : undefined,
     }
   }
 
@@ -73,6 +78,7 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
         default: undefined,
         reported: 1,
         sources: ['/allOf/0/properties/x', '/allOf/1/properties/x'],
+        conflict: ['/allOf/0/properties/x', '/allOf/1/properties/x'],
       })
     })
 
@@ -92,6 +98,7 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
         default: undefined,
         reported: 1,
         sources: ['/allOf/0/properties/x', '/properties/x'],
+        conflict: ['/allOf/0/properties/x', '/properties/x'],
       })
     })
 
@@ -157,6 +164,7 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
         default: undefined,
         reported: 1,
         sources: ['/properties/x/allOf/0', '/properties/x/allOf/1'],
+        conflict: ['/properties/x/allOf/0', '/properties/x/allOf/1'],
       })
     })
 
@@ -171,6 +179,7 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
         default: undefined,
         reported: 1,
         sources: ['/allOf/0', '/allOf/1'],
+        conflict: ['/allOf/0', '/allOf/1'],
       })
     })
 
@@ -190,16 +199,15 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
         default: undefined,
         reported: 1,
         sources: ['/$defs/other/properties/x', '/properties/x'],
+        conflict: ['/$defs/other/properties/x', '/properties/x'],
       })
     })
 
     // Inside a branch, `allOf` is unconditional relative to that branch, and
     // that is a weaker thing than applying to every instance: the two
-    // declarations compete only where the branch is selected. So this is the
-    // conditional case in a different position, and it stays unreported for the
-    // same reason. Pinned as a boundary rather than left to be discovered,
-    // because the rule reads as if it should catch this.
-    it('leaves a disagreement carried by one conditional branch unreported', async () => {
+    // declarations compete only where the branch is selected. So the node
+    // carries it and the diagnostic does not.
+    it('carries a disagreement inside a selected branch on the node, not as a diagnostic', async () => {
       const schema = {
         type: 'object',
         properties: { kind: { type: 'string' } },
@@ -213,7 +221,14 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
           },
         ],
       }
-      expect((await at(schema, { kind: 'a' }, '/x')).reported).toBe(0)
+      expect(await at(schema, { kind: 'a' }, '/x')).toEqual({
+        present: true,
+        hasDefault: false,
+        default: undefined,
+        reported: 0,
+        sources: undefined,
+        conflict: ['/oneOf/0/allOf/0/properties/x', '/oneOf/0/allOf/1/properties/x'],
+      })
     })
 
     it('reports a conflict under an array item the data provides', async () => {
@@ -241,15 +256,20 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
           '/properties/rows/items/allOf/0/properties/x',
           '/properties/rows/items/allOf/1/properties/x',
         ],
+        conflict: [
+          '/properties/rows/items/allOf/0/properties/x',
+          '/properties/rows/items/allOf/1/properties/x',
+        ],
       })
     })
 
-    // The boundary, pinned so that narrowing it later is a deliberate change
-    // rather than an accident. The base and the selected branch both apply and
-    // disagree, which is the same defect, and it stays unreported because
-    // whether it holds is a fact about the data: an adapter reports a default
-    // here and the two adapters need not report the same one.
-    it('leaves a conditional disagreement unreported', async () => {
+    /**
+     * The base and the selected branch both apply and disagree. Before #142
+     * this collapsed to whichever value the adapter's merge kept:
+     * json-schema-library reported `'from-b'` and @hyperjump/json-schema
+     * reported `'own'`, for the same schema and the same data.
+     */
+    it('carries a selected branch disagreeing with the base on the node', async () => {
       const schema = {
         type: 'object',
         properties: { kind: { type: 'string' }, x: { type: 'string', default: 'own' } },
@@ -258,9 +278,108 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
           { properties: { kind: { const: 'b' }, x: { default: 'from-b' } } },
         ],
       }
-      const result = await at(schema, { kind: 'b' }, '/x')
-      expect(result.reported).toBe(0)
-      expect(result.hasDefault).toBe(true)
+      expect(await at(schema, { kind: 'b' }, '/x')).toEqual({
+        present: true,
+        hasDefault: false,
+        default: undefined,
+        reported: 0,
+        sources: undefined,
+        conflict: ['/oneOf/1/properties/x', '/properties/x'],
+      })
+    })
+
+    // The same location, with the branch not selected: nothing competes with
+    // the base, so the base's declaration stands. The conflict has to come and
+    // go with the data, which is why it is on the node and not a diagnostic.
+    it('keeps the base default while no branch is selected', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' }, x: { type: 'string', default: 'own' } },
+        oneOf: [
+          { properties: { kind: { const: 'a' }, x: { default: 'from-a' } } },
+          { properties: { kind: { const: 'b' }, x: { default: 'from-b' } } },
+        ],
+      }
+      expect(await at(schema, {}, '/x')).toMatchObject({
+        hasDefault: true,
+        default: 'own',
+        conflict: undefined,
+      })
+    })
+
+    /**
+     * Several `anyOf` branches can apply at once, so two of them declaring
+     * different values is a disagreement like any other. Before #142 this was
+     * the same first-wins/last-wins split #144 measured for `allOf`:
+     * json-schema-library kept `'from-second'` and @hyperjump/json-schema kept
+     * `'from-first'`.
+     */
+    it('carries two matching anyOf branches that disagree', async () => {
+      const schema = {
+        type: 'object',
+        properties: { x: { type: 'string' } },
+        anyOf: [
+          { properties: { flag: { type: 'boolean' }, x: { default: 'from-first' } } },
+          { properties: { other: { type: 'string' }, x: { default: 'from-second' } } },
+        ],
+      }
+      expect(await at(schema, { flag: true, other: 'y' }, '/x')).toMatchObject({
+        hasDefault: false,
+        conflict: ['/anyOf/0/properties/x', '/anyOf/1/properties/x'],
+      })
+    })
+
+    /**
+     * A provisionally selected branch competes, though JSON Schema says it does
+     * not apply: `kind: 'person'` names the branch while `name` is required and
+     * absent. ADR-003 fills by exposure, so a policy would fill this location
+     * from the branch, and a disagreement has to be visible wherever the fill
+     * would happen.
+     *
+     * Measured before #142: json-schema-library filled `'from-branch'` and
+     * @hyperjump/json-schema filled `'base'`.
+     */
+    it('carries a provisionally selected branch disagreeing with the base', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' }, nickname: { type: 'string', default: 'base' } },
+        oneOf: [
+          {
+            properties: { kind: { const: 'person' }, nickname: { default: 'from-branch' } },
+            required: ['name'],
+          },
+          { properties: { kind: { const: 'company' } }, required: ['org'] },
+        ],
+      }
+      expect(await at(schema, { kind: 'person' }, '/nickname')).toMatchObject({
+        hasDefault: false,
+        conflict: ['/oneOf/0/properties/nickname', '/properties/nickname'],
+      })
+    })
+
+    /**
+     * A branch declaration competing with nothing is still a declaration. This
+     * is ADR-003's own `nickname: 'anon'` row, and it is why the rule cannot be
+     * "refuse anything a conditional branch declared": that would empty a field
+     * whose schema says exactly what it should hold.
+     */
+    it('keeps a branch declaration that competes with nothing', async () => {
+      const schema = {
+        type: 'object',
+        properties: { kind: { type: 'string' } },
+        oneOf: [
+          {
+            properties: { kind: { const: 'person' }, nickname: { type: 'string', default: 'anon' } },
+            required: ['name'],
+          },
+          { properties: { kind: { const: 'company' } }, required: ['org'] },
+        ],
+      }
+      expect(await at(schema, { kind: 'person' }, '/nickname')).toMatchObject({
+        hasDefault: true,
+        default: 'anon',
+        conflict: undefined,
+      })
     })
 
     // Declarations from two branches of one `oneOf` never apply together, so
@@ -274,7 +393,39 @@ export function defaultConflictSuite(name: string, createAdapter: AdapterFactory
           { properties: { kind: { const: 'b' }, x: { type: 'string', default: 'from-b' } } },
         ],
       }
-      expect((await at(schema, { kind: 'a' }, '/x')).reported).toBe(0)
+      expect(await at(schema, { kind: 'a' }, '/x')).toMatchObject({
+        reported: 0,
+        conflict: undefined,
+      })
+    })
+
+    // `if`/`then` is a conditional edge like any other, so a `then` declaration
+    // competing with the base is carried while `if` matches.
+    it('carries a then branch disagreeing with the base', async () => {
+      const schema = {
+        type: 'object',
+        properties: { flag: { type: 'boolean' }, x: { type: 'string', default: 'own' } },
+        if: { properties: { flag: { const: true } }, required: ['flag'] },
+        then: { properties: { x: { default: 'from-then' } } },
+      }
+      expect(await at(schema, { flag: true }, '/x')).toMatchObject({
+        hasDefault: false,
+        conflict: ['/properties/x', '/then/properties/x'],
+      })
+    })
+
+    it('keeps the base default while the if does not match', async () => {
+      const schema = {
+        type: 'object',
+        properties: { flag: { type: 'boolean' }, x: { type: 'string', default: 'own' } },
+        if: { properties: { flag: { const: true } }, required: ['flag'] },
+        then: { properties: { x: { default: 'from-then' } } },
+      }
+      expect(await at(schema, { flag: false }, '/x')).toMatchObject({
+        hasDefault: true,
+        default: 'own',
+        conflict: undefined,
+      })
     })
   })
 }

@@ -30,12 +30,23 @@ export interface SchemaProjection {
    * The boundary worth stating, because it is what keeps this channel worth
    * reading: these describe schemas, not data.
    *
-   * One case is therefore not reported, and only one: a `oneOf` or `anyOf`
-   * whose branches the current value does not match, where some branch would
-   * have rendered for a value that did. That same schema projects a shape for
-   * such a value, whether the value is acceptable is validation's subject, and
-   * a form's data fails to match for most of the time someone is filling it
-   * in, so reporting it would mean a diagnostic that flaps on every keystroke.
+   * Two cases are therefore not reported here, and only two.
+   *
+   * A `oneOf` or `anyOf` whose branches the current value does not match, where
+   * some branch would have rendered for a value that did. That same schema
+   * projects a shape for such a value, whether the value is acceptable is
+   * validation's subject, and a form's data fails to match for most of the time
+   * someone is filling it in, so reporting it would mean a diagnostic that
+   * flaps on every keystroke.
+   *
+   * A disagreement between `default` declarations that a conditional branch
+   * carries, which holds exactly while that branch is selected and so flaps for
+   * the same reason. It is reported on `NodeProjection.defaultConflict`, which
+   * describes this projection rather than the schema and which also carries the
+   * unconditional case, so a consumer acting on a location reads one place.
+   * `ambiguous-default` here is the subset that holds whatever the instance is:
+   * a contradiction in the schema wherever it is used, which is worth telling
+   * whoever wrote it.
    *
    * Everything else about a composition is reported, including a branch that
    * the value does match and that still supplies no shape, and a composition
@@ -149,6 +160,34 @@ export interface NodeProjection {
    * adapter that does not select provisionally keeps its current behaviour.
    */
   provisional?: boolean
+  /**
+   * Schema positions whose `default` declarations apply to this node for the
+   * instance as it stands, and disagree. Present exactly where
+   * `AnnotationSet.default` was omitted for that reason, and absent otherwise.
+   *
+   * This is the per-instance half of what `ambiguous-default` reports.
+   * `SchemaProjection.diagnostics` describes the schema, so it carries only the
+   * disagreements that hold whatever the instance is: a location's own
+   * declaration against those reached through `allOf` and `$ref`. A declaration
+   * carried by `oneOf`, `anyOf`, `if`/`then`/`else` or `dependentSchemas`
+   * competes only while its branch applies, so whether it disagrees is a state
+   * of the data and belongs here, beside `active` and `provisional`, which flap
+   * with the data for the same reason.
+   *
+   * Every conflict appears here, conditional or not, so a consumer deciding
+   * what to do about a location reads one place. The diagnostic stays for the
+   * unconditional case because a contradiction that holds for every instance is
+   * worth reporting to whoever wrote the schema.
+   *
+   * **A provisionally selected branch's declarations compete**, though JSON
+   * Schema says the branch does not apply. The projection exposes that branch so
+   * the user can complete it and a policy may fill from it, so a disagreement
+   * has to be visible wherever the fill would happen. Applicability here is
+   * therefore exposure, matching `active || provisional`, rather than validity.
+   *
+   * Order is not a contract; the set is.
+   */
+  defaultConflict?: readonly string[]
   annotations: AnnotationSet
   /**
    * Annotations of an array's item template, for arrays only.

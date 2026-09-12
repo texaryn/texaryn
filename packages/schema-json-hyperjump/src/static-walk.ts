@@ -541,7 +541,7 @@ export function staticWalk(
  * and the field that completes the branch would stay hidden for a second
  * reason.
  */
-function selectProvisionalBranch(
+export function selectProvisionalBranch(
   branches: readonly unknown[],
   data: unknown,
   rootSchema: unknown,

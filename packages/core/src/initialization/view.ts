@@ -16,6 +16,7 @@ import type { InitializationView, Location } from './kernel.js'
 export function viewFromProjection(projection: SchemaProjection): InitializationView {
   const reachable = new Set<Location>()
   const defaults = new Map<Location, unknown>()
+  const conflicts = new Map<Location, readonly string[]>()
 
   for (const [pointer, node] of projection.nodes) {
     // Rule 5's "reachable", which is exposure rather than activity. A branch the
@@ -27,16 +28,13 @@ export function viewFromProjection(projection: SchemaProjection): Initialization
     // Presence, not truthiness. A schema declaring `default: false` declares a
     // default, and `0`, `''` and `null` are values like any other.
     if ('default' in node.annotations) defaults.set(pointer, node.annotations.default)
-  }
-
-  const conflicts = new Map<Location, readonly string[]>()
-  for (const diagnostic of projection.diagnostics ?? []) {
-    if (diagnostic.code !== 'ambiguous-default') continue
-    // `sources` is optional on the type because the other codes describe one
-    // schema position. This code always carries them, and an adapter that did
-    // not would still have reported the conflict, which is the part the pass
-    // acts on.
-    conflicts.set(diagnostic.pointer, diagnostic.sources ?? [])
+    // The node rather than `projection.diagnostics`, which carries only the
+    // disagreements that hold whatever the instance is. The pass acts on what
+    // applies to the data in front of it, and a `oneOf` branch competing with
+    // the base applies exactly while its branch is selected. Every conflict the
+    // diagnostic reports is also on its node, so reading one channel loses
+    // nothing.
+    if (node.defaultConflict) conflicts.set(pointer, node.defaultConflict)
   }
 
   return { reachable, defaults, conflicts }

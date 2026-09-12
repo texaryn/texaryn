@@ -177,33 +177,38 @@ export function buildProjection(
     }
   }
 
-  staticWalk(
-    rawSchema,
-    data,
-    '',
-    '',
-    true,
-    false,
-    makeBranchChecker(plugin.scopeValidity),
-    nodes,
-    new Set(),
-    rawSchema,
-  )
+  const branchChecker = makeBranchChecker(plugin.scopeValidity)
+
+  staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema)
 
   // After both passes, because either can have written the annotation: pass 1
   // reads the keyword off the schema position that fired, pass 2 fills the gap
   // for a location no data has reached. Which of them got there first is not
   // the question; a location with two declarations that disagree has no value
   // to report whoever wrote one.
-  const conflicts = collectDefaultConflicts(rawSchema, data)
-  for (const pointer of conflicts.keys()) {
+  //
+  // Two runs, because the two channels answer different questions. Without the
+  // checker the walk follows only the edges that apply whatever the instance
+  // is, which is what a diagnostic about the schema may claim. With it, the
+  // walk also enters the branches this instance selects, which is what the node
+  // reports. The second is a superset of the first, so the annotation is
+  // omitted wherever either found a disagreement.
+  const schemaConflicts = collectDefaultConflicts(rawSchema, data)
+  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker)
+  for (const pointer of applicableConflicts.keys()) {
     const node = nodes.get(pointer)
     if (node) delete node.annotations.default
   }
 
   const projected = finalizeNodes(nodes)
+
+  for (const [pointer, sources] of applicableConflicts) {
+    const node = projected.get(pointer as JsonPointer)
+    if (node) node.defaultConflict = sources
+  }
+
   const diagnostics: ProjectionDiagnostic[] = []
-  for (const [pointer, sources] of conflicts) {
+  for (const [pointer, sources] of schemaConflicts) {
     // A pointer that projects no node has nothing to omit an annotation from,
     // which is the only reason a conflict goes unreported here.
     if (!projected.has(pointer as JsonPointer)) continue
