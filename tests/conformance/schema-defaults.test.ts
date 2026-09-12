@@ -160,6 +160,39 @@ describe.each([
     expect(runtime.data.getSnapshot()).toEqual({ rows: [null] })
   })
 
+  /**
+   * An explicit `undefined` states no JSON value, so it means what omitting the
+   * property means. The two are genuinely different in the language, and
+   * `value?: unknown` admits both, so which one the handler keys on is a
+   * decision rather than an accident: `'value' in cmd` would put `undefined`
+   * into the array, which is not JSON and reaches the port on the next
+   * projection.
+   *
+   * The no-policy row is what catches that, and it is the reason this is a pair
+   * rather than one case. Under the policy an `undefined` element is itself read
+   * as absent by the walk to `/rows/0/name`, so the row ends up filled and looks
+   * right while a non-JSON instance was projected on the way. Only the row with
+   * nothing to repair it shows what actually landed.
+   */
+  it.each([
+    ['with the policy', { initialization: 'schema-defaults' as const }, { name: 'anon' }],
+    ['with no policy', {}, null],
+  ])('treats an explicit undefined as no value stated, %s', async (_label, options, expected) => {
+    const runtime = await runtimeFor(rowsSchema, { ...options, initialData: { rows: [] } })
+    runtime.dispatch({
+      type: 'InsertItem',
+      containerId: nodeIdFor(runtime, '/rows'),
+      index: 0,
+      value: undefined,
+    })
+
+    const rows = (runtime.data.getSnapshot() as { rows: unknown[] }).rows
+    expect(rows).toEqual([expected])
+    // Not `toEqual`, which cannot tell a hole or an `undefined` element from a
+    // `null` one: `[undefined]` and `[null]` compare equal.
+    expect(rows[0] === undefined).toBe(false)
+  })
+
   it('fills a scalar row with the item default', async () => {
     const runtime = await runtimeFor(
       {
