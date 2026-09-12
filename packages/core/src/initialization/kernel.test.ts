@@ -1,17 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { initializeDefaults } from './kernel.js'
-import type { DefaultCandidate, InitializationView, Location, ProjectView } from './kernel.js'
+import type { InitializationView, Location, ProjectView } from './kernel.js'
 
-function one(value: unknown, sourceId = 's'): DefaultCandidate[] {
-  return [{ value, sourceId }]
-}
-
-/** Everything declared is reachable, whatever the data says. */
-function fixed(declarations: Record<string, DefaultCandidate[]>): ProjectView {
-  const entries = Object.entries(declarations) as [Location, DefaultCandidate[]][]
+/**
+ * Everything named is reachable, whatever the data says.
+ *
+ * `conflicts` is a second argument rather than a value in the first, because
+ * the two are what the port reports separately: a location has either a value
+ * or a disagreement, never both, and a disagreement carries no value at all.
+ */
+function fixed(
+  defaults: Record<string, unknown>,
+  conflicts: Record<string, readonly string[]> = {},
+): ProjectView {
   const view: InitializationView = {
-    reachable: new Set(entries.map(([location]) => location)),
-    defaults: new Map(entries),
+    reachable: new Set([...Object.keys(defaults), ...Object.keys(conflicts)] as Location[]),
+    defaults: new Map(Object.entries(defaults) as [Location, unknown][]),
+    conflicts: new Map(Object.entries(conflicts) as [Location, readonly string[]][]),
   }
   return () => view
 }
@@ -23,7 +28,7 @@ function initialized(result: ReturnType<typeof initializeDefaults>) {
 
 describe('what counts as absent', () => {
   it('fills a location that is not there', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/replicas': one(3) })))
+    const result = initialized(initializeDefaults({}, fixed({ '/replicas': 3 })))
     expect(result.data).toEqual({ replicas: 3 })
   })
 
@@ -33,7 +38,7 @@ describe('what counts as absent', () => {
     ['an empty string', { flag: '' }],
     ['null', { flag: null }],
   ])('never defaults over %s', (_label, data) => {
-    const result = initialized(initializeDefaults(data, fixed({ '/flag': one('replaced') })))
+    const result = initialized(initializeDefaults(data, fixed({ '/flag': 'replaced' })))
     expect(result.data).toEqual(data)
   })
 
@@ -44,7 +49,7 @@ describe('what counts as absent', () => {
    */
   it('never defaults over a key present holding undefined', () => {
     const result = initialized(
-      initializeDefaults({ flag: undefined }, fixed({ '/flag': one('replaced') })),
+      initializeDefaults({ flag: undefined }, fixed({ '/flag': 'replaced' })),
     )
     const data = result.data as Record<string, unknown>
     expect('flag' in data).toBe(true)
@@ -52,7 +57,7 @@ describe('what counts as absent', () => {
   })
 
   it('creates the parent object a child default needs', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/owner/team': one('platform') })))
+    const result = initialized(initializeDefaults({}, fixed({ '/owner/team': 'platform' })))
     expect(result.data).toEqual({ owner: { team: 'platform' } })
   })
 
@@ -62,7 +67,7 @@ describe('what counts as absent', () => {
    */
   it('refuses to write through an ancestor that cannot hold a property, and says so', () => {
     const result = initialized(
-      initializeDefaults({ owner: 'plain' }, fixed({ '/owner/team': one('platform') })),
+      initializeDefaults({ owner: 'plain' }, fixed({ '/owner/team': 'platform' })),
     )
     expect(result.data).toEqual({ owner: 'plain' })
     expect(result.refusals).toEqual([
@@ -71,12 +76,12 @@ describe('what counts as absent', () => {
   })
 
   it('creates every parent a deeply nested child default needs', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/a/b/c': one(1) })))
+    const result = initialized(initializeDefaults({}, fixed({ '/a/b/c': 1 })))
     expect(result.data).toEqual({ a: { b: { c: 1 } } })
   })
 
   it('refuses to write through a scalar several levels up', () => {
-    const result = initialized(initializeDefaults({ a: 'plain' }, fixed({ '/a/b/c': one(1) })))
+    const result = initialized(initializeDefaults({ a: 'plain' }, fixed({ '/a/b/c': 1 })))
     expect(result.data).toEqual({ a: 'plain' })
     expect(result.refusals).toEqual([{ location: '/a/b/c', reason: 'non-container-ancestor' }])
   })
@@ -87,7 +92,7 @@ describe('what counts as absent', () => {
    * identity keys settle. The pass refuses rather than guessing.
    */
   it('refuses to create a missing level whose kind the pointer does not give, and says so', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/rows/0/name': one('x') })))
+    const result = initialized(initializeDefaults({}, fixed({ '/rows/0/name': 'x' })))
     expect(result.data).toEqual({})
     expect(result.refusals).toEqual([
       { location: '/rows/0/name', reason: 'unknown-container-kind' },
@@ -96,21 +101,21 @@ describe('what counts as absent', () => {
 
   it('fills into an array the caller already supplied', () => {
     const result = initialized(
-      initializeDefaults({ rows: [{}] }, fixed({ '/rows/0/name': one('x') })),
+      initializeDefaults({ rows: [{}] }, fixed({ '/rows/0/name': 'x' })),
     )
     expect(result.data).toEqual({ rows: [{ name: 'x' }] })
   })
 
   it('fills a root default only when the root is absent', () => {
-    expect(initialized(initializeDefaults(undefined, fixed({ '': one({ a: 1 }) }))).data).toEqual({
+    expect(initialized(initializeDefaults(undefined, fixed({ '': { a: 1 } }))).data).toEqual({
       a: 1,
     })
-    expect(initialized(initializeDefaults({}, fixed({ '': one({ a: 1 }) }))).data).toEqual({})
+    expect(initialized(initializeDefaults({}, fixed({ '': { a: 1 } }))).data).toEqual({})
   })
 
   it('leaves the object the caller passed untouched', () => {
     const data = { keep: 1 }
-    initialized(initializeDefaults(data, fixed({ '/added': one(2) })))
+    initialized(initializeDefaults(data, fixed({ '/added': 2 })))
     expect(data).toEqual({ keep: 1 })
   })
 })
@@ -122,12 +127,12 @@ describe('pointer segments that need escaping', () => {
    * travels as segments for this reason.
    */
   it('treats a property whose name contains a slash as one level', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/a/b~1c': one(1) })))
+    const result = initialized(initializeDefaults({}, fixed({ '/a/b~1c': 1 })))
     expect(result.data).toEqual({ a: { 'b/c': 1 } })
   })
 
   it('treats a property whose name contains a tilde as one level', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/a/b~0c': one(1) })))
+    const result = initialized(initializeDefaults({}, fixed({ '/a/b~0c': 1 })))
     expect(result.data).toEqual({ a: { 'b~c': 1 } })
   })
 
@@ -135,7 +140,7 @@ describe('pointer segments that need escaping', () => {
     const result = initialized(
       initializeDefaults(
         {},
-        fixed({ '/a~1b': one({ team: 'whole' }), '/a~1b/team': one('part') }),
+        fixed({ '/a~1b': { team: 'whole' }, '/a~1b/team': 'part' }),
       ),
     )
     expect(result.data).toEqual({ 'a/b': { team: 'whole' } })
@@ -145,17 +150,11 @@ describe('pointer segments that need escaping', () => {
     const result = initialized(
       initializeDefaults(
         {},
-        fixed({
-          '/a~1b': [
-            { value: { team: 'x' }, sourceId: 'first' },
-            { value: { team: 'y' }, sourceId: 'second' },
-          ],
-          '/a~1b/team': one('part'),
-        }),
+        fixed({ '/a~1b/team': 'part' }, { '/a~1b': ['/first', '/second'] }),
       ),
     )
     expect(result.data).toEqual({})
-    expect(result.conflicts).toEqual([{ location: '/a~1b', sourceIds: ['first', 'second'] }])
+    expect(result.conflicts).toEqual([{ location: '/a~1b', sources: ['/first', '/second'] }])
   })
 })
 
@@ -164,7 +163,7 @@ describe('a container default is materialised whole', () => {
     const result = initialized(
       initializeDefaults(
         {},
-        fixed({ '/owner': one({ team: 'a', extra: 'x' }), '/owner/team': one('b') }),
+        fixed({ '/owner': { team: 'a', extra: 'x' }, '/owner/team': 'b' }),
       ),
     )
     expect(result.data).toEqual({ owner: { team: 'a', extra: 'x' } })
@@ -172,53 +171,41 @@ describe('a container default is materialised whole', () => {
 
   it('still applies a property declaration for a key the container left absent', () => {
     const result = initialized(
-      initializeDefaults({}, fixed({ '/owner': one({ extra: 'x' }), '/owner/team': one('b') })),
+      initializeDefaults({}, fixed({ '/owner': { extra: 'x' }, '/owner/team': 'b' })),
     )
     expect(result.data).toEqual({ owner: { extra: 'x', team: 'b' } })
     expect(result.passes).toBe(3)
   })
 
   it('shadows a descendant whichever order the locations arrive in', () => {
-    const declarations: Record<string, DefaultCandidate[]> = {
-      '/owner/team': one('b'),
-      '/owner': one({ team: 'a' }),
+    const declarations: Record<string, unknown> = {
+      '/owner/team': 'b',
+      '/owner': { team: 'a' },
     }
     const result = initialized(initializeDefaults({}, fixed(declarations)))
     expect(result.data).toEqual({ owner: { team: 'a' } })
   })
 })
 
-describe('declarations that agree and declarations that do not', () => {
-  it('uses several declarations that agree', () => {
+/**
+ * Whether declarations agree is not decided here any more. The port omits
+ * `AnnotationSet.default` and reports `ambiguous-default` where they disagree,
+ * which is where the rule belongs: only the adapter still has the declarations
+ * before its evaluator merges them, and the two adapters do not merge alike, so
+ * there is no value to compare here in the first place. Those rows now live in
+ * `tests/conformance/default-conflict.suite.ts`.
+ *
+ * What stays is what a conflict does to this pass.
+ */
+describe('what a conflict does to the pass', () => {
+  it('leaves a conflicted location absent, and names the positions that disagreed', () => {
     const result = initialized(
-      initializeDefaults(
-        {},
-        fixed({
-          '/x': [
-            { value: { deep: [1, 2] }, sourceId: 'first' },
-            { value: { deep: [1, 2] }, sourceId: 'second' },
-          ],
-        }),
-      ),
-    )
-    expect(result.data).toEqual({ x: { deep: [1, 2] } })
-    expect(result.conflicts).toEqual([])
-  })
-
-  it('leaves a location absent when declarations disagree, and names them', () => {
-    const result = initialized(
-      initializeDefaults(
-        {},
-        fixed({
-          '/x': [
-            { value: 'a', sourceId: 'first' },
-            { value: 'b', sourceId: 'second' },
-          ],
-        }),
-      ),
+      initializeDefaults({}, fixed({}, { '/x': ['/allOf/0/properties/x', '/properties/x'] })),
     )
     expect(result.data).toEqual({})
-    expect(result.conflicts).toEqual([{ location: '/x', sourceIds: ['first', 'second'] }])
+    expect(result.conflicts).toEqual([
+      { location: '/x', sources: ['/allOf/0/properties/x', '/properties/x'] },
+    ])
   })
 
   /**
@@ -231,18 +218,14 @@ describe('declarations that agree and declarations that do not', () => {
     const result = initialized(
       initializeDefaults(
         {},
-        fixed({
-          '/owner': [
-            { value: { team: 'a' }, sourceId: 'first' },
-            { value: { team: 'b' }, sourceId: 'second' },
-          ],
-          '/owner/region': one('eu'),
-          '/name': one('unrelated'),
-        }),
+        fixed(
+          { '/owner/region': 'eu', '/name': 'unrelated' },
+          { '/owner': ['/first', '/second'] },
+        ),
       ),
     )
     expect(result.data).toEqual({ name: 'unrelated' })
-    expect(result.conflicts).toEqual([{ location: '/owner', sourceIds: ['first', 'second'] }])
+    expect(result.conflicts).toEqual([{ location: '/owner', sources: ['/first', '/second'] }])
   })
 
   /**
@@ -252,32 +235,17 @@ describe('declarations that agree and declarations that do not', () => {
    */
   it('does not create a conflicted root to hold a descendant default', () => {
     const result = initialized(
-      initializeDefaults(
-        undefined,
-        fixed({
-          '': [
-            { value: { a: 1 }, sourceId: 'first' },
-            { value: { a: 2 }, sourceId: 'second' },
-          ],
-          '/x': one(1),
-        }),
-      ),
+      initializeDefaults(undefined, fixed({ '/x': 1 }, { '': ['/allOf/0', '/allOf/1'] })),
     )
     expect(result.data).toBeUndefined()
-    expect(result.conflicts).toEqual([{ location: '', sourceIds: ['first', 'second'] }])
+    expect(result.conflicts).toEqual([{ location: '', sources: ['/allOf/0', '/allOf/1'] }])
   })
 
   it('fills beneath a conflicted location once the caller supplied it', () => {
     const result = initialized(
       initializeDefaults(
         { owner: {} },
-        fixed({
-          '/owner': [
-            { value: { team: 'a' }, sourceId: 'first' },
-            { value: { team: 'b' }, sourceId: 'second' },
-          ],
-          '/owner/region': one('eu'),
-        }),
+        fixed({ '/owner/region': 'eu' }, { '/owner': ['/first', '/second'] }),
       ),
     )
     expect(result.data).toEqual({ owner: { region: 'eu' } })
@@ -294,16 +262,16 @@ describe('more than one pass', () => {
   const chained: ProjectView = (data) => {
     const d = (data ?? {}) as Record<string, unknown>
     const reachable = new Set<Location>(['/a' as Location])
-    const defaults = new Map<Location, DefaultCandidate[]>([['/a' as Location, one(true)]])
+    const defaults = new Map<Location, unknown>([['/a' as Location, true]])
     if (d.a === true) {
       reachable.add('/b' as Location)
-      defaults.set('/b' as Location, one(true))
+      defaults.set('/b' as Location, true)
     }
     if (d.b === true) {
       reachable.add('/c' as Location)
-      defaults.set('/c' as Location, one('x'))
+      defaults.set('/c' as Location, 'x')
     }
-    return { reachable, defaults }
+    return { reachable, defaults, conflicts: new Map() }
   }
 
   it('reaches a location revealed by a default two levels down', () => {
@@ -324,7 +292,11 @@ describe('the budget is transactional', () => {
     const d = (data ?? {}) as Record<string, unknown>
     const next = Object.keys(d).length
     const location = `/n${next}` as Location
-    return { reachable: new Set([location]), defaults: new Map([[location, one(next)]]) }
+    return {
+      reachable: new Set([location]),
+      defaults: new Map([[location, next]]),
+      conflicts: new Map(),
+    }
   }
 
   it('discards every write rather than returning data that depends on the budget', () => {
@@ -348,7 +320,7 @@ describe('values are copied, and taken as declared', () => {
     const result = initialized(
       initializeDefaults(
         {},
-        fixed({ '/first': [{ value: shape, sourceId: 's' }], '/second': [{ value: shape, sourceId: 's' }] }),
+        fixed({ '/first': shape, '/second': shape }),
       ),
     )
     const data = result.data as { first: Record<string, unknown>; second: Record<string, unknown> }
@@ -363,7 +335,7 @@ describe('values are copied, and taken as declared', () => {
 
   it('copies nested arrays and objects rather than the top level alone', () => {
     const shape = { rows: [{ id: 1 }] }
-    const result = initialized(initializeDefaults({}, fixed({ '/a': one(shape) })))
+    const result = initialized(initializeDefaults({}, fixed({ '/a': shape })))
     const written = (result.data as { a: typeof shape }).a
     expect(written).toEqual(shape)
     expect(written.rows).not.toBe(shape.rows)
@@ -376,7 +348,7 @@ describe('values are copied, and taken as declared', () => {
    * ordinary validation reports it.
    */
   it('inserts a declared value that does not match its own schema', () => {
-    const result = initialized(initializeDefaults({}, fixed({ '/count': one('oops') })))
+    const result = initialized(initializeDefaults({}, fixed({ '/count': 'oops' })))
     expect(result.data).toEqual({ count: 'oops' })
   })
 })
@@ -392,16 +364,32 @@ describe('nothing reachable, nothing declared', () => {
   it('ignores a declared location that is not reachable', () => {
     const view: ProjectView = () => ({
       reachable: new Set<Location>(),
-      defaults: new Map([['/hidden' as Location, one('x')]]),
+      defaults: new Map([['/hidden' as Location, 'x']]),
+      conflicts: new Map(),
     })
     expect(initialized(initializeDefaults({}, view)).data).toEqual({})
   })
 
-  it('ignores a reachable location with an empty declaration list', () => {
+  it('ignores a reachable location that declares nothing', () => {
     const view: ProjectView = () => ({
       reachable: new Set(['/x' as Location]),
-      defaults: new Map([['/x' as Location, [] as DefaultCandidate[]]]),
+      defaults: new Map(),
+      conflicts: new Map(),
     })
     expect(initialized(initializeDefaults({}, view)).data).toEqual({})
+  })
+
+  // Whether a location declares a default is a question about the map's keys,
+  // never about the value, which is the same distinction as absent versus
+  // `null` one level up. A truthiness test here would silently drop every
+  // declaration of `false`, `0` or `''`.
+  it.each([
+    ['false', false],
+    ['zero', 0],
+    ['an empty string', ''],
+    ['null', null],
+  ])('writes a declared %s', (_label, value) => {
+    const result = initialized(initializeDefaults({}, fixed({ '/flag': value })))
+    expect(result.data).toEqual({ flag: value })
   })
 })
