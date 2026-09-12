@@ -134,7 +134,48 @@ describe('recursive references', () => {
    * evidence of anything. The deterministic half of the same behaviour, that
    * descent is static rather than data-driven, is already pinned by
    * "derives a shape at every depth" in `implicit-types.test.ts`.
+   *
+   * **The `$id` is load-bearing, and not for the reason it looks like.**
+   * `$ref: '#'` resolves against the nearest `$id`, so json-schema-library
+   * normalises this one to `https://example.com/tree`. Drop the `$id` and it
+   * normalises to the empty string instead, which `dereference` reads as no
+   * reference at all, and the whole subtree is then dropped with an
+   * `unresolved-projection-shape` diagnostic rather than descended. Both
+   * behaviours are #119; this fixture selects the overflow, and the test below
+   * selects the drop.
    */
+
+  /**
+   * The half of #119 that is deterministic, so it can be pinned where the
+   * overflow cannot.
+   *
+   * Nothing here depends on stack depth: the descent stops at the shape gate,
+   * because the node that reaches it is the literal `{ $ref: '#' }`. The
+   * diagnostic is misleading while it does, since the schema this reference
+   * names declares `type: 'object'`, and `resolveRef()` returns it correctly
+   * when it is called.
+   *
+   * Asserted so that fixing `dereference` fails this test rather than turning
+   * a silent drop into a stack overflow unnoticed. The two are coupled: this
+   * form is the only recursive `$ref` the adapter does not follow, so it is
+   * also the only one that does not already overflow.
+   */
+  it('drops a root-relative $ref subtree with no $id, rather than descending it', async () => {
+    const rootRelative = {
+      type: 'object',
+      properties: { name: { type: 'string' }, child: { $ref: '#' } },
+    }
+    const projection = await project(rootRelative, { name: 'root', child: {} })
+
+    expect([...projection.nodes.keys()]).toEqual(['', '/name'])
+    expect(projection.diagnostics).toEqual([
+      {
+        pointer: '/child',
+        code: 'unresolved-projection-shape',
+        message: expect.stringContaining('no keyword that implies one'),
+      },
+    ])
+  })
 
   it('handles a cycle reached through an applicator', async () => {
     const viaApplicator = {
