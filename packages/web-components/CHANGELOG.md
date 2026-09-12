@@ -1,5 +1,12 @@
 # @texaryn/web-components
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [a53724c]
+  - @texaryn/core@0.9.0
+
 ## 0.3.1
 
 ### Patch Changes
