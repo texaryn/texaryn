@@ -27,9 +27,20 @@
 The last initialization run, or `undefined` where no policy is configured.
 
 `dispatch` returns void and is typically called from an event handler, so a
-`Reset` that exhausts the budget reports here rather than throwing into the
-host's render. It is not the projection's diagnostics channel, which
-describes a schema rather than one run over data.
+run that exhausts its budget reports here rather than throwing into the
+host's render. What that discards depends on the moment: a `Reset`
+establishes a baseline, so it is refused whole and nothing lands, while an
+ordinary edit establishes none, so the edit lands and only the seeding is
+dropped. `createFormRuntime` throws instead, because a caller can decline a
+runtime it never received.
+
+A new report is published on every data-mutating dispatch under the policy,
+including one where the pass wrote nothing, because each dispatch is a run
+and what a run finds changes as the user types. Anything subscribed here
+therefore updates per edit.
+
+It is not the projection's diagnostics channel, which describes a schema
+rather than one run over data.
 
 ***
 
