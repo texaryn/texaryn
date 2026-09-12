@@ -1,5 +1,70 @@
 # @texaryn/core
 
+## 0.10.0
+
+### Minor Changes
+
+- aa69a86: Initializes a row inserted with no value, closing #127.
+  
+  Under `initialization: 'schema-defaults'`, `InsertItem` with no `value` now adds
+  a row carrying its item defaults: an object item arrives with its declared
+  properties filled, a scalar item holding the item default. An explicit `value`,
+  including `null`, is preserved exactly, and with no policy configured the row is
+  `null` as before.
+  
+  `cmd.value ?? null` was never wrong about the element it produced. The defect was
+  that nothing downstream could tell an omitted value from an explicit `null`,
+  since both arrive as `null`. `CommandResult` therefore gained an optional
+  `provisional`, naming the locations a command created without a value being
+  stated for them, and `InsertItem` reports the row it added. The element in the
+  data is still `null`, because an array cannot hold a hole and `undefined` is not
+  JSON: the distinction travels beside the data rather than in it, so nothing but
+  JSON ever reaches the schema port.
+  
+  Provisional status ends at the first write at or beneath the location. Held for
+  the run, an item declaring `default: 'seed'` would read as absent on every pass
+  and be written on every pass, exhausting the budget and discarding everything.
+  "At or beneath" rather than "at", because an object row is created by a write to
+  one of its properties.
+  
+  A row whose seeding does not converge keeps the insert and holds `null`: the
+  insert establishes no baseline, so ADR-003 keeps it, while the seeding is
+  transactional and none of it survives.
+- 0afa5a2: Accepts ADR-003 and wires its initialization pass to the runtime.
+  
+  `FormRuntimeOptions.initialization: 'schema-defaults'` fills every reachable
+  location the schema declares a `default` for and the data leaves absent. The
+  default stays `'none'`: given `{}` the runtime's data is still `{}`, and
+  projection never mutates data.
+  
+  A location is filled when it becomes reachable, so the pass runs again after
+  every edit that can change what is reachable. Clicking a discriminator fills the
+  branch it reveals, which is what the reference does and what the Backstage
+  template the adoption exercise uses needs.
+  
+  Failure is delivered by call surface, because they can carry different things.
+  `createFormRuntime` returns a value, so a run that does not converge within its
+  budget **throws** and the caller never receives a runtime. `dispatch` returns
+  void and is typically called from an event handler, so it reports on the new
+  `FormRuntime.initialization` store instead. What is discarded there depends on
+  what the moment establishes: a `Reset` establishes a baseline, so it is refused
+  whole and nothing lands, while an ordinary edit establishes none, so the edit
+  lands and only the seeding is discarded.
+  
+  `FormRuntime.initialization` holds an `InitializationReport` or `undefined` where
+  no policy is configured, carrying the locations left absent because their
+  applicable declarations disagreed and those left absent because filling would
+  have meant guessing or destroying.
+  
+  It publishes a new report on every data-mutating dispatch under the policy, even
+  one where the pass wrote nothing, because each dispatch is a run and what a run
+  finds can change as the user types. Anything subscribed to it therefore updates
+  per edit.
+  
+  Adding a member to `FormRuntime` breaks a hand-written implementation of it, such
+  as a test double, which has to supply `initialization`. Every value that comes
+  from `createFormRuntime` is unaffected.
+
 ## 0.9.0
 
 ### Minor Changes
