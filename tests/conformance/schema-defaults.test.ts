@@ -440,6 +440,23 @@ describe.each([
     expect(runtime.data.getSnapshot()).toEqual({ seeded: true, other: 'prop' })
   })
 
+  /**
+   * An explicit `undefined` states no JSON value, so it means what omitting the
+   * property means, exactly as it does for `InsertItem.value`. `initialData?:
+   * unknown` admits both, and they are different in the language, so keying on
+   * the value rather than on the property's presence is a decision:
+   * `!('initialData' in options)` would pass every other row here while treating
+   * an explicit `undefined` as a root the caller stated, which it cannot be,
+   * since `undefined` is not an instance.
+   */
+  it('treats an explicit undefined initialData as an unstated root', async () => {
+    const runtime = await runtimeFor(rootSchema, {
+      initialization: 'schema-defaults',
+      initialData: undefined,
+    })
+    expect(runtime.data.getSnapshot()).toEqual({ seeded: true, other: 'prop' })
+  })
+
   // The distinction the issue is about, and the whole reason absence cannot be
   // represented by the substituted value: `{}` is a root the caller stated.
   it('leaves a root the caller supplied, even an empty one', async () => {
