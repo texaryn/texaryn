@@ -420,29 +420,98 @@ describe.each([
   })
 
   /**
-   * The limitation the runtime keeps: an omitted `initialData` becomes `{}`
-   * before anything projects it, so the root is present and a root-level
-   * `default` never applies. Distinguishing the two would mean projecting
-   * `undefined`, which is not JSON.
+   * #150. An omitted `initialData` is a root nobody stated a value for, so a
+   * root-level `default` applies to it.
+   *
+   * The `{}` substitution stays: `undefined` is not JSON and the hyperjump
+   * adapter refuses it at the root, which #148 established one level down. The
+   * absence travels beside the data instead, as the same provisional location
+   * #127 introduced for a row inserted with no value, so the port receives `{}`
+   * at every moment while the pass reads the root as absent.
    */
-  it('does not apply a root-level default', async () => {
-    const schema = {
-      type: 'object',
-      default: { seeded: true },
-      properties: { seeded: { type: 'boolean' } },
-    }
-    const port = await (createAdapter as typeof createJsonSchemaAdapter)(schema)
+  const rootSchema = {
+    type: 'object',
+    default: { seeded: true },
+    properties: { seeded: { type: 'boolean' }, other: { type: 'string', default: 'prop' } },
+  }
 
-    // Which of the two possible readings this is. The adapter does report the
-    // declaration, so the pass sees it and skips a root that is present; it is
-    // not an annotation nobody carried. #150 says so, and would be a wrong
-    // diagnosis if this line ever stopped holding.
+  it('applies a root-level default where no initialData was supplied', async () => {
+    const runtime = await runtimeFor(rootSchema, { initialization: 'schema-defaults' })
+    expect(runtime.data.getSnapshot()).toEqual({ seeded: true, other: 'prop' })
+  })
+
+  /**
+   * An explicit `undefined` states no JSON value, so it means what omitting the
+   * property means, exactly as it does for `InsertItem.value`. `initialData?:
+   * unknown` admits both, and they are different in the language, so keying on
+   * the value rather than on the property's presence is a decision:
+   * `!('initialData' in options)` would pass every other row here while treating
+   * an explicit `undefined` as a root the caller stated, which it cannot be,
+   * since `undefined` is not an instance.
+   */
+  it('treats an explicit undefined initialData as an unstated root', async () => {
+    const runtime = await runtimeFor(rootSchema, {
+      initialization: 'schema-defaults',
+      initialData: undefined,
+    })
+    expect(runtime.data.getSnapshot()).toEqual({ seeded: true, other: 'prop' })
+  })
+
+  // The distinction the issue is about, and the whole reason absence cannot be
+  // represented by the substituted value: `{}` is a root the caller stated.
+  it('leaves a root the caller supplied, even an empty one', async () => {
+    const runtime = await runtimeFor(rootSchema, {
+      initialization: 'schema-defaults',
+      initialData: {},
+    })
+    expect(runtime.data.getSnapshot()).toEqual({ other: 'prop' })
+  })
+
+  it('applies a scalar root default', async () => {
+    const runtime = await runtimeFor(
+      { type: 'string', default: 'whole' },
+      { initialization: 'schema-defaults' },
+    )
+    expect(runtime.data.getSnapshot()).toBe('whole')
+  })
+
+  it('leaves an omitted root alone where nothing declares one', async () => {
+    const runtime = await runtimeFor(
+      { type: 'object', properties: { a: { type: 'string' } } },
+      { initialization: 'schema-defaults' },
+    )
+    expect(runtime.data.getSnapshot()).toEqual({})
+  })
+
+  it('does not apply a root default without the policy', async () => {
+    const runtime = await runtimeFor(rootSchema)
+    expect(runtime.data.getSnapshot()).toEqual({})
+  })
+
+  /**
+   * The adapter reports the declaration, so the pass sees it. Pinned because
+   * #150's body states that as the diagnosis, and a test that passed whether or
+   * not the annotation was carried would leave the diagnosis unchecked.
+   */
+  it('carries the root declaration on the root node', async () => {
+    const port = await (createAdapter as typeof createJsonSchemaAdapter)(rootSchema)
     expect(port.project({}).nodes.get('' as JsonPointer)?.annotations.default).toEqual({
       seeded: true,
     })
+  })
 
-    expect(createFormRuntime(port, { initialization: 'schema-defaults' }).data.getSnapshot()).toEqual(
-      {},
-    )
+  /**
+   * A `Reset` with no data restores a baseline that exists, so the root is not
+   * absent and the root default does not apply a second time. Whatever the user
+   * cleared from the seeded root stays cleared, rather than the whole root being
+   * re-materialised over their edit.
+   */
+  it('does not treat a reset target as an unstated root', async () => {
+    const runtime = await runtimeFor(rootSchema, { initialization: 'schema-defaults' })
+    runtime.dispatch({ type: 'SetValue', nodeId: nodeIdFor(runtime, '/other'), value: 'typed' })
+    runtime.dispatch({ type: 'Reset' })
+
+    expect(runtime.data.getSnapshot()).toEqual({ seeded: true, other: 'prop' })
+    expect(runtime.initialization.getSnapshot()).toMatchObject({ passes: 1 })
   })
 })
