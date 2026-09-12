@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/react-bootstrap",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Bootstrap 5 widgets for Texaryn: native markup and Bootstrap classes on top of @texaryn/react",
   "keywords": [
     "react",

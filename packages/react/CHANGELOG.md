@@ -1,5 +1,13 @@
 # @texaryn/react
 
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies [8f2a2cd]
+- Updated dependencies [20d977f]
+  - @texaryn/core@0.11.0
+
 ## 0.4.3
 
 ### Patch Changes
