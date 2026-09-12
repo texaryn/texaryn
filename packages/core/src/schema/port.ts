@@ -12,17 +12,20 @@ export interface SchemaEvaluationPort {
 export interface SchemaProjection {
   nodes: Map<JsonPointer, NodeProjection>
   /**
-   * Every place the adapter could not choose a shape to render, and why.
+   * Every place the adapter could not choose, and why.
    *
-   * A pointer absent from `nodes` renders no field, and without this the
-   * caller cannot tell an intentional omission from a schema the adapter did
-   * not understand. That distinction is not cosmetic: a schema declaring a
-   * field the form silently never collects is the failure mode this exists to
-   * make visible.
+   * A pointer absent from `nodes` renders no field, and an annotation absent
+   * from a node states less than the schema does. Without this the caller
+   * cannot tell an intentional omission from a schema the adapter did not
+   * understand. That distinction is not cosmetic: a schema declaring a field
+   * the form silently never collects is the failure mode this exists to make
+   * visible.
    *
-   * The rule the codes divide up: an explicit `type` is used, an unambiguous
-   * structural shape is derived, and a schema that yields neither is reported
-   * here. Nothing is guessed and no schema disappears without a word.
+   * The rule the shape codes divide up: an explicit `type` is used, an
+   * unambiguous structural shape is derived, and a schema that yields neither
+   * is reported here. `ambiguous-default` is the same rule one level down, for
+   * a value rather than a shape. Nothing is guessed and nothing the schema
+   * declares disappears without a word.
    *
    * The boundary worth stating, because it is what keeps this channel worth
    * reading: these describe schemas, not data.
@@ -42,12 +45,18 @@ export interface SchemaProjection {
    *
    * Optional, so an adapter that reports nothing stays valid, and empty rather
    * than absent means "nothing to report".
+   *
+   * "Nothing to report" is per code rather than per adapter, and the
+   * conformance suite is what says which codes an adapter detects. An empty
+   * array is therefore not a claim that no code applies, only that none of the
+   * ones this adapter detects did.
    */
   diagnostics?: readonly ProjectionDiagnostic[]
 }
 
 /**
- * One reason a pointer has no node.
+ * One reason a pointer projects less than the schema declares: no node at all,
+ * or a node missing something the schema states.
  *
  * `code` is a stable identifier a caller can branch on; `message` is for a
  * person reading a log and is not a contract.
@@ -56,6 +65,21 @@ export interface ProjectionDiagnostic {
   pointer: JsonPointer
   code: ProjectionDiagnosticCode
   message: string
+  /**
+   * The schema positions the diagnostic is about, as JSON Pointers into the
+   * schema document, with the root as the empty string. A position reached
+   * through `$ref` is named by what it resolves to rather than by the reference
+   * that pointed at it.
+   *
+   * Present where naming the positions is the useful half of the report, which
+   * is `ambiguous-default`: that two declarations disagree is far less
+   * actionable than which two. Optional because the other codes describe one
+   * schema position, already named by `pointer`.
+   *
+   * Order is not a contract. Which order an adapter walks its own applicators
+   * in is its own business; the set is what is being reported.
+   */
+  sources?: readonly string[]
 }
 
 export type ProjectionDiagnosticCode =
@@ -72,6 +96,21 @@ export type ProjectionDiagnosticCode =
    * are and not what type they have.
    */
   | 'unresolved-projection-shape'
+  /**
+   * Two or more `default` declarations apply to the location whatever the
+   * instance is, and they do not agree. `AnnotationSet.default` is omitted:
+   * one value is reported where the schema states one, and where it states two
+   * that disagree there is nothing to report but the disagreement.
+   *
+   * Unconditional is what makes this a fact about the schema. A location's own
+   * declaration and those reached from it through `allOf` and `$ref` all apply
+   * together, so no instance resolves them. Declarations that arrive through
+   * `oneOf`, `anyOf`, `if`/`then`/`else` or `dependentSchemas` are partitioned
+   * by the branch that carries them: they compete with each other within one
+   * branch, and a branch competing with the base is a state of the data, which
+   * this channel deliberately does not carry.
+   */
+  | 'ambiguous-default'
 
 export interface NodeProjection {
   /**
@@ -148,5 +187,14 @@ export interface AnnotationSet {
   writeOnly?: boolean
   deprecated?: boolean
   examples?: unknown[]
+  /**
+   * The value the schema declares for a location that has none.
+   *
+   * Absent where two or more declarations apply unconditionally and disagree,
+   * with an `ambiguous-default` diagnostic in its place. A single value is
+   * reported where the schema states one; where it states two that disagree,
+   * reporting either would be a merge order presented as an answer, and the
+   * two adapters' merges do not even keep the same one.
+   */
   default?: unknown
 }

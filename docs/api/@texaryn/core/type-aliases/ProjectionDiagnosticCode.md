@@ -6,4 +6,4 @@
 
 # Type Alias: ProjectionDiagnosticCode
 
-> **ProjectionDiagnosticCode** = `"ambiguous-projection-shape"` \| `"unresolved-projection-shape"`
+> **ProjectionDiagnosticCode** = `"ambiguous-projection-shape"` \| `"unresolved-projection-shape"` \| `"ambiguous-default"`

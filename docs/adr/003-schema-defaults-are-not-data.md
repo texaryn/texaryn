@@ -256,15 +256,27 @@ them. Projection never mutates data.**
   step 5 below, since leaving a location absent is worth nothing if a child's
   default creates it anyway.
 
-  **This rule is prose until the port can carry the case.**
-  `AnnotationSet.default` is a single value and `extractAnnotations` reads it
-  from the already-reduced schema, so the evaluator has merged the branches
-  before core sees anything. Measured: the two-branch `allOf` above projects
-  `/x` with `default: 'b'`, the later branch, with no record that there were
-  two. So the current behaviour is exactly the traversal-order resolution this
-  rule forbids, and the port needs to preserve candidate declarations rather
-  than one collapsed value. Pinned in `absence-reference.test.ts` and tracked as
-  #128, a prerequisite for this rule alone rather than for the whole contract.
+  **The port now carries the case, for declarations that apply to every
+  instance.** #128 resolved it by reporting rather than by preserving
+  candidates, which was the other option considered. Where a location's own
+  declaration and those reached through `allOf` and `$ref` disagree, both
+  adapters omit `AnnotationSet.default` and report `ambiguous-default` with the
+  schema positions that disagreed. The pass therefore finds no default at such a
+  location and leaves it absent, which is this rule, without the pass having to
+  resolve anything.
+
+  What decided the shape was that the two adapters did not merge alike:
+  json-schema-library kept the later declaration and @hyperjump/json-schema the
+  earlier one, for the same schema. There is no value the port could report that
+  both would agree on, so omission is the only answer that is not one library's
+  traversal order.
+
+  **What stays conditional.** A declaration carried by `oneOf`, `anyOf`,
+  `if`/`then`/`else` or `dependentSchemas` competes with the base only while its
+  branch applies, so whether it disagrees is a state of the data rather than a
+  fact about the schema, and `SchemaProjection.diagnostics` carries the latter.
+  Those conflicts still collapse to one adapter-dependent value, and the pass
+  will use it. Tracked as #142.
 
 ### The pass, precisely
 
@@ -357,10 +369,12 @@ omitted element still needs a representation; a row should be initialized before
 its array value becomes externally observable rather than by leaving a hole or
 an `undefined` in public data.
 
-**Carrying disagreeing default declarations to core.** #128, above. The conflict
-rule cannot be implemented until the port stops collapsing them, and the shape
-of that addition is worth prototyping before it is designed, because the
-question is where detection happens rather than what the API looks like.
+**A conditional disagreement between defaults.** #128 settled the case that
+holds whatever the instance is, and left the one that holds only while a branch
+applies. A `oneOf` branch's declaration competing with the base still collapses
+to one value, and which one depends on the adapter, so the pass will write
+something no schema chose. Tracked as #142, which needs a channel other than
+`diagnostics`: the fact appears and disappears as a discriminator is typed.
 
 ## Consequences
 
@@ -459,5 +473,6 @@ default as a placeholder and forbids it as a control's value for this reason.
   measured here; rule 5's consequence depends on how it is resolved
 - Issue #127, an omitted `InsertItem` value becoming `null`, measured here and a
   prerequisite for initializing a new row
-- Issue #128, the port collapsing two disagreeing defaults, measured here and a
-  prerequisite for the conflict rule alone
+- Issue #128, the port collapsing two disagreeing defaults, measured here and
+  resolved by reporting them; the conflict rule holds for declarations that
+  apply to every instance, and #142 carries the conditional remainder

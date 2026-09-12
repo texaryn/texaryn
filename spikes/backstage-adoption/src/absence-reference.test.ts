@@ -110,11 +110,14 @@ describe('a filled location never becomes absent', () => {
  * at all, since it is part of the held release, so this cannot even be asserted
  * against here.
  *
- * The rule therefore needs the port to preserve candidate declarations, and
- * until it does the rule is prose. Tracked as its own prerequisite.
+ * Measured against the published 0.3.0 this directory resolves, and left
+ * asserting exactly that. #128 has since changed it: the adapter omits the
+ * annotation and reports `ambiguous-default` instead, for declarations that
+ * apply to every instance. Bumping this dependency is what should update the
+ * assertion, since the point of the row is what a released version does.
  */
 describe('what the port can say about two disagreeing defaults', () => {
-  it('collapses them to the later one, silently', async () => {
+  it('collapses them to the later one, silently, as of 0.3.0', async () => {
     const port = await createJsonSchemaAdapter(
       {
         type: 'object',
