@@ -5,7 +5,6 @@ import Form from '@rjsf/core'
 import validator from '@rjsf/validator-ajv8'
 import type { RJSFSchema } from '@rjsf/utils'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { inferTypes } from './candidate/infer-types.js'
 import { TexarynStepForm } from './candidate/TexarynStepForm.js'
 
 /**
@@ -61,7 +60,7 @@ describe('an array of enum strings', () => {
   })
 
   it('Texaryn renders one enum-constrained select per element', async () => {
-    const port = await createJsonSchemaAdapter(inferTypes(featuresStep), {
+    const port = await createJsonSchemaAdapter(featuresStep, {
       defaultDialect: 'draft-07',
     })
     const { container } = render(createElement(TexarynStepForm, { port, initialData: selected }))

@@ -21,10 +21,10 @@ const localModules = pathToFileURL(`${spikeRoot}/node_modules/`).href
  * unreleased code.
  */
 const published = {
-  '@texaryn/core': '0.7.0',
-  '@texaryn/react': '0.4.0',
-  '@texaryn/react-mui': '0.3.0',
-  '@texaryn/schema-json': '0.3.0',
+  '@texaryn/core': '0.11.0',
+  '@texaryn/react': '0.4.4',
+  '@texaryn/react-mui': '0.3.4',
+  '@texaryn/schema-json': '0.6.0',
 } as const
 
 /**
@@ -90,15 +90,6 @@ describe('the packages under test are the published ones', () => {
 
   it.each(Object.keys(published))('%s is a real directory, not a workspace link', (name) => {
     expect(lstatSync(`${spikeRoot}/node_modules/${name}`).isSymbolicLink()).toBe(false)
-  })
-
-  // schema-json 0.4.0 exists but is unpublished: its release is held in the
-  // Version Packages PR. 0.3.0 therefore cannot resolve a referenced
-  // metaschema. No Backstage parameter schema references one, so it does not
-  // affect anything measured here, but the version being behind is recorded
-  // rather than left for a reader to wonder about.
-  it('uses the published schema-json, which predates metaschema resolution', () => {
-    expect(installedVersion('@texaryn/schema-json')).toBe('0.3.0')
   })
 
   // The reference side has to be the RJSF that Backstage pins, not merely a

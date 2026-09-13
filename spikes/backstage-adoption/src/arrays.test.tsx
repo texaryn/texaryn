@@ -5,7 +5,6 @@ import Form from '@rjsf/core'
 import validator from '@rjsf/validator-ajv8'
 import type { RJSFSchema } from '@rjsf/utils'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { inferTypes } from './candidate/infer-types.js'
 import { TexarynStepForm } from './candidate/TexarynStepForm.js'
 
 /**
@@ -51,7 +50,7 @@ const accessibleName = (button: HTMLButtonElement) =>
   (button.getAttribute('aria-label') ?? button.textContent ?? '').trim()
 
 async function renderTexaryn(data: unknown) {
-  const port = await createJsonSchemaAdapter(inferTypes(contactsStep), {
+  const port = await createJsonSchemaAdapter(contactsStep, {
     defaultDialect: 'draft-07',
   })
   return render(createElement(TexarynStepForm, { port, initialData: data }))
