@@ -1,10 +1,9 @@
 import { createElement } from 'react'
 import { render, cleanup, act } from '@testing-library/react'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import type { FormRuntime, UIHints } from '@texaryn/core'
+import type { FormRuntime, FormRuntimeOptions, UIHints } from '@texaryn/core'
 import type { JsonObject } from '../backstage/extract-schema.js'
 import { canonicalError, sortUnique, type StepObservables } from '../observables.js'
-import { inferTypes } from './infer-types.js'
 import { TexarynStepForm } from './TexarynStepForm.js'
 
 /**
@@ -24,8 +23,9 @@ export async function observeTexaryn(
   schema: JsonObject,
   hints: UIHints,
   data: unknown,
+  options: Pick<FormRuntimeOptions, 'initialization'> = {},
 ): Promise<StepObservables> {
-  const port = await createJsonSchemaAdapter(inferTypes(schema), {
+  const port = await createJsonSchemaAdapter(schema, {
     defaultDialect: 'draft-07',
   })
 
@@ -43,6 +43,7 @@ export async function observeTexaryn(
       port,
       initialData: data,
       hints,
+      initialization: options.initialization,
       onSubmit: (submittedData) => {
         submitted = true
         payload = submittedData

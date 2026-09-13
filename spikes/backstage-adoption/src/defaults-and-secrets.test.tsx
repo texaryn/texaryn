@@ -21,9 +21,13 @@ async function step(title: string) {
  * the step comparison does not catch it: those fixtures fill every field, so
  * no default is ever reached. Tested on its own with an empty fill, which is
  * how a person who accepts the form's suggestions actually submits it.
+ *
+ * Texaryn applies a default only when asked: `FormRuntimeOptions.initialization:
+ * 'schema-defaults'` fills a location that is reachable and absent. Measured
+ * both ways, because the first is what an adopter who does not opt in ships.
  */
 describe('schema defaults', () => {
-  it('RJSF submits the defaults and Texaryn submits nothing', async () => {
+  it('RJSF submits the defaults and Texaryn, without opting in, submits nothing', async () => {
     const { schema, uiSchema } = await step('Numbers, ranges and toggles')
     const { hints } = toUiHints(uiSchema)
 
@@ -52,9 +56,10 @@ describe('schema defaults', () => {
    * defaulted parameter has to be rewritten to supply the default again.
    *
    * The default is not lost from the form: `AnnotationSet.default` carries it,
-   * so a binding could show it. It is absent from the data.
+   * so a binding could show it. It is absent from the data until the runtime
+   * is configured to apply it.
    */
-  it('leaves every defaulted parameter out of the submission', async () => {
+  it('leaves every defaulted parameter out of the submission, without opting in', async () => {
     const { schema, uiSchema } = await step('Basic widgets')
     const { hints } = toUiHints(uiSchema)
 
@@ -68,6 +73,43 @@ describe('schema defaults', () => {
       email: 'a@b.c',
       secret: 'hidden-default-value',
     })
+  })
+
+  /**
+   * The opt-in, through the rendered form rather than the runtime alone, so
+   * what is compared is what the binding submits. The payload is the one RJSF
+   * submits for the same empty fill, including `consent`, whose `default`
+   * sits beside a `oneOf` of two `const` branches.
+   */
+  it('submits the same defaults as RJSF once initialization is opted into', async () => {
+    const { schema, uiSchema } = await step('Numbers, ranges and toggles')
+    const { hints } = toUiHints(uiSchema)
+
+    const rjsf = observeRjsf(schema, uiSchema, {})
+    const texaryn = await observeTexaryn(schema, hints, {}, { initialization: 'schema-defaults' })
+
+    expect(texaryn.submitted).toBe(true)
+    expect(texaryn.payload).toEqual(rjsf.payload)
+    expect(texaryn.payload).toEqual({
+      replicas: 3,
+      confidence: 50,
+      enabled: true,
+      consent: false,
+    })
+  })
+
+  it('carries a defaulted parameter the user never touched, once opted into', async () => {
+    const { schema, uiSchema } = await step('Basic widgets')
+    const { hints } = toUiHints(uiSchema)
+    const supplied = { name: 'x', email: 'a@b.c' }
+
+    const rjsf = observeRjsf(schema, uiSchema, supplied)
+    const texaryn = await observeTexaryn(schema, hints, supplied, {
+      initialization: 'schema-defaults',
+    })
+
+    expect(texaryn.payload).toEqual(rjsf.payload)
+    expect(texaryn.payload).toEqual({ ...supplied, secret: 'hidden-default-value' })
   })
 })
 

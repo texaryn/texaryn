@@ -253,33 +253,30 @@ unprojectable node should be silent. The second one stands even if inference is
 deliberately refused, because "this schema declares a field I cannot
 represent" is information the caller can act on and currently cannot obtain.
 
-**Resolution in the harness:** a preprocessing pass, `inferTypes`, that adds
-`type: 'object'` to any node with `properties` and `type: 'array'` to any node
-with `items`, recursively, before the schema reaches the adapter. It is the
-minimum inference that makes Backstage's own schemas work, and it is applied
-only to the Texaryn side, because RJSF needs no such help. Every field the
-comparison later reports is therefore a field that survived this pass, which is
-worth remembering when reading the results: without it there is no form at all.
+**Resolution in the harness, while the fix was unreleased:** a preprocessing
+pass that added `type: 'object'` to any node with `properties` and
+`type: 'array'` to any node with `items`, recursively, before the schema
+reached the adapter. The minimum inference that makes Backstage's own schemas
+work, applied only to the Texaryn side, because RJSF needs no such help.
 
-Note the shortcut this workaround takes, because the real fix must not: it
-rewrites the schema before compiling it, which changes validation as well as
-the form. `{ properties: { name: … } }` accepts a string under JSON Schema, and
-after this pass it does not. That is tolerable in a harness measuring form
-shape and wrong in the library.
+Note the shortcut that workaround took, which the fix does not: it rewrote the
+schema before compiling it, which changes validation as well as the form.
+`{ properties: { name: … } }` accepts a string under JSON Schema, and after
+that pass it did not. Tolerable in a harness measuring form shape and wrong in
+the library.
 
-**Status: fixed, pending release.** `@texaryn/schema-json` now derives a form
-shape from structural keywords without touching the schema.
-Measured by installing the packed tarball into this spike and deleting the
-workaround: all 49 step comparisons pass, along with the array, enum-array,
-defaults, secrets, custom-field, format and resolver files, 90 of 92 tests. The
-two failures are this entry's own pins in `findings.test.ts`, which is the
-ratchet working as intended.
-
-The workaround is still committed, because this spike installs from the
-registry and the fix is unpublished. `src/workarounds.test.ts` asserts the
-workaround is still necessary against the installed version, so the day it
-publishes that test fails and says to delete `infer-types.ts`. That keeps the
-retirement from depending on anyone remembering.
+**Status: fixed in `@texaryn/schema-json` 0.4.0
+([#115](https://github.com/texaryn/texaryn/pull/115)).** The adapter derives a
+form shape from structural keywords without touching the schema, and this spike
+runs against the published 0.6.0 with no Texaryn-side schema preprocessing.
+Pinned in `findings.test.ts` against the installed version: a root or nested
+node with `properties` projects as an object and one with `items` as an array;
+a node with neither and no `type` is not projected and is reported as an
+`unresolved-projection-shape` diagnostic naming its pointer, rather than
+dropped in silence; and validation is unchanged, so `{ properties: { name: … } }`
+still accepts a string. All 49 step comparisons pass with only Backstage's own
+preprocessing, placeholder resolution and the `ui:*` split that both sides
+share, between the resolved step and the adapter.
 
 ### 3. Conditional fields: the validator honours the conditional, the form does not
 
@@ -325,6 +322,14 @@ the scaffolder keeps one `formData` across the whole wizard and hands every
 step the accumulated object, so a step that dropped the keys belonging to other
 steps would destroy the answers as the user advanced. Texaryn passes them
 through.
+
+**Status: fixed in `@texaryn/schema-json` 0.4.0
+([#117](https://github.com/texaryn/texaryn/pull/117),
+[#118](https://github.com/texaryn/texaryn/pull/118)).** `/lastName` is
+projected whenever the schema declares it, and is active and required exactly
+when `includeName` is `true`, which is when the validator demands it. The step
+compares identical to RJSF on its field set, so it has no entry in
+`divergences.ts`. Pinned in `findings.test.ts` against the installed 0.6.0.
 
 ### 4. The conditional idiom Backstage recommends crashes the projection
 
@@ -399,10 +404,16 @@ is a few lines with one correct answer. The interim to reach for, if the crash
 ever becomes urgent, is an exact-version `pnpm` patch of the dependency rather
 than any guard in this codebase.
 
-**Entry 4 is therefore still open, and the second half of entry 3's problem
-came back through it.** Even with the exception gone, a branch the data
-identifies but leaves incomplete hides the field that would complete it, which
-is [#120](https://github.com/texaryn/texaryn/issues/120).
+**Entry 4 is therefore still open**, pinned in `findings.test.ts` against the
+installed 0.6.0 so that a published fix fails the pin and says so. The hiding
+that outlives the exception, a branch the data identifies but leaves incomplete
+concealing the field that would complete it, is handled wherever the evaluator
+does not crash first: a `oneOf` branch that a shared `const` or `enum`
+discriminator identifies is selected provisionally and its fields exposed
+([#131](https://github.com/texaryn/texaryn/pull/131),
+[#132](https://github.com/texaryn/texaryn/pull/132)), so
+[#120](https://github.com/texaryn/texaryn/issues/120) stays open on this crash
+alone.
 
 ### 5. `ui:*` has to be lifted into a pointer-keyed map, and most of it lands nowhere
 
@@ -516,22 +527,28 @@ The value is not lost from the form: `AnnotationSet.default` carries it, so a
 binding could display it as a placeholder or prefill. It is absent from the
 data.
 
-**Since recorded, the contract for this is decided:**
-`docs/adr/003-schema-defaults-are-not-data.md`. Materialisation becomes opt-in
-and happens once, so the cost above stays exactly as measured for an adopter who
-does not ask for it, and disappears for one who does. Measuring the reference
-before deciding was worth it: RJSF resolves conditional branches against the
-data as supplied, before filling defaults, and does not resolve them again, so a
-branch that its own discriminator default activates renders a field and leaves
-its declared default unapplied. Texaryn diverges there deliberately. The
-measurements are pinned in `src/defaults-reference.test.tsx`.
+**Status: addressed by an opt-in, shipped in `@texaryn/core` 0.10.0.** The
+contract is `docs/adr/003-schema-defaults-are-not-data.md`, Accepted:
+`FormRuntimeOptions.initialization: 'schema-defaults'` fills a location that is
+reachable and absent, at construction, on `Reset`, and whenever an edit makes a
+new location reachable. Measured against the published 0.11.0 through the
+rendered form: with the option, an empty fill of this step submits
+`{ replicas: 3, confidence: 50, enabled: true, consent: false }`, the payload
+RJSF submits, and `secret`'s default reaches the "Basic widgets" payload;
+without it the cost stays exactly as measured above. Pinned both ways in
+`src/defaults-and-secrets.test.tsx`. Measuring the reference before deciding
+was worth it: RJSF resolves conditional branches against the data as supplied,
+before filling defaults, and does not resolve them again, so a branch that its
+own discriminator default activates renders a field and leaves its declared
+default unapplied. Texaryn diverges there deliberately. The measurements are
+pinned in `src/defaults-reference.test.tsx`.
 
 Related and smaller, from the same step: `ui:widget: hidden` renders as an
 ordinary visible text input. `FieldHints.hidden` exists but is deprecated and
 documented as never applied, with a comment saying a visibility contract has to
 be decided first. That reasoning is sound; the consequence for this template is
-that `secret` is shown to the user and its default is missing, which is two
-divergences from one field.
+that `secret` is shown to the user and, without the opt-in, its default is
+missing too, which is two divergences from one field.
 
 ### 8. A field extension registers cleanly; its validation needs a wrapper
 
@@ -655,32 +672,33 @@ Exercised: all seven steps of a real Backstage template render through
 published Texaryn APIs; at least two form steps, required and optional fields,
 a nested object, an array with add and remove, a conditional choice, one custom
 field extension, a validation failure with submit refused, and one remotely
-composed `$yaml` fragment. Of 49 step comparisons, 43 are identical to RJSF and
-the six differences are recorded individually and asserted exactly.
+composed `$yaml` fragment. Of 49 step comparisons, 44 are identical to RJSF and
+the five differences are recorded individually and asserted exactly.
 
 Not met: the acceptance test asks for the RJSF-backed rendering to be replaced
 "while preserving the template's observable form/submission behavior", and it
-is not preserved. Four blockers stop this template being adopted as it stands,
-and six recorded divergences change observable behaviour where it is not
-blocked. None of them has anything to do with the roadmap item this exercise
-was scheduled to inform.
+is not preserved. Two blockers stop this template being adopted as it stands,
+entries 1 and 4, and five recorded divergences change observable behaviour
+where it is not blocked. None of them has anything to do with the roadmap item
+this exercise was scheduled to inform.
 
-**Where each blocker stands, as of the roadmap work that followed.** Recorded
-here because a friction log whose findings are silently overtaken by fixes stops
-being a record of anything.
+**Where each blocker stands, against the versions this spike installs
+(`@texaryn/core` 0.11.0, `@texaryn/schema-json` 0.6.0).** Recorded here because
+a friction log whose findings are silently overtaken by fixes stops being a
+record of anything, and pinned in `findings.test.ts` so that the next release
+to move one of these rows fails a test.
 
 | Blocker | State |
 | --- | --- |
 | 1, the Material UI major | open, and a positioning question rather than a defect |
-| 2, no shape without an explicit `type` | fixed, pending release |
-| 3, the conditional validated but not projected | fixed, pending release |
+| 2, no shape without an explicit `type` | fixed, `@texaryn/schema-json` 0.4.0, [#115](https://github.com/texaryn/texaryn/pull/115) |
+| 3, the conditional validated but not projected | fixed, `@texaryn/schema-json` 0.4.0, [#117](https://github.com/texaryn/texaryn/pull/117) and [#118](https://github.com/texaryn/texaryn/pull/118) |
 | 4, the `oneOf`-inside-`dependencies` crash | open, upstream, [#121](https://github.com/texaryn/texaryn/issues/121) |
-| 7, `default` never applied | contract **Proposed** as `docs/adr/003-schema-defaults-are-not-data.md`, PR #125; nothing implemented, blocked on [#120](https://github.com/texaryn/texaryn/issues/120), prerequisites [#124](https://github.com/texaryn/texaryn/issues/124), [#127](https://github.com/texaryn/texaryn/issues/127), [#128](https://github.com/texaryn/texaryn/issues/128) |
+| 7, `default` never applied | addressed by an opt-in: ADR-003 **Accepted**, `FormRuntimeOptions.initialization: 'schema-defaults'` in `@texaryn/core` 0.10.0 ([#151](https://github.com/texaryn/texaryn/pull/151)), rows inserted without a value ([#154](https://github.com/texaryn/texaryn/pull/154)) and root defaults ([#157](https://github.com/texaryn/texaryn/pull/157)) included |
 
-And one finding the fixes uncovered rather than closed: with the crash out of
-the way, a branch the data identifies but leaves incomplete still hides the
-field that would complete it, [#120](https://github.com/texaryn/texaryn/issues/120).
-So entry 4's underlying problem outlives its exception.
+[#120](https://github.com/texaryn/texaryn/issues/120), the field a partly
+identified branch conceals, is fixed wherever the evaluator does not crash
+first and stays open on entry 4's crash alone.
 
 **Blockers, in the order an adopter would hit them:**
 
@@ -688,10 +706,11 @@ So entry 4's underlying problem outlives its exception.
    No Backstage step declares `type: object`, and a node without an explicit
    `type` is not projected. One level down it is silent: an untyped nested
    object is dropped from the form with no error, which is the shape of bug
-   that reaches production.
+   that reaches production. Fixed in `@texaryn/schema-json` 0.4.0.
 2. **The conditional produces an unfillable form** (entry 3). The validator
    reports `/lastName` as required and the projection provides no field for it,
-   so the step cannot be completed or corrected.
+   so the step cannot be completed or corrected. Fixed in `@texaryn/schema-json`
+   0.4.0.
 3. **The recommended alternative crashes** (entry 4). A `oneOf` inside
    `dependencies` throws a `TypeError` from the projection whenever the data is
    invalid against it, which for a form being filled in is the normal state.
@@ -700,7 +719,7 @@ So entry 4's underlying problem outlives its exception.
    `@mui/material@^9`.
 
 **Costs an adopter would carry but could live with:** defaults absent from the
-submission (7), no reorder control (9), one widget honoured out of eleven
+submission unless `initialization: 'schema-defaults'` is set (7), no reorder control (9), one widget honoured out of eleven
 `ui:widget` values (5), no non-submitting field for `Secret` (8), a wrapper for
 each field extension's validation (8), `format: uri` unasserted (6).
 
