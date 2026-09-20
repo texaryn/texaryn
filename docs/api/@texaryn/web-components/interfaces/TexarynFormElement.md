@@ -975,6 +975,14 @@ node is an element.
 
 ***
 
+### errorSummary
+
+> **errorSummary**: `boolean`
+
+Reflected to the `error-summary` attribute. While true, the summary is the first child of the element's form.
+
+***
+
 ### firstChild
 
 > `readonly` **firstChild**: `ChildNode` \| `null`

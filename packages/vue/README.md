@@ -18,7 +18,7 @@ pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue vue
 ```vue
 <script setup lang="ts">
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { FormRoot, useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
+import { ErrorSummary, FormRoot, useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
 
 const schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -35,7 +35,8 @@ const registry = createDefaultRegistry()
 </script>
 
 <template>
-  <!-- FormRoot has to be a descendant, not this component itself -->
+  <!-- Both have to be descendants, not this component itself -->
+  <ErrorSummary />
   <FormRoot :registry="registry" />
 </template>
 ```
@@ -44,6 +45,12 @@ const registry = createDefaultRegistry()
 from `@texaryn/core`, as a value, a ref or a getter, and replaces every word
 the built-in widgets invent. Custom widgets read it with `useFormMessages()`,
 which returns a computed.
+
+`ErrorSummary` renders a jump-linked list of the runtime's visible errors and
+nothing while there are none. Each link targets the input the renderer mounted,
+`#<prefix>-<nodeId>-input`, so a custom widget that wants summary navigation
+gives its control that id. It is not a live region: the fields already announce
+their own errors.
 
 `useForm` creates the runtime and ties it to the calling scope. Providing is a
 separate call rather than a side effect of construction: React's equivalent is

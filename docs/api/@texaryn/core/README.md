@@ -96,3 +96,5 @@
 - [removeItem](functions/removeItem.md)
 - [resolvePointer](functions/resolvePointer.md)
 - [setAtPointer](functions/setAtPointer.md)
+- [visibleErrorLabel](functions/visibleErrorLabel.md)
+- [visibleErrorMessages](functions/visibleErrorMessages.md)

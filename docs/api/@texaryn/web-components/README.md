@@ -9,6 +9,7 @@
 ## Interfaces
 
 - [DomWidget](interfaces/DomWidget.md)
+- [ErrorSummaryMount](interfaces/ErrorSummaryMount.md)
 - [Mount](interfaces/Mount.md)
 - [MountOptions](interfaces/MountOptions.md)
 - [NodeBinding](interfaces/NodeBinding.md)
@@ -26,6 +27,7 @@
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [defineTexarynForm](functions/defineTexarynForm.md)
 - [makeId](functions/makeId.md)
+- [mountErrorSummary](functions/mountErrorSummary.md)
 - [mountForm](functions/mountForm.md)
 - [numberInput](functions/numberInput.md)
 - [objectLayout](functions/objectLayout.md)

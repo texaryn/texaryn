@@ -6,6 +6,18 @@
 
 # Interface: Mount
 
+## Properties
+
+### idPrefix
+
+> `readonly` **idPrefix**: `string`
+
+***
+
+### runtime
+
+> `readonly` **runtime**: [`FormRuntime`](../../core/interfaces/FormRuntime.md)
+
 ## Methods
 
 ### setMessages()

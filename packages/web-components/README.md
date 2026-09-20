@@ -33,6 +33,7 @@ const port = await createJsonSchemaAdapter({
 
 const form = document.createElement('texaryn-form') as TexarynFormElement
 form.registry = createDefaultRegistry()
+form.errorSummary = true
 form.options = { initialData: { name: '' }, onSubmit: (data) => console.log(data) }
 form.port = port
 document.body.append(form)
@@ -87,16 +88,33 @@ resolves inside its own element.
 widgets invent. Setting it on a mounted element switches the copy in place.
 Custom widgets read `ctx.messages` on the render context.
 
+## Error summary
+
+`mountErrorSummary(container, form)` renders a jump-linked list of the
+runtime's visible errors as the first child of `container`, and nothing while
+there are none. It takes the `Mount` that `mountForm` returned, so its links
+share the namespace the form was mounted under: `#<prefix>-<nodeId>-input`, the
+id the built-in widgets give their control, which a custom widget that wants
+summary navigation gives its own. Unmounting the summary leaves the form
+mounted.
+
+On the element, the `error-summary` attribute and the `errorSummary` property
+reflect each other and mount the summary as the first child of the element's
+`<form>`; toggling either mounts or removes it live, and the value set while
+the element is detached applies when it next mounts. The summary is not a live
+region: the fields already announce their own errors.
+
 ## Key exports
 
 - `defineTexarynForm`
 - `TexarynFormElement`
 - `createDefaultRegistry`
-- `mountForm(container, runtime, { registry, idPrefix, messages })`, returning a `Mount` with `setMessages`
+- `mountForm(container, runtime, { registry, idPrefix, messages })`, returning a `Mount` carrying `runtime`, `idPrefix` and `setMessages`
+- `mountErrorSummary(container, form)`, returning an `ErrorSummaryMount`
 - `makeId`
 - `textInput`, `numberInput`, `checkbox`, `select`, `textarea`
 - `objectLayout`, `arrayControl`
-- types: `DomWidget`, `WidgetFactory`, `NodeBinding`, `RenderContext`, `Mount`
+- types: `DomWidget`, `WidgetFactory`, `NodeBinding`, `RenderContext`, `Mount`, `ErrorSummaryMount`
 
 ## Not in this release
 
