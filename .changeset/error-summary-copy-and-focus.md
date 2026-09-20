@@ -16,3 +16,7 @@ describes, and the English forms are the migration:
 that settles invalid, never for an attempt older than the tracker, never
 after a validation exception, and again after a Reset. Every binding's
 summary uses it.
+
+`SubmissionState` gains an optional `cancelled` mark, set when a data command
+arrives during submit validation and abandons the attempt; the tracker
+consumes such an attempt without focusing.

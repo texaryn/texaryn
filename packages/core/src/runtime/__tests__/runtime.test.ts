@@ -722,6 +722,35 @@ describe('FormRuntime validation scheduling', () => {
     runtime.destroy()
   })
 
+  it('records a cancelled attempt and clears the mark on the next one', async () => {
+    vi.useRealTimers()
+    const port = makePort(() => simpleProjection, () => ({ valid: true, errors: [] }))
+    const delayed: SchemaEvaluationPort = {
+      ...port,
+      validate: async (...args: Parameters<SchemaEvaluationPort['validate']>) => {
+        await new Promise((r) => setTimeout(r, 0))
+        return port.validate(...args)
+      },
+    }
+    const runtime = createFormRuntime(delayed, { initialData: { name: 'Alice' } })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'Submit' })
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })
+    expect(runtime.submission.getSnapshot()).toEqual({ status: 'idle', attempts: 1, cancelled: true })
+
+    await new Promise((r) => setTimeout(r, 10))
+
+    runtime.dispatch({ type: 'Submit' })
+    await vi.waitFor(() => {
+      expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    })
+    const submission = runtime.submission.getSnapshot()
+    expect(submission.cancelled).toBeUndefined()
+    expect(submission.attempts).toBe(2)
+    runtime.destroy()
+  })
+
   it('rejected async validation does not leave nodes stuck in pending', async () => {
     const def = deferred<ValidationResult>()
     const port = makeAsyncPort(def)

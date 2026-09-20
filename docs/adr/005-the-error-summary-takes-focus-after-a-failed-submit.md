@@ -33,8 +33,11 @@ validation still focuses on the failed submit: the event is the attempt, not
 the summary's appearance. The handled attempt is seeded when the summary is
 created, so a summary mounted after an old failure never focuses
 retroactively; a lower `attempts` after Reset rearms it. This rule lives once,
-in core's `createFailedSubmitTracker`, and never observes the `validating`
-state, so synchronous and asynchronous validation behave alike.
+in core's `createFailedSubmitTracker`. The trigger is attempt identity rather
+than a transition: the tracker declines to settle an attempt that is still
+`validating` or `submitting`, and consumes one the runtime marks `cancelled`
+(a data command arrived during submit validation) without focusing, so
+synchronous and asynchronous validation behave alike.
 
 Every summary focuses by default. An application that renders one runtime
 twice turns focus off on all but one (`focus={false}`, `:focus="false"`,

@@ -14,7 +14,7 @@ export function createFailedSubmitTracker(initial: SubmissionState): FailedSubmi
       if (submission.attempts === handled) return false
       if (submission.status === 'validating' || submission.status === 'submitting') return false
       handled = submission.attempts
-      return submission.status === 'idle' && submission.error === undefined && visibleErrors.length > 0
+      return submission.status === 'idle' && submission.error === undefined && submission.cancelled === undefined && visibleErrors.length > 0
     },
   }
 }

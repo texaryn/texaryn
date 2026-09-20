@@ -52,4 +52,12 @@ describe('createFailedSubmitTracker', () => {
     expect(tracker.settle(idle(0), [])).toBe(false)
     expect(tracker.settle(idle(1), [error])).toBe(true)
   })
+
+  it('consumes a cancelled attempt without focusing', () => {
+    const tracker = createFailedSubmitTracker(idle(0))
+    expect(tracker.settle(validating(1), [error])).toBe(false)
+    expect(tracker.settle({ status: 'idle', attempts: 1, cancelled: true }, [error])).toBe(false)
+    expect(tracker.settle(idle(1), [error])).toBe(false)
+    expect(tracker.settle(idle(2), [error])).toBe(true)
+  })
 })
