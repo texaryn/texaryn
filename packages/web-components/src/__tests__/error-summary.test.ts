@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { createFormRuntime } from '@texaryn/core'
-import type { FormRuntime } from '@texaryn/core'
+import { createFormRuntime, createStore } from '@texaryn/core'
+import type {
+  FormRuntime,
+  InitializationReport,
+  NodeId,
+  SubmissionState,
+  UIDocument,
+  VisibleError,
+} from '@texaryn/core'
 import { createDefaultRegistry, defineTexarynForm, mountForm } from '../index.js'
 import type { TexarynFormElement } from '../index.js'
 import { mountErrorSummary } from '../summary.js'
+import type { Mount } from '../mount.js'
 import { adapterFor, flush, nodeAt } from './harness.js'
 
 const registry = createDefaultRegistry()
@@ -35,7 +43,75 @@ async function makeRuntime(): Promise<FormRuntime> {
   return runtime
 }
 
+function entry(nodeId: string, title: string, message: string): VisibleError {
+  return {
+    nodeId: nodeId as NodeId,
+    fieldTitle: title,
+    pointer: null,
+    errors: [{ instancePointer: '/' + nodeId, keyword: 'required', message, params: {} }],
+  }
+}
+
+function mockMount(store: ReturnType<typeof createStore<VisibleError[]>>): Mount {
+  const stub: FormRuntime = {
+    document: createStore<UIDocument>({ version: 1, rootId: 'node_1' as NodeId, nodes: {} }),
+    data: createStore<unknown>({}),
+    submission: createStore<SubmissionState>({ status: 'idle', attempts: 0 }),
+    visibleErrors: store,
+    initialization: createStore<InitializationReport | undefined>(undefined),
+    dispatch: () => {},
+    getNodeState: () => undefined,
+    destroy: () => {},
+  }
+  return {
+    runtime: stub,
+    idPrefix: 'f',
+    setMessages: () => {},
+    unmount: () => {},
+  }
+}
+
 describe('mountErrorSummary', () => {
+  it('reorders, inserts and retitles items without recreating them', () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const store = createStore<VisibleError[]>([entry('a', 'A', 'x'), entry('c', 'C', 'x')])
+    mountErrorSummary(container, mockMount(store))
+
+    const list = container.querySelector('ul')!
+    let items = [...list.querySelectorAll('li')]
+    expect(items.map((li) => li.querySelector('a')!.textContent)).toEqual(['A', 'C'])
+    const [liA, liC] = items
+
+    store.set([entry('a', 'A', 'x'), entry('b', 'B', 'x'), entry('c', 'C', 'x')])
+    expect(container.querySelector('ul')).toBe(list)
+    items = [...list.querySelectorAll('li')]
+    expect(items).toHaveLength(3)
+    expect(items[0]).toBe(liA)
+    expect(items[2]).toBe(liC)
+    expect(items.map((li) => li.querySelector('a')!.textContent)).toEqual(['A', 'B', 'C'])
+    const liB = items[1]
+
+    store.set([entry('c', 'C', 'x'), entry('b', 'B', 'x'), entry('a', 'A', 'x')])
+    items = [...list.querySelectorAll('li')]
+    expect(items).toEqual([liC, liB, liA])
+    expect(items.map((li) => li.querySelector('a')!.textContent)).toEqual(['C', 'B', 'A'])
+
+    store.set([entry('c', 'C', 'x'), entry('b', 'Bee', 'Changed'), entry('a', 'A', 'x')])
+    items = [...list.querySelectorAll('li')]
+    expect(items[1]).toBe(liB)
+    expect(liB.querySelector('a')!.textContent).toBe('Bee')
+    expect(liB.textContent).toBe('Bee: Changed')
+
+    store.set([entry('b', 'Bee', 'Changed')])
+    expect([...list.querySelectorAll('li')]).toEqual([liB])
+    expect(liA.isConnected).toBe(false)
+    expect(liC.isConnected).toBe(false)
+
+    store.set([])
+    expect(container.querySelector('ul')).toBeNull()
+    expect(container.childElementCount).toBe(0)
+  })
+
   it('renders nothing until the store has an error, then inserts as first child', async () => {
     const container = document.body.appendChild(document.createElement('div'))
     const rt = await makeRuntime()
