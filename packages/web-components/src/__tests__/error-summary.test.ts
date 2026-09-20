@@ -287,6 +287,17 @@ describe('mountErrorSummary', () => {
     expect(document.activeElement).toBe(input)
   })
 
+  it('ignores setMessages after unmount', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    const summary = mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    summary.unmount()
+    summary.setMessages({ ...englishMessages, errorSummaryHeading: () => 'Encore' })
+    expect(container.querySelector('[role="group"]')).toBeNull()
+  })
+
   it('follows a messages switch on the mounted summary without losing focus', async () => {
     const container = document.body.appendChild(document.createElement('div'))
     const rt = await makeRuntime()

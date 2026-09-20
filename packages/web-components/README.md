@@ -99,7 +99,9 @@ control, which a custom widget that wants summary navigation gives its own.
 It takes focus once a failed submit settles, once per attempt; `focus: false`
 keeps it passive, for all but one summary when one runtime is rendered twice.
 `setMessages` on the returned mount follows a locale switch in place, and
-unmounting the summary leaves the form mounted.
+unmounting the summary leaves the form mounted. A caller composing the two
+primitives calls `setMessages` on both mounts; the element does that for its
+own.
 
 On the element, `error-summary` present mounts the summary as the first child
 of the element's `<form>` and `error-summary="no-focus"` mounts it passive;

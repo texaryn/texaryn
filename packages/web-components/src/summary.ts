@@ -46,6 +46,7 @@ export function mountErrorSummary(
   root.append(heading, list)
   const items = new Map<NodeId, HTMLLIElement>()
   const tracker = createFailedSubmitTracker(runtime.submission.getSnapshot())
+  let live = true
 
   const render = (errors: readonly VisibleError[]): void => {
     if (errors.length === 0) {
@@ -93,11 +94,13 @@ export function mountErrorSummary(
 
   return {
     setMessages(next) {
+      if (!live) return
       if (next === messages) return
       messages = next
       render(runtime.visibleErrors.getSnapshot())
     },
     unmount() {
+      live = false
       for (const off of unsubscribe) off()
       root.remove()
     },

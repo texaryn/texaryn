@@ -155,8 +155,8 @@ export function texarynFormElementClass(): CustomElementConstructor {
 
     attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
       if (name !== 'error-summary') return
-      this.errorSummary = value !== null
       if (value !== null) this.errorSummaryFocus = value !== 'no-focus'
+      this.errorSummary = value !== null
     }
 
     connectedCallback(): void {
