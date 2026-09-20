@@ -1,3 +1,4 @@
+import { visibleErrorLabel, visibleErrorMessages } from '@texaryn/core'
 import type { VisibleError } from '@texaryn/core'
 import { useFormContext } from '../context.js'
 import { useStore } from '../hooks/use-store.js'
@@ -24,11 +25,9 @@ export function ErrorSummary() {
       <ul>
         {visibleErrors.map((entry: VisibleError) => (
           <li key={entry.nodeId}>
-            <a href={`#${makeId(idPrefix, entry.nodeId, 'input')}`}>
-              {entry.fieldTitle ?? entry.pointer ?? entry.nodeId}
-            </a>
+            <a href={`#${makeId(idPrefix, entry.nodeId, 'input')}`}>{visibleErrorLabel(entry)}</a>
             {': '}
-            {entry.errors.map((error) => error.message ?? error.keyword).join(', ')}
+            {visibleErrorMessages(entry).join(', ')}
           </li>
         ))}
       </ul>
