@@ -22,7 +22,7 @@ function display(value: unknown): string {
 
 /** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
 
-/** Three separate channels carry one fact and must not be collapsed: the sighted user reads the indicator, the accessible name stays the label alone because aria-required already reports the state and naming it too makes some screen readers say it twice, and the message decides the wording and the side while this function decides that it is aria-hidden. Rebuilt on every render because a conditional schema can make a field required or optional at any recompile, and because the messages can change. */
+/** Three separate channels carry one fact and must not be collapsed. The sighted user reads the indicator; the accessible name stays the label alone, because aria-required already reports the state and naming it too makes some screen readers say it twice. The message decides the wording and the side; this function decides that it is aria-hidden. Rebuilt on every render because a conditional schema can make a field required or optional at any recompile, and because the messages can change. */
 function writeLabel(label: HTMLElement, text: string, required: boolean, messages: FormMessages): void {
   const children: Node[] = [document.createTextNode(text)]
   if (required) {

@@ -11,7 +11,7 @@ export interface MountOptions {
 }
 
 export interface Mount {
-  /** A locale change recompiles no document, so nothing would re-render on its own; this replaces the set and reconciles the mounted tree in place, with no unmount, so focus, selection and caret position survive. */
+  /** A locale change recompiles no document, so nothing would re-render on its own. This replaces the set and reconciles the mounted tree in place: no unmount, so focus, selection and caret position survive. */
   setMessages(messages: FormMessages): void
   unmount(): void
 }
