@@ -1,4 +1,4 @@
-import type { FieldNode, UINode } from '@texaryn/core'
+import type { FieldNode, FormMessages, UINode } from '@texaryn/core'
 import { FieldState } from './field-state.js'
 import { makeId } from './ids.js'
 import type { DomWidget, RenderContext } from './widget.js'
@@ -21,26 +21,17 @@ function display(value: unknown): string {
 }
 
 /** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
-/** The wording every binding uses, so a custom widget can match it. */
-export const REQUIRED_INDICATOR = '(required)'
 
-/**
- * Three separate channels carry one fact and must not be collapsed. The
- * sighted user reads "(required)"; the accessible name stays the label alone,
- * because aria-required already reports the state and naming it too makes some
- * screen readers say it twice; and the indicator says the word rather than an
- * asterisk, so nobody has to be told elsewhere what a marker means.
- *
- * Rebuilt on every render because a conditional schema can make a field
- * required or optional at any recompile.
- */
-function writeLabel(label: HTMLElement, text: string, required: boolean): void {
+/** Three separate channels carry one fact and must not be collapsed: the sighted user reads the indicator, the accessible name stays the label alone because aria-required already reports the state and naming it too makes some screen readers say it twice, and the message decides the wording and the side while this function decides that it is aria-hidden. Rebuilt on every render because a conditional schema can make a field required or optional at any recompile, and because the messages can change. */
+function writeLabel(label: HTMLElement, text: string, required: boolean, messages: FormMessages): void {
   const children: Node[] = [document.createTextNode(text)]
   if (required) {
+    const indicator = messages.requiredIndicator()
     const marker = document.createElement('span')
     marker.setAttribute('aria-hidden', 'true')
-    marker.textContent = ` ${REQUIRED_INDICATOR}`
-    children.push(marker)
+    marker.textContent = indicator.placement === 'after' ? ` ${indicator.text}` : `${indicator.text} `
+    if (indicator.placement === 'after') children.push(marker)
+    else children.unshift(marker)
   }
   label.replaceChildren(...children)
 }
@@ -133,6 +124,7 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
       label,
       node.annotations.title ?? node.dataPointer ?? node.id,
       node.constraints.required === true,
+      ctx.messages,
     )
     renderOptions()
     const value = state.value

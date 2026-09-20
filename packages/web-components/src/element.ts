@@ -1,5 +1,6 @@
-import { createFormRuntime } from '@texaryn/core'
+import { createFormRuntime, englishMessages } from '@texaryn/core'
 import type {
+  FormMessages,
   FormRuntime,
   FormRuntimeOptions,
   RendererRegistry,
@@ -24,6 +25,8 @@ export interface TexarynFormElement extends HTMLElement {
   /** Read when the managed runtime is created, so set it before `port`. */
   options: FormRuntimeOptions
   registry: RendererRegistry<WidgetFactory> | null
+  /** The whole set, or English. Setting it on a mounted element switches the copy in place. */
+  messages: FormMessages
   readonly idPrefix: string
 }
 
@@ -44,6 +47,7 @@ export function texarynFormElementClass(): CustomElementConstructor {
     #port: SchemaEvaluationPort | null = null
     #options: FormRuntimeOptions = {}
     #registry: RendererRegistry<WidgetFactory> | null = null
+    #messages: FormMessages = englishMessages
     #form: HTMLFormElement | null = null
     #mount: Mount | null = null
     #mountedRuntime: FormRuntime | null = null
@@ -100,6 +104,14 @@ export function texarynFormElementClass(): CustomElementConstructor {
       this.#render()
     }
 
+    get messages(): FormMessages {
+      return this.#messages
+    }
+    set messages(messages: FormMessages) {
+      this.#messages = messages ?? englishMessages
+      this.#mount?.setMessages(this.#messages)
+    }
+
     connectedCallback(): void {
       this.#render()
     }
@@ -124,7 +136,11 @@ export function texarynFormElementClass(): CustomElementConstructor {
       }
       this.#unmount()
       const form = this.#ensureForm()
-      this.#mount = mountForm(form, runtime, this.#registry, this.idPrefix)
+      this.#mount = mountForm(form, runtime, {
+        registry: this.#registry,
+        idPrefix: this.idPrefix,
+        messages: this.#messages,
+      })
       this.#mountedRuntime = runtime
       this.#mountedRegistry = this.#registry
       this.#unsubscribe.push(

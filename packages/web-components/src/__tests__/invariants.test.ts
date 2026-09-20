@@ -27,7 +27,7 @@ async function mount(schema: unknown, initialData: unknown, hints?: UIHints): Pr
     validationDebounceMs: 0,
   })
   container = document.body.appendChild(document.createElement('div'))
-  mountForm(container, runtime, registry, 'f')
+  mountForm(container, runtime, { registry, idPrefix: 'f' })
   return runtime
 }
 

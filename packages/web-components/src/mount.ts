@@ -1,8 +1,18 @@
-import type { FormRuntime, RendererRegistry } from '@texaryn/core'
+import { englishMessages } from '@texaryn/core'
+import type { FormMessages, FormRuntime, RendererRegistry } from '@texaryn/core'
 import { createNodeBinding } from './binding.js'
 import type { NodeBinding, RenderContext, WidgetFactory } from './widget.js'
 
+export interface MountOptions {
+  registry: RendererRegistry<WidgetFactory>
+  idPrefix: string
+  /** The whole set, or English. */
+  messages?: FormMessages
+}
+
 export interface Mount {
+  /** A locale change recompiles no document, so nothing would re-render on its own; this replaces the set and reconciles the mounted tree in place, with no unmount, so focus, selection and caret position survive. */
+  setMessages(messages: FormMessages): void
   unmount(): void
 }
 
@@ -14,13 +24,13 @@ export interface Mount {
 export function mountForm(
   container: HTMLElement,
   runtime: FormRuntime,
-  registry: RendererRegistry<WidgetFactory>,
-  idPrefix: string,
+  { registry, idPrefix, messages = englishMessages }: MountOptions,
 ): Mount {
   const ctx: RenderContext = {
     runtime,
     registry,
     idPrefix,
+    messages,
     mountChild: (node) => createNodeBinding(node, ctx),
   }
   let doc = runtime.document.getSnapshot()
@@ -42,6 +52,11 @@ export function mountForm(
   })
 
   return {
+    setMessages(next) {
+      if (next === ctx.messages) return
+      ctx.messages = next
+      root.update(doc.nodes[doc.rootId])
+    },
     unmount() {
       unsubscribe()
       root.destroy()
