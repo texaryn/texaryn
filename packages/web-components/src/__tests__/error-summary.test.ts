@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createFormRuntime } from '@texaryn/core'
 import type { FormRuntime } from '@texaryn/core'
-import { createDefaultRegistry, mountForm } from '../index.js'
+import { createDefaultRegistry, defineTexarynForm, mountForm } from '../index.js'
+import type { TexarynFormElement } from '../index.js'
 import { mountErrorSummary } from '../summary.js'
 import { adapterFor, flush, nodeAt } from './harness.js'
 
 const registry = createDefaultRegistry()
+defineTexarynForm()
 
 const schema = {
   type: 'object',
@@ -105,5 +107,103 @@ describe('mountErrorSummary', () => {
     rt.dispatch({ type: 'Submit' })
     await flush()
     expect(container.querySelector('ul')).toBeNull()
+  })
+})
+
+function element(): TexarynFormElement {
+  const el = document.createElement('texaryn-form') as TexarynFormElement
+  el.registry = registry
+  return el
+}
+
+async function failSubmit(rt: FormRuntime): Promise<void> {
+  rt.dispatch({ type: 'Submit' })
+  await flush()
+}
+
+describe('<texaryn-form error-summary>', () => {
+  it('mounts the summary from the attribute, first in its form', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.setAttribute('error-summary', '')
+    el.runtime = rt
+    document.body.append(el)
+    expect(el.errorSummary).toBe(true)
+    await failSubmit(rt)
+
+    const form = el.querySelector('form')!
+    expect(form.firstElementChild!.querySelector('ul')).not.toBeNull()
+    expect(form.querySelectorAll('ul')).toHaveLength(1)
+    const href = form.querySelector('a')!.getAttribute('href') ?? ''
+    expect(document.getElementById(href.slice(1))).toBe(form.querySelector('input'))
+  })
+
+  it('reflects the property to the attribute and toggles live both ways', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.runtime = rt
+    document.body.append(el)
+    await failSubmit(rt)
+    const form = el.querySelector('form')!
+    expect(form.querySelector('ul')).toBeNull()
+
+    el.errorSummary = true
+    expect(el.hasAttribute('error-summary')).toBe(true)
+    expect(form.firstElementChild!.querySelector('ul')).not.toBeNull()
+
+    el.removeAttribute('error-summary')
+    expect(el.errorSummary).toBe(false)
+    expect(form.querySelector('ul')).toBeNull()
+
+    el.errorSummary = true
+    expect(form.querySelectorAll('ul')).toHaveLength(1)
+  })
+
+  it('keeps the flag while disconnected and applies it on the next mount', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.errorSummary = true
+    el.runtime = rt
+    expect(el.hasAttribute('error-summary')).toBe(true)
+    document.body.append(el)
+    await failSubmit(rt)
+    expect(el.querySelector('form')!.querySelectorAll('ul')).toHaveLength(1)
+
+    el.remove()
+    await flush()
+    document.body.append(el)
+    await flush()
+    expect(el.querySelector('form')!.querySelectorAll('ul')).toHaveLength(1)
+  })
+
+  it('survives a reparent with one summary', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.errorSummary = true
+    el.runtime = rt
+    document.body.append(el)
+    await failSubmit(rt)
+
+    const other = document.body.appendChild(document.createElement('section'))
+    other.append(el)
+    await flush()
+    expect(el.querySelector('form')!.querySelectorAll('ul')).toHaveLength(1)
+  })
+
+  it('unmounts the summary with the form', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.errorSummary = true
+    el.runtime = rt
+    document.body.append(el)
+    await failSubmit(rt)
+    const form = el.querySelector('form')!
+
+    el.remove()
+    await flush()
+    expect(form.querySelector('ul')).toBeNull()
+    rt.dispatch({ type: 'SetValue', nodeId: nodeAt(rt, '/first'), value: 'a' })
+    await flush()
+    expect(form.querySelector('ul')).toBeNull()
   })
 })
