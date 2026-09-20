@@ -20,9 +20,7 @@ function display(value: unknown): string {
   return value == null ? '' : String(value)
 }
 
-/** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
-
-/** Three separate channels carry one fact and must not be collapsed. The sighted user reads the indicator; the accessible name stays the label alone, because aria-required already reports the state and naming it too makes some screen readers say it twice. The message decides the wording and the side; this function decides that it is aria-hidden. Rebuilt on every render because a conditional schema can make a field required or optional at any recompile, and because the messages can change. */
+/** The marker stays out of the accessible name: aria-required already reports the state, and some screen readers would say it twice. */
 function writeLabel(label: HTMLElement, text: string, required: boolean, messages: FormMessages): void {
   const children: Node[] = [document.createTextNode(text)]
   if (required) {
@@ -36,6 +34,7 @@ function writeLabel(label: HTMLElement, text: string, required: boolean, message
   label.replaceChildren(...children)
 }
 
+/** HTML honours `readonly` on text-like controls only; the rest need ARIA. */
 function hasNativeReadOnly(kind: Kind): boolean {
   return kind === 'string' || kind === 'number' || kind === 'textarea'
 }

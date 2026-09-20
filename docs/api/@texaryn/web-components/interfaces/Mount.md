@@ -12,7 +12,7 @@
 
 > **setMessages**(`messages`): `void`
 
-A locale change recompiles no document, so nothing would re-render on its own. This replaces the set and reconciles the mounted tree in place: no unmount, so focus, selection and caret position survive.
+A locale change recompiles no document, so this reconciles in place; unmounting would drop focus and caret.
 
 #### Parameters
 

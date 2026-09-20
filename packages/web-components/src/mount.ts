@@ -11,7 +11,7 @@ export interface MountOptions {
 }
 
 export interface Mount {
-  /** A locale change recompiles no document, so nothing would re-render on its own. This replaces the set and reconciles the mounted tree in place: no unmount, so focus, selection and caret position survive. */
+  /** A locale change recompiles no document, so this reconciles in place; unmounting would drop focus and caret. */
   setMessages(messages: FormMessages): void
   unmount(): void
 }
@@ -21,11 +21,8 @@ export interface Mount {
  * by updating the root binding in place. The runtime is borrowed: unmounting
  * releases subscriptions and DOM, never the runtime.
  */
-export function mountForm(
-  container: HTMLElement,
-  runtime: FormRuntime,
-  { registry, idPrefix, messages = englishMessages }: MountOptions,
-): Mount {
+export function mountForm(container: HTMLElement, runtime: FormRuntime, options: MountOptions): Mount {
+  const { registry, idPrefix, messages = englishMessages } = options
   const ctx: RenderContext = {
     runtime,
     registry,
@@ -36,6 +33,7 @@ export function mountForm(
   let doc = runtime.document.getSnapshot()
   let root: NodeBinding = createNodeBinding(doc.nodes[doc.rootId], ctx)
   container.append(root.element)
+  let live = true
 
   const unsubscribe = runtime.document.subscribe(() => {
     const next = runtime.document.getSnapshot()
@@ -53,11 +51,14 @@ export function mountForm(
 
   return {
     setMessages(next) {
+      if (!live) return
       if (next === ctx.messages) return
       ctx.messages = next
-      root.update(doc.nodes[doc.rootId])
+      const snapshot = runtime.document.getSnapshot()
+      root.update(snapshot.nodes[snapshot.rootId])
     },
     unmount() {
+      live = false
       unsubscribe()
       root.destroy()
       root.element.remove()

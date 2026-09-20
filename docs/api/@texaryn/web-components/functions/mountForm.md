@@ -6,7 +6,7 @@
 
 # Function: mountForm()
 
-> **mountForm**(`container`, `runtime`, `__namedParameters`): [`Mount`](../interfaces/Mount.md)
+> **mountForm**(`container`, `runtime`, `options`): [`Mount`](../interfaces/Mount.md)
 
 Renders a runtime's document into a container and follows every recompile
 by updating the root binding in place. The runtime is borrowed: unmounting
@@ -22,7 +22,7 @@ releases subscriptions and DOM, never the runtime.
 
 [`FormRuntime`](../../core/interfaces/FormRuntime.md)
 
-### \_\_namedParameters
+### options
 
 [`MountOptions`](../interfaces/MountOptions.md)
 
