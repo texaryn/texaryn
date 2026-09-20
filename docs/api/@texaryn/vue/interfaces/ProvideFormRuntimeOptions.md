@@ -11,5 +11,3 @@
 ### messages?
 
 > `optional` **messages?**: `MaybeRefOrGetter`\<[`FormMessages`](../../core/interfaces/FormMessages.md) \| `undefined`\>
-
-The whole set, or English. A ref or getter, so a locale switch reaches a mounted form.

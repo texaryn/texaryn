@@ -18,12 +18,8 @@
 
 > `optional` **itemTitle?**: `string`
 
-The row's own title, which repeats across rows.
-
 ***
 
 ### position
 
 > **position**: `number`
-
-1-based, as a person counts rows, and meant for display.

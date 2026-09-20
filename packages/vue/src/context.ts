@@ -11,15 +11,10 @@ export const RendererRegistryKey: InjectionKey<ComputedRef<RendererRegistry<Widg
 export const FormMessagesKey: InjectionKey<ComputedRef<FormMessages>> = Symbol('texaryn.messages')
 
 export interface ProvideFormRuntimeOptions {
-  /** The whole set, or English. A ref or getter, so a locale switch reaches a mounted form. */
   messages?: MaybeRefOrGetter<FormMessages | undefined>
 }
 
-/**
- * Messages are provided as a computed for the reason the registry is: Vue
- * provides once, so a plain value would freeze the tree on whatever locale
- * was configured when it mounted.
- */
+/** A computed, as the registry is: Vue provides once, so a plain value would freeze the locale at mount. */
 export function provideFormRuntime(runtime: FormRuntime, options: ProvideFormRuntimeOptions = {}): void {
   provide(FormRuntimeKey, runtime)
   provide(

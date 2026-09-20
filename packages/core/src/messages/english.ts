@@ -4,11 +4,7 @@ function withContainer(name: string, preposition: string, containerTitle: string
   return containerTitle === undefined ? name : `${name} ${preposition} ${containerTitle}`
 }
 
-/**
- * The name carries the current 1-based position, because that is what a
- * person means by "the second contact". The row's own value is deliberately
- * unused: mutable, often blank, frequently duplicated, sometimes sensitive.
- */
+/** Names carry the row's 1-based position, never its value: mutable, often blank, sometimes sensitive. */
 export const englishMessages: FormMessages = {
   addItem: ({ itemTemplateTitle, containerTitle }) => ({
     label: 'Add',

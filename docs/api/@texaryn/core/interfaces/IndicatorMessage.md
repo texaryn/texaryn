@@ -6,9 +6,6 @@
 
 # Interface: IndicatorMessage
 
-Text plus where it sits relative to the label. The renderer keeps the
-marker out of the accessible name; the message never decides that.
-
 ## Properties
 
 ### placement

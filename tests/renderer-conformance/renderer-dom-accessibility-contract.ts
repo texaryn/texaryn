@@ -142,8 +142,6 @@ const listSchema = {
   },
 }
 
-// A list and a required field together, so one switch exercises both an
-// action's two surfaces and the marker's placement.
 const listWithRequiredSchema = {
   type: 'object',
   properties: {

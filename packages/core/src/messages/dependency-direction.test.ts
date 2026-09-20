@@ -12,11 +12,10 @@ function filesUnder(dir: string): string[] {
   })
 }
 
-// ADR-004 rule 7. Copy is presentation vocabulary; the runtime, its commands,
-// its state and its schema port must not know it exists.
+// ADR-004 rule 7: the runtime, its commands, its state and its schema port must
+// not know copy exists, so the barrel that re-exports it counts as an import too.
 describe('the messages module', () => {
   it.each(['runtime', 'commands', 'state', 'schema'])('is not imported from %s', (dir) => {
-    // The core barrel re-exports the messages module, so importing it counts too.
     const offenders = filesUnder(join(src, dir))
       .filter((file) => !file.includes('__tests__') && !file.includes('.test.'))
       .filter((file) =>

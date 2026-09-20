@@ -17,5 +17,3 @@
 ### itemTemplateTitle?
 
 > `optional` **itemTemplateTitle?**: `string`
-
-The item template's title, never an existing row's: a row may not exist yet.
