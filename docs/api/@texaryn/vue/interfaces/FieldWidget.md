@@ -74,6 +74,8 @@ Visible errors only: empty until the display policy says to show them.
 
 > **messages**: `ComputedRef`\<[`FormMessages`](../../core/interfaces/FormMessages.md)\>
 
+The configured set, English when none is provided.
+
 ***
 
 ### node
