@@ -1,7 +1,7 @@
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { FormMessages, RendererRegistry } from '@texaryn/core'
-import { FormRoot, provideFormRuntime } from '@texaryn/vue'
+import { ErrorSummary, FormRoot, provideFormRuntime } from '@texaryn/vue'
 import type { WidgetComponent } from '@texaryn/vue'
 import type { DomAccessibilityAdapter } from '../renderer-dom-accessibility-contract.js'
 
@@ -19,7 +19,7 @@ export function vueAdapter(
   let apps = 0
   return {
     name,
-    async mount({ runtime, host, messages }) {
+    async mount({ runtime, host, messages, summary }) {
       // Vue ids are unique per application, and each mount() is its own app, so
       // the harness has to supply what a page with two independent apps would:
       // distinct idPrefixes. Within one app the binding handles it alone.
@@ -29,7 +29,10 @@ export function vueAdapter(
         defineComponent({
           setup() {
             provideFormRuntime(runtime, { messages: current })
-            return () => h(FormRoot, { registry })
+            return () =>
+              summary
+                ? [h(ErrorSummary), h(FormRoot, { registry })]
+                : h(FormRoot, { registry })
           },
         }),
         { attachTo: host, global: { config: { idPrefix: `app${apps}` } } },

@@ -17,10 +17,11 @@ export function webComponentsAdapter(
   defineTexarynForm()
   return {
     name,
-    mount({ runtime, host, messages }) {
+    mount({ runtime, host, messages, summary }) {
       const element = document.createElement('texaryn-form') as TexarynFormElement
       element.registry = registry
       if (messages) element.messages = messages
+      if (summary) element.errorSummary = true
       element.runtime = runtime
       host.append(element)
       return {

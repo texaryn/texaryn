@@ -9,6 +9,8 @@ import type {
 import { nextInstancePrefix } from './ids.js'
 import { mountForm } from './mount.js'
 import type { Mount } from './mount.js'
+import { mountErrorSummary } from './summary.js'
+import type { ErrorSummaryMount } from './summary.js'
 import type { WidgetFactory } from './widget.js'
 
 /**
@@ -28,6 +30,8 @@ export interface TexarynFormElement extends HTMLElement {
   /** The whole set, or English. Setting it on a mounted element switches the copy in place. */
   messages: FormMessages
   readonly idPrefix: string
+  /** Reflected to the `error-summary` attribute. While true, the summary is the first child of the element's form. */
+  errorSummary: boolean
 }
 
 let elementClass: CustomElementConstructor | null = null
@@ -42,6 +46,10 @@ export function texarynFormElementClass(): CustomElementConstructor {
   if (elementClass) return elementClass
 
   class TexarynForm extends HTMLElement {
+    static get observedAttributes(): string[] {
+      return ['error-summary']
+    }
+
     #external: FormRuntime | null = null
     #owned: FormRuntime | null = null
     #port: SchemaEvaluationPort | null = null
@@ -54,6 +62,8 @@ export function texarynFormElementClass(): CustomElementConstructor {
     #mountedRegistry: RendererRegistry<WidgetFactory> | null = null
     #unsubscribe: Array<() => void> = []
     #prefix: string | null = null
+    #errorSummary = false
+    #summary: ErrorSummaryMount | null = null
 
     /** The element's own id when it has one on first use, else an allocated `texaryn-<n>`; fixed for the element's lifetime. */
     get idPrefix(): string {
@@ -112,6 +122,21 @@ export function texarynFormElementClass(): CustomElementConstructor {
       this.#mount?.setMessages(this.#messages)
     }
 
+    get errorSummary(): boolean {
+      return this.#errorSummary
+    }
+    set errorSummary(on: boolean) {
+      const next = Boolean(on)
+      if (next === this.#errorSummary) return
+      this.#errorSummary = next
+      this.toggleAttribute('error-summary', next)
+      this.#reconcileSummary()
+    }
+
+    attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
+      if (name === 'error-summary') this.errorSummary = value !== null
+    }
+
     connectedCallback(): void {
       this.#render()
     }
@@ -143,6 +168,7 @@ export function texarynFormElementClass(): CustomElementConstructor {
       })
       this.#mountedRuntime = runtime
       this.#mountedRegistry = this.#registry
+      this.#reconcileSummary()
       this.#unsubscribe.push(
         runtime.data.subscribe(() => {
           this.dispatchEvent(
@@ -176,10 +202,21 @@ export function texarynFormElementClass(): CustomElementConstructor {
     #unmount(): void {
       for (const off of this.#unsubscribe) off()
       this.#unsubscribe = []
+      this.#summary?.unmount()
+      this.#summary = null
       this.#mount?.unmount()
       this.#mount = null
       this.#mountedRuntime = null
       this.#mountedRegistry = null
+    }
+
+    #reconcileSummary(): void {
+      const wanted = this.#errorSummary && this.#mount !== null && this.#form !== null
+      if (wanted && !this.#summary) this.#summary = mountErrorSummary(this.#form!, this.#mount!)
+      if (!wanted && this.#summary) {
+        this.#summary.unmount()
+        this.#summary = null
+      }
     }
 
     #dispose(): void {

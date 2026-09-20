@@ -1,7 +1,7 @@
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { FormMessages, FormRuntime, RendererRegistry } from '@texaryn/core'
-import { FormProvider, FormRoot } from '@texaryn/react'
+import { ErrorSummary, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 import type { DomAccessibilityAdapter } from '../renderer-dom-accessibility-contract.js'
 
@@ -18,7 +18,7 @@ export function reactAdapter(
   const registry = createRegistry()
   return {
     name,
-    async mount({ runtime, host, messages }) {
+    async mount({ runtime, host, messages, summary }) {
       const root = createRoot(host)
       const render = async (current: FormMessages | undefined, rt: FormRuntime) => {
         await act(async () => {
@@ -26,6 +26,7 @@ export function reactAdapter(
             createElement(
               FormProvider,
               { value: rt, messages: current },
+              summary ? createElement(ErrorSummary) : null,
               createElement(FormRoot, { registry }),
             ),
           )
@@ -37,6 +38,7 @@ export function reactAdapter(
         async act(run) {
           await act(async () => {
             run()
+            await new Promise((resolve) => setTimeout(resolve, 0))
           })
         },
         async setMessages(next) {

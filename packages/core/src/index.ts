@@ -90,3 +90,4 @@ export type { ReconcileOptions, IdentityKey, IdentitySegment } from './identity/
 
 export type { WidgetTester, WidgetEntry, RendererRegistry } from './renderer/index.js'
 export { createRendererRegistry } from './renderer/index.js'
+export { visibleErrorLabel, visibleErrorMessages } from './renderer/index.js'

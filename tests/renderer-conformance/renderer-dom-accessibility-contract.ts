@@ -45,6 +45,8 @@ export interface DomAccessibilityAdapter {
     runtime: FormRuntime
     host: HTMLElement
     messages?: FormMessages
+    /** Render the binding's error summary above the form. */
+    summary?: boolean
   }): Promise<MountedSurface> | MountedSurface
 }
 
@@ -73,6 +75,15 @@ const requiredSchema = {
     nickname: { type: 'string', title: 'Nickname' },
   },
   required: ['name'],
+}
+
+const twoRequiredSchema = {
+  type: 'object',
+  properties: {
+    first: { type: 'string', title: 'First', minLength: 1 },
+    second: { type: 'string', title: 'Second', minLength: 1 },
+  },
+  required: ['first', 'second'],
 }
 
 const kindsSchema = {
@@ -250,12 +261,13 @@ export function rendererDomAccessibilityContract({
     data: unknown,
     hints?: UIHints,
     messages?: FormMessages,
+    summary?: boolean,
   ): Promise<{ surface: MountedSurface; runtime: FormRuntime; q: ReturnType<typeof within> }> {
     const port = await createJsonSchemaAdapter(schema)
     const runtime = createFormRuntime(port, { initialData: data, hints, validationDebounceMs: 0 })
     runtimes.push(runtime)
     const host = document.body.appendChild(document.createElement('div'))
-    const surface = await adapter.mount({ runtime, host, messages })
+    const surface = await adapter.mount({ runtime, host, messages, summary })
     surfaces.push(surface)
     return { surface, runtime, q: within(surface.root) }
   }
@@ -714,6 +726,118 @@ export function rendererDomAccessibilityContract({
         expect(computeAccessibleName(add)).toMatch(/^Add\b/)
         expect(q.queryAllByRole('button', { name: /^Move up\b/ })).toEqual(ups)
         expect(labelOf(required)).toBe('Full Name (required)')
+      })
+    })
+
+    // The summary is a navigation aid over visibleErrors, identical in every
+    // family: links into the surface's own namespace, and no live region.
+    describe('error summary', () => {
+      const summaryOf = (root: HTMLElement) => root.querySelector('ul')?.parentElement ?? null
+
+      async function failSubmit(surface: MountedSurface, runtime: FormRuntime): Promise<void> {
+        await surface.act(() => {
+          runtime.dispatch({ type: 'Submit' })
+        })
+      }
+
+      function expectLinksInside(root: HTMLElement, q: ReturnType<typeof within>): void {
+        const links = q.getAllByRole('link')
+        expect(links.map((a: HTMLElement) => a.textContent)).toEqual(['First', 'Second'])
+        for (const link of links) {
+          const target = document.getElementById((link.getAttribute('href') ?? '').slice(1))
+          expect(target).toBeInstanceOf(HTMLInputElement)
+          expect(root.contains(target)).toBe(true)
+        }
+        expect(document.getElementById((links[0].getAttribute('href') ?? '').slice(1))).toBe(
+          q.getByRole('textbox', { name: 'First' }),
+        )
+      }
+
+      it('renders nothing before a submit', async () => {
+        const { surface, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        expect(q.queryAllByRole('link')).toEqual([])
+        expect(summaryOf(surface.root)).toBeNull()
+      })
+
+      it('links each visible error to the input the renderer mounted', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          undefined,
+          undefined,
+          true,
+        )
+        await failSubmit(surface, runtime)
+        expectLinksInside(surface.root, q)
+        const items = q.getAllByRole('listitem')
+        expect(items[0].textContent).toBe(`First: ${errorTextOf(runtime, nodeAt(runtime, '/first'))}`)
+      })
+
+      it('follows the store: two, one, none', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } },
+          undefined,
+          true,
+        )
+        await failSubmit(surface, runtime)
+        const list = q.getByRole('list')
+        expect(q.getAllByRole('listitem')).toHaveLength(2)
+
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/first'), value: 'a' })
+        })
+        expect(q.getByRole('list')).toBe(list)
+        expect(q.getAllByRole('listitem')).toHaveLength(1)
+        expect(q.getByRole('link').textContent).toBe('Second')
+
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/second'), value: 'b' })
+        })
+        expect(q.queryByRole('list')).toBeNull()
+        expect(summaryOf(surface.root)).toBeNull()
+      })
+
+      it('is not a live region', async () => {
+        const { surface, runtime } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          undefined,
+          undefined,
+          true,
+        )
+        await failSubmit(surface, runtime)
+        const summary = summaryOf(surface.root)!
+        expect(summary.closest('[aria-live], [aria-atomic], [role="alert"]')).toBeNull()
+        expect(summary.querySelector('[aria-live], [aria-atomic], [role="alert"]')).toBeNull()
+      })
+
+      it('two runtimes on one page each link inside their own surface', async () => {
+        const first = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        const second = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        await failSubmit(first.surface, first.runtime)
+        await failSubmit(second.surface, second.runtime)
+        expectLinksInside(first.surface.root, first.q)
+        expectLinksInside(second.surface.root, second.q)
+      })
+
+      it('one runtime rendered twice gives two summaries, each linking inside its own surface', async () => {
+        const port = await createJsonSchemaAdapter(twoRequiredSchema)
+        const runtime = createFormRuntime(port, {
+          initialData: { first: '', second: '' },
+          validationDebounceMs: 0,
+        })
+        runtimes.push(runtime)
+        const hosts = [0, 1].map(() => document.body.appendChild(document.createElement('div')))
+        const first = await adapter.mount({ runtime, host: hosts[0], summary: true })
+        const second = await adapter.mount({ runtime, host: hosts[1], summary: true })
+        surfaces.push(first, second)
+
+        await failSubmit(first, runtime)
+        await second.act(() => {})
+        expectLinksInside(first.root, within(first.root))
+        expectLinksInside(second.root, within(second.root))
       })
     })
 

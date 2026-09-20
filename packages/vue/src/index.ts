@@ -27,6 +27,7 @@ export type { FieldAria } from './field-props.js'
 
 export type { WidgetComponent } from './widget.js'
 export { FormRoot } from './components/FormRoot.js'
+export { ErrorSummary } from './components/ErrorSummary.js'
 export { NodeRenderer } from './components/NodeRenderer.js'
 
 export { FieldErrors } from './widgets/FieldErrors.js'
