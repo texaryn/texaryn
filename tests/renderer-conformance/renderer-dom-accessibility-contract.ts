@@ -21,8 +21,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { within } from '@testing-library/dom'
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { createFormRuntime, englishMessages } from '@texaryn/core'
-import type { FormMessages, FormRuntime, NodeId, UIHints } from '@texaryn/core'
+import { createFormRuntime, englishMessages, visibleErrorMessages } from '@texaryn/core'
+import type { FormMessages, FormRuntime, NodeId, SchemaEvaluationPort, UIHints } from '@texaryn/core'
 
 /** How one binding puts a runtime on the page. Everything else is shared. */
 export interface MountedSurface {
@@ -45,8 +45,8 @@ export interface DomAccessibilityAdapter {
     runtime: FormRuntime
     host: HTMLElement
     messages?: FormMessages
-    /** Render the binding's error summary above the form. */
-    summary?: boolean
+    /** Render the binding's error summary above the form; an object turns its focus off. */
+    summary?: boolean | { focus: boolean }
   }): Promise<MountedSurface> | MountedSurface
 }
 
@@ -263,7 +263,7 @@ export function rendererDomAccessibilityContract({
     data: unknown,
     hints?: UIHints,
     messages?: FormMessages,
-    summary?: boolean,
+    summary?: boolean | { focus: boolean },
   ): Promise<{ surface: MountedSurface; runtime: FormRuntime; q: ReturnType<typeof within> }> {
     const port = await createJsonSchemaAdapter(schema)
     const runtime = createFormRuntime(port, { initialData: data, hints, validationDebounceMs: 0 })
@@ -840,6 +840,184 @@ export function rendererDomAccessibilityContract({
         await second.act(() => {})
         expectLinksInside(first.root, within(first.root))
         expectLinksInside(second.root, within(second.root))
+      })
+
+      const changeHints = { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } } as const
+      const groupOf = (q: ReturnType<typeof within>) => q.getByRole('group') as HTMLElement
+
+      it('is a named group with tabindex -1 headed by its own h2', async () => {
+        const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        await failSubmit(surface, runtime)
+        const group = q.getByRole('group', { name: 'There are 2 problems' })
+        expect(group.getAttribute('tabindex')).toBe('-1')
+        const heading = group.querySelector('h2')!
+        expect(group.firstElementChild).toBe(heading)
+        expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
+        expect(heading.id).toMatch(/-error-summary-heading$/)
+        expect(document.activeElement).toBe(group)
+      })
+
+      it('focuses the summary that blur validation already showed, once', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          { '/first': { validationTrigger: 'blur' } },
+          undefined,
+          true,
+        )
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetTouched', nodeId: nodeAt(runtime, '/first') })
+        })
+        const group = groupOf(q)
+        expect(document.activeElement).not.toBe(group)
+        let focuses = 0
+        group.addEventListener('focus', () => {
+          focuses += 1
+        })
+        await failSubmit(surface, runtime)
+        expect(q.getByRole('group')).toBe(group)
+        expect(document.activeElement).toBe(group)
+        expect(focuses).toBe(1)
+      })
+
+      it('counts accepted attempts: a Submit during validation focuses nothing extra', async () => {
+        const port = await createJsonSchemaAdapter(twoRequiredSchema)
+        const slow: SchemaEvaluationPort = {
+          ...port,
+          validate: async (...args: Parameters<SchemaEvaluationPort['validate']>) => {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+            return port.validate(...args)
+          },
+        }
+        const runtime = createFormRuntime(slow, { initialData: { first: '', second: '' }, validationDebounceMs: 0 })
+        runtimes.push(runtime)
+        const host = document.body.appendChild(document.createElement('div'))
+        const surface = await adapter.mount({ runtime, host, summary: true })
+        surfaces.push(surface)
+        let focuses = 0
+        host.addEventListener('focusin', () => {
+          focuses += 1
+        })
+        await surface.act(() => {
+          runtime.dispatch({ type: 'Submit' })
+          runtime.dispatch({ type: 'Submit' })
+        })
+        expect(runtime.submission.getSnapshot().attempts).toBe(1)
+        expect(document.activeElement).toBe(within(host).getByRole('group'))
+        expect(focuses).toBe(1)
+      })
+
+      it('refocuses on the next failed attempt after focus moved away', async () => {
+        const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        await failSubmit(surface, runtime)
+        const group = groupOf(q)
+        q.getByRole('textbox', { name: 'First' }).focus()
+        await failSubmit(surface, runtime)
+        expect(document.activeElement).toBe(group)
+      })
+
+      it('moves nothing on a successful submit', async () => {
+        const { surface, runtime, q } = await mount(twoRequiredSchema, { first: 'a', second: 'b' }, undefined, undefined, true)
+        const input = q.getByRole('textbox', { name: 'First' })
+        input.focus()
+        await failSubmit(surface, runtime)
+        expect(runtime.submission.getSnapshot().attempts).toBe(1)
+        expect(q.queryByRole('group')).toBeNull()
+        expect(document.activeElement).toBe(input)
+      })
+
+      it('focuses again after a Reset and another failed attempt', async () => {
+        const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        await failSubmit(surface, runtime)
+        expect(document.activeElement).toBe(groupOf(q))
+        await surface.act(() => {
+          runtime.dispatch({ type: 'Reset', data: { first: '', second: '' } })
+        })
+        expect(q.queryByRole('group')).toBeNull()
+        q.getByRole('textbox', { name: 'First' }).focus()
+        await failSubmit(surface, runtime)
+        expect(document.activeElement).toBe(groupOf(q))
+      })
+
+      it('does not focus a summary mounted after an old failed attempt', async () => {
+        const port = await createJsonSchemaAdapter(twoRequiredSchema)
+        const runtime = createFormRuntime(port, { initialData: { first: '', second: '' }, validationDebounceMs: 0 })
+        runtimes.push(runtime)
+        runtime.dispatch({ type: 'Submit' })
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        const host = document.body.appendChild(document.createElement('div'))
+        const surface = await adapter.mount({ runtime, host, summary: true })
+        surfaces.push(surface)
+        await surface.act(() => {})
+        expect(within(host).getByRole('group')).toBeTruthy()
+        expect(document.activeElement).toBe(document.body)
+      })
+
+      it('stays passive with focus off', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          undefined,
+          undefined,
+          { focus: false },
+        )
+        const input = q.getByRole('textbox', { name: 'First' })
+        input.focus()
+        await failSubmit(surface, runtime)
+        expect(groupOf(q)).toBeTruthy()
+        expect(document.activeElement).toBe(input)
+      })
+
+      it('one runtime rendered twice focuses only the summary left on', async () => {
+        const port = await createJsonSchemaAdapter(twoRequiredSchema)
+        const runtime = createFormRuntime(port, { initialData: { first: '', second: '' }, validationDebounceMs: 0 })
+        runtimes.push(runtime)
+        const hosts = [0, 1].map(() => document.body.appendChild(document.createElement('div')))
+        const first = await adapter.mount({ runtime, host: hosts[0], summary: true })
+        const second = await adapter.mount({ runtime, host: hosts[1], summary: { focus: false } })
+        surfaces.push(first, second)
+        await failSubmit(first, runtime)
+        await second.act(() => {})
+        expect(document.activeElement).toBe(within(first.root).getByRole('group'))
+        expect(within(second.root).getByRole('group')).toBeTruthy()
+      })
+
+      it('heads and details the summary from the configured messages, with no English', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          undefined,
+          otherMessages,
+          true,
+        )
+        await failSubmit(surface, runtime)
+        const group = q.getByRole('group', { name: 'Il y a 2 problèmes' })
+        expect(document.activeElement).toBe(group)
+        expect(q.queryByRole('group', { name: /^There (is|are)\b/ })).toBeNull()
+        for (const li of q.getAllByRole('listitem')) {
+          expect(li.textContent).toMatch(/^(First|Second) : ./)
+        }
+      })
+
+      it('keeps the focused summary through a locale switch', async () => {
+        const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
+        await failSubmit(surface, runtime)
+        const group = groupOf(q)
+        const link = q.getAllByRole('link')[0]
+        await surface.setMessages(otherMessages)
+        expect(q.getByRole('group', { name: 'Il y a 2 problèmes' })).toBe(group)
+        expect(q.getAllByRole('link')[0]).toBe(link)
+        expect(document.activeElement).toBe(group)
+      })
+
+      it('renders exactly the detail the messages produce', async () => {
+        const { surface, runtime, q } = await mount(twoMessageSchema, { code: 'A1' }, changeHints, undefined, true)
+        await failSubmit(surface, runtime)
+        const [entry] = runtime.visibleErrors.getSnapshot()
+        expect(visibleErrorMessages(entry).length).toBeGreaterThan(1)
+        expect(q.getByRole('listitem').textContent).toBe(
+          `Code${englishMessages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })}`,
+        )
       })
     })
 

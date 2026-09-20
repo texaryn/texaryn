@@ -24,6 +24,7 @@ export function vueAdapter(
       // the harness has to supply what a page with two independent apps would:
       // distinct idPrefixes. Within one app the binding handles it alone.
       apps += 1
+      const focus = typeof summary === 'object' ? summary.focus : true
       const current = ref<FormMessages | undefined>(messages)
       const wrapper = mount(
         defineComponent({
@@ -31,7 +32,7 @@ export function vueAdapter(
             provideFormRuntime(runtime, { messages: current })
             return () =>
               summary
-                ? [h(ErrorSummary), h(FormRoot, { registry })]
+                ? [h(ErrorSummary, { focus }), h(FormRoot, { registry })]
                 : h(FormRoot, { registry })
           },
         }),

@@ -20,13 +20,14 @@ export function reactAdapter(
     name,
     async mount({ runtime, host, messages, summary }) {
       const root = createRoot(host)
+      const focus = typeof summary === 'object' ? summary.focus : true
       const render = async (current: FormMessages | undefined, rt: FormRuntime) => {
         await act(async () => {
           root.render(
             createElement(
               FormProvider,
               { value: rt, messages: current },
-              summary ? createElement(ErrorSummary) : null,
+              summary ? createElement(ErrorSummary, { focus }) : null,
               createElement(FormRoot, { registry }),
             ),
           )
