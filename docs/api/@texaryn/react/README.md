@@ -14,6 +14,7 @@
 - [DomInputBaseProps](interfaces/DomInputBaseProps.md)
 - [DomValueInputProps](interfaces/DomValueInputProps.md)
 - [ErrorProps](interfaces/ErrorProps.md)
+- [ErrorSummaryProps](interfaces/ErrorSummaryProps.md)
 - [FieldBinding](interfaces/FieldBinding.md)
 - [FieldErrorsProps](interfaces/FieldErrorsProps.md)
 - [FieldLabelContentProps](interfaces/FieldLabelContentProps.md)

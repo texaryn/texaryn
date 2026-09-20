@@ -35,6 +35,8 @@ const french: FormMessages = {
     accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
   }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
+  errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
+  errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
 }
 ```
 
@@ -50,6 +52,11 @@ relation on the rendered DOM.
 The required indicator returns its text and which side of the label it sits
 on. The binding keeps it out of the accessible name; `aria-required` already
 carries the state.
+
+The error summary's heading takes the number of items, and its detail returns
+the whole text that follows an item's link, punctuation included, so a locale
+decides its own colon and its own list separator. The link text itself is the
+field's label, a fact the binding supplies.
 
 A locale implements the whole interface. When Texaryn adds a message, a
 translated application fails to compile rather than rendering one English
@@ -107,6 +114,8 @@ function useTexarynMessages(): FormMessages {
       removeItem: (c) => ({ label: t('form.remove'), accessibleName: t('form.removeName', c) }),
       moveItemUp: (c) => ({ label: t('form.up'), accessibleName: t('form.upName', c) }),
       requiredIndicator: () => ({ text: t('form.required'), placement: 'after' }),
+      errorSummaryHeading: (c) => t('form.summaryHeading', c),
+      errorSummaryDetail: (c) => t('form.summaryDetail', c),
     }),
     [t],
   )
@@ -129,5 +138,6 @@ widget in English while the form around it translates.
 ## What is not covered
 
 Validation messages come from the schema evaluator, not from Texaryn, and are
-not part of this contract. The error summary's copy is decided with the error
-summary work. Texaryn sets no text direction; that is the host document's.
+not part of this contract. The error summary's focus behaviour is ADR-005's,
+not this contract's. Texaryn sets no text direction; that is the host
+document's.

@@ -14,6 +14,14 @@
 
 ***
 
+### messages
+
+> `readonly` **messages**: [`FormMessages`](../../core/interfaces/FormMessages.md)
+
+The set in force, after any setMessages.
+
+***
+
 ### runtime
 
 > `readonly` **runtime**: [`FormRuntime`](../../core/interfaces/FormRuntime.md)

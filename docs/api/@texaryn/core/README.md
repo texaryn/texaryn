@@ -21,6 +21,9 @@
 - [DefaultConflict](interfaces/DefaultConflict.md)
 - [DefaultRefusal](interfaces/DefaultRefusal.md)
 - [EnumOption](interfaces/EnumOption.md)
+- [ErrorSummaryDetailContext](interfaces/ErrorSummaryDetailContext.md)
+- [ErrorSummaryHeadingContext](interfaces/ErrorSummaryHeadingContext.md)
+- [FailedSubmitTracker](interfaces/FailedSubmitTracker.md)
 - [FieldConstraints](interfaces/FieldConstraints.md)
 - [FieldHints](interfaces/FieldHints.md)
 - [FieldNode](interfaces/FieldNode.md)
@@ -80,6 +83,7 @@
 ## Functions
 
 - [compile](functions/compile.md)
+- [createFailedSubmitTracker](functions/createFailedSubmitTracker.md)
 - [createFormRuntime](functions/createFormRuntime.md)
 - [createIdentityMap](functions/createIdentityMap.md)
 - [createRendererRegistry](functions/createRendererRegistry.md)

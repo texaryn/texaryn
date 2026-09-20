@@ -223,9 +223,8 @@ English control.
 evaluator's copy rather than Texaryn's. Translating them means either a message
 layer over the port or a change upstream, and neither is decided here.
 
-**The error summary's copy is not covered.** Error summary parity for Vue and
-Web Components is the next piece of work, and its separators and any heading it
-grows are decided there, once, against this contract.
+**The error summary's copy is decided in ADR-005**, which adds
+`errorSummaryHeading` and `errorSummaryDetail` to the contract.
 
 **No message identifier namespace is published.** Stable identifiers with typed
 parameters, plus a `createFormMessages(t)` adapter, would give translation

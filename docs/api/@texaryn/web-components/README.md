@@ -10,6 +10,7 @@
 
 - [DomWidget](interfaces/DomWidget.md)
 - [ErrorSummaryMount](interfaces/ErrorSummaryMount.md)
+- [ErrorSummaryOptions](interfaces/ErrorSummaryOptions.md)
 - [Mount](interfaces/Mount.md)
 - [MountOptions](interfaces/MountOptions.md)
 - [NodeBinding](interfaces/NodeBinding.md)

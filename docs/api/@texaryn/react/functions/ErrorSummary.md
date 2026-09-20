@@ -6,12 +6,15 @@
 
 # Function: ErrorSummary()
 
-> **ErrorSummary**(): `Element` \| `null`
+> **ErrorSummary**(`__namedParameters`): `Element` \| `null`
 
-Deliberately not a live region. The fields already announce their own
-errors, so an aggregate one would speak the same validation event twice.
-What this needs instead is to become a focus destination after a failed
-submit, which is separate work.
+Not a live region: the fields announce their own errors, so the focus move after a failed submit is what speaks the heading.
+
+## Parameters
+
+### \_\_namedParameters
+
+[`ErrorSummaryProps`](../interfaces/ErrorSummaryProps.md)
 
 ## Returns
 

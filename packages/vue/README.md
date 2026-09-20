@@ -46,11 +46,12 @@ from `@texaryn/core`, as a value, a ref or a getter, and replaces every word
 the built-in widgets invent. Custom widgets read it with `useFormMessages()`,
 which returns a computed.
 
-`ErrorSummary` renders a jump-linked list of the runtime's visible errors and
-nothing while there are none. Each link targets the input the renderer mounted,
-`#<prefix>-<nodeId>-input`, so a custom widget that wants summary navigation
-gives its control that id. It is not a live region: the fields already announce
-their own errors.
+`ErrorSummary` renders a named group, headed by an `h2`, listing every visible
+error with a link to the input the renderer mounted, `#<prefix>-<nodeId>-input`,
+and nothing while there are none. It takes focus once a failed submit settles,
+once per attempt; pass `:focus="false"` on all but one summary when one
+runtime is rendered twice. It is not a live region: the fields already
+announce their own errors, and the focus move is what speaks the heading.
 
 `useForm` creates the runtime and ties it to the calling scope. Providing is a
 separate call rather than a side effect of construction: React's equivalent is

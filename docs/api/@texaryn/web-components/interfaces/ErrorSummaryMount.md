@@ -8,6 +8,22 @@
 
 ## Methods
 
+### setMessages()
+
+> **setMessages**(`messages`): `void`
+
+#### Parameters
+
+##### messages
+
+[`FormMessages`](../../core/interfaces/FormMessages.md)
+
+#### Returns
+
+`void`
+
+***
+
 ### unmount()
 
 > **unmount**(): `void`
