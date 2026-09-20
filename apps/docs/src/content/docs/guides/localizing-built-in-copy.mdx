@@ -3,12 +3,13 @@ title: Localizing built-in copy
 description: Replacing the words Texaryn's own widgets render, in any binding, from one typed set of messages.
 ---
 
-Texaryn's built-in widgets invent four pieces of copy of their own: the words
+Texaryn's built-in widgets invent six pieces of copy of their own: the words
 on an array's add, remove and move-up controls, together with each control's
-accessible name, and the marker that shows a field is required. Everything
-else on screen comes from the schema or from UI hints.
+accessible name, the marker that shows a field is required, and the error
+summary's heading and per-item detail. Everything else on screen comes from
+the schema or from UI hints.
 
-Those four are one contract, `FormMessages` in `@texaryn/core`, and every
+Those six are one contract, `FormMessages` in `@texaryn/core`, and every
 binding renders from it. English is the default. Supplying another set replaces
 every built-in word in every widget, including a layered widget set such as
 `@texaryn/react-mui`, which reads the same configuration through
