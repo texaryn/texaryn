@@ -71,15 +71,34 @@ describe('mountErrorSummary', () => {
     await flush()
     const list = container.querySelector('ul')!
 
+    const second = list.querySelectorAll('li')[1]
+
     rt.dispatch({ type: 'SetValue', nodeId: nodeAt(rt, '/first'), value: 'a' })
     await flush()
     expect(container.querySelector('ul')).toBe(list)
     expect(list.querySelectorAll('li')).toHaveLength(1)
     expect(list.querySelector('a')!.textContent).toBe('Second')
+    expect(list.querySelector('li')).toBe(second)
 
     rt.dispatch({ type: 'SetValue', nodeId: nodeAt(rt, '/second'), value: 'b' })
     await flush()
     expect(container.querySelector('ul')).toBeNull()
+  })
+
+  it('keeps a focused link through a validation refresh', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    const links = [...container.querySelectorAll('a')]
+    expect(links).toHaveLength(2)
+    links[1].focus()
+
+    rt.dispatch({ type: 'SetTouched', nodeId: nodeAt(rt, '/first') })
+    await flush()
+    expect([...container.querySelectorAll('a')]).toEqual(links)
+    expect(document.activeElement).toBe(links[1])
   })
 
   it('links inside the namespace the form was mounted under', async () => {
@@ -102,6 +121,7 @@ describe('mountErrorSummary', () => {
 
     summary.unmount()
     expect(container.querySelector('ul')).toBeNull()
+    expect(container.querySelector('input')).not.toBeNull()
     rt.dispatch({ type: 'SetValue', nodeId: nodeAt(rt, '/first'), value: 'a' })
     await flush()
     rt.dispatch({ type: 'Submit' })

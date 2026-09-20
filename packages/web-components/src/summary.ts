@@ -1,5 +1,5 @@
 import { visibleErrorLabel, visibleErrorMessages } from '@texaryn/core'
-import type { VisibleError } from '@texaryn/core'
+import type { NodeId, VisibleError } from '@texaryn/core'
 import { makeId } from './ids.js'
 import type { Mount } from './mount.js'
 
@@ -7,12 +7,17 @@ export interface ErrorSummaryMount {
   unmount(): void
 }
 
-function item(entry: VisibleError, idPrefix: string): HTMLLIElement {
-  const li = document.createElement('li')
-  const link = document.createElement('a')
+function updateItem(li: HTMLLIElement, entry: VisibleError, idPrefix: string): void {
+  const link = li.firstChild as HTMLAnchorElement
   link.href = `#${makeId(idPrefix, entry.nodeId, 'input')}`
   link.textContent = visibleErrorLabel(entry)
-  li.append(link, `: ${visibleErrorMessages(entry).join(', ')}`)
+  li.lastChild!.textContent = `: ${visibleErrorMessages(entry).join(', ')}`
+}
+
+function item(entry: VisibleError, idPrefix: string): HTMLLIElement {
+  const li = document.createElement('li')
+  li.append(document.createElement('a'), document.createTextNode(''))
+  updateItem(li, entry, idPrefix)
   return li
 }
 
@@ -22,6 +27,7 @@ export function mountErrorSummary(container: HTMLElement, form: Mount): ErrorSum
   const root = document.createElement('div')
   const list = document.createElement('ul')
   root.append(list)
+  const items = new Map<NodeId, HTMLLIElement>()
 
   const render = (): void => {
     const errors = runtime.visibleErrors.getSnapshot()
@@ -29,7 +35,31 @@ export function mountErrorSummary(container: HTMLElement, form: Mount): ErrorSum
       root.remove()
       return
     }
-    list.replaceChildren(...errors.map((entry) => item(entry, idPrefix)))
+    const seen = new Set<NodeId>()
+    const ordered = errors.map((entry) => {
+      seen.add(entry.nodeId)
+      const existing = items.get(entry.nodeId)
+      if (existing) {
+        updateItem(existing, entry, idPrefix)
+        return existing
+      }
+      const li = item(entry, idPrefix)
+      items.set(entry.nodeId, li)
+      return li
+    })
+    for (const [nodeId, li] of items) {
+      if (seen.has(nodeId)) continue
+      li.remove()
+      items.delete(nodeId)
+    }
+    let anchor = list.firstChild
+    for (const li of ordered) {
+      if (li === anchor) {
+        anchor = anchor.nextSibling
+      } else {
+        list.insertBefore(li, anchor)
+      }
+    }
     if (root.parentNode !== container) container.prepend(root)
   }
 

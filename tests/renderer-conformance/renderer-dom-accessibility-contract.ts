@@ -827,7 +827,6 @@ export function rendererDomAccessibilityContract({
         const runtime = createFormRuntime(port, {
           initialData: { first: '', second: '' },
           validationDebounceMs: 0,
-          hints: { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } },
         })
         runtimes.push(runtime)
         const hosts = [0, 1].map(() => document.body.appendChild(document.createElement('div')))
