@@ -644,7 +644,7 @@ export function rendererDomAccessibilityContract({
         for (const b of q.queryAllByRole('button', { name: /^Monter/ })) {
           expect(b.textContent?.trim()).toBe('Monter')
         }
-        expect(q.queryAllByRole('button', { name: /^(Remove|Add|Up)$/ })).toEqual([])
+        expect(q.queryAllByRole('button', { name: /^(Remove|Add|Move up)\b/ })).toEqual([])
       })
 
       it('places the required marker where the message says, outside the accessible name', async () => {
