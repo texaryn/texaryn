@@ -30,18 +30,18 @@ function ArrayControlImpl({ node }: WidgetProps) {
               // still works.
               <button
                 type="button"
-                aria-label={actions.removeName(index + 1, childNode)}
+                aria-label={actions.remove(index + 1, childNode).accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                Remove
+                {actions.remove(index + 1, childNode).label}
               </button>
             ) : null}
           </div>
         )
       })}
       {fieldArray.canAdd ? (
-        <button type="button" aria-label={actions.addName} onClick={() => fieldArray.add()}>
-          Add
+        <button type="button" aria-label={actions.add.accessibleName} onClick={() => fieldArray.add()}>
+          {actions.add.label}
         </button>
       ) : null}
     </div>

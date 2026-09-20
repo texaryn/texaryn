@@ -29,10 +29,10 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
                 variant="outlined"
                 color="error"
                 size="small"
-                aria-label={actions.removeName(index + 1, childNode)}
+                aria-label={actions.remove(index + 1, childNode).accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                Remove
+                {actions.remove(index + 1, childNode).label}
               </Button>
             ) : null}
           </Box>
@@ -40,8 +40,8 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
       })}
       {fieldArray.canAdd ? (
         <Box>
-          <Button variant="contained" aria-label={actions.addName} onClick={() => fieldArray.add()}>
-            Add
+          <Button variant="contained" aria-label={actions.add.accessibleName} onClick={() => fieldArray.add()}>
+            {actions.add.label}
           </Button>
         </Box>
       ) : null}

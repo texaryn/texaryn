@@ -25,10 +25,10 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
               <button
                 type="button"
                 className="btn btn-outline-danger btn-sm"
-                aria-label={actions.removeName(index + 1, childNode)}
+                aria-label={actions.remove(index + 1, childNode).accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                Remove
+                {actions.remove(index + 1, childNode).label}
               </button>
             ) : null}
           </div>
@@ -38,10 +38,10 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
         <button
           type="button"
           className="btn btn-primary"
-          aria-label={actions.addName}
+          aria-label={actions.add.accessibleName}
           onClick={() => fieldArray.add()}
         >
-          Add
+          {actions.add.label}
         </button>
       ) : null}
     </div>
