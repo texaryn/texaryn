@@ -24,4 +24,6 @@ export const englishMessages: FormMessages = {
     accessibleName: withContainer(`Move up ${itemTitle ?? 'item'} ${position}`, 'in', containerTitle),
   }),
   requiredIndicator: () => ({ text: '(required)', placement: 'after' }),
+  errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),
+  errorSummaryDetail: ({ messages }) => `: ${messages.join(', ')}`,
 }

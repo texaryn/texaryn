@@ -65,4 +65,15 @@ describe('englishMessages', () => {
       }
     }
   })
+
+  it('heads the summary by the number of items', () => {
+    expect(englishMessages.errorSummaryHeading({ count: 1 })).toBe('There is a problem')
+    expect(englishMessages.errorSummaryHeading({ count: 3 })).toBe('There are 3 problems')
+  })
+
+  it('writes the whole detail after a link, punctuation included', () => {
+    expect(englishMessages.errorSummaryDetail({ messages: ['Required'] })).toBe(': Required')
+    expect(englishMessages.errorSummaryDetail({ messages: ['Too short', 'Bad format'] })).toBe(': Too short, Bad format')
+    expect(englishMessages.errorSummaryDetail({ messages: [] })).toBe(': ')
+  })
 })

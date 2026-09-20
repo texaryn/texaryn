@@ -199,6 +199,8 @@ const otherMessages: FormMessages = {
     accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
   }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
+  errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
+  errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
 }
 
 const IDREF_ATTRIBUTES = [
