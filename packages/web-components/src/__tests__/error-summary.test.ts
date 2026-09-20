@@ -302,4 +302,72 @@ describe('<texaryn-form error-summary>', () => {
     await flush()
     expect(form.querySelector('ul')).toBeNull()
   })
+
+  it('follows a runtime replacement with one summary bound to the new runtime', async () => {
+    const a = await makeRuntime()
+    const b = createFormRuntime(await adapterFor(schema), {
+      initialData: { first: '', second: '' },
+      validationDebounceMs: 0,
+      hints: { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } },
+    })
+    const el = element()
+    el.errorSummary = true
+    el.runtime = a
+    document.body.append(el)
+    await failSubmit(a)
+
+    const form = el.querySelector('form')!
+    const oldSummary = form.firstElementChild!
+    const firstHref = form.querySelector('a')!.getAttribute('href') ?? ''
+    const firstTarget = document.getElementById(firstHref.slice(1))
+    expect(firstTarget).toBeInstanceOf(HTMLInputElement)
+    expect(form.contains(firstTarget)).toBe(true)
+
+    el.runtime = b
+    await flush()
+    expect(form.querySelectorAll('ul')).toHaveLength(0)
+    expect(oldSummary.isConnected).toBe(false)
+
+    await failSubmit(b)
+    expect(form.querySelectorAll('ul')).toHaveLength(1)
+    const newHref = form.querySelector('a')!.getAttribute('href') ?? ''
+    const newTarget = document.getElementById(newHref.slice(1))
+    expect(newTarget).toBeInstanceOf(HTMLInputElement)
+    expect(form.contains(newTarget)).toBe(true)
+    expect(newTarget!.id).toContain(nodeAt(b, '/first'))
+
+    a.dispatch({ type: 'SetValue', nodeId: nodeAt(a, '/first'), value: 'a' })
+    await flush()
+    expect(form.querySelectorAll('li')).toHaveLength(2)
+
+    b.destroy()
+  })
+
+  it('rebuilds the summary when the managed port is replaced', async () => {
+    const el = element()
+    el.errorSummary = true
+    el.options = { initialData: { first: '', second: '' }, validationDebounceMs: 0 }
+    el.port = await adapterFor(schema)
+    document.body.append(el)
+    await flush()
+
+    const first = el.runtime!
+    await failSubmit(first)
+    const form = el.querySelector('form')!
+    const oldSummary = form.firstElementChild!
+    expect(form.querySelectorAll('ul')).toHaveLength(1)
+
+    el.port = await adapterFor(schema)
+    await flush()
+    expect(el.runtime).not.toBe(first)
+    expect(form.querySelectorAll('ul')).toHaveLength(0)
+    expect(oldSummary.isConnected).toBe(false)
+
+    await failSubmit(el.runtime!)
+    expect(form.querySelectorAll('ul')).toHaveLength(1)
+    const href = form.querySelector('a')!.getAttribute('href') ?? ''
+    const target = document.getElementById(href.slice(1))
+    expect(target).toBeInstanceOf(HTMLInputElement)
+    expect(form.contains(target)).toBe(true)
+  })
 })
