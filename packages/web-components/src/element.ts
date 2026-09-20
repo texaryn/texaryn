@@ -32,6 +32,8 @@ export interface TexarynFormElement extends HTMLElement {
   readonly idPrefix: string
   /** Reflected to the `error-summary` attribute. While true, the summary is the first child of the element's form. */
   errorSummary: boolean
+  /** Reflected as the `error-summary` value `no-focus`. Off for all but one summary when one runtime is rendered twice. */
+  errorSummaryFocus: boolean
 }
 
 let elementClass: CustomElementConstructor | null = null
@@ -64,6 +66,7 @@ export function texarynFormElementClass(): CustomElementConstructor {
     #prefix: string | null = null
     #errorSummary = false
     #summary: ErrorSummaryMount | null = null
+    #errorSummaryFocus = true
 
     /** The element's own id when it has one on first use, else an allocated `texaryn-<n>`; fixed for the element's lifetime. */
     get idPrefix(): string {
@@ -120,6 +123,7 @@ export function texarynFormElementClass(): CustomElementConstructor {
     set messages(messages: FormMessages) {
       this.#messages = messages ?? englishMessages
       this.#mount?.setMessages(this.#messages)
+      this.#summary?.setMessages(this.#messages)
     }
 
     get errorSummary(): boolean {
@@ -129,12 +133,30 @@ export function texarynFormElementClass(): CustomElementConstructor {
       const next = Boolean(on)
       if (next === this.#errorSummary) return
       this.#errorSummary = next
-      this.toggleAttribute('error-summary', next)
+      if (next) this.setAttribute('error-summary', this.#errorSummaryFocus ? '' : 'no-focus')
+      else this.removeAttribute('error-summary')
       this.#reconcileSummary()
     }
 
+    get errorSummaryFocus(): boolean {
+      return this.#errorSummaryFocus
+    }
+    set errorSummaryFocus(on: boolean) {
+      const next = Boolean(on)
+      if (next === this.#errorSummaryFocus) return
+      this.#errorSummaryFocus = next
+      if (this.#errorSummary) this.setAttribute('error-summary', next ? '' : 'no-focus')
+      if (this.#summary) {
+        this.#summary.unmount()
+        this.#summary = null
+        this.#reconcileSummary()
+      }
+    }
+
     attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
-      if (name === 'error-summary') this.errorSummary = value !== null
+      if (name !== 'error-summary') return
+      this.errorSummary = value !== null
+      if (value !== null) this.errorSummaryFocus = value !== 'no-focus'
     }
 
     connectedCallback(): void {
@@ -212,7 +234,9 @@ export function texarynFormElementClass(): CustomElementConstructor {
 
     #reconcileSummary(): void {
       const wanted = this.#errorSummary && this.#mount !== null && this.#form !== null
-      if (wanted && !this.#summary) this.#summary = mountErrorSummary(this.#form!, this.#mount!)
+      if (wanted && !this.#summary) {
+        this.#summary = mountErrorSummary(this.#form!, this.#mount!, { focus: this.#errorSummaryFocus })
+      }
       if (!wanted && this.#summary) {
         this.#summary.unmount()
         this.#summary = null

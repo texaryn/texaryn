@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { createFormRuntime, createStore } from '@texaryn/core'
+import { createFormRuntime, createStore, englishMessages } from '@texaryn/core'
 import type {
   FormRuntime,
   InitializationReport,
   NodeId,
+  SchemaEvaluationPort,
   SubmissionState,
   UIDocument,
   VisibleError,
@@ -66,6 +67,7 @@ function mockMount(store: ReturnType<typeof createStore<VisibleError[]>>): Mount
   return {
     runtime: stub,
     idPrefix: 'f',
+    messages: englishMessages,
     setMessages: () => {},
     unmount: () => {},
   }
@@ -203,6 +205,107 @@ describe('mountErrorSummary', () => {
     rt.dispatch({ type: 'Submit' })
     await flush()
     expect(container.querySelector('ul')).toBeNull()
+  })
+
+  it('is a named group headed and detailed by the messages', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    const group = container.querySelector('[role="group"]')!
+    expect(group).toBe(container.firstElementChild)
+    expect(group.getAttribute('tabindex')).toBe('-1')
+    const heading = group.querySelector('h2')!
+    expect(group.firstElementChild).toBe(heading)
+    expect(heading.id).toBe('f-error-summary-heading')
+    expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
+    expect(heading.textContent).toBe('There are 2 problems')
+    expect(container.querySelector('li')!.textContent).toMatch(/^First: ./)
+  })
+
+  it('focuses the group once a failed submit settles, and again on the next attempt', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    const group = container.querySelector('[role="group"]')!
+    expect(document.activeElement).toBe(group)
+
+    container.querySelector('input')!.focus()
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    expect(document.activeElement).toBe(group)
+  })
+
+  it('leaves focus alone with focus off, and after a late mount', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    const form = mountForm(container, rt, { registry, idPrefix: 'f' })
+    const passive = mountErrorSummary(container, form, { focus: false })
+    const input = container.querySelector('input')!
+    input.focus()
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    expect(container.querySelector('[role="group"]')).not.toBeNull()
+    expect(document.activeElement).toBe(input)
+
+    passive.unmount()
+    input.blur()
+    mountErrorSummary(container, form)
+    expect(container.querySelector('[role="group"]')).not.toBeNull()
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('does not focus when submit validation throws, even over visible errors', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const port = await adapterFor(schema)
+    let fail = false
+    const flaky: SchemaEvaluationPort = {
+      ...port,
+      validate: (...args: Parameters<SchemaEvaluationPort['validate']>) =>
+        fail ? Promise.reject(new Error('evaluator down')) : port.validate(...args),
+    }
+    runtime = createFormRuntime(flaky, {
+      initialData: { first: '', second: '' },
+      validationDebounceMs: 0,
+      hints: { '/first': { validationTrigger: 'blur' } },
+    })
+    const rt = runtime
+    mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
+    rt.dispatch({ type: 'SetTouched', nodeId: nodeAt(rt, '/first') })
+    await flush()
+    expect(container.querySelector('[role="group"]')).not.toBeNull()
+
+    fail = true
+    const input = container.querySelector('input')!
+    input.focus()
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    expect(rt.submission.getSnapshot().error).toBeDefined()
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('follows a messages switch on the mounted summary without losing focus', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const rt = await makeRuntime()
+    const form = mountForm(container, rt, { registry, idPrefix: 'f' })
+    const summary = mountErrorSummary(container, form)
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    const group = container.querySelector('[role="group"]')!
+    const link = container.querySelector('a')!
+    summary.setMessages({
+      ...englishMessages,
+      errorSummaryHeading: ({ count }) => `Il y a ${count} problèmes`,
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+    })
+    expect(container.querySelector('[role="group"]')).toBe(group)
+    expect(container.querySelector('a')).toBe(link)
+    expect(group.querySelector('h2')!.textContent).toBe('Il y a 2 problèmes')
+    expect(container.querySelector('li')!.textContent).toMatch(/^First : ./)
+    expect(document.activeElement).toBe(group)
   })
 })
 
@@ -369,5 +472,48 @@ describe('<texaryn-form error-summary>', () => {
     const target = document.getElementById(href.slice(1))
     expect(target).toBeInstanceOf(HTMLInputElement)
     expect(form.contains(target)).toBe(true)
+  })
+
+  it('reads no-focus from the attribute and reflects errorSummaryFocus', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.setAttribute('error-summary', 'no-focus')
+    el.runtime = rt
+    document.body.append(el)
+    expect(el.errorSummary).toBe(true)
+    expect(el.errorSummaryFocus).toBe(false)
+    const input = el.querySelector('input')!
+    input.focus()
+    await failSubmit(rt)
+    expect(el.querySelector('[role="group"]')).not.toBeNull()
+    expect(document.activeElement).toBe(input)
+
+    el.errorSummaryFocus = true
+    expect(el.getAttribute('error-summary')).toBe('')
+    input.focus()
+    await failSubmit(rt)
+    expect(document.activeElement).toBe(el.querySelector('[role="group"]'))
+
+    el.errorSummaryFocus = false
+    expect(el.getAttribute('error-summary')).toBe('no-focus')
+    el.errorSummary = false
+    expect(el.hasAttribute('error-summary')).toBe(false)
+    el.errorSummary = true
+    expect(el.getAttribute('error-summary')).toBe('no-focus')
+  })
+
+  it('forwards a messages change to the summary', async () => {
+    const rt = await makeRuntime()
+    const el = element()
+    el.errorSummary = true
+    el.runtime = rt
+    document.body.append(el)
+    await failSubmit(rt)
+    el.messages = {
+      ...englishMessages,
+      errorSummaryHeading: ({ count }) => `Il y a ${count} problèmes`,
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+    }
+    expect(el.querySelector('h2')!.textContent).toBe('Il y a 2 problèmes')
   })
 })
