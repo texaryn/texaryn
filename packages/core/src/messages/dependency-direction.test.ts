@@ -16,9 +16,12 @@ function filesUnder(dir: string): string[] {
 // its state and its schema port must not know it exists.
 describe('the messages module', () => {
   it.each(['runtime', 'commands', 'state', 'schema'])('is not imported from %s', (dir) => {
-    const offenders = filesUnder(join(src, dir)).filter((file) =>
-      /from\s+['"][^'"]*messages\//.test(readFileSync(file, 'utf8')),
-    )
+    // The core barrel re-exports the messages module, so importing it counts too.
+    const offenders = filesUnder(join(src, dir))
+      .filter((file) => !file.includes('__tests__') && !file.includes('.test.'))
+      .filter((file) =>
+        /from\s+['"](?:[^'"]*messages\/[^'"]*|\.\.\/index\.js)['"]/.test(readFileSync(file, 'utf8')),
+      )
     expect(offenders).toEqual([])
   })
 })

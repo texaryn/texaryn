@@ -142,6 +142,17 @@ const listSchema = {
   },
 }
 
+// A list and a required field together, so one switch exercises both an
+// action's two surfaces and the marker's placement.
+const listWithRequiredSchema = {
+  type: 'object',
+  properties: {
+    tags: { type: 'array', title: 'Tags', items: { type: 'string', title: 'Tag' } },
+    name: { type: 'string', title: 'Full Name' },
+  },
+  required: ['name'],
+}
+
 // The array's title arrives from a conditional branch, so a name built from a
 // stale copy of the node keeps saying "item" after the title exists.
 const conditionalListSchema = {
@@ -676,22 +687,27 @@ export function rendererDomAccessibilityContract({
 
       it('switches the set on a mounted form without losing the focused control', async () => {
         const { surface, q } = await mount(
-          listSchema,
-          { tags: ['a', 'b'] },
+          listWithRequiredSchema,
+          { tags: ['a', 'b'], name: '' },
           { '/tags': { canReorder: true } },
         )
         const input = q.getAllByRole('textbox')[0] as HTMLInputElement
         input.focus()
         const remove = q.getByRole('button', { name: 'Remove Tag 1 from Tags' })
+        const required = q.getByRole('textbox', { name: 'Full Name' })
+        expect(labelOf(required)).toBe('Full Name (required)')
 
         await surface.setMessages(otherMessages)
         expect(q.getByRole('button', { name: 'Retirer Tag 1 de Tags' })).toBe(remove)
         expect(remove.textContent?.trim()).toBe('Retirer')
         expect(q.getAllByRole('textbox')[0]).toBe(input)
         expect(document.activeElement).toBe(input)
+        expect(labelOf(required)).toBe('(obligatoire) Full Name')
+        expect(computeAccessibleName(required)).toBe('Full Name')
 
         await surface.setMessages(englishMessages)
         expect(computeAccessibleName(remove)).toBe('Remove Tag 1 from Tags')
+        expect(labelOf(required)).toBe('Full Name (required)')
       })
     })
 

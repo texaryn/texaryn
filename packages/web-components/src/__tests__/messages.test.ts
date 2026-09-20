@@ -105,6 +105,7 @@ describe('messages on <texaryn-form>', () => {
     const addEn = el.querySelector<HTMLButtonElement>('button[aria-label="Add item to Tags"]')
     expect(addEn).not.toBeNull()
     expect(addEn!.textContent).toBe('Add')
+    expect(addEn).toBe(add)
     expect(el.messages).toBe(englishMessages)
   })
 })
