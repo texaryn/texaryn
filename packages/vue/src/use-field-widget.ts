@@ -1,8 +1,9 @@
 import { computed } from 'vue'
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import { toValue } from 'vue'
-import type { FieldNode, ValidationError } from '@texaryn/core'
+import type { FieldNode, FormMessages, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
+import { useFormMessages } from './context.js'
 import { fieldAria, fieldLabel, makeId } from './field-props.js'
 import type { FieldAria } from './field-props.js'
 import { useFormIdPrefix } from './id-prefix.js'
@@ -45,6 +46,7 @@ export interface FieldWidget {
   errorId: ComputedRef<string>
   labelFor: ComputedRef<string>
   aria: ComputedRef<FieldAria>
+  messages: ComputedRef<FormMessages>
   /** Visible errors only: empty until the display policy says to show them. */
   errors: ComputedRef<readonly ValidationError[]>
   invalid: ComputedRef<boolean>
@@ -90,6 +92,7 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
         kind.value !== 'enum' && kind.value !== 'boolean',
       ),
     ),
+    messages: useFormMessages(),
     errors,
     invalid,
     // The runtime rejects the write too. Stopping here as well keeps the DOM

@@ -5,11 +5,14 @@ export type { UseFormReturn } from './use-form.js'
 export {
   FormRuntimeKey,
   RendererRegistryKey,
+  FormMessagesKey,
   provideFormRuntime,
   provideRendererRegistry,
   useFormRuntime,
+  useFormMessages,
   useRendererRegistry,
 } from './context.js'
+export type { ProvideFormRuntimeOptions } from './context.js'
 
 export { useField } from './use-field.js'
 export type { UseFieldReturn } from './use-field.js'
@@ -19,7 +22,6 @@ export { useFieldWidget } from './use-field-widget.js'
 export type { FieldKind, FieldWidget } from './use-field-widget.js'
 
 export { fieldAria, fieldLabel, makeId } from './field-props.js'
-export { removeActionName, moveUpActionName, addActionName } from './action-names.js'
 export { useFormIdPrefix } from './id-prefix.js'
 export type { FieldAria } from './field-props.js'
 
