@@ -86,6 +86,17 @@ describe('messages through mountForm', () => {
     mount.setMessages(englishMessages)
     expect(remove!.textContent).toBe('Remove')
   })
+
+  it('leaves the detached tree alone when setMessages follows unmount', async () => {
+    const container = document.body.appendChild(document.createElement('div'))
+    const mount = mountForm(container, await makeRuntime(), { registry, idPrefix: 'f' })
+    const root = container.firstElementChild!
+    mount.unmount()
+    expect(container.childElementCount).toBe(0)
+    mount.setMessages(french)
+    expect(root.querySelector('button[aria-label="Remove Tag 1 from Tags"]')).not.toBeNull()
+    expect(root.querySelector('button[aria-label^="Retirer"]')).toBeNull()
+  })
 })
 
 describe('messages on <texaryn-form>', () => {

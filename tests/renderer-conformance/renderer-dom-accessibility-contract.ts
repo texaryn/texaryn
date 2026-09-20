@@ -692,12 +692,18 @@ export function rendererDomAccessibilityContract({
         const input = q.getAllByRole('textbox')[0] as HTMLInputElement
         input.focus()
         const remove = q.getByRole('button', { name: 'Remove Tag 1 from Tags' })
+        const add = q.getByRole('button', { name: /^Add\b/ })
+        const ups = q.queryAllByRole('button', { name: /^Move up\b/ })
         const required = q.getByRole('textbox', { name: 'Full Name' })
         expect(labelOf(required)).toBe('Full Name (required)')
 
         await surface.setMessages(otherMessages)
         expect(q.getByRole('button', { name: 'Retirer Tag 1 de Tags' })).toBe(remove)
         expect(remove.textContent?.trim()).toBe('Retirer')
+        expect(q.getByRole('button', { name: /^Ajouter\b/ })).toBe(add)
+        expect(add.textContent?.trim()).toBe('Ajouter')
+        expect(q.queryAllByRole('button', { name: /^Monter\b/ })).toEqual(ups)
+        for (const up of ups) expect(up.textContent?.trim()).toBe('Monter')
         expect(q.getAllByRole('textbox')[0]).toBe(input)
         expect(document.activeElement).toBe(input)
         expect(labelOf(required)).toBe('(obligatoire) Full Name')
@@ -705,6 +711,8 @@ export function rendererDomAccessibilityContract({
 
         await surface.setMessages(englishMessages)
         expect(computeAccessibleName(remove)).toBe('Remove Tag 1 from Tags')
+        expect(computeAccessibleName(add)).toMatch(/^Add\b/)
+        expect(q.queryAllByRole('button', { name: /^Move up\b/ })).toEqual(ups)
         expect(labelOf(required)).toBe('Full Name (required)')
       })
     })
