@@ -21,8 +21,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { within } from '@testing-library/dom'
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { createFormRuntime } from '@texaryn/core'
-import type { FormRuntime, NodeId, UIHints } from '@texaryn/core'
+import { createFormRuntime, englishMessages } from '@texaryn/core'
+import type { FormMessages, FormRuntime, NodeId, UIHints } from '@texaryn/core'
 
 /** How one binding puts a runtime on the page. Everything else is shared. */
 export interface MountedSurface {
@@ -34,12 +34,18 @@ export interface MountedSurface {
    * the contract would have to know which binding it is testing.
    */
   act(run: () => void): Promise<void>
+  /** Replaces the configured set on the mounted surface without remounting it. */
+  setMessages(messages: FormMessages): Promise<void> | void
   unmount(): void | Promise<void>
 }
 
 export interface DomAccessibilityAdapter {
   name: string
-  mount(args: { runtime: FormRuntime; host: HTMLElement }): Promise<MountedSurface> | MountedSurface
+  mount(args: {
+    runtime: FormRuntime
+    host: HTMLElement
+    messages?: FormMessages
+  }): Promise<MountedSurface> | MountedSurface
 }
 
 /**
@@ -157,6 +163,24 @@ const emptyListSchema = {
   },
 }
 
+// Distinct from English in every word, with the marker on the other side of
+// the label and a grammar of its own, so nothing here can pass by accident.
+const otherMessages: FormMessages = {
+  addItem: ({ itemTemplateTitle, containerTitle }) => ({
+    label: 'Ajouter',
+    accessibleName: `Ajouter ${itemTemplateTitle ?? 'un élément'}${containerTitle ? ` à ${containerTitle}` : ''}`,
+  }),
+  removeItem: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Retirer',
+    accessibleName: `Retirer ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` de ${containerTitle}` : ''}`,
+  }),
+  moveItemUp: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Monter',
+    accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
+  }),
+  requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
+}
+
 const IDREF_ATTRIBUTES = [
   'for',
   'aria-describedby',
@@ -216,12 +240,13 @@ export function rendererDomAccessibilityContract({
     schema: unknown,
     data: unknown,
     hints?: UIHints,
+    messages?: FormMessages,
   ): Promise<{ surface: MountedSurface; runtime: FormRuntime; q: ReturnType<typeof within> }> {
     const port = await createJsonSchemaAdapter(schema)
     const runtime = createFormRuntime(port, { initialData: data, hints, validationDebounceMs: 0 })
     runtimes.push(runtime)
     const host = document.body.appendChild(document.createElement('div'))
-    const surface = await adapter.mount({ runtime, host })
+    const surface = await adapter.mount({ runtime, host, messages })
     surfaces.push(surface)
     return { surface, runtime, q: within(surface.root) }
   }
@@ -591,6 +616,83 @@ export function rendererDomAccessibilityContract({
           expect(within(named[0]).getByRole('textbox', { name: 'City' })).toBeTruthy()
         },
       )
+    })
+
+    // ADR-004. Every word a built-in widget invents comes from the configured
+    // set, on both surfaces of each control, in every family alike.
+    describe('built-in copy', () => {
+      const labelOf = (control: HTMLElement) =>
+        control.ownerDocument.querySelector(`label[for="${control.id}"]`)?.textContent ??
+        control.closest('label')?.textContent ??
+        ''
+
+      it('renders every built-in word from the configured messages', async () => {
+        const { q } = await mount(
+          listSchema,
+          { tags: ['a', 'b'] },
+          { '/tags': { canReorder: true } },
+          otherMessages,
+        )
+        const removes = q.getAllByRole('button', { name: /^Retirer/ })
+        expect(removes.map((b: HTMLElement) => computeAccessibleName(b))).toEqual([
+          'Retirer Tag 1 de Tags',
+          'Retirer Tag 2 de Tags',
+        ])
+        for (const b of removes) expect(b.textContent?.trim()).toBe('Retirer')
+        const add = q.getByRole('button', { name: 'Ajouter Tag à Tags' })
+        expect(add.textContent?.trim()).toBe('Ajouter')
+        for (const b of q.queryAllByRole('button', { name: /^Monter/ })) {
+          expect(b.textContent?.trim()).toBe('Monter')
+        }
+        expect(q.queryAllByRole('button', { name: /^(Remove|Add|Up)$/ })).toEqual([])
+      })
+
+      it('places the required marker where the message says, outside the accessible name', async () => {
+        const { q } = await mount(requiredSchema, { name: '', nickname: '' }, undefined, otherMessages)
+        const required = q.getByRole('textbox', { name: 'Full Name' })
+        expect(labelOf(required)).toBe('(obligatoire) Full Name')
+        expect(computeAccessibleName(required)).toBe('Full Name')
+        expect(labelOf(q.getByRole('textbox', { name: 'Nickname' }))).toBe('Nickname')
+      })
+
+      it.each([
+        ['English', undefined],
+        ['another language', otherMessages],
+      ])('keeps every accessible name containing its visible label, in %s', async (_label, messages) => {
+        const { q } = await mount(
+          listSchema,
+          { tags: ['a', 'b'] },
+          { '/tags': { canReorder: true } },
+          messages,
+        )
+        const buttons = q.getAllByRole('button')
+        expect(buttons.length).toBeGreaterThan(0)
+        for (const b of buttons) {
+          const visible = b.textContent?.trim().toLowerCase() ?? ''
+          expect(visible).not.toBe('')
+          expect(computeAccessibleName(b).toLowerCase()).toContain(visible)
+        }
+      })
+
+      it('switches the set on a mounted form without losing the focused control', async () => {
+        const { surface, q } = await mount(
+          listSchema,
+          { tags: ['a', 'b'] },
+          { '/tags': { canReorder: true } },
+        )
+        const input = q.getAllByRole('textbox')[0] as HTMLInputElement
+        input.focus()
+        const remove = q.getByRole('button', { name: 'Remove Tag 1 from Tags' })
+
+        await surface.setMessages(otherMessages)
+        expect(q.getByRole('button', { name: 'Retirer Tag 1 de Tags' })).toBe(remove)
+        expect(remove.textContent?.trim()).toBe('Retirer')
+        expect(q.getAllByRole('textbox')[0]).toBe(input)
+        expect(document.activeElement).toBe(input)
+
+        await surface.setMessages(englishMessages)
+        expect(computeAccessibleName(remove)).toBe('Remove Tag 1 from Tags')
+      })
     })
 
     describe('relationship integrity', () => {
