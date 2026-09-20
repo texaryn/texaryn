@@ -70,6 +70,12 @@ Visible errors only: empty until the display policy says to show them.
 
 ***
 
+### messages
+
+> **messages**: `ComputedRef`\<[`FormMessages`](../../core/interfaces/FormMessages.md)\>
+
+***
+
 ### node
 
 > **node**: `ComputedRef`\<[`FieldNode`](../../core/interfaces/FieldNode.md)\>

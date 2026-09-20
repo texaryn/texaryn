@@ -80,12 +80,19 @@ Every id is `<prefix>-<nodeId>-<suffix>`, where the prefix is the element's own
 one page therefore share no ids, and every `for` and `aria-describedby`
 resolves inside its own element.
 
+## Messages
+
+`messages` on the element, or in `mountForm`'s options, takes a whole
+`FormMessages` set from `@texaryn/core` and replaces every word the built-in
+widgets invent. Setting it on a mounted element switches the copy in place.
+Custom widgets read `ctx.messages` on the render context.
+
 ## Key exports
 
 - `defineTexarynForm`
 - `TexarynFormElement`
 - `createDefaultRegistry`
-- `mountForm`
+- `mountForm(container, runtime, { registry, idPrefix, messages })`, returning a `Mount` with `setMessages`
 - `makeId`
 - `textInput`, `numberInput`, `checkbox`, `select`, `textarea`
 - `objectLayout`, `arrayControl`

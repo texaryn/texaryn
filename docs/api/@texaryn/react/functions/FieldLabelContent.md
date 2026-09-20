@@ -12,11 +12,11 @@ Label content for a field: the schema's label, plus a visible required
 indicator that is kept out of the accessible name.
 
 Three separate channels carry one fact, and they must not be collapsed. The
-sighted user reads "(required)". The accessible name stays the label alone,
+sighted user reads the indicator. The accessible name stays the label alone,
 because `aria-required` already reports the state and putting it in the name
-as well makes some screen readers say it twice. The indicator says the word
-rather than an asterisk, so nobody has to be told elsewhere what a marker
-means.
+as well makes some screen readers say it twice. The message decides the
+wording and which side of the label it sits on; this component decides that
+it is `aria-hidden`.
 
 Shared by the three React widget sets so they cannot drift on it.
 

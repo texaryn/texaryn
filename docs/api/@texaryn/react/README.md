@@ -40,14 +40,12 @@
 - [FormContext](variables/FormContext.md)
 - [NumberInput](variables/NumberInput.md)
 - [ObjectLayout](variables/ObjectLayout.md)
-- [REQUIRED\_INDICATOR](variables/REQUIRED_INDICATOR.md)
 - [Select](variables/Select.md)
 - [Textarea](variables/Textarea.md)
 - [TextInput](variables/TextInput.md)
 
 ## Functions
 
-- [addActionName](functions/addActionName.md)
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [ErrorSummary](functions/ErrorSummary.md)
 - [FieldErrors](functions/FieldErrors.md)
@@ -59,9 +57,7 @@
 - [getInputProps](functions/getInputProps.md)
 - [getLabelProps](functions/getLabelProps.md)
 - [hasNativeReadOnly](functions/hasNativeReadOnly.md)
-- [moveUpActionName](functions/moveUpActionName.md)
 - [NodeRenderer](functions/NodeRenderer.md)
-- [removeActionName](functions/removeActionName.md)
 - [useArrayActions](functions/useArrayActions.md)
 - [useField](functions/useField.md)
 - [useFieldArray](functions/useFieldArray.md)
@@ -69,6 +65,7 @@
 - [useForm](functions/useForm.md)
 - [useFormContext](functions/useFormContext.md)
 - [useFormIdPrefix](functions/useFormIdPrefix.md)
+- [useFormMessages](functions/useFormMessages.md)
 - [useObjectGroup](functions/useObjectGroup.md)
 - [useRendererContext](functions/useRendererContext.md)
 - [useStore](functions/useStore.md)

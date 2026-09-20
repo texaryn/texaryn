@@ -10,6 +10,7 @@
 
 - [DomWidget](interfaces/DomWidget.md)
 - [Mount](interfaces/Mount.md)
+- [MountOptions](interfaces/MountOptions.md)
 - [NodeBinding](interfaces/NodeBinding.md)
 - [RenderContext](interfaces/RenderContext.md)
 - [TexarynFormElement](interfaces/TexarynFormElement.md)

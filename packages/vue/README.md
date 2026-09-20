@@ -40,6 +40,11 @@ const registry = createDefaultRegistry()
 </template>
 ```
 
+`provideFormRuntime(runtime, { messages })` takes a whole `FormMessages` set
+from `@texaryn/core`, as a value, a ref or a getter, and replaces every word
+the built-in widgets invent. Custom widgets read it with `useFormMessages()`,
+which returns a computed.
+
 `useForm` creates the runtime and ties it to the calling scope. Providing is a
 separate call rather than a side effect of construction: React's equivalent is
 `<FormProvider>` in the template, and Vue's is a setup call.

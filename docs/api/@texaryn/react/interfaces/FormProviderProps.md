@@ -14,6 +14,14 @@
 
 ***
 
+### messages?
+
+> `optional` **messages?**: [`FormMessages`](../../core/interfaces/FormMessages.md)
+
+The whole set, or English. Passed through by identity, so a stable object costs no re-render.
+
+***
+
 ### value
 
 > **value**: [`FormRuntime`](../../core/interfaces/FormRuntime.md) \| `null`
