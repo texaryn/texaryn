@@ -29,12 +29,6 @@ export const fieldDivergences: Record<string, Divergence> = {
       'so the constraint survives and only the shape of the control differs: two adds and two ' +
       'selections where RJSF takes two clicks. See `enum-arrays.test.tsx` and entry 5.',
   },
-  'Fill in some steps': {
-    rjsfOnly: ['/lastName'],
-    why:
-      'The conditional is validated but never projected, so the field the step requires is not ' +
-      'rendered. Entry 3.',
-  },
 }
 
 export const errorDivergences: Record<string, Divergence> = {

@@ -18,8 +18,8 @@ import type { FormRuntime } from '@texaryn/core'
  * The third test is about a different dependency: whether the port can carry
  * the information the contract's conflict rule needs.
  *
- * Measured against the published `@texaryn/core` 0.7.0 and
- * `@texaryn/schema-json` 0.3.0, not the workspace.
+ * Measured against the published `@texaryn/core` 0.11.0 and
+ * `@texaryn/schema-json` 0.6.0, not the workspace.
  */
 function pointerId(runtime: FormRuntime, pointer: string): never {
   const nodes = Object.values(runtime.document.getSnapshot().nodes) as {
@@ -49,15 +49,15 @@ describe('a filled location never becomes absent', () => {
   })
 
   /**
-   * The prerequisite the defaults contract found rather than introduced.
-   * `handleInsertItem` writes `cmd.value ?? null`, so an insert with no value
-   * is indistinguishable from an insert of an explicit `null`, and the row
-   * arrives holding `null`. Since the contract treats `null` as a value that is
-   * never defaulted over, a newly inserted row could never receive its item
-   * default. Tracked as its own defect; the contract records it as a
-   * precondition rather than working around it.
+   * An insert with no value puts `null` in the data, because an array cannot
+   * hold a hole and `undefined` is not JSON. Without a policy the row keeps it,
+   * so the element is a value the defaults rule never overwrites. Under
+   * `initialization: 'schema-defaults'` the command reports the row as a
+   * location nobody stated a value for, and the pass fills it from the item
+   * default before it is observable. Both halves pinned, since the first is the
+   * behaviour an adopter who does not opt in submits.
    */
-  it('an insert with no value writes null, which the defaults rule may not overwrite', async () => {
+  it('an insert with no value writes null, filled only by an initialization policy', async () => {
     const port = await createJsonSchemaAdapter(
       {
         type: 'object',
@@ -65,12 +65,23 @@ describe('a filled location never becomes absent', () => {
       },
       { defaultDialect: 'draft-07' },
     )
-    const runtime = createFormRuntime(port, { initialData: { list: [] } })
 
-    runtime.dispatch({ type: 'InsertItem', containerId: pointerId(runtime, '/list'), index: 0 })
+    const bare = createFormRuntime(port, { initialData: { list: [] } })
+    bare.dispatch({ type: 'InsertItem', containerId: pointerId(bare, '/list'), index: 0 })
+    expect(bare.data.getSnapshot()).toEqual({ list: [null] })
+    bare.destroy()
 
-    expect(runtime.data.getSnapshot()).toEqual({ list: [null] })
-    runtime.destroy()
+    const initialized = createFormRuntime(port, {
+      initialData: { list: [] },
+      initialization: 'schema-defaults',
+    })
+    initialized.dispatch({
+      type: 'InsertItem',
+      containerId: pointerId(initialized, '/list'),
+      index: 0,
+    })
+    expect(initialized.data.getSnapshot()).toEqual({ list: ['seed'] })
+    initialized.destroy()
   })
 
   it('deactivating a branch keeps the data it held', async () => {
@@ -100,24 +111,15 @@ describe('a filled location never becomes absent', () => {
 
 /**
  * The contract says two equally applicable declarations that disagree are a
- * diagnostic rather than a guess. This is what the port can currently express
- * about that case, and the answer is nothing: `AnnotationSet.default` is one
- * value, `extractAnnotations` reads it from the already-reduced schema, and the
- * evaluator has merged the `allOf` branches by then. So the projection reports
- * the later branch's value with no record that there were two, which is the
- * traversal-order resolution the rule exists to forbid. Nothing reports it
- * either: `SchemaProjection.diagnostics` does not exist in the published 0.7.0
- * at all, since it is part of the held release, so this cannot even be asserted
- * against here.
- *
- * Measured against the published 0.3.0 this directory resolves, and left
- * asserting exactly that. #128 has since changed it: the adapter omits the
- * annotation and reports `ambiguous-default` instead, for declarations that
- * apply to every instance. Bumping this dependency is what should update the
- * assertion, since the point of the row is what a released version does.
+ * diagnostic rather than a guess, and the port carries what that rule needs:
+ * the annotation is omitted, the node names the schema positions that
+ * disagreed in `defaultConflict`, and `SchemaProjection.diagnostics` reports
+ * `ambiguous-default` with the same sources. Nothing picks a winner by
+ * traversal order. Measured against the published 0.6.0 this directory
+ * resolves.
  */
-describe('what the port can say about two disagreeing defaults', () => {
-  it('collapses them to the later one, silently, as of 0.3.0', async () => {
+describe('what the port says about two disagreeing defaults', () => {
+  it('omits the annotation and names both declarations', async () => {
     const port = await createJsonSchemaAdapter(
       {
         type: 'object',
@@ -130,7 +132,16 @@ describe('what the port can say about two disagreeing defaults', () => {
     )
 
     const projection = port.project({})
+    const declared = ['/allOf/0/properties/x', '/allOf/1/properties/x']
 
-    expect(projection.nodes.get('/x' as never)?.annotations.default).toBe('b')
+    const node = projection.nodes.get('/x' as never)
+    expect(node?.annotations.default).toBeUndefined()
+    expect(node?.defaultConflict).toEqual(declared)
+    const reported = (projection.diagnostics ?? []).map(({ pointer, code, sources }) => ({
+      pointer,
+      code,
+      sources,
+    }))
+    expect(reported).toEqual([{ pointer: '/x', code: 'ambiguous-default', sources: declared }])
   })
 })

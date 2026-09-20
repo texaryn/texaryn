@@ -25,6 +25,11 @@ test the working tree instead of what an adopter can install.
 The monorepo's own `pnpm test` does not run this directory: the root vitest
 config enumerates its projects explicitly.
 
+The `@texaryn/*` pins are exact, so nothing here fires on its own. The ratchet
+runs by moving the four pins to a newer release, running `npm test`, and reading
+which pin in `src/findings.test.ts` fails: each names the friction log entry it
+belongs to and what the failure means.
+
 ## Layout
 
 | Path | What it is |
@@ -35,9 +40,8 @@ config enumerates its projects explicitly.
 | `src/reference/` | The RJSF side: `@rjsf/core` 5.24.13 with the ajv8 validator, the versions `plugins/scaffolder-react` pins. |
 | `src/candidate/` | The Texaryn side, plus the adapters the integration needed. |
 | `src/comparison.test.tsx` | The acceptance test: 49 comparisons across seven steps and three input states. |
-| `src/divergences.ts` | The six differences, each with a reason and a log entry. Asserted exactly. |
-| `src/findings.test.ts` | The blockers, pinned so a fix makes a test fail. |
-| `src/workarounds.test.ts` | The ratchet: each workaround asserted still necessary against the installed packages, so a released fix fails a test and says to delete it. |
+| `src/divergences.ts` | The five differences, each with a reason and a log entry. Asserted exactly. |
+| `src/findings.test.ts` | The outside-in ratchet: each blocker, open or closed, pinned against the installed packages so a change in either direction fails a test. |
 
 ## What is compared
 

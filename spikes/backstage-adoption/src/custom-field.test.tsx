@@ -4,7 +4,6 @@ import { render, cleanup, act } from '@testing-library/react'
 import { FormProvider, FormRoot, useForm } from '@texaryn/react'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { FormRuntime } from '@texaryn/core'
-import { inferTypes } from './candidate/infer-types.js'
 import {
   createRegistryWithEntityNamePicker,
   entityNameMessage,
@@ -19,12 +18,12 @@ import {
  * public API and took no adapter. Giving it its own validation took a wrapper
  * around the port, because nothing lets a widget report a violation.
  */
-const step = inferTypes({
+const step = {
   title: 'Catalog and repo pickers',
   properties: {
     componentName: { title: 'Component name', type: 'string' },
   },
-})
+}
 
 const registry = createRegistryWithEntityNamePicker()
 
