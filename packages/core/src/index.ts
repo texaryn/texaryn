@@ -52,7 +52,7 @@ export type {
   ItemActionContext,
   AddItemContext,
 } from './messages/index.js'
-export { englishMessages } from './messages/index.js'
+export { englishMessages, mergeMessages } from './messages/index.js'
 
 export type { Store, WritableStore } from './state/index.js'
 export { createStore } from './state/index.js'
