@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { createFormRuntime, createStore } from '@texaryn/core'
+import { createFormRuntime, createStore, englishMessages } from '@texaryn/core'
 import type {
+  FormMessages,
   FormRuntime,
   InitializationReport,
   JsonPointer,
@@ -47,14 +48,21 @@ function nodeAt(rt: FormRuntime, pointer: string): NodeId {
   return node.id
 }
 
-function mountSummary(rt: FormRuntime, withForm: boolean): HTMLElement {
+function mountSummary(
+  rt: FormRuntime,
+  withForm: boolean,
+  props: { focus?: boolean } = {},
+  messages?: FormMessages,
+): HTMLElement {
   const host = document.body.appendChild(document.createElement('div'))
   mount(
     defineComponent({
       setup() {
-        provideFormRuntime(rt)
+        provideFormRuntime(rt, { messages })
         return () =>
-          withForm ? [h(ErrorSummary), h(FormRoot, { registry: createDefaultRegistry() })] : h(ErrorSummary)
+          withForm
+            ? [h(ErrorSummary, props), h(FormRoot, { registry: createDefaultRegistry() })]
+            : h(ErrorSummary, props)
       },
     }),
     { attachTo: host },
@@ -62,13 +70,16 @@ function mountSummary(rt: FormRuntime, withForm: boolean): HTMLElement {
   return host
 }
 
-async function liveForm(): Promise<{ host: HTMLElement; rt: FormRuntime }> {
+async function liveForm(
+  props: { focus?: boolean } = {},
+  messages?: FormMessages,
+): Promise<{ host: HTMLElement; rt: FormRuntime }> {
   runtime = createFormRuntime(await createJsonSchemaAdapter(schema), {
     initialData: { first: '', second: '' },
     validationDebounceMs: 0,
     hints: { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } },
   })
-  const host = mountSummary(runtime, true)
+  const host = mountSummary(runtime, true, props, messages)
   await settle()
   return { host, rt: runtime }
 }
@@ -107,6 +118,14 @@ describe('ErrorSummary over a live runtime', () => {
       expect(host.contains(target)).toBe(true)
       expect(li.textContent).toMatch(/^(First|Second): ./)
     }
+
+    const group = host.querySelector('[role="group"]')!
+    expect(group.getAttribute('tabindex')).toBe('-1')
+    const heading = group.querySelector('h2')!
+    expect(group.firstElementChild).toBe(heading)
+    expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
+    expect(heading.id).toMatch(/-error-summary-heading$/)
+    expect(heading.textContent).toBe('There are 2 problems')
   })
 
   it('follows the store down to nothing', async () => {
@@ -134,6 +153,55 @@ describe('ErrorSummary over a live runtime', () => {
     const container = host.querySelector('ul')!.parentElement!
     expect(container.closest('[aria-live], [role="alert"]')).toBeNull()
     expect(container.querySelector('[aria-live], [role="alert"]')).toBeNull()
+  })
+
+  it('focuses the group once a failed submit settles, and again on the next attempt', async () => {
+    const { host, rt } = await liveForm()
+    rt.dispatch({ type: 'Submit' })
+    await settle()
+    const group = host.querySelector('[role="group"]')!
+    expect(document.activeElement).toBe(group)
+
+    host.querySelector('input')!.focus()
+    rt.dispatch({ type: 'Submit' })
+    await settle()
+    expect(document.activeElement).toBe(group)
+  })
+
+  it('leaves focus alone when told not to move it', async () => {
+    const { host, rt } = await liveForm({ focus: false })
+    const input = host.querySelector('input')!
+    input.focus()
+    rt.dispatch({ type: 'Submit' })
+    await settle()
+    expect(host.querySelector('[role="group"]')).not.toBeNull()
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('does not focus a summary mounted after an old failed attempt', async () => {
+    runtime = createFormRuntime(await createJsonSchemaAdapter(schema), {
+      initialData: { first: '', second: '' },
+      validationDebounceMs: 0,
+    })
+    runtime.dispatch({ type: 'Submit' })
+    await settle()
+    const host = mountSummary(runtime, true)
+    await settle()
+    expect(host.querySelector('[role="group"]')).not.toBeNull()
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('renders the heading and the detail from the provided messages', async () => {
+    const french: FormMessages = {
+      ...englishMessages,
+      errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+    }
+    const { host, rt } = await liveForm({}, french)
+    rt.dispatch({ type: 'Submit' })
+    await settle()
+    expect(host.querySelector('h2')!.textContent).toBe('Il y a 2 problèmes')
+    expect(host.querySelector('li')!.textContent).toMatch(/^First : ./)
   })
 })
 
