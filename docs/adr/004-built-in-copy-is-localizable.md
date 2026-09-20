@@ -2,11 +2,10 @@
 
 ## Status
 
-Proposed. Accepted once the three rendering families render from the contract
-and the shared renderer conformance suite asserts that one override produces the
-same accessible names in all of them. Until that exists the contract is a
-statement about code nobody has written, which is the condition this repository
-treats as Proposed rather than Accepted.
+Accepted. The three rendering families render from the contract, and the shared
+renderer conformance suite asserts that one set of messages produces the same
+accessible names, the same visible words and the same marker placement in all
+of them, across a switch on a mounted form.
 
 The published surface is `FormMessages` with its `ActionMessage`,
 `IndicatorMessage`, `ItemActionContext` and `AddItemContext` types, plus
