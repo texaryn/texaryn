@@ -77,7 +77,9 @@ provideFormRuntime(form.runtime, { messages })
 Web Components, as a property, before or after the element is connected:
 
 ```ts
-const form = document.createElement('texaryn-form')
+import type { TexarynFormElement } from '@texaryn/web-components'
+
+const form = document.createElement('texaryn-form') as TexarynFormElement
 form.messages = french
 ```
 
@@ -93,7 +95,9 @@ Texaryn defines no message identifiers. Each function calls your own
 translation function with keys you choose, so the catalogue stays yours:
 
 ```ts
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { FormMessages } from '@texaryn/core'
 
 function useTexarynMessages(): FormMessages {
   const { t } = useTranslation()
@@ -116,10 +120,11 @@ render would re-render every widget.
 
 A custom widget reads the configured set the same way the built-in ones do:
 `useFormMessages()` in React, `useFormMessages()` returning a computed in Vue,
-and `ctx.messages` on the render context in Web Components. There is no
-exported English helper to call directly, because a helper that ignored the
-configuration would leave one widget in English while the form around it
-translates.
+and `ctx.messages` on the render context in Web Components, read inside
+`update` on every render rather than captured when the widget is created, or a
+later `setMessages` never reaches it. There is no exported English helper to
+call directly, because a helper that ignored the configuration would leave one
+widget in English while the form around it translates.
 
 ## What is not covered
 

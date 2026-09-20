@@ -22,5 +22,6 @@ after
     messages.removeItem({ position, itemTitle, containerTitle: arrayTitle }).accessibleName
     messages.requiredIndicator()   // { text, placement }
 
-`ArrayActions` returns an `ActionMessage` per action, `add` and `remove(position, item)`,
-carrying `label` and `accessibleName` together.
+`ArrayActions`'s `addName` and `removeName(position, item)` are replaced by
+`add` and `remove(position, item)`, each returning an `ActionMessage` carrying
+`label` and `accessibleName` together.

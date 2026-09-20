@@ -256,8 +256,9 @@ wording, and the conformance suite is what holds that rather than review.
 
 Two packages lose four public exports each, and `@texaryn/web-components`
 changes a function signature, so React, Vue and Web Components take a breaking
-minor. The two React widget sets ship again with updated peer ranges even though
-no code in them changes.
+minor. The two React widget sets ship again with updated peer ranges; their
+array controls read both surfaces from the hook, so an adopter who configures
+nothing sees the same DOM as before.
 
 The seam exists before the error summary work adds copy, which was the ordering
 this was scheduled for.
