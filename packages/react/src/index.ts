@@ -19,6 +19,7 @@ export type {
 } from './hooks/use-field-binding.js'
 export { FormContext, FormProvider, useFormContext } from './context.js'
 export type { FormProviderProps } from './context.js'
+export { useFormMessages } from './messages.js'
 export { useFormIdPrefix } from './id-prefix.js'
 export {
   getInputProps,

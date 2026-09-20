@@ -1,12 +1,16 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
-import type { FormRuntime } from '@texaryn/core'
+import { englishMessages } from '@texaryn/core'
+import type { FormMessages, FormRuntime } from '@texaryn/core'
 import { IdPrefixProvider, useGeneratedIdPrefix } from './id-prefix.js'
+import { MessagesProvider } from './messages.js'
 
 export const FormContext = createContext<FormRuntime | null>(null)
 
 export interface FormProviderProps {
   value: FormRuntime | null
+  /** The whole set, or English. Passed through by identity, so a stable object costs no re-render. */
+  messages?: FormMessages
   children?: ReactNode
 }
 
@@ -19,11 +23,13 @@ export interface FormProviderProps {
  * siblings of FormRoot, ErrorSummary in particular, resolve the same namespace
  * the fields do.
  */
-export function FormProvider({ value, children }: FormProviderProps) {
+export function FormProvider({ value, messages, children }: FormProviderProps) {
   const idPrefix = useGeneratedIdPrefix()
   return (
     <FormContext.Provider value={value}>
-      <IdPrefixProvider value={idPrefix}>{children}</IdPrefixProvider>
+      <IdPrefixProvider value={idPrefix}>
+        <MessagesProvider value={messages ?? englishMessages}>{children}</MessagesProvider>
+      </IdPrefixProvider>
     </FormContext.Provider>
   )
 }
