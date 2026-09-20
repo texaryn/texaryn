@@ -916,6 +916,24 @@ export function rendererDomAccessibilityContract({
         expect(document.activeElement).toBe(group)
       })
 
+      it('leaves focus alone when the errors refresh at the same attempt', async () => {
+        const { surface, runtime, q } = await mount(
+          twoRequiredSchema,
+          { first: '', second: '' },
+          { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } },
+          undefined,
+          true,
+        )
+        await failSubmit(surface, runtime)
+        const input = q.getByRole('textbox', { name: 'First' })
+        input.focus()
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/second'), value: 'x' })
+        })
+        expect(q.getAllByRole('listitem')).toHaveLength(1)
+        expect(document.activeElement).toBe(input)
+      })
+
       it('moves nothing on a successful submit', async () => {
         const { surface, runtime, q } = await mount(twoRequiredSchema, { first: 'a', second: 'b' }, undefined, undefined, true)
         const input = q.getByRole('textbox', { name: 'First' })
