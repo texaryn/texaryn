@@ -19,6 +19,7 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
     <Stack spacing={2}>
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
+        const remove = actions.remove(index + 1, childNode)
         return (
           <Box key={item.id}>
             {childNode ? (
@@ -29,10 +30,10 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
                 variant="outlined"
                 color="error"
                 size="small"
-                aria-label={actions.remove(index + 1, childNode).accessibleName}
+                aria-label={remove.accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                {actions.remove(index + 1, childNode).label}
+                {remove.label}
               </Button>
             ) : null}
           </Box>

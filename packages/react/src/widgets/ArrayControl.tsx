@@ -19,6 +19,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
     <div>
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
+        const remove = actions.remove(index + 1, childNode)
         return (
           <div key={item.id}>
             {childNode ? (
@@ -30,10 +31,10 @@ function ArrayControlImpl({ node }: WidgetProps) {
               // still works.
               <button
                 type="button"
-                aria-label={actions.remove(index + 1, childNode).accessibleName}
+                aria-label={remove.accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                {actions.remove(index + 1, childNode).label}
+                {remove.label}
               </button>
             ) : null}
           </div>
