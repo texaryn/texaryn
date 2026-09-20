@@ -14,6 +14,14 @@
 
 ***
 
+### messages
+
+> **messages**: [`FormMessages`](../../core/interfaces/FormMessages.md)
+
+Replaced whole by `Mount.setMessages`; widgets read it on every render rather than capturing it.
+
+***
+
 ### registry
 
 > **registry**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\>

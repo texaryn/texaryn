@@ -100,6 +100,10 @@ namespace for that rendering surface:
 </FormProvider>
 ```
 
+`messages` takes a whole `FormMessages` set from `@texaryn/core` and replaces
+every word the built-in widgets invent. See the localizing guide on the docs
+site. Custom widgets read it with `useFormMessages()`.
+
 `useFormContext()` returns the current runtime and `useFormIdPrefix()` returns
 the namespace. Rendering through `FormContext.Provider` instead throws: the
 context alone carries no namespace, which is what let two forms on one page
@@ -270,15 +274,13 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `useObjectGroup`
 - `useArrayActions`
 - `ArrayActions`
-- `removeActionName`
-- `moveUpActionName`
-- `addActionName`
 - `ObjectGroup`
 - `FieldBinding`
 - `DomValueInputProps`
 - `DomCheckedInputProps`
 - `DomInputBaseProps`
 - `useFormContext`
+- `useFormMessages`
 
 ### Context and rendering
 
@@ -299,7 +301,6 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - `FieldErrors`
 - `FieldLabelContent`
 - `FieldLabelContentProps`
-- `REQUIRED_INDICATOR`
 - `FieldErrorsProps`
 - `ErrorSummary`
 

@@ -1,6 +1,5 @@
 import type { ContainerNode, StableItemId, UINode } from '@texaryn/core'
 import type { DomWidget, NodeBinding, RenderContext } from './widget.js'
-import { addActionName, moveUpActionName, removeActionName } from './action-names.js'
 
 function currentNodes(ctx: RenderContext): Record<string, UINode> {
   return ctx.runtime.document.getSnapshot().nodes
@@ -166,7 +165,7 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
   const root = document.createElement('div')
   root.className = 'texaryn-array'
   const list = document.createElement('div')
-  const add = button('Add', () => {
+  const add = button('', () => {
     ctx.runtime.dispatch({
       type: 'InsertItem',
       containerId: node.id,
@@ -185,13 +184,13 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     element.className = 'texaryn-array-item'
     element.dataset.itemId = itemId
     const slot = document.createElement('div')
-    const up = button('Up', () => {
+    const up = button('', () => {
       const index = indexOf(itemId)
       if (index > 0) {
         ctx.runtime.dispatch({ type: 'MoveItem', containerId: node.id, from: index, to: index - 1 })
       }
     })
-    const remove = button('Remove', () => {
+    const remove = button('', () => {
       const index = indexOf(itemId)
       if (index >= 0) ctx.runtime.dispatch({ type: 'RemoveItem', containerId: node.id, index })
     })
@@ -231,10 +230,17 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       // Named here rather than in createRow: a row survives a move, so the
       // position in its name is only correct if it is rewritten every pass,
       // the same reason the click handlers resolve their index at click time.
-      const itemTitle = child?.annotations.title
-      const arrayTitle = node.annotations.title
-      row.remove.setAttribute('aria-label', removeActionName(index + 1, itemTitle, arrayTitle))
-      row.up.setAttribute('aria-label', moveUpActionName(index + 1, itemTitle, arrayTitle))
+      const context = {
+        position: index + 1,
+        itemTitle: child?.annotations.title,
+        containerTitle: node.annotations.title,
+      }
+      const remove = ctx.messages.removeItem(context)
+      row.remove.textContent = remove.label
+      row.remove.setAttribute('aria-label', remove.accessibleName)
+      const up = ctx.messages.moveItemUp(context)
+      row.up.textContent = up.label
+      row.up.setAttribute('aria-label', up.accessibleName)
       elements.push(row.element)
     })
     for (const [itemId, row] of rows) {
@@ -247,7 +253,12 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     add.hidden = !(meta?.canAdd ?? false)
     // The item template's title, not the first row's: a row may not exist yet,
     // which is when naming this matters most.
-    add.setAttribute('aria-label', addActionName(meta?.itemTitle, node.annotations.title))
+    const addMessage = ctx.messages.addItem({
+      itemTemplateTitle: meta?.itemTitle,
+      containerTitle: node.annotations.title,
+    })
+    add.textContent = addMessage.label
+    add.setAttribute('aria-label', addMessage.accessibleName)
   }
 
   reconcile(node)

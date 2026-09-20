@@ -1,11 +1,10 @@
 import { computed, defineComponent, h } from 'vue'
 import type { PropType } from 'vue'
 import type { ContainerNode, UINode } from '@texaryn/core'
-import { useFormRuntime } from '../context.js'
+import { useFormMessages, useFormRuntime } from '../context.js'
 import { useStore } from '../use-store.js'
 import { useFieldArray } from '../use-field-array.js'
 import { NodeRenderer } from '../components/NodeRenderer.js'
-import { addActionName, moveUpActionName, removeActionName } from '../action-names.js'
 
 const nodeProp = { node: { type: Object as PropType<UINode>, required: true } } as const
 
@@ -57,6 +56,7 @@ export const ArrayControl = defineComponent({
     const runtime = useFormRuntime()
     const document = useStore(runtime.document, runtime.document.getSnapshot())
     const array = useFieldArray(() => props.node.id)
+    const messages = useFormMessages()
     // Read from the document so a title added by a recompile reaches the name.
     const currentArray = computed(
       () => (document.value.nodes[props.node.id] ?? props.node) as ContainerNode,
@@ -81,42 +81,50 @@ export const ArrayControl = defineComponent({
               // The visible word stays short; the distinguishing name goes in
               // aria-label, which contains it so speech input still works.
               array.canRemove.value
-                ? h(
-                    'button',
-                    {
-                      type: 'button',
-                      'aria-label': removeActionName(index + 1, itemTitle, arrayTitle.value),
-                      onClick: () => array.remove(index),
-                    },
-                    'Remove',
-                  )
+                ? (() => {
+                    const remove = messages.value.removeItem({
+                      position: index + 1,
+                      itemTitle,
+                      containerTitle: arrayTitle.value,
+                    })
+                    return h(
+                      'button',
+                      { type: 'button', 'aria-label': remove.accessibleName, onClick: () => array.remove(index) },
+                      remove.label,
+                    )
+                  })()
                 : null,
               array.canReorder.value && index > 0
-                ? h(
-                    'button',
-                    {
-                      type: 'button',
-                      'aria-label': moveUpActionName(index + 1, itemTitle, arrayTitle.value),
-                      onClick: () => array.move(index, index - 1),
-                    },
-                    'Up',
-                  )
+                ? (() => {
+                    const up = messages.value.moveItemUp({
+                      position: index + 1,
+                      itemTitle,
+                      containerTitle: arrayTitle.value,
+                    })
+                    return h(
+                      'button',
+                      { type: 'button', 'aria-label': up.accessibleName, onClick: () => array.move(index, index - 1) },
+                      up.label,
+                    )
+                  })()
                 : null,
             ],
           )
         }),
         array.canAdd.value
-          ? h(
-              'button',
-              {
-                type: 'button',
-                // The item template's title, not the first row's: a row may
-                // not exist yet, which is when naming this matters most.
-                'aria-label': addActionName(itemTemplateTitle.value, arrayTitle.value),
-                onClick: () => array.add(),
-              },
-              'Add',
-            )
+          ? (() => {
+              // The item template's title, not the first row's: a row may
+              // not exist yet, which is when naming this matters most.
+              const add = messages.value.addItem({
+                itemTemplateTitle: itemTemplateTitle.value,
+                containerTitle: arrayTitle.value,
+              })
+              return h(
+                'button',
+                { type: 'button', 'aria-label': add.accessibleName, onClick: () => array.add() },
+                add.label,
+              )
+            })()
           : null,
       ])
   },

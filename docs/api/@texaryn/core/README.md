@@ -8,7 +8,9 @@
 
 ## Interfaces
 
+- [ActionMessage](interfaces/ActionMessage.md)
 - [ActionNode](interfaces/ActionNode.md)
+- [AddItemContext](interfaces/AddItemContext.md)
 - [AnnotationSet](interfaces/AnnotationSet.md)
 - [ArrayHints](interfaces/ArrayHints.md)
 - [ArrayMeta](interfaces/ArrayMeta.md)
@@ -22,10 +24,13 @@
 - [FieldConstraints](interfaces/FieldConstraints.md)
 - [FieldHints](interfaces/FieldHints.md)
 - [FieldNode](interfaces/FieldNode.md)
+- [FormMessages](interfaces/FormMessages.md)
 - [FormRuntime](interfaces/FormRuntime.md)
 - [FormRuntimeOptions](interfaces/FormRuntimeOptions.md)
 - [IdentityMap](interfaces/IdentityMap.md)
+- [IndicatorMessage](interfaces/IndicatorMessage.md)
 - [InteractionState](interfaces/InteractionState.md)
+- [ItemActionContext](interfaces/ItemActionContext.md)
 - [NodeAnnotations](interfaces/NodeAnnotations.md)
 - [NodeBase](interfaces/NodeBase.md)
 - [NodeProjection](interfaces/NodeProjection.md)
@@ -69,6 +74,7 @@
 
 ## Variables
 
+- [englishMessages](variables/englishMessages.md)
 - [ROOT\_IDENTITY\_KEY](variables/ROOT_IDENTITY_KEY.md)
 
 ## Functions
@@ -81,6 +87,7 @@
 - [getAtPointer](functions/getAtPointer.md)
 - [identityKey](functions/identityKey.md)
 - [insertItem](functions/insertItem.md)
+- [mergeMessages](functions/mergeMessages.md)
 - [moveItem](functions/moveItem.md)
 - [parsePointer](functions/parsePointer.md)
 - [processCommand](functions/processCommand.md)

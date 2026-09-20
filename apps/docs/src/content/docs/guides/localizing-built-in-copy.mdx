@@ -1,0 +1,133 @@
+---
+title: Localizing built-in copy
+description: Replacing the words Texaryn's own widgets render, in any binding, from one typed set of messages.
+---
+
+Texaryn's built-in widgets invent four pieces of copy of their own: the words
+on an array's add, remove and move-up controls, together with each control's
+accessible name, and the marker that shows a field is required. Everything
+else on screen comes from the schema or from UI hints.
+
+Those four are one contract, `FormMessages` in `@texaryn/core`, and every
+binding renders from it. English is the default. Supplying another set replaces
+every built-in word in every widget, including a layered widget set such as
+`@texaryn/react-mui`, which reads the same configuration through
+`@texaryn/react`.
+
+## The contract
+
+```ts
+import type { FormMessages } from '@texaryn/core'
+
+const french: FormMessages = {
+  addItem: ({ itemTemplateTitle, containerTitle }) => ({
+    label: 'Ajouter',
+    accessibleName: containerTitle
+      ? `Ajouter un élément à ${containerTitle}`
+      : `Ajouter ${itemTemplateTitle ?? 'un élément'}`,
+  }),
+  removeItem: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Retirer',
+    accessibleName: `Retirer ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` de ${containerTitle}` : ''}`,
+  }),
+  moveItemUp: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Monter',
+    accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
+  }),
+  requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
+}
+```
+
+Each message is a function rather than a template, so a language decides its
+own word order, whether a clause appears at all, and how a position is written.
+`position` is 1-based and meant for display.
+
+An action returns both surfaces of its control. The accessible name has to
+contain the visible label: a speech-input user says the word on the button,
+and the control has to answer to it. The conformance suite asserts that
+relation on the rendered DOM.
+
+The required indicator returns its text and which side of the label it sits
+on. The binding keeps it out of the accessible name; `aria-required` already
+carries the state.
+
+A locale implements the whole interface. When Texaryn adds a message, a
+translated application fails to compile rather than rendering one English
+control. To reword a single message while keeping the rest, use
+`mergeMessages(englishMessages, { requiredIndicator: () => ({ text: '*', placement: 'after' }) })`.
+
+## Supplying it
+
+React, on the provider:
+
+```tsx
+<FormProvider value={form.runtime} messages={french}>
+  <FormRoot registry={registry} />
+</FormProvider>
+```
+
+Vue, beside the runtime. A ref or getter lets a language switch reach a
+mounted form:
+
+```ts
+const messages = ref(french)
+provideFormRuntime(form.runtime, { messages })
+```
+
+Web Components, as a property, before or after the element is connected:
+
+```ts
+import type { TexarynFormElement } from '@texaryn/web-components'
+
+const form = document.createElement('texaryn-form') as TexarynFormElement
+form.messages = french
+```
+
+or through `mountForm(container, runtime, { registry, idPrefix, messages: french })`,
+whose returned `Mount` has `setMessages` for a later switch.
+
+In every binding a new set takes effect on the mounted form without
+remounting it, so focus and any partly typed value survive a language change.
+
+## Bridging an existing i18n stack
+
+Texaryn defines no message identifiers. Each function calls your own
+translation function with keys you choose, so the catalogue stays yours:
+
+```ts
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { FormMessages } from '@texaryn/core'
+
+function useTexarynMessages(): FormMessages {
+  const { t } = useTranslation()
+  return useMemo(
+    () => ({
+      addItem: (c) => ({ label: t('form.add'), accessibleName: t('form.addName', c) }),
+      removeItem: (c) => ({ label: t('form.remove'), accessibleName: t('form.removeName', c) }),
+      moveItemUp: (c) => ({ label: t('form.up'), accessibleName: t('form.upName', c) }),
+      requiredIndicator: () => ({ text: t('form.required'), placement: 'after' }),
+    }),
+    [t],
+  )
+}
+```
+
+The `useMemo` matters: the set is passed by identity, so a new object on every
+render would re-render every widget.
+
+## Custom widgets
+
+A custom widget reads the configured set the same way the built-in ones do:
+`useFormMessages()` in React, `useFormMessages()` returning a computed in Vue,
+and `ctx.messages` on the render context in Web Components, read inside
+`update` on every render rather than captured when the widget is created, or a
+later `setMessages` never reaches it. There is no exported English helper to
+call directly, because a helper that ignored the configuration would leave one
+widget in English while the form around it translates.
+
+## What is not covered
+
+Validation messages come from the schema evaluator, not from Texaryn, and are
+not part of this contract. The error summary's copy is decided with the error
+summary work. Texaryn sets no text direction; that is the host document's.

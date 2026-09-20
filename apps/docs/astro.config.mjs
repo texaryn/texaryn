@@ -113,6 +113,7 @@ export default defineConfig({
               slug: 'guides/json-schema-conformance',
             },
             { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
+            { label: 'Localizing built-in copy', slug: 'guides/localizing-built-in-copy' },
           ],
         },
         typeDocSidebarGroup,

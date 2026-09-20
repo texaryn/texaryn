@@ -1,4 +1,4 @@
-import type { FormRuntime, RendererRegistry, UINode } from '@texaryn/core'
+import type { FormMessages, FormRuntime, RendererRegistry, UINode } from '@texaryn/core'
 
 /**
  * A widget owns one DOM subtree for one node. `update` may hand it a
@@ -23,5 +23,7 @@ export interface RenderContext {
   runtime: FormRuntime
   registry: RendererRegistry<WidgetFactory>
   idPrefix: string
+  /** Replaced whole by `Mount.setMessages`; widgets read it on every render rather than capturing it. */
+  messages: FormMessages
   mountChild(node: UINode): NodeBinding
 }

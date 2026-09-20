@@ -8,19 +8,19 @@
 
 ## Properties
 
-### addName
+### add
 
-> **addName**: `string`
+> **add**: [`ActionMessage`](../../core/interfaces/ActionMessage.md)
 
-Accessible name for the control that appends a row.
+Both surfaces of the control that appends a row.
 
 ## Methods
 
-### removeName()
+### remove()
 
-> **removeName**(`position`, `item`): `string`
+> **remove**(`position`, `item`): [`ActionMessage`](../../core/interfaces/ActionMessage.md)
 
-Accessible name for the control that removes the row at this position.
+Both surfaces of the control that removes the row at this position.
 
 #### Parameters
 
@@ -34,4 +34,4 @@ Accessible name for the control that removes the row at this position.
 
 #### Returns
 
-`string`
+[`ActionMessage`](../../core/interfaces/ActionMessage.md)

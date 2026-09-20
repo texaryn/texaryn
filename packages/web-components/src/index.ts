@@ -1,7 +1,7 @@
 export type { TexarynFormElement } from './element.js'
 export { defineTexarynForm } from './define.js'
 export { mountForm } from './mount.js'
-export type { Mount } from './mount.js'
+export type { Mount, MountOptions } from './mount.js'
 export { createDefaultRegistry } from './registry.js'
 export { textInput, numberInput, checkbox, select, textarea } from './fields.js'
 export { objectLayout, arrayControl } from './containers.js'

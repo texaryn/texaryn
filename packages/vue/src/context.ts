@@ -1,15 +1,26 @@
 import { computed, inject, provide, toValue } from 'vue'
 import type { ComputedRef, InjectionKey, MaybeRefOrGetter } from 'vue'
-import type { FormRuntime, RendererRegistry } from '@texaryn/core'
+import { englishMessages } from '@texaryn/core'
+import type { FormMessages, FormRuntime, RendererRegistry } from '@texaryn/core'
 import type { WidgetComponent } from './widget.js'
 import { provideIdPrefix } from './id-prefix.js'
 
 export const FormRuntimeKey: InjectionKey<FormRuntime> = Symbol('texaryn.runtime')
 export const RendererRegistryKey: InjectionKey<ComputedRef<RendererRegistry<WidgetComponent>>> =
   Symbol('texaryn.registry')
+export const FormMessagesKey: InjectionKey<ComputedRef<FormMessages>> = Symbol('texaryn.messages')
 
-export function provideFormRuntime(runtime: FormRuntime): void {
+export interface ProvideFormRuntimeOptions {
+  messages?: MaybeRefOrGetter<FormMessages | undefined>
+}
+
+/** A computed, as the registry is: Vue provides once, so a plain value would freeze the locale at mount. */
+export function provideFormRuntime(runtime: FormRuntime, options: ProvideFormRuntimeOptions = {}): void {
   provide(FormRuntimeKey, runtime)
+  provide(
+    FormMessagesKey,
+    computed(() => toValue(options.messages) ?? englishMessages),
+  )
   provideIdPrefix()
 }
 
@@ -52,4 +63,11 @@ export function useRendererRegistry(): ComputedRef<RendererRegistry<WidgetCompon
     throw new Error('useRendererRegistry must be used inside a FormRoot tree')
   }
   return registry
+}
+
+const ENGLISH: ComputedRef<FormMessages> = computed(() => englishMessages)
+
+/** English when nothing is provided: unlike a missing id prefix, a missing locale has a safe answer. */
+export function useFormMessages(): ComputedRef<FormMessages> {
+  return inject(FormMessagesKey, ENGLISH)
 }

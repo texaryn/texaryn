@@ -1163,6 +1163,14 @@ Returns the local name.
 
 ***
 
+### messages
+
+> **messages**: [`FormMessages`](../../core/interfaces/FormMessages.md)
+
+The whole set, or English. Setting it on a mounted element switches the copy in place.
+
+***
+
 ### namespaceURI
 
 > `readonly` **namespaceURI**: `string` \| `null`

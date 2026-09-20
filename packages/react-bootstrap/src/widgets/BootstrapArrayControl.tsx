@@ -16,6 +16,7 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
     <div>
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
+        const remove = actions.remove(index + 1, childNode)
         return (
           <div key={item.id} className="mb-3">
             {childNode ? (
@@ -25,10 +26,10 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
               <button
                 type="button"
                 className="btn btn-outline-danger btn-sm"
-                aria-label={actions.removeName(index + 1, childNode)}
+                aria-label={remove.accessibleName}
                 onClick={() => fieldArray.remove(index)}
               >
-                Remove
+                {remove.label}
               </button>
             ) : null}
           </div>
@@ -38,10 +39,10 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
         <button
           type="button"
           className="btn btn-primary"
-          aria-label={actions.addName}
+          aria-label={actions.add.accessibleName}
           onClick={() => fieldArray.add()}
         >
-          Add
+          {actions.add.label}
         </button>
       ) : null}
     </div>

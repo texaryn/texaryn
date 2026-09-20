@@ -6,7 +6,7 @@ import type { DomAccessibilityAdapter } from '../renderer-dom-accessibility-cont
 /**
  * Mounts a `<texaryn-form>` over a runtime the contract owns. `runtime` is set
  * and `port` never is, so the element borrows it and removal disposes only what
- * the element built. Both properties are set before the element is appended, so
+ * the element built. Every property is set before the element is appended, so
  * it renders once with a complete configuration.
  */
 export function webComponentsAdapter(
@@ -17,9 +17,10 @@ export function webComponentsAdapter(
   defineTexarynForm()
   return {
     name,
-    mount({ runtime, host }) {
+    mount({ runtime, host, messages }) {
       const element = document.createElement('texaryn-form') as TexarynFormElement
       element.registry = registry
+      if (messages) element.messages = messages
       element.runtime = runtime
       host.append(element)
       return {
@@ -29,6 +30,9 @@ export function webComponentsAdapter(
           // The element renders from store subscriptions, and disposal is
           // deferred to a microtask, so a macrotask covers both.
           await new Promise((resolve) => setTimeout(resolve, 0))
+        },
+        setMessages(next) {
+          element.messages = next
         },
         unmount() {
           element.remove()
