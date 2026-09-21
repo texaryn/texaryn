@@ -157,7 +157,7 @@ import { FieldErrors } from '@texaryn/react'
 <FieldErrors node={node} errors={errors} showErrors={showErrors} />
 ```
 
-`ErrorSummary` reads the runtime's `visibleErrors` store and renders a jump-linked list of every currently visible error above the form:
+`ErrorSummary` renders a named group, headed by an `h2`, listing every visible error with a link to its field, and takes focus once a failed submit settles, once per attempt. Pass `focus={false}` on all but one summary when one runtime is rendered twice. The heading and the text after each link come from `errorSummaryHeading` and `errorSummaryDetail` in `FormMessages`.
 
 ```tsx
 import { ErrorSummary } from '@texaryn/react'

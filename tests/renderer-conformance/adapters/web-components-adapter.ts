@@ -18,10 +18,14 @@ export function webComponentsAdapter(
   return {
     name,
     mount({ runtime, host, messages, summary }) {
+      const focus = typeof summary === 'object' ? summary.focus : true
       const element = document.createElement('texaryn-form') as TexarynFormElement
       element.registry = registry
       if (messages) element.messages = messages
-      if (summary) element.errorSummary = true
+      if (summary) {
+        element.errorSummary = true
+        element.errorSummaryFocus = focus
+      }
       element.runtime = runtime
       host.append(element)
       return {

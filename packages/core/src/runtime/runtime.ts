@@ -605,7 +605,7 @@ export function createFormRuntime(
     if (mutatesData && state.submission.status === 'validating') {
       submissionGeneration++
       currentAttempt = null
-      state = { ...state, submission: { status: 'idle', attempts: state.submission.attempts } }
+      state = { ...state, submission: { status: 'idle', attempts: state.submission.attempts, cancelled: true } }
     }
 
     if (mutatesData) {

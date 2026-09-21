@@ -16,6 +16,14 @@ Accepted Submit commands since creation or the last Reset; above zero, invalid f
 
 ***
 
+### cancelled?
+
+> `optional` **cancelled?**: `true`
+
+Set when a data command arrived during submit validation and abandoned the attempt.
+
+***
+
 ### error?
 
 > `optional` **error?**: `unknown`

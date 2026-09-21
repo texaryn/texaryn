@@ -22,6 +22,8 @@ const french: FormMessages = {
   removeItem: ({ position }) => ({ label: 'Retirer', accessibleName: `Retirer élément ${position}` }),
   moveItemUp: ({ position }) => ({ label: 'Monter', accessibleName: `Monter élément ${position}` }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
+  errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
+  errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
 }
 
 let runtime: FormRuntime | undefined

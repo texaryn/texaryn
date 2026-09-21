@@ -26,6 +26,40 @@ Functions, not templates: a sentence with slots encodes one language's word orde
 
 ***
 
+### errorSummaryDetail()
+
+> **errorSummaryDetail**(`context`): `string`
+
+The whole text after an item's link, punctuation included.
+
+#### Parameters
+
+##### context
+
+[`ErrorSummaryDetailContext`](ErrorSummaryDetailContext.md)
+
+#### Returns
+
+`string`
+
+***
+
+### errorSummaryHeading()
+
+> **errorSummaryHeading**(`context`): `string`
+
+#### Parameters
+
+##### context
+
+[`ErrorSummaryHeadingContext`](ErrorSummaryHeadingContext.md)
+
+#### Returns
+
+`string`
+
+***
+
 ### moveItemUp()
 
 > **moveItemUp**(`context`): [`ActionMessage`](ActionMessage.md)

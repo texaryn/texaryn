@@ -90,19 +90,26 @@ Custom widgets read `ctx.messages` on the render context.
 
 ## Error summary
 
-`mountErrorSummary(container, form)` renders a jump-linked list of the
-runtime's visible errors as the first child of `container`, and nothing while
-there are none. It takes the `Mount` that `mountForm` returned, so its links
-share the namespace the form was mounted under: `#<prefix>-<nodeId>-input`, the
-id the built-in widgets give their control, which a custom widget that wants
-summary navigation gives its own. Unmounting the summary leaves the form
-mounted.
+`mountErrorSummary(container, form, { focus })` renders a named group, headed
+by an `h2`, listing the runtime's visible errors as the first child of
+`container`, and nothing while there are none. It takes the `Mount` that
+`mountForm` returned, so its links share the namespace the form was mounted
+under: `#<prefix>-<nodeId>-input`, the id the built-in widgets give their
+control, which a custom widget that wants summary navigation gives its own.
+It takes focus once a failed submit settles, once per attempt; `focus: false`
+keeps it passive, for all but one summary when one runtime is rendered twice.
+`setMessages` on the returned mount follows a locale switch in place, and
+unmounting the summary leaves the form mounted. A caller composing the two
+primitives calls `setMessages` on both mounts; the element does that for its
+own.
 
-On the element, the `error-summary` attribute and the `errorSummary` property
-reflect each other and mount the summary as the first child of the element's
-`<form>`; toggling either mounts or removes it live, and the value set while
-the element is detached applies when it next mounts. The summary is not a live
-region: the fields already announce their own errors.
+On the element, `error-summary` present mounts the summary as the first child
+of the element's `<form>` and `error-summary="no-focus"` mounts it passive;
+`errorSummary` and `errorSummaryFocus` reflect the attribute and its value.
+Toggling either applies live, and a value set while the element is detached
+applies when it next mounts. The summary is not a live region: the fields
+already announce their own errors, and the focus move is what speaks the
+heading.
 
 ## Key exports
 
@@ -110,17 +117,17 @@ region: the fields already announce their own errors.
 - `TexarynFormElement`
 - `createDefaultRegistry`
 - `mountForm(container, runtime, { registry, idPrefix, messages })`, returning a `Mount` carrying `runtime`, `idPrefix` and `setMessages`
-- `mountErrorSummary(container, form)`, returning an `ErrorSummaryMount`
+- `mountErrorSummary(container, form, { focus })`, returning an `ErrorSummaryMount` with `setMessages`
 - `makeId`
 - `textInput`, `numberInput`, `checkbox`, `select`, `textarea`
 - `objectLayout`, `arrayControl`
-- types: `DomWidget`, `WidgetFactory`, `NodeBinding`, `RenderContext`, `Mount`, `ErrorSummaryMount`
+- types: `DomWidget`, `WidgetFactory`, `NodeBinding`, `RenderContext`, `Mount`, `ErrorSummaryOptions`, `ErrorSummaryMount`
 
 ## Not in this release
 
 Shadow DOM, `formAssociated` and `ElementInternals`, nesting inside another
-`<form>`, group and layout containers beyond objects and arrays, text and
-action nodes, and focus management after a failed submit.
+`<form>`, group and layout containers beyond objects and arrays, and text and
+action nodes.
 
 ## Related packages
 

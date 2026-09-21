@@ -983,6 +983,14 @@ Reflected to the `error-summary` attribute. While true, the summary is the first
 
 ***
 
+### errorSummaryFocus
+
+> **errorSummaryFocus**: `boolean`
+
+Reflected as the `error-summary` value `no-focus`. Off for all but one summary when one runtime is rendered twice.
+
+***
+
 ### firstChild
 
 > `readonly` **firstChild**: `ChildNode` \| `null`

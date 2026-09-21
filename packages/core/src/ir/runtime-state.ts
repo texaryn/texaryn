@@ -30,6 +30,8 @@ export interface InteractionState {
 export interface SubmissionState {
   status: 'idle' | 'validating' | 'submitting' | 'submitted'
   error?: unknown
+  /** Set when a data command arrived during submit validation and abandoned the attempt. */
+  cancelled?: true
   /** Accepted Submit commands since creation or the last Reset; above zero, invalid fields show their errors before they are touched. */
   attempts: number
 }

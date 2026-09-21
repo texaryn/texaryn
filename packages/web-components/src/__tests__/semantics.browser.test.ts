@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from '@vitest/browser/context'
-import { createFormRuntime } from '@texaryn/core'
+import { createFormRuntime, englishMessages } from '@texaryn/core'
 import type { FormRuntime, UIHints } from '@texaryn/core'
-import { createDefaultRegistry, defineTexarynForm, mountForm } from '../index.js'
-import type { TexarynFormElement } from '../index.js'
+import { createDefaultRegistry, defineTexarynForm, mountErrorSummary, mountForm } from '../index.js'
+import type { Mount, TexarynFormElement } from '../index.js'
 import { adapterFor, conditionalSchema, flush, listSchema, nodeAt, requiredSchema } from './harness.js'
 
 defineTexarynForm()
@@ -11,6 +11,7 @@ const registry = createDefaultRegistry()
 
 let runtime: FormRuntime | null = null
 let container: HTMLElement
+let mounted: Mount
 
 type Movable = { moveBefore?: (node: Node, child: Node | null) => void }
 const elementProto = Element.prototype as unknown as Movable
@@ -23,7 +24,7 @@ async function mount(schema: unknown, initialData: unknown, hints?: UIHints): Pr
     validationDebounceMs: 0,
   })
   container = document.body.appendChild(document.createElement('div'))
-  mountForm(container, runtime, { registry, idPrefix: 'f' })
+  mounted = mountForm(container, runtime, { registry, idPrefix: 'f' })
   return runtime
 }
 
@@ -176,5 +177,33 @@ describe('browser semantics', () => {
     expect(owned.getNodeState(nodeId)).toBeUndefined()
     owned.dispatch({ type: 'SetValue', nodeId, value: 'Bea' })
     expect(name(owned)).toBe('')
+  })
+
+  it('a failed submit focuses the summary group, labelled by its heading', async () => {
+    const rt = await mount(requiredSchema, { name: '' })
+    mountErrorSummary(container, mounted)
+    rt.dispatch({ type: 'Submit' })
+    await flush()
+    const group = container.querySelector<HTMLElement>('[role="group"]')!
+    expect(document.activeElement).toBe(group)
+    const heading = document.getElementById(group.getAttribute('aria-labelledby')!)!
+    expect(heading.tagName).toBe('H2')
+    expect(heading.textContent).toBe('There is a problem')
+  })
+
+  it('a locale switch keeps the focused input, its value and its selection', async () => {
+    await mount(requiredSchema, { name: '' })
+    const field = input('/name')
+    await userEvent.click(field)
+    await userEvent.type(field, 'hello')
+    field.setSelectionRange(1, 3)
+    mounted.setMessages({ ...englishMessages, requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }) })
+    await flush()
+    expect(container.querySelector('input[name="/name"]')).toBe(field)
+    expect(field.value).toBe('hello')
+    expect(document.activeElement).toBe(field)
+    expect(field.selectionStart).toBe(1)
+    expect(field.selectionEnd).toBe(3)
+    expect(container.querySelector('label')!.textContent).toContain('(obligatoire)')
   })
 })

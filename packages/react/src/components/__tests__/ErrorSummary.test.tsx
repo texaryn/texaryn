@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import React from 'react'
-import { createStore } from '@texaryn/core'
+import { createStore, englishMessages } from '@texaryn/core'
 import type {
   FormRuntime,
   NodeId,
@@ -11,6 +11,8 @@ import type {
   SubmissionState,
   SchemaEvaluationPort,
   InitializationReport,
+  FormMessages,
+  WritableStore,
 } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { FormProvider } from '../../context.js'
@@ -23,7 +25,7 @@ afterEach(() => {
   cleanup()
 })
 
-function makeMockRuntime(visibleErrors: VisibleError[]): FormRuntime {
+function makeMockRuntime(visibleErrors: VisibleError[]): FormRuntime & { submission: WritableStore<SubmissionState> } {
   return {
     document: createStore<UIDocument>({ version: 1, rootId: 'node_1' as NodeId, nodes: {} }),
     data: createStore<unknown>({}),
@@ -61,6 +63,13 @@ describe('ErrorSummary', () => {
     // No live role: the fields announce their own errors, so an aggregate
     // region would speak the same validation event a second time.
     expect(screen.queryByRole('alert')).toBeNull()
+    const group = screen.getByRole('group', { name: 'There is a problem' })
+    expect(group.getAttribute('tabindex')).toBe('-1')
+    const heading = group.querySelector('h2')!
+    expect(group.firstElementChild).toBe(heading)
+    expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
+    expect(heading.id).toMatch(/^texaryn-[0-9a-z_]+-error-summary-heading$/)
+    expect(screen.getByRole('listitem').textContent).toBe('Name: Required')
     expect(screen.getByText(/Name/)).toBeTruthy()
     expect(screen.getByText(/Required/)).toBeTruthy()
   })
@@ -129,6 +138,22 @@ describe('ErrorSummary', () => {
     renderWithRuntime(makeMockRuntime(errors))
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(2)
+    expect(screen.getByRole('group', { name: 'There are 2 problems' })).toBeTruthy()
+  })
+
+  it('does not focus a summary mounted after an old failed attempt', () => {
+    const runtime = makeMockRuntime([
+      {
+        nodeId: 'node_2' as NodeId,
+        fieldTitle: 'Name',
+        pointer: '/name' as JsonPointer,
+        errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
+      },
+    ])
+    runtime.submission.set({ status: 'idle', attempts: 2 })
+    renderWithRuntime(runtime)
+    expect(screen.getByRole('group')).toBeTruthy()
+    expect(document.activeElement).toBe(document.body)
   })
 })
 
@@ -143,11 +168,19 @@ describe('ErrorSummary over a live runtime', () => {
     required: ['name'],
   }
 
-  function Form({ port }: { port: SchemaEvaluationPort }) {
-    const form = useForm(port, { initialData: { name: '' } })
+  function Form({
+    port,
+    focus,
+    messages,
+  }: {
+    port: SchemaEvaluationPort
+    focus?: boolean
+    messages?: FormMessages
+  }) {
+    const form = useForm(port, { initialData: { name: '' }, validationDebounceMs: 0 })
     return (
-      <FormProvider value={form.runtime}>
-        <ErrorSummary />
+      <FormProvider value={form.runtime} messages={messages}>
+        <ErrorSummary focus={focus} />
         <FormRoot registry={registry} />
         <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
           Submit
@@ -156,9 +189,9 @@ describe('ErrorSummary over a live runtime', () => {
     )
   }
 
-  async function renderForm() {
+  async function renderForm(props: { focus?: boolean; messages?: FormMessages } = {}) {
     const port = await createJsonSchemaAdapter(schema)
-    render(<Form port={port} />)
+    render(<Form port={port} {...props} />)
     await waitFor(() => {
       expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
     })
@@ -178,5 +211,44 @@ describe('ErrorSummary over a live runtime', () => {
     })
     const href = screen.getByRole('link').getAttribute('href') ?? ''
     expect(document.getElementById(href.slice(1))).toBe(screen.getByLabelText(/^Full Name/))
+  })
+
+  it('focuses the group once a failed submit settles, and again on the next attempt', async () => {
+    await renderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('group', { name: 'There is a problem' }))
+    })
+    const group = screen.getByRole('group')
+    screen.getByLabelText(/^Full Name/).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(group)
+    })
+  })
+
+  it('leaves focus alone when told not to move it', async () => {
+    await renderForm({ focus: false })
+    const input = screen.getByLabelText(/^Full Name/)
+    input.focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(screen.getByRole('group')).toBeTruthy()
+    })
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('renders the heading and the detail from the configured messages', async () => {
+    const french: FormMessages = {
+      ...englishMessages,
+      errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+    }
+    await renderForm({ messages: french })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
+    })
+    expect(screen.getByRole('listitem').textContent).toMatch(/^Full Name : ./)
   })
 })

@@ -10,6 +10,7 @@ describe('mergeMessages', () => {
     expect(merged.requiredIndicator()).toEqual({ text: '*', placement: 'before' })
     expect(merged.addItem({})).toEqual(englishMessages.addItem({}))
     expect(merged.removeItem({ position: 1 })).toEqual(englishMessages.removeItem({ position: 1 }))
+    expect(merged.errorSummaryHeading({ count: 2 })).toBe('There are 2 problems')
   })
 
   // An explicit `undefined` is how a spread of optional config arrives, and it

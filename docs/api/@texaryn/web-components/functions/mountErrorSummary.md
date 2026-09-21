@@ -6,7 +6,7 @@
 
 # Function: mountErrorSummary()
 
-> **mountErrorSummary**(`container`, `form`): [`ErrorSummaryMount`](../interfaces/ErrorSummaryMount.md)
+> **mountErrorSummary**(`container`, `form`, `options?`): [`ErrorSummaryMount`](../interfaces/ErrorSummaryMount.md)
 
 Takes the Mount, not a runtime and a prefix, so the links cannot name a namespace the form was not mounted under.
 
@@ -19,6 +19,10 @@ Takes the Mount, not a runtime and a prefix, so the links cannot name a namespac
 ### form
 
 [`Mount`](../interfaces/Mount.md)
+
+### options?
+
+[`ErrorSummaryOptions`](../interfaces/ErrorSummaryOptions.md) = `{}`
 
 ## Returns
 

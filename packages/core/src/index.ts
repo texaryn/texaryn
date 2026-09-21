@@ -51,6 +51,8 @@ export type {
   IndicatorMessage,
   ItemActionContext,
   AddItemContext,
+  ErrorSummaryHeadingContext,
+  ErrorSummaryDetailContext,
 } from './messages/index.js'
 export { englishMessages, mergeMessages } from './messages/index.js'
 
@@ -91,3 +93,5 @@ export type { ReconcileOptions, IdentityKey, IdentitySegment } from './identity/
 export type { WidgetTester, WidgetEntry, RendererRegistry } from './renderer/index.js'
 export { createRendererRegistry } from './renderer/index.js'
 export { visibleErrorLabel, visibleErrorMessages } from './renderer/index.js'
+export type { FailedSubmitTracker } from './renderer/index.js'
+export { createFailedSubmitTracker } from './renderer/index.js'

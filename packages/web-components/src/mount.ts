@@ -13,6 +13,8 @@ export interface MountOptions {
 export interface Mount {
   readonly runtime: FormRuntime
   readonly idPrefix: string
+  /** The set in force, after any setMessages. */
+  readonly messages: FormMessages
   /** A locale change recompiles no document, so this reconciles in place; unmounting would drop focus and caret. */
   setMessages(messages: FormMessages): void
   unmount(): void
@@ -54,6 +56,9 @@ export function mountForm(container: HTMLElement, runtime: FormRuntime, options:
   return {
     runtime,
     idPrefix,
+    get messages() {
+      return ctx.messages
+    },
     setMessages(next) {
       if (!live) return
       if (next === ctx.messages) return

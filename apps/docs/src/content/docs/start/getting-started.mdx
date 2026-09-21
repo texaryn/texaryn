@@ -148,8 +148,9 @@ field has been interacted with or a Submit has been attempted. The prop getters
 set `aria-invalid` and link `aria-describedby` to the error element.
 
 `FieldErrors` renders inline errors per field and is included in the default
-widgets. `ErrorSummary` renders a jump-linked list of visible errors above the
-form.
+widgets. `ErrorSummary` renders a named group above the form, headed by an
+`h2`, listing every visible error with a link to its field, and takes focus
+once a failed submit settles.
 
 <Example id="accessibility-error-association" />
 
