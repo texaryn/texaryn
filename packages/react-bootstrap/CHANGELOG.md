@@ -1,5 +1,29 @@
 # @texaryn/react-bootstrap
 
+## 0.4.0
+
+### Minor Changes
+
+- 191787c: Array controls render their visible word and accessible name from the messages
+  configured on `FormProvider`, read through `@texaryn/react`, so a translated
+  application translates this widget set with no configuration of its own.
+  
+  A minor rather than a patch, because a widget set that follows a configured
+  locale with no configuration of its own is a capability an adopter can
+  observe, and because this repository classified the same change as a minor at
+  0.3.0.
+
+### Patch Changes
+
+- Updated dependencies [191787c]
+- Updated dependencies [aa5dd6f]
+- Updated dependencies [191787c]
+- Updated dependencies [aa5dd6f]
+- Updated dependencies [3f19d2c]
+- Updated dependencies [3f19d2c]
+  - @texaryn/core@0.12.0
+  - @texaryn/react@0.5.0
+
 ## 0.3.4
 
 ### Patch Changes

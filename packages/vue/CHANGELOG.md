@@ -1,5 +1,45 @@
 # @texaryn/vue
 
+## 0.4.0
+
+### Minor Changes
+
+- 3f19d2c: `ErrorSummary` renders a jump-linked list of the runtime's visible errors,
+  placed by the application above `FormRoot` the way React's is. Each link
+  targets the input the renderer mounted, inside the namespace
+  `provideFormRuntime` opened. It is not a live region: the fields already
+  announce their own errors.
+- 191787c: `provideFormRuntime(runtime, { messages })` takes a whole `FormMessages` set as
+  a value, a ref or a getter, and every built-in widget renders from it.
+  `useFormMessages()` returns it as a computed for a custom widget, and
+  `FieldWidget` carries it as `messages`.
+  
+  Removed: `removeActionName`, `moveUpActionName` and `addActionName`, for the
+  reason given for the React binding: a helper that ignores the configuration
+  leaves one widget in English while the form translates. Migration:
+  
+  before
+  
+      removeActionName(position, itemTitle, arrayTitle)
+  
+  after
+  
+      const messages = useFormMessages()
+      messages.value.removeItem({ position, itemTitle, containerTitle: arrayTitle }).accessibleName
+- aa5dd6f: `ErrorSummary` is a named group with an `h2` heading and takes focus once a
+  failed submit settles, once per attempt; a successful submit, a validation
+  exception and blur or change validation move nothing. `:focus="false"` keeps
+  it passive, for an application that renders one runtime twice and wants one
+  focusing summary. The heading and the text after each link come from
+  `errorSummaryHeading` and `errorSummaryDetail` in `FormMessages`.
+
+### Patch Changes
+
+- Updated dependencies [191787c]
+- Updated dependencies [aa5dd6f]
+- Updated dependencies [3f19d2c]
+  - @texaryn/core@0.12.0
+
 ## 0.3.4
 
 ### Patch Changes

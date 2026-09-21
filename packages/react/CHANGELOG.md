@@ -1,5 +1,49 @@
 # @texaryn/react
 
+## 0.5.0
+
+### Minor Changes
+
+- 191787c: `FormProvider` takes `messages`, a whole `FormMessages` set, and every built-in
+  widget renders from it. `useFormMessages()` is how a custom widget reads it.
+  
+  Removed: `removeActionName`, `moveUpActionName`, `addActionName` and
+  `REQUIRED_INDICATOR`. Their purpose was letting a custom widget match the
+  built-in wording, and a function that returns English whatever is configured
+  now serves that purpose wrongly, leaving one widget in English while the form
+  translates. Migration:
+  
+  before
+  
+      removeActionName(position, itemTitle, arrayTitle)
+      <span aria-hidden="true"> {REQUIRED_INDICATOR}</span>
+  
+  after
+  
+      const messages = useFormMessages()
+      messages.removeItem({ position, itemTitle, containerTitle: arrayTitle }).accessibleName
+      messages.requiredIndicator()   // { text, placement }
+  
+  `ArrayActions`'s `addName` and `removeName(position, item)` are replaced by
+  `add` and `remove(position, item)`, each returning an `ActionMessage` carrying
+  `label` and `accessibleName` together.
+- aa5dd6f: `ErrorSummary` is a named group with an `h2` heading and takes focus once a
+  failed submit settles, once per attempt; a successful submit, a validation
+  exception and blur or change validation move nothing. `focus={false}` keeps
+  it passive, for an application that renders one runtime twice and wants one
+  focusing summary. The heading and the text after each link come from
+  `errorSummaryHeading` and `errorSummaryDetail` in `FormMessages`.
+
+### Patch Changes
+
+- 3f19d2c: `ErrorSummary` reads its label and message fallbacks from
+  `visibleErrorLabel` and `visibleErrorMessages` in `@texaryn/core`. Rendered
+  output is unchanged.
+- Updated dependencies [191787c]
+- Updated dependencies [aa5dd6f]
+- Updated dependencies [3f19d2c]
+  - @texaryn/core@0.12.0
+
 ## 0.4.4
 
 ### Patch Changes

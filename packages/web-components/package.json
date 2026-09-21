@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/web-components",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "A <texaryn-form> custom element over the Texaryn runtime, with native default widgets",
   "keywords": [
     "web-components",
