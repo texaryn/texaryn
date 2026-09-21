@@ -1,5 +1,54 @@
 # @texaryn/web-components
 
+## 0.4.0
+
+### Minor Changes
+
+- 3f19d2c: `mountErrorSummary(container, form)` renders a jump-linked list of the
+  runtime's visible errors over the `Mount` that `mountForm` returned, which now
+  carries `runtime` and `idPrefix`, so every link resolves inside the namespace
+  the form was mounted under. Both are required members of the exported `Mount`
+  interface, so a hand-written `Mount` or a test double supplies them.
+  `<texaryn-form error-summary>` and the `errorSummary` property mount it as the
+  first child of the element's form. It is not a live region: the fields already
+  announce their own errors.
+- 191787c: `mountForm(container, runtime, { registry, idPrefix, messages })` replaces the
+  four positional parameters, and the returned `Mount` gains `setMessages`. The
+  element gains a `messages` property that switches a mounted form in place.
+  `RenderContext.messages` is what a custom widget reads.
+  
+  The options object is a break for callers of `mountForm`. Migration:
+  
+  before
+  
+      mountForm(container, runtime, registry, idPrefix)
+  
+  after
+  
+      mountForm(container, runtime, { registry, idPrefix })
+  
+  A locale change recompiles no document, so `setMessages` reconciles the mounted
+  tree itself rather than unmounting it; focus, selection and caret position
+  survive the switch.
+- aa5dd6f: The error summary is a named group with an `h2` heading and takes focus once
+  a failed submit settles, once per attempt; a successful submit, a validation
+  exception and blur or change validation move nothing.
+  `mountErrorSummary(container, form, { focus: false })` keeps it passive, for
+  an application that renders one runtime twice and wants one focusing summary,
+  and `ErrorSummaryMount.setMessages` follows a locale switch in place. `Mount`
+  exposes `messages`, the set in force. On the element, `error-summary` is
+  enumerated: present with any value other than `no-focus` focuses,
+  `error-summary="no-focus"` does not, and `errorSummaryFocus` reflects it. The
+  heading and the text after each link come from `errorSummaryHeading` and
+  `errorSummaryDetail` in `FormMessages`.
+
+### Patch Changes
+
+- Updated dependencies [191787c]
+- Updated dependencies [aa5dd6f]
+- Updated dependencies [3f19d2c]
+  - @texaryn/core@0.12.0
+
 ## 0.3.4
 
 ### Patch Changes

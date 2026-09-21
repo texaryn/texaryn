@@ -1,5 +1,46 @@
 # @texaryn/core
 
+## 0.12.0
+
+### Minor Changes
+
+- 191787c: States the copy the built-in widgets invent as one contract, `FormMessages`,
+  with `englishMessages` as the default and `mergeMessages` for rewording one
+  message over a base.
+  
+  Each message is a function returning what the control needs, because the
+  English already drops its container clause when an array has no title and a
+  template cannot say that without conditional syntax. An action returns both its
+  visible label and its accessible name, since the second contains the first and
+  two independent entries would let a translation break that. A locale implements
+  the whole interface, so a message added later fails a translated application at
+  compile time rather than leaking one English control into it.
+  
+  Nothing under the runtime imports the module; the runtime does not know copy
+  exists.
+- aa5dd6f: `FormMessages` gains `errorSummaryHeading({ count })` and
+  `errorSummaryDetail({ messages })`: the heading over the error summary and the
+  whole text after each item's link, punctuation included. A translated
+  application implements both; this is the breaking addition ADR-004 rule 3
+  describes, and the English forms are the migration:
+  
+      errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),
+      errorSummaryDetail: ({ messages }) => `: ${messages.join(', ')}`,
+  
+  `createFailedSubmitTracker(initial)` decides, from `submission` and
+  `visibleErrors` snapshots, when a summary focuses: once per accepted attempt
+  that settles invalid, never for an attempt older than the tracker, never
+  after a validation exception, and again after a Reset. Every binding's
+  summary uses it.
+  
+  `SubmissionState` gains an optional `cancelled` mark, set when a data command
+  arrives during submit validation and abandons the attempt; the tracker
+  consumes such an attempt without focusing.
+- 3f19d2c: `visibleErrorLabel(error)` and `visibleErrorMessages(error)` hold the fallback
+  rules an error summary applies to a `VisibleError`: the field title, else the
+  pointer, else the node id; each message, else its keyword. Every binding's
+  summary reads them, so the three cannot drift.
+
 ## 0.11.0
 
 ### Minor Changes
