@@ -110,7 +110,9 @@ export default defineConfig({
           customSets: [
             {
               label: 'API reference',
-              description: 'the generated type reference for every published package',
+              description: `the generated type reference for ${API_ENTRY_POINTS.map(
+                (entryPoint) => `@texaryn/${entryPoint.split('/').at(-1)}`,
+              ).join(', ')}`,
               paths: ['api/**'],
             },
           ],
