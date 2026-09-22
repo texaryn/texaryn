@@ -1,10 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
+import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
 import { BASE, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
 
-// The published packages, matching the root typedoc.json entry points.
+// The root typedoc.json entry points except packages/web-components.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
 // release gate, and moving both systems at once would make a drift failure
 // hard to attribute.
@@ -20,6 +22,11 @@ const API_ENTRY_POINTS = [
   '../../packages/react-mui',
   '../../packages/vue',
 ]
+
+const API_PACKAGE_NAMES = API_ENTRY_POINTS.map(
+  (entryPoint) =>
+    JSON.parse(readFileSync(new URL(`${entryPoint}/package.json`, import.meta.url), 'utf8')).name,
+)
 
 // The site is served from texaryn.github.io/texaryn, with the playground
 // composed into the same artifact under /playground. `site` and `base` are
@@ -87,6 +94,39 @@ export default defineConfig({
           // output. Excluding that one subtree scopes the checker to what this
           // build actually produces; every docs route stays checked.
           exclude: [PLAYGROUND_PATH.slice(0, -1), `${PLAYGROUND_PATH}**`],
+        }),
+        starlightLlmsTxt({
+          projectName: 'Texaryn',
+          description:
+            'Texaryn is a framework-neutral, headless runtime that turns a JSON Schema (Draft 7, 2019-09 or 2020-12) into a working form. A schema adapter projects the schema, the core runtime owns state, validation and submission, and a React, Vue or Web Components binding renders the result.',
+          details: [
+            'Texaryn is pre-1.0 and every package versions on its own. An application installs `@texaryn/core` (the headless runtime) and `@texaryn/schema-json` (the JSON Schema adapter) together with one binding: `@texaryn/react`, `@texaryn/vue` or `@texaryn/web-components`.',
+            '`@texaryn/react-bootstrap` and `@texaryn/react-mui` are widget registries over `@texaryn/react`, not bindings of their own. The per-binding usage lives in each package README in the GitHub repository.',
+          ].join('\n\n'),
+          promote: [
+            'index',
+            'start/getting-started',
+            'concepts/architecture',
+            'guides/json-schema-support',
+            'guides/migrating-from-rjsf',
+          ],
+          demote: ['api/**', '404'],
+          exclude: ['api/**', '404'],
+          customSelectors: { all: ['.sl-anchor-link'] },
+          customSets: [
+            {
+              label: 'API reference',
+              description: `the generated type reference for ${API_PACKAGE_NAMES.join(', ')}`,
+              paths: ['api/**'],
+            },
+          ],
+          optionalLinks: [
+            {
+              label: 'GitHub repository',
+              url: 'https://github.com/texaryn/texaryn',
+              description: 'source, package READMEs and changelogs',
+            },
+          ],
         }),
       ],
       social: [

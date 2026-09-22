@@ -1,0 +1,33 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Texaryn",
+  "description": "Framework-neutral, headless runtime that turns JSON Schema into forms, rendered through React, Vue or Web Components bindings.",
+  "folders": ["apps/docs/src/content/docs", "packages"],
+  "excludeFolders": [
+    "spikes",
+    "packages/schema-json/spike",
+    "tests",
+    "apps/playground",
+    "node_modules",
+    "dist",
+    ".changeset",
+    "packages/examples",
+    "packages/schema-json-hyperjump"
+  ],
+  "excludeFiles": ["CHANGELOG.md", "THIRD-PARTY-NOTICES.md", "ROADMAP.md", "404.md"],
+  "rules": [
+    "Install @texaryn/core and @texaryn/schema-json together with the binding for the app's framework: @texaryn/react, @texaryn/vue or @texaryn/web-components. Core is headless and renders nothing by itself.",
+    "@texaryn/react-bootstrap and @texaryn/react-mui are widget registries over @texaryn/react. Install them next to @texaryn/react, not in place of it, and pass createBootstrapRegistry() or createMuiRegistry() to FormRoot.",
+    "@texaryn/react-mui needs @mui/material v9, @emotion/react and @emotion/styled on the page. @texaryn/react-bootstrap loads no stylesheet, so the page loads Bootstrap 5.3 CSS itself.",
+    "createJsonSchemaAdapter(schema) from @texaryn/schema-json is async: await it, then pass the adapter to useForm or createFormRuntime. The dialect comes from $schema, with Draft 7 as the fallback.",
+    "Supported dialects are Draft 7, 2019-09 and 2020-12; Draft 4 and Draft 6 are not. Remote $ref, $dynamicRef and tuple arrays are outside the form projection scope, so use local $ref and homogeneous arrays.",
+    "React: create the registry once with createDefaultRegistry(), call const form = useForm(adapter, options), then render <FormProvider value={form.runtime}> around <ErrorSummary /> and <FormRoot registry={registry} />.",
+    "Vue 3.5+: call useForm and provideFormRuntime(form.runtime) in setup(). FormRoot and ErrorSummary must be descendants of the component that called provideFormRuntime, which cannot inject what it provided itself. Placing them in its template is enough.",
+    "Web Components: call defineTexarynForm() once, then on a <texaryn-form> element set options before port, since options are read when the runtime is created. Set port or runtime, never both: that throws.",
+    "In React and Vue, FormRoot renders no <form> element. Start submission with dispatch({ type: 'Submit' }) and read submission.status, which moves through idle, validating, submitting and submitted.",
+    "UI hints replace uiSchema. They are keyed by JSON Pointer, for example '/email', and carry widget, placeholder, helpText, order and validationTrigger ('blur', 'change' or 'submit').",
+    "To translate built-in widget text, pass a FormMessages object from @texaryn/core as messages on FormProvider, provideFormRuntime or <texaryn-form>, instead of replacing widgets for their copy.",
+    "@texaryn/examples, @texaryn/playground and @texaryn/schema-json-hyperjump are private workspace packages that are not published to npm. Do not install or import them.",
+    "Every package is pre-1.0 and versions on its own, so version numbers differ between packages. Install the latest of each rather than matching numbers across them."
+  ]
+}
