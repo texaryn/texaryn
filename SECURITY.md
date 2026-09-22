@@ -12,7 +12,7 @@ Texaryn publishes seven packages to npm, and each one versions independently:
 - `@texaryn/vue`
 - `@texaryn/web-components`
 
-Every package is pre-1.0, and its public API may change between minor versions.
+While a package is below 1.0, its public API may change between minor versions.
 
 | Version | Receives security fixes |
 | --- | --- |
@@ -21,7 +21,7 @@ Every package is pre-1.0, and its public API may change between minor versions.
 
 A fix ships as a new release of each affected package on the `latest` dist-tag. Earlier minor versions do not receive backports, so upgrading to the latest release is the way to pick up a fix. `npm view @texaryn/core version` prints the current release of a package.
 
-The private workspace packages (`@texaryn/examples`, `@texaryn/schema-json-hyperjump`, `@texaryn/playground` and `@texaryn/docs`) are not published to npm. The documentation site and playground at <https://texaryn.github.io/texaryn/> are built from this repository, and a vulnerability in them can be reported the same way.
+The five private workspace packages (`@texaryn/examples`, `@texaryn/schema-json-hyperjump`, `@texaryn/conformance-tests`, `@texaryn/playground` and `@texaryn/docs`) are not published to npm. The documentation site and playground at <https://texaryn.github.io/texaryn/> are built from this repository, and a vulnerability in them can be reported the same way.
 
 ## Reporting a vulnerability
 
@@ -29,7 +29,7 @@ Do not report a vulnerability through a public issue, discussion or pull request
 
 Report it privately through GitHub private vulnerability reporting:
 
-1. Open the **Security** tab of this repository.
+1. Open the **Security and quality** tab of this repository.
 2. Select **Report a vulnerability**.
 3. Fill in the form and submit it.
 
@@ -39,7 +39,9 @@ A useful report names the affected package and version, gives the smallest schem
 
 ## What happens after a report
 
-The report opens a draft GitHub security advisory that only the reporter and the maintainers can see. The maintainer acknowledges the report in that advisory, and triage, discussion and any fix happen there.
+Submitting the form creates a vulnerability report: a proposed security advisory in the `Triage` state that only the reporter, the maintainers and collaborators they add can see. The maintainer acknowledges the report and asks any questions in comments on it.
+
+A report the maintainer accepts becomes a draft security advisory, still private, and work on the fix continues there. A report that describes no security risk is closed with a comment that explains why.
 
 When a fix is ready, it ships as a new release of each affected package. The advisory is then published with the affected and patched versions, a CVE when one applies, and credit to the reporter unless they ask to stay anonymous.
 
