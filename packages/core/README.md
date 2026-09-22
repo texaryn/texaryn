@@ -1,6 +1,6 @@
 # @texaryn/core
 
-Framework-neutral UI IR, compiler, runtime, state, commands, identity, and renderer registry for Texaryn.
+Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, used with `@texaryn/schema-json` and a React, Vue or Web Components binding.
 
 > Status: pre-1.0. Public APIs may change before 1.0.
 

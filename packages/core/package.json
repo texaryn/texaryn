@@ -1,7 +1,7 @@
 {
   "name": "@texaryn/core",
   "version": "0.12.0",
-  "description": "Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, with no framework dependency",
+  "description": "Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, used with @texaryn/schema-json and a React, Vue or Web Components binding",
   "keywords": [
     "json-schema",
     "json-schema-form",
