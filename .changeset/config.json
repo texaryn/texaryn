@@ -9,6 +9,7 @@
   "ignore": [
     "@texaryn/playground",
     "@texaryn/examples",
-    "@texaryn/schema-json-hyperjump"
+    "@texaryn/schema-json-hyperjump",
+    "@texaryn/hints-rjsf"
   ]
 }

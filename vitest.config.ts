@@ -19,6 +19,7 @@ const alias = {
   '@texaryn/react-mui': resolve(root, 'packages/react-mui/src/index.ts'),
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
   '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
+  '@texaryn/hints-rjsf': resolve(root, 'packages/hints-rjsf/src/index.ts'),
   '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
 }
 
@@ -37,6 +38,7 @@ export default defineConfig({
         'packages/react-mui/src/**',
         'packages/vue/src/**',
         'packages/web-components/src/**',
+        'packages/hints-rjsf/src/**',
       ],
       // Type-only modules compile to nothing executable and would report 0%.
       exclude: [
@@ -134,6 +136,15 @@ export default defineConfig({
             screenshotFailures: false,
             instances: [{ browser: 'chromium' }],
           },
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'hints-rjsf',
+          root: 'packages/hints-rjsf',
+          include: ['src/**/*.test.{ts,tsx}'],
+          environment: 'jsdom',
         },
       },
       {
