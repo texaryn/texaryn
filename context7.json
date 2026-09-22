@@ -22,7 +22,7 @@
     "createJsonSchemaAdapter(schema) from @texaryn/schema-json is async: await it, then pass the adapter to useForm or createFormRuntime. The dialect comes from $schema, with Draft 7 as the fallback.",
     "Supported dialects are Draft 7, 2019-09 and 2020-12; Draft 4 and Draft 6 are not. Remote $ref, $dynamicRef and tuple arrays are outside the form projection scope, so use local $ref and homogeneous arrays.",
     "React: create the registry once with createDefaultRegistry(), call const form = useForm(adapter, options), then render <FormProvider value={form.runtime}> around <ErrorSummary /> and <FormRoot registry={registry} />.",
-    "Vue 3.5+: call useForm and provideFormRuntime(form.runtime) inside setup(). FormRoot and ErrorSummary must render in a descendant component, because a component cannot inject what it provided.",
+    "Vue 3.5+: call useForm and provideFormRuntime(form.runtime) in setup(). FormRoot and ErrorSummary must be descendants of the component that called provideFormRuntime, which cannot inject what it provided itself. Placing them in its template is enough.",
     "Web Components: call defineTexarynForm() once, then on a <texaryn-form> element set options before port, since options are read when the runtime is created. Set port or runtime, never both: that throws.",
     "In React and Vue, FormRoot renders no <form> element. Start submission with dispatch({ type: 'Submit' }) and read submission.status, which moves through idle, validating, submitting and submitted.",
     "UI hints replace uiSchema. They are keyed by JSON Pointer, for example '/email', and carry widget, placeholder, helpText, order and validationTrigger ('blur', 'change' or 'submit').",
