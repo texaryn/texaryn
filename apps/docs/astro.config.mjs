@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
@@ -5,7 +6,7 @@ import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
 import { BASE, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
 
-// The published packages, matching the root typedoc.json entry points.
+// The root typedoc.json entry points except packages/web-components.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
 // release gate, and moving both systems at once would make a drift failure
 // hard to attribute.
@@ -21,6 +22,11 @@ const API_ENTRY_POINTS = [
   '../../packages/react-mui',
   '../../packages/vue',
 ]
+
+const API_PACKAGE_NAMES = API_ENTRY_POINTS.map(
+  (entryPoint) =>
+    JSON.parse(readFileSync(new URL(`${entryPoint}/package.json`, import.meta.url), 'utf8')).name,
+)
 
 // The site is served from texaryn.github.io/texaryn, with the playground
 // composed into the same artifact under /playground. `site` and `base` are
@@ -110,9 +116,7 @@ export default defineConfig({
           customSets: [
             {
               label: 'API reference',
-              description: `the generated type reference for ${API_ENTRY_POINTS.map(
-                (entryPoint) => `@texaryn/${entryPoint.split('/').at(-1)}`,
-              ).join(', ')}`,
+              description: `the generated type reference for ${API_PACKAGE_NAMES.join(', ')}`,
               paths: ['api/**'],
             },
           ],
