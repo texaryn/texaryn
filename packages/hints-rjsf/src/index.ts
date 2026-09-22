@@ -1,1 +1,5 @@
+export { fromUiSchema } from './convert.js'
+export type { UiSchemaConversion, UiSchemaEntry } from './convert.js'
+export { componentTester } from './tester.js'
+export type { ComponentRequirement, UiSchemaIssue, UiSchemaIssueCode } from './types.js'
 export type { JsonObject, JsonValue } from './json.js'
