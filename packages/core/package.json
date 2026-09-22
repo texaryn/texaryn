@@ -1,10 +1,13 @@
 {
   "name": "@texaryn/core",
   "version": "0.12.0",
-  "description": "Framework-neutral UI IR, compiler, runtime, and renderer registry for schema-driven forms",
+  "description": "Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, used with @texaryn/schema-json and a React, Vue or Web Components binding",
   "keywords": [
     "json-schema",
+    "json-schema-form",
     "forms",
+    "dynamic-forms",
+    "form-generator",
     "form-builder",
     "schema-driven",
     "headless",
@@ -25,7 +28,7 @@
     "url": "git+https://github.com/texaryn/texaryn.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "homepage": "https://texaryn.github.io/texaryn/",
   "bugs": {
     "url": "https://github.com/texaryn/texaryn/issues"
   },

@@ -21,7 +21,7 @@
     "url": "git+https://github.com/texaryn/texaryn.git",
     "directory": "packages/react-bootstrap"
   },
-  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "homepage": "https://texaryn.github.io/texaryn/",
   "bugs": {
     "url": "https://github.com/texaryn/texaryn/issues"
   },

@@ -22,7 +22,7 @@
     "url": "git+https://github.com/texaryn/texaryn.git",
     "directory": "packages/schema-json"
   },
-  "homepage": "https://github.com/texaryn/texaryn#readme",
+  "homepage": "https://texaryn.github.io/texaryn/",
   "bugs": {
     "url": "https://github.com/texaryn/texaryn/issues"
   },
