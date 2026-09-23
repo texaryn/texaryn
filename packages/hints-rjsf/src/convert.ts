@@ -75,8 +75,19 @@ function nodeAt(projection: SchemaProjection, pointer: JsonPointer): NodeProject
   return typeof node === 'object' && node !== null ? node : undefined
 }
 
+function isChild(child: unknown): child is ChildProjection {
+  if (typeof child !== 'object' || child === null) return false
+  const { key, pointer } = child as Partial<Record<'key' | 'pointer', unknown>>
+  return typeof key === 'string' && typeof pointer === 'string' && pointer.startsWith('/')
+}
+
 function childrenOf(node: NodeProjection): readonly ChildProjection[] {
-  return Array.isArray(node.children) ? node.children : []
+  try {
+    const children: unknown = node.children
+    return Array.isArray(children) ? children.filter(isChild) : []
+  } catch {
+    return []
+  }
 }
 
 function report(walk: Walk, issue: UiSchemaIssue): void {

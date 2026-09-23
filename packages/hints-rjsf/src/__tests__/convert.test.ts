@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { JsonPointer, NodeProjection, SchemaProjection, UINode } from '@texaryn/core'
+import type { ChildProjection, JsonPointer, NodeProjection, SchemaProjection, UINode } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { componentTester, fromUiSchema } from '../index.js'
 
@@ -385,6 +385,26 @@ describe('totality', () => {
       ]),
     }
     expect(() => fromUiSchema({}, selfChild)).not.toThrow()
+
+    const string: NodeProjection = { type: 'string', constraints: {}, active: true, annotations: {} }
+    const withChildren = (children: unknown[], pointer = '/name'): SchemaProjection => ({
+      nodes: new Map<JsonPointer, NodeProjection>([
+        [at(''), { type: 'object', constraints: {}, active: true, annotations: {}, children: children as ChildProjection[] }],
+        [at(pointer), string],
+      ]),
+    })
+    const name = { pointer: at('/name'), key: 'name', required: false }
+    const holed: unknown[] = []
+    holed[1] = name
+    for (const children of [[null, name], holed, [{ pointer: 5, key: 'name', required: false }, name]]) {
+      expect(() => fromUiSchema(uiSchema, withChildren(children))).not.toThrow()
+      expect(fromUiSchema(uiSchema, withChildren(children)).hints).toEqual({ '/name': { placeholder: 'x' } })
+    }
+    const symbol = withChildren([{ pointer: at('/s'), key: Symbol('s'), required: false }, name])
+    expect(() => fromUiSchema({ 'ui:order': ['name'] }, symbol)).not.toThrow()
+    const proto = withChildren([{ pointer: '__proto__', key: 'p', required: false }], '__proto__')
+    expect(() => fromUiSchema({ p: { 'ui:placeholder': 'x' } }, proto)).not.toThrow()
+    expect(Object.getPrototypeOf(fromUiSchema({ p: { 'ui:placeholder': 'x' } }, proto).hints)).toBe(Object.prototype)
   })
 
   it('reports the projection object as invalid JSON when swapped in, and every key as unaddressable when the projection is undefined', async () => {
