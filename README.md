@@ -168,6 +168,7 @@ Product documentation is published at
 - [Migrating from RJSF](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/)
 - [API reference](https://texaryn.github.io/texaryn/api/)
 - [Playground](https://texaryn.github.io/texaryn/playground/)
+- [llms.txt](https://texaryn.github.io/texaryn/llms.txt) for coding agents, with the whole documentation as Markdown in [llms-full.txt](https://texaryn.github.io/texaryn/llms-full.txt)
 
 Its sources live in [`apps/docs`](apps/docs). Maintainer material stays in
 [`docs/`](docs/README.md): the [release runbook](docs/releasing.md), design
