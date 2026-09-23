@@ -1,3 +1,4 @@
+import { runInNewContext } from 'node:vm'
 import { describe, it, expect } from 'vitest'
 import { deepEqual, toJson } from '../json.js'
 import type { OutsideJson } from '../json.js'
@@ -87,6 +88,21 @@ describe('toJson', () => {
       value: undefined,
       outside: [{ path: '', key: '', reason: 'a function is not a JSON value' }],
     })
+  })
+
+  it('accepts a plain object from another realm', () => {
+    const { value, outside } = copy(runInNewContext('({ a: 1 })'))
+    expect(outside).toEqual([])
+    expect(value).toEqual({ a: 1 })
+    expect(copy(Object.create(null)).outside).toEqual([])
+    expect(copy(new (class Point {})()).outside.map((entry) => entry.reason)).toEqual(['only a plain object is a JSON object'])
+  })
+
+  it('stops past a million values and reports it once', () => {
+    const { value, outside } = copy(new Array(1_000_001).fill(0))
+    expect(outside).toEqual([{ path: '/999999', key: '999999', reason: 'larger than 1000000 values' }])
+    expect((value as unknown[]).length).toBe(999_999)
+    expect(copy(new Array(999_999).fill(0)).outside).toEqual([])
   })
 
   it('caps depth at 256 levels and reports the overflow once', () => {
