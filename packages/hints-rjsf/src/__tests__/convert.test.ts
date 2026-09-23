@@ -540,6 +540,20 @@ describe('fix round 1', () => {
     ])
   })
 
+  it('reports a non-string ui:field, a non-array oneOf and additionalItems inside items', async () => {
+    const conversion = await convert({
+      name: { 'ui:field': 5 },
+      address: { oneOf: {} },
+      tags: { items: { additionalItems: { 'ui:title': 't' } } },
+    })
+    expect(conversion.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ['invalid-value', '/name/ui:field'],
+      ['invalid-value', '/address/oneOf'],
+      ['unaddressable', '/tags/items/additionalItems/ui:title'],
+    ])
+    expect(conversion.components).toEqual([])
+  })
+
   it('returns undefined for a pointer that is not a string', async () => {
     const conversion = await convert({})
     expect(conversion.uiSchemaAt(42 as never)).toBeUndefined()

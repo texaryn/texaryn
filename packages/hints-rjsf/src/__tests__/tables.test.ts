@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getWidget } from '@rjsf/utils'
 import type { JsonPointer, NodeProjection } from '@texaryn/core'
+import type { JsonValue } from '../json.js'
 import { AFTER_WILDCARD, convertOrder } from '../order.js'
 import { dispose, isInert } from '../table.js'
 import type { KeyContext } from '../table.js'
@@ -103,6 +104,30 @@ describe('dispose', () => {
     expect(dispose('submitButtonOptions', {}, context('object', { root: true }))).toMatchObject({ code: 'unsupported' })
     expect(dispose('FieldTemplate', 'x', context('string'))).toMatchObject({ code: 'unsupported' })
     expect(dispose('whatever', 1, context('string'))).toEqual({ kind: 'none' })
+  })
+})
+
+describe('the remaining cells', () => {
+  const textarea = new Map([['widget', { value: 'textarea', path: '/ui:widget' }]])
+  const cells: [string, JsonValue, string, 'unsupported' | 'none', KeyContext][] = [
+    ['classNames', 'wide', 'a string', 'unsupported', context('string')],
+    ['style', { color: 'red' }, 'a string', 'unsupported', context('string')],
+    ['enableMarkdownInDescription', true, 'a described string', 'unsupported', context('string', { node: node({ annotations: { description: 'd' } }) })],
+    ['enableMarkdownInDescription', true, 'a string with no description', 'none', context('string')],
+    ['disabled', true, 'a string', 'unsupported', context('string')],
+    ['hideError', true, 'a string', 'unsupported', context('string')],
+    ['autofocus', true, 'a string', 'unsupported', context('string')],
+    ['backstage', { review: { show: false } }, 'an object', 'unsupported', context('object')],
+    ['autocomplete', 'email', 'a string', 'unsupported', context('string')],
+    ['autocomplete', 'email', 'a boolean', 'none', context('boolean')],
+    ['inputType', 'tel', 'a string', 'unsupported', context('string')],
+    ['inputType', 'tel', 'a boolean', 'none', context('boolean')],
+    ['rows', 3, 'a string enum carrying the textarea hint', 'unsupported', context('enum', { node: node({ enumValues: [{ value: 'a' }] }), options: textarea })],
+  ]
+
+  it.each(cells)('%s %j on %s is %s', (name, value, _where, expected, ctx) => {
+    const disposition = dispose(name, value, ctx)
+    expect(disposition.kind === 'issue' ? disposition.code : disposition.kind).toBe(expected)
   })
 })
 
