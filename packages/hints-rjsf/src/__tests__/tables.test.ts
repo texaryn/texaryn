@@ -109,7 +109,7 @@ describe('dispose', () => {
 describe('isInert', () => {
   it('holds only for keys and values that do nothing at any kind', () => {
     expect(['inline', 'accept', 'expandable', 'custom'].every((name) => isInert(name, true))).toBe(true)
-    expect(isInert('widget', 'text')).toBe(true)
+    expect(isInert('widget', 'text')).toBe(false)
     expect(isInert('widget', 'textarea')).toBe(false)
     expect(isInert('orderable', false)).toBe(true)
     expect(isInert('orderable', true)).toBe(false)

@@ -201,7 +201,11 @@ describe('nesting', () => {
     const rows = await convert({ tags: { items: { 'ui:placeholder': 'tag', 'ui:widget': 'text', 'ui:inline': true } } })
     expect(rows.issues.map((issue) => [issue.code, issue.path, issue.pointer])).toEqual([
       ['unaddressable', '/tags/items/ui:placeholder', undefined],
+      ['unaddressable', '/tags/items/ui:widget', undefined],
     ])
+    const text = await convert({ tags: { items: { 'ui:widget': 'text' } } })
+    expect(text.issues.map((issue) => [issue.code, issue.path])).toEqual([['unaddressable', '/tags/items/ui:widget']])
+    expect(text.components).toEqual([])
     const component = await convert({ tags: { items: { 'ui:field': 'TagPicker', 'ui:options': { max: 3 } } } })
     expect(component.components).toEqual([
       { name: 'TagPicker', key: 'ui:field', path: '/tags/items/ui:field', pointer: '/tags', rows: true },

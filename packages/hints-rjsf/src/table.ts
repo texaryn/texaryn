@@ -155,6 +155,7 @@ export function isInert(name: string, value: JsonValue): boolean {
     case 'order':
     case 'backstage':
     case 'field':
+    case 'widget':
       return false
     case 'enableMarkdownInDescription':
     case 'disabled':
@@ -168,8 +169,6 @@ export function isInert(name: string, value: JsonValue): boolean {
     case 'addable':
     case 'removable':
       return value !== false
-    case 'widget':
-      return typeof value === 'string' && widgetOutcome(value, 'unknown') === 'default'
     default:
       return !TEMPLATES.has(name)
   }
