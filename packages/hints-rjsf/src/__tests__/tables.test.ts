@@ -82,6 +82,7 @@ describe('dispose', () => {
     expect(dispose('placeholder', 'x', context('boolean'))).toEqual({ kind: 'none' })
     expect(dispose('placeholder', 'x', context('enum'))).toMatchObject({ kind: 'issue', code: 'unsupported' })
     expect(dispose('placeholder', 3, context('string'))).toMatchObject({ kind: 'issue', code: 'invalid-value' })
+    expect(dispose('placeholder', 3, context('boolean'))).toEqual({ kind: 'none' })
     expect(dispose('description', 'x', context('object'))).toMatchObject({ kind: 'issue', code: 'unsupported' })
     expect(dispose('help', 'x', context('string', { node: node({ annotations: { description: 'd' } }) }))).toMatchObject({
       kind: 'issue',

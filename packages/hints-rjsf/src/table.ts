@@ -45,25 +45,21 @@ function notText(name: string): Disposition {
   return { kind: 'issue', code: 'invalid-value', message: `ui:${name} takes a string.` }
 }
 
-export function dispose(name: string, value: JsonValue, ctx: KeyContext): Disposition {
+function textCell(name: 'placeholder' | 'description' | 'help', ctx: KeyContext): Disposition {
   const field = FIELDS.has(ctx.kind)
-  const described = ctx.node.annotations?.description !== undefined
   switch (name) {
     case 'placeholder':
-      if (typeof value !== 'string') return notText(name)
       if (ctx.kind === 'string' || ctx.kind === 'number') return { kind: 'hint', hint: 'placeholder' }
       return ctx.kind === 'enum'
         ? unsupported('RJSF labels the empty option of the select with it, and Texaryn renders no placeholder on a select.')
         : NONE
     case 'description':
-      if (typeof value !== 'string') return notText(name)
       return field
         ? { kind: 'hint', hint: 'helpText' }
         : unsupported('RJSF shows this description on the group, and Texaryn renders none on an object or array.')
     case 'help':
-      if (typeof value !== 'string') return notText(name)
       if (!field) return unsupported('RJSF shows help text under the group, and Texaryn renders none on an object or array.')
-      if (described || typeof ctx.options.get('description')?.value === 'string') {
+      if (ctx.node.annotations?.description !== undefined || typeof ctx.options.get('description')?.value === 'string') {
         return {
           kind: 'issue',
           code: 'conflict',
@@ -71,6 +67,18 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
         }
       }
       return { kind: 'hint', hint: 'helpText' }
+  }
+}
+
+export function dispose(name: string, value: JsonValue, ctx: KeyContext): Disposition {
+  const described = ctx.node.annotations?.description !== undefined
+  switch (name) {
+    case 'placeholder':
+    case 'description':
+    case 'help': {
+      const cell = textCell(name, ctx)
+      return cell === NONE || typeof value === 'string' ? cell : notText(name)
+    }
     case 'title':
       return value === ctx.node.annotations?.title
         ? NONE
