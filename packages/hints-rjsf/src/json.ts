@@ -64,13 +64,14 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
       return reject(path, String(key), 'reading it threw')
     }
   }
-  const visit = (value: unknown, path: string, key: string): JsonValue | undefined => {
+  const visit = (value: unknown, path: string, key: string, depth: number): JsonValue | undefined => {
     if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
     if (typeof value === 'number') {
       return Number.isFinite(value) ? value : reject(path, key, `${value} is not a JSON number`)
     }
     if (value === undefined) return reject(path, key, 'undefined is not a JSON value')
     if (typeof value !== 'object') return reject(path, key, `a ${typeof value} is not a JSON value`)
+    if (depth > 256) return reject(path, key, 'nested deeper than 256 levels')
     if (ancestors.has(value)) return reject(path, key, 'the value contains itself')
     ancestors.add(value)
     try {
@@ -79,7 +80,7 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
         for (let index = 0; index < value.length; index++) {
           const at = `${path}/${index}`
           const item = read(value, index, at)
-          items.push((item && visit(item.value, at, String(index))) ?? null)
+          items.push((item && visit(item.value, at, String(index), depth + 1)) ?? null)
         }
         return items
       }
@@ -91,7 +92,7 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
       for (const name of Object.keys(value)) {
         const at = append(path, name)
         const item = read(value, name, at)
-        const json = item && visit(item.value, at, name)
+        const json = item && visit(item.value, at, name, depth + 1)
         if (json !== undefined) define(copy, name, json)
       }
       return copy
@@ -101,5 +102,5 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
       ancestors.delete(value)
     }
   }
-  return visit(input, '', '')
+  return visit(input, '', '', 1)
 }

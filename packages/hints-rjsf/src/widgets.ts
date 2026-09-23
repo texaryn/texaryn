@@ -17,7 +17,7 @@ const RENDERED_AS_DEFAULT: Readonly<Record<NodeKind, readonly string[]>> = {
 export function kindOf(node: NodeProjection | undefined): NodeKind {
   if (!node) return 'unknown'
   if (node.type === 'object' || node.type === 'array') return node.type
-  if (node.enumValues !== undefined && node.enumValues.length > 0) return 'enum'
+  if (Array.isArray(node.enumValues) && node.enumValues.length > 0) return 'enum'
   if (node.type === 'string' || node.type === 'boolean') return node.type
   if (node.type === 'number' || node.type === 'integer') return 'number'
   return 'unknown'

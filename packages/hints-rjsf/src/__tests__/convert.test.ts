@@ -343,4 +343,128 @@ describe('totality', () => {
     expect(codes(undefined)).toEqual([])
     expect(codes({ 'ui:title': 'x' }, { nodes: new Map() })).toEqual([['unaddressable', '/ui:title']])
   })
+
+  it('never throws over a malformed projection argument', async () => {
+    const port = await createJsonSchemaAdapter(schema)
+    const projection = port.project({})
+    const uiSchema = { name: { 'ui:placeholder': 'x' }, age: { 'ui:placeholder': 'y' } }
+    expect(() => fromUiSchema(projection as unknown, uiSchema as never)).not.toThrow()
+    expect(() => fromUiSchema(uiSchema, undefined as never)).not.toThrow()
+    expect(() => fromUiSchema({}, { nodes: {} } as never)).not.toThrow()
+    const nullNode: SchemaProjection = { nodes: new Map([[at(''), null as never]]) }
+    expect(() => fromUiSchema(uiSchema, nullNode)).not.toThrow()
+    const noAnnotations: SchemaProjection = {
+      nodes: new Map<JsonPointer, NodeProjection>([
+        [at(''), { type: 'object', constraints: {}, active: true, children: [{ pointer: at('/name'), key: 'name', required: false }] } as unknown as NodeProjection],
+        [at('/name'), { type: 'string', constraints: {}, active: true } as unknown as NodeProjection],
+      ]),
+    }
+    expect(() => fromUiSchema(uiSchema, noAnnotations)).not.toThrow()
+    const selfChild: SchemaProjection = {
+      nodes: new Map<JsonPointer, NodeProjection>([
+        [at(''), { type: 'object', constraints: {}, active: true, annotations: {}, children: [{ pointer: at(''), key: '', required: false }] }],
+      ]),
+    }
+    expect(() => fromUiSchema({}, selfChild)).not.toThrow()
+  })
+
+  it('reports every key as unaddressable when the projection is swapped or undefined', async () => {
+    const port = await createJsonSchemaAdapter(schema)
+    const projection = port.project({})
+    const uiSchema = { name: { 'ui:placeholder': 'x' }, age: { 'ui:placeholder': 'y' } }
+    const swapped = fromUiSchema(projection as unknown, uiSchema as never)
+    expect(swapped.issues.length).toBeGreaterThan(0)
+    expect(swapped.issues.every((issue) => issue.code === 'unaddressable')).toBe(true)
+    const undef = fromUiSchema(uiSchema, undefined as never)
+    expect(undef.issues.length).toBeGreaterThan(0)
+    expect(undef.issues.every((issue) => issue.code === 'unaddressable')).toBe(true)
+  })
+
+  it('caps a uiSchema nested past 256 levels and stays total', async () => {
+    const port = await createJsonSchemaAdapter(schema)
+    const projection = port.project({})
+    let nested: unknown = true
+    for (let i = 0; i < 300; i++) nested = { a: nested }
+    expect(() => fromUiSchema({ additionalProperties: nested }, projection)).not.toThrow()
+    const conversion = fromUiSchema({ additionalProperties: nested }, projection)
+    expect(conversion.issues).toHaveLength(1)
+    expect(conversion.issues[0]?.code).toBe('invalid-value')
+    expect(conversion.issues[0]?.message).toContain('256')
+
+    let items: unknown = { 'ui:placeholder': 'x' }
+    for (let i = 0; i < 5000; i++) items = { items }
+    expect(() => fromUiSchema({ tags: items }, projection)).not.toThrow()
+  })
+})
+
+describe('fix round 1', () => {
+  it('lets a property named the empty string live at pointer /', async () => {
+    const conversion = await convert(
+      { '': { 'ui:placeholder': 'x' } },
+      { type: 'object', properties: { '': { type: 'string' } } },
+    )
+    expect(conversion.hints['/']).toEqual({ placeholder: 'x' })
+    expect(conversion.uiSchemaAt(at('/'))?.options).toEqual({ placeholder: 'x' })
+  })
+
+  it('matches componentTester against a row added after the conversion', async () => {
+    const conversion = await convert({ tags: { items: { 'ui:field': 'TagPicker' } } })
+    const node = {
+      id: 'n',
+      type: 'field',
+      parentId: null,
+      dataPointer: '/tags/3',
+      order: 0,
+      visible: true,
+      disabled: false,
+      readOnly: false,
+      annotations: {},
+      fieldType: 'string',
+      constraints: {},
+    } as unknown as UINode
+    expect(componentTester(conversion, 'TagPicker').test(node)).toBe(true)
+  })
+
+  it('reports every non-typed global option key once and keeps typed ones effective', async () => {
+    const conversion = await convert({ 'ui:globalOptions': { placeholder: 'x', widget: 'password', orderable: false } })
+    expect(conversion.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ['unsupported', '/ui:globalOptions/placeholder'],
+      ['unsupported', '/ui:globalOptions/widget'],
+    ])
+    expect(conversion.components).toEqual([])
+    expect(conversion.hints['/tags']).toEqual({ canReorder: false })
+  })
+
+  it('treats the root itself as a component and skips global reporting', async () => {
+    const conversion = await convert({ 'ui:field': 'Whole', 'ui:globalOptions': { label: false } })
+    expect(conversion.issues).toEqual([])
+    expect(conversion.components).toEqual([{ name: 'Whole', key: 'ui:field', path: '/ui:field', pointer: '', rows: false }])
+  })
+
+  it('keeps a row entry at unknown kind whether or not the row was projected', async () => {
+    const port = await createJsonSchemaAdapter({ type: 'object', properties: { nums: { type: 'array', items: { type: 'number' } } } })
+    const conversion = fromUiSchema({ nums: { items: { 'ui:widget': 'textarea' } } }, port.project({ nums: [1] }))
+    expect(conversion.uiSchemaAt(at('/nums/0'))?.component).toBeUndefined()
+    expect(conversion.uiSchemaAt(at('/nums/7'))?.component).toBeUndefined()
+    expect(conversion.issues.map((issue) => issue.code)).toEqual(['unaddressable'])
+  })
+
+  it('reports invalid-value for non-object subtree and row values', async () => {
+    const conversion = await convert({
+      additionalProperties: 'x',
+      address: { oneOf: ['x', { city: 5 }] },
+      tags: { items: { 'ui:field': 5 } },
+    })
+    expect(conversion.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ['invalid-value', '/additionalProperties'],
+      ['invalid-value', '/address/oneOf/0'],
+      ['invalid-value', '/address/oneOf/1/city'],
+      ['invalid-value', '/tags/items/ui:field'],
+    ])
+  })
+
+  it('returns undefined for a pointer that is not a string', async () => {
+    const conversion = await convert({})
+    expect(conversion.uiSchemaAt(42 as never)).toBeUndefined()
+  })
 })

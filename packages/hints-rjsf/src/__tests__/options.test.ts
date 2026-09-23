@@ -45,4 +45,9 @@ describe('effectiveOptions', () => {
     const options = effectiveOptions({ 'ui:title': 'a', 'ui:help': 'b', 'ui:options': { title: 'c' } }, '', new Map())
     expect([...options.keys()]).toEqual(['help', 'title'])
   })
+
+  it('keeps only the seven RJSF-typed global keys', () => {
+    const global = globalOptions({ 'ui:globalOptions': { label: false, orderable: true, placeholder: 'x' } })
+    expect([...global.keys()]).toEqual(['label', 'orderable'])
+  })
 })

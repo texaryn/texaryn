@@ -1,8 +1,8 @@
-import type { ArrayHints, JsonPointer, NodeProjection, SchemaProjection, UIHints } from '@texaryn/core'
+import type { ArrayHints, ChildProjection, JsonPointer, NodeProjection, SchemaProjection, UIHints } from '@texaryn/core'
 import type { JsonObject, JsonValue, OutsideJson } from './json.js'
 import { isJsonArray, isJsonObject, member, toJson } from './json.js'
 import type { Option, Options } from './options.js'
-import { effectiveOptions, globalOptions, isGlobal, plain } from './options.js'
+import { GLOBAL_KEYS, GLOBAL_PATH, effectiveOptions, globalOptions, isGlobal, plain } from './options.js'
 import { convertOrder } from './order.js'
 import { append, appendPointer, isCanonicalIndex, isWithin, segmentsOf } from './pointer.js'
 import type { KeyContext } from './table.js'
@@ -31,6 +31,7 @@ interface Walk {
   readonly components: ComponentRequirement[]
   readonly issues: UiSchemaIssue[]
   readonly owners: JsonPointer[]
+  readonly invalidPaths: Set<string>
 }
 
 interface Component {
@@ -39,7 +40,17 @@ interface Component {
   readonly path: string
 }
 
+interface UiLocation {
+  readonly ui: JsonObject
+  readonly rows: boolean
+}
+
 const ROWS = 'RJSF applies it to every row, and a Texaryn hint addresses one row.'
+const NOT_A_FIELD_NAME = 'ui:field takes the name of a registered field.'
+const NOT_A_WIDGET_NAME = 'ui:widget takes the name of a widget.'
+const NOT_AN_OBJECT = 'A uiSchema location takes an object.'
+const NOT_A_GLOBAL_OPTION =
+  'RJSF types only addable, copyable, orderable, removable, label, duplicateKeySuffixSeparator and enableMarkdownInDescription as global options and applies any other key at some call sites only; set it per location.'
 
 const GLOBAL_EFFECTS = new Map<string, readonly [JsonValue, string]>([
   ['label', [false, 'Texaryn always renders labels.']],
@@ -57,11 +68,21 @@ function conditional(keyword: string): string {
   return `RJSF applies option i of ${keyword} only while option i is selected, which static hints cannot follow.`
 }
 
+function nodeAt(projection: SchemaProjection, pointer: JsonPointer): NodeProjection | undefined {
+  const node = projection.nodes.get(pointer)
+  return typeof node === 'object' && node !== null ? node : undefined
+}
+
+function childrenOf(node: NodeProjection): readonly ChildProjection[] {
+  return Array.isArray(node.children) ? node.children : []
+}
+
 function report(walk: Walk, issue: UiSchemaIssue): void {
-  const repeated =
-    issue.code === 'invalid-value' &&
-    walk.issues.some((known) => known.code === 'invalid-value' && known.path === issue.path)
-  if (!repeated) walk.issues.push(issue)
+  if (issue.code === 'invalid-value') {
+    if (walk.invalidPaths.has(issue.path)) return
+    walk.invalidPaths.add(issue.path)
+  }
+  walk.issues.push(issue)
 }
 
 function hint(walk: Walk, pointer: JsonPointer, patch: ArrayHints): void {
@@ -104,8 +125,23 @@ function visitSubtree(
     value.forEach((entry, index) => visitSubtree(walk, entry, `${path}/${index}`, code, message))
     return
   }
-  if (!isJsonObject(value)) return
+  if (!isJsonObject(value)) {
+    report(walk, { code: 'invalid-value', key: '', path, pointer, value, message: NOT_AN_OBJECT })
+    return
+  }
+  checkShape(walk, value, path, false)
   for (const [name, option] of effectiveOptions(value, path, new Map())) {
+    if ((name === 'field' || name === 'widget') && typeof option.value !== 'string') {
+      report(walk, {
+        code: 'invalid-value',
+        key: `ui:${name}`,
+        path: option.path,
+        pointer,
+        value: option.value,
+        message: name === 'field' ? NOT_A_FIELD_NAME : NOT_A_WIDGET_NAME,
+      })
+      continue
+    }
     if (!isInert(name, option.value)) {
       report(walk, { code, key: `ui:${name}`, path: option.path, pointer, value: option.value, message })
     }
@@ -124,7 +160,18 @@ function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string)
     return
   }
   for (const [name, option] of options) {
-    if (!isGlobal(option) && !isInert(name, option.value)) {
+    if (isGlobal(option)) continue
+    if ((name === 'field' || name === 'widget') && typeof option.value !== 'string') {
+      report(walk, {
+        code: 'invalid-value',
+        key: `ui:${name}`,
+        path: option.path,
+        value: option.value,
+        message: name === 'field' ? NOT_A_FIELD_NAME : NOT_A_WIDGET_NAME,
+      })
+      continue
+    }
+    if (!isInert(name, option.value)) {
       report(walk, { code: 'unaddressable', key: `ui:${name}`, path: option.path, value: option.value, message: ROWS })
     }
   }
@@ -136,7 +183,7 @@ function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string)
     else if (key === 'additionalItems' || key === 'additionalProperties' || isJsonArray(value)) {
       visitSubtree(walk, value, at, 'unaddressable', ROWS)
     } else if (isJsonObject(value)) visitRows(walk, value, array, at)
-    else report(walk, { code: 'invalid-value', key, path: at, value, message: 'A uiSchema location takes an object.' })
+    else report(walk, { code: 'invalid-value', key, path: at, value, message: NOT_AN_OBJECT })
   }
 }
 
@@ -154,7 +201,7 @@ function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: stri
     const row = appendPointer(array, String(index))
     if (!isJsonObject(entry)) {
       report(walk, { code: 'invalid-value', key: String(index), path: at, value: entry, message: 'A tuple position takes an object.' })
-    } else if (walk.projection.nodes.has(row)) {
+    } else if (nodeAt(walk.projection, row) !== undefined) {
       visitNode(walk, entry, row, at, readOnly, false)
     } else {
       visitSubtree(walk, entry, at, 'unaddressable', `The projection has no node at ${row}, so nothing renders there.`, row)
@@ -164,7 +211,7 @@ function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: stri
 
 function visitWidget(walk: Walk, value: JsonValue, path: string, ctx: KeyContext, pointer: JsonPointer): void {
   if (typeof value !== 'string') {
-    report(walk, { code: 'invalid-value', key: 'ui:widget', path, pointer, value, message: 'ui:widget takes the name of a widget.' })
+    report(walk, { code: 'invalid-value', key: 'ui:widget', path, pointer, value, message: NOT_A_WIDGET_NAME })
     return
   }
   const outcome = widgetOutcome(value, ctx.kind, ctx.node)
@@ -182,7 +229,7 @@ function visitWidget(walk: Walk, value: JsonValue, path: string, ctx: KeyContext
 }
 
 function visitOrder(walk: Walk, value: JsonValue, node: NodeProjection, path: string, pointer: JsonPointer): void {
-  const result = convertOrder(value, node.children ?? [], path)
+  const result = convertOrder(value, childrenOf(node), path)
   for (const [child, order] of result.orders) hint(walk, child, { order })
   for (const found of result.issues) report(walk, { ...found, key: 'ui:order', pointer })
 }
@@ -192,7 +239,7 @@ function visitOption(walk: Walk, name: string, option: Option, ctx: KeyContext, 
   const key = `ui:${name}`
   switch (name) {
     case 'field':
-      report(walk, { code: 'invalid-value', key, path, pointer, value, message: 'ui:field takes the name of a registered field.' })
+      report(walk, { code: 'invalid-value', key, path, pointer, value, message: NOT_A_FIELD_NAME })
       return
     case 'widget':
       visitWidget(walk, value, path, ctx, pointer)
@@ -230,10 +277,10 @@ function visitNesting(
   const value = ui[key] as JsonValue
   const at = append(path, key)
   const kind = kindOf(node)
-  const child = kind === 'object' ? node.children?.find((candidate) => candidate.key === key) : undefined
+  const child = kind === 'object' ? childrenOf(node).find((candidate) => candidate.key === key) : undefined
   if (child) {
     if (isJsonObject(value)) visitNode(walk, value, child.pointer, at, readOnly, false)
-    else report(walk, { code: 'invalid-value', key, path: at, pointer: child.pointer, value, message: 'A uiSchema location takes an object.' })
+    else report(walk, { code: 'invalid-value', key, path: at, pointer: child.pointer, value, message: NOT_AN_OBJECT })
     return
   }
   if (kind === 'array' && key === 'items') {
@@ -259,14 +306,14 @@ function visitNesting(
 }
 
 function visitNode(walk: Walk, ui: JsonObject, pointer: JsonPointer, path: string, inherited: boolean, root: boolean): void {
-  const node = walk.projection.nodes.get(pointer)
+  const node = nodeAt(walk.projection, pointer)
   if (!node) {
     visitSubtree(walk, ui, path, 'unaddressable', `The projection has no node at ${where(pointer)}, so nothing renders there.`, pointer)
     return
   }
   checkShape(walk, ui, path, root)
   const kind = kindOf(node)
-  const readOnly = inherited || node.annotations.readOnly === true
+  const readOnly = inherited || node.annotations?.readOnly === true
   const options = effectiveOptions(ui, path, walk.global)
   const component = componentAt(options, kind, node)
   if (component) {
@@ -282,70 +329,106 @@ function visitNode(walk: Walk, ui: JsonObject, pointer: JsonPointer, path: strin
   }
 }
 
-function visitGlobal(walk: Walk): void {
-  for (const [name, option] of walk.global) {
-    const effect = GLOBAL_EFFECTS.get(name)
-    if (effect && option.value === effect[0]) {
-      report(walk, { code: 'unsupported', key: `ui:${name}`, path: option.path, value: option.value, message: effect[1] })
+function visitGlobal(walk: Walk, root: JsonObject): void {
+  const raw = member(root, 'ui:globalOptions')
+  if (!isJsonObject(raw)) return
+  for (const key of Object.keys(raw)) {
+    const value = raw[key] as JsonValue
+    const path = append(GLOBAL_PATH, key)
+    if (!GLOBAL_KEYS.has(key)) {
+      report(walk, { code: 'unsupported', key: `ui:${key}`, path, value, message: NOT_A_GLOBAL_OPTION })
+      continue
+    }
+    const effect = GLOBAL_EFFECTS.get(key)
+    if (effect && value === effect[0]) {
+      report(walk, { code: 'unsupported', key: `ui:${key}`, path, value, message: effect[1] })
     }
   }
 }
 
-function uiObjectAt(root: JsonObject, projection: SchemaProjection, pointer: string): JsonObject | undefined {
+function uiObjectAt(root: JsonObject, projection: SchemaProjection, pointer: string): UiLocation | undefined {
   const segments = segmentsOf(pointer)
   if (!segments) return undefined
   let ui = root
   let at = ''
+  let rows = false
   for (const segment of segments) {
-    const node = projection.nodes.get(at as JsonPointer)
+    const node = nodeAt(projection, at as JsonPointer)
     const items = member(ui, 'items')
-    const rows = node ? node.type === 'array' : items !== undefined && member(ui, segment) === undefined
+    const list = node ? node.type === 'array' : items !== undefined && member(ui, segment) === undefined
     let next: JsonValue | undefined
-    if (rows) next = !isCanonicalIndex(segment) ? undefined : isJsonArray(items) ? items[Number(segment)] : items
-    else next = segment.startsWith('ui:') ? undefined : member(ui, segment)
+    if (list) {
+      next = !isCanonicalIndex(segment) ? undefined : isJsonArray(items) ? items[Number(segment)] : items
+      if (!isJsonArray(items)) rows = true
+    } else {
+      next = segment.startsWith('ui:') ? undefined : member(ui, segment)
+    }
     if (!isJsonObject(next)) return undefined
     ui = next
     at = append(at, segment)
   }
-  return ui
+  return { ui, rows }
 }
 
 function reorderDefaults(walk: Walk, root: JsonObject): void {
+  const visited = new Set<JsonPointer>()
   const visit = (pointer: JsonPointer): void => {
-    const node = walk.projection.nodes.get(pointer)
+    if (visited.has(pointer)) return
+    visited.add(pointer)
+    const node = nodeAt(walk.projection, pointer)
     if (!node || walk.owners.some((owner) => isWithin(pointer, owner))) return
     if (node.type === 'array') {
-      const ui = uiObjectAt(root, walk.projection, pointer)
-      const options = ui ? effectiveOptions(ui, '', walk.global) : walk.global
+      const located = uiObjectAt(root, walk.projection, pointer)
+      const options = located ? effectiveOptions(located.ui, '', walk.global) : walk.global
       hint(walk, pointer, { canReorder: options.get('orderable')?.value !== false })
     } else if (node.type === 'object') {
-      for (const child of node.children ?? []) visit(child.pointer)
+      for (const child of childrenOf(node)) visit(child.pointer)
     }
   }
   visit('' as JsonPointer)
 }
 
 function entryAt(root: JsonObject, projection: SchemaProjection, global: Options, pointer: string): UiSchemaEntry | undefined {
-  const ui = uiObjectAt(root, projection, pointer)
-  if (!ui) return undefined
-  const node = projection.nodes.get(pointer as JsonPointer)
-  const options = effectiveOptions(ui, '', global)
-  const component = componentAt(options, kindOf(node), node)
-  return { ...(component ? { component: component.name } : {}), options: plain(options), uiSchema: ui }
+  const located = uiObjectAt(root, projection, pointer)
+  if (!located) return undefined
+  const node = nodeAt(projection, pointer as JsonPointer)
+  const kind = located.rows ? 'unknown' : kindOf(node)
+  const options = effectiveOptions(located.ui, '', global)
+  const component = componentAt(options, kind, located.rows ? undefined : node)
+  return { ...(component ? { component: component.name } : {}), options: plain(options), uiSchema: located.ui }
+}
+
+function normalizeProjection(projection: SchemaProjection): SchemaProjection {
+  try {
+    return projection?.nodes instanceof Map ? projection : { nodes: new Map() }
+  } catch {
+    return { nodes: new Map() }
+  }
 }
 
 export function fromUiSchema(uiSchema: unknown, projection: SchemaProjection): UiSchemaConversion {
   const outside: OutsideJson[] = []
   const json = uiSchema === undefined ? {} : toJson(uiSchema, outside)
   const root: JsonObject = isJsonObject(json) ? json : {}
-  const walk: Walk = { projection, global: globalOptions(root), hints: {}, components: [], issues: [], owners: [] }
+  const walk: Walk = {
+    projection: normalizeProjection(projection),
+    global: globalOptions(root),
+    hints: {},
+    components: [],
+    issues: [],
+    owners: [],
+    invalidPaths: new Set(),
+  }
   for (const found of outside) {
     report(walk, { code: 'invalid-value', key: found.key, path: found.path, message: `Outside the JSON-serializable profile: ${found.reason}.` })
   }
   if (json !== undefined && !isJsonObject(json)) {
     report(walk, { code: 'invalid-value', key: '', path: '', value: json, message: 'A uiSchema is an object.' })
   }
-  visitGlobal(walk)
+  const rootNode = nodeAt(walk.projection, '' as JsonPointer)
+  const rootOptions = effectiveOptions(root, '', walk.global)
+  const rootComponent = rootNode ? componentAt(rootOptions, kindOf(rootNode), rootNode) : undefined
+  if (!rootComponent) visitGlobal(walk, root)
   visitNode(walk, root, '' as JsonPointer, '', false, true)
   reorderDefaults(walk, root)
   const entries = new Map<string, UiSchemaEntry | undefined>()
@@ -354,7 +437,8 @@ export function fromUiSchema(uiSchema: unknown, projection: SchemaProjection): U
     components: walk.components,
     issues: walk.issues,
     uiSchemaAt(pointer) {
-      if (!entries.has(pointer)) entries.set(pointer, entryAt(root, projection, walk.global, pointer))
+      if (typeof pointer !== 'string') return undefined
+      if (!entries.has(pointer)) entries.set(pointer, entryAt(root, walk.projection, walk.global, pointer))
       return entries.get(pointer)
     },
   }

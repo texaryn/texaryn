@@ -47,7 +47,7 @@ function notText(name: string): Disposition {
 
 export function dispose(name: string, value: JsonValue, ctx: KeyContext): Disposition {
   const field = FIELDS.has(ctx.kind)
-  const described = ctx.node.annotations.description !== undefined
+  const described = ctx.node.annotations?.description !== undefined
   switch (name) {
     case 'placeholder':
       if (typeof value !== 'string') return notText(name)
@@ -72,7 +72,7 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
       }
       return { kind: 'hint', hint: 'helpText' }
     case 'title':
-      return value === ctx.node.annotations.title
+      return value === ctx.node.annotations?.title
         ? NONE
         : unsupported('Texaryn labels a field with the schema title; move the text into the schema.')
     case 'enableMarkdownInDescription':

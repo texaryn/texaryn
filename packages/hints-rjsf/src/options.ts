@@ -11,12 +11,22 @@ export type Options = ReadonlyMap<string, Option>
 
 export const GLOBAL_PATH = '/ui:globalOptions'
 
+export const GLOBAL_KEYS: ReadonlySet<string> = new Set([
+  'addable',
+  'copyable',
+  'orderable',
+  'removable',
+  'label',
+  'duplicateKeySuffixSeparator',
+  'enableMarkdownInDescription',
+])
+
 export function globalOptions(root: JsonObject): Options {
   const options = new Map<string, Option>()
   const global = member(root, 'ui:globalOptions')
   if (isJsonObject(global)) {
     for (const name of Object.keys(global)) {
-      options.set(name, { value: global[name] as JsonValue, path: append(GLOBAL_PATH, name) })
+      if (GLOBAL_KEYS.has(name)) options.set(name, { value: global[name] as JsonValue, path: append(GLOBAL_PATH, name) })
     }
   }
   return options

@@ -88,6 +88,22 @@ describe('toJson', () => {
       outside: [{ path: '', key: '', reason: 'a function is not a JSON value' }],
     })
   })
+
+  it('caps depth at 256 levels and reports the overflow once', () => {
+    let nested: unknown = true
+    for (let i = 0; i < 300; i++) nested = { a: nested }
+    const { value, outside } = copy(nested)
+    expect(outside).toEqual([{ path: '/a'.repeat(256), key: 'a', reason: 'nested deeper than 256 levels' }])
+    let levels = 0
+    let cursor = value as Record<string, unknown>
+    for (;;) {
+      levels++
+      if (!('a' in cursor)) break
+      cursor = cursor.a as Record<string, unknown>
+    }
+    expect(levels).toBe(256)
+    expect(cursor).toEqual({})
+  })
 })
 
 describe('deepEqual', () => {
