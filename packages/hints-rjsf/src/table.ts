@@ -127,6 +127,11 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
         : NONE
     case 'copyable':
       return ctx.kind === 'array' && value === true ? unsupported('Texaryn has no copy control.') : NONE
+    case 'accept':
+    case 'filePreview':
+      return ctx.kind === 'string' && ctx.node.format === 'data-url'
+        ? unsupported('RJSF renders a file input for a data-url string, and Texaryn renders a text input, so the file options have no effect.')
+        : NONE
     case 'backstage':
       return unsupported('Backstage reads ui:backstage in its review and feature flag steps, outside the form.')
     case 'submitButtonOptions':

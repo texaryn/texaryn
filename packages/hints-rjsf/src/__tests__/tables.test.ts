@@ -106,6 +106,20 @@ describe('dispose', () => {
   })
 })
 
+describe('file widget options', () => {
+  it.each(['accept', 'filePreview'])('reports %s only on a data-url string', (name) => {
+    const file = node({ format: 'data-url' })
+    expect(dispose(name, true, context('string', { node: file }))).toEqual({
+      kind: 'issue',
+      code: 'unsupported',
+      message: 'RJSF renders a file input for a data-url string, and Texaryn renders a text input, so the file options have no effect.',
+    })
+    expect(dispose(name, true, context('string'))).toEqual({ kind: 'none' })
+    expect(dispose(name, true, context('enum', { node: file }))).toEqual({ kind: 'none' })
+    expect(isInert(name, true)).toBe(true)
+  })
+})
+
 describe('isInert', () => {
   it('holds only for keys and values that do nothing at any kind', () => {
     expect(['inline', 'accept', 'expandable', 'custom'].every((name) => isInert(name, true))).toBe(true)
