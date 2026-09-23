@@ -49,6 +49,8 @@ const ROWS = 'RJSF applies it to every row, and a Texaryn hint addresses one row
 const NOT_A_FIELD_NAME = 'ui:field takes the name of a registered field.'
 const NOT_A_WIDGET_NAME = 'ui:widget takes the name of a widget.'
 const NOT_AN_OBJECT = 'A uiSchema location takes an object.'
+const TUPLE =
+  'RJSF applies an array-form items only to a fixed-items array, and the projection cannot tell a tuple position from a list row.'
 const NOT_A_GLOBAL_OPTION =
   'RJSF types only addable, copyable, orderable, removable, label, duplicateKeySuffixSeparator and enableMarkdownInDescription as global options and applies any other key at some call sites only; set it per location.'
 
@@ -188,7 +190,7 @@ function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string)
   }
 }
 
-function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: string, readOnly: boolean): void {
+function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: string): void {
   if (isJsonObject(value)) {
     visitRows(walk, value, array, path)
     return
@@ -202,10 +204,8 @@ function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: stri
     const row = appendPointer(array, String(index))
     if (!isJsonObject(entry)) {
       report(walk, { code: 'invalid-value', key: String(index), path: at, value: entry, message: 'A tuple position takes an object.' })
-    } else if (nodeAt(walk.projection, row) !== undefined) {
-      visitNode(walk, entry, row, at, readOnly, false)
     } else {
-      visitSubtree(walk, entry, at, String(index), 'unaddressable', `The projection has no node at ${row}, so nothing renders there.`, row)
+      visitSubtree(walk, entry, at, String(index), 'unaddressable', TUPLE, row)
     }
   })
 }
@@ -285,7 +285,7 @@ function visitNesting(
     return
   }
   if (kind === 'array' && key === 'items') {
-    visitItems(walk, value, pointer, at, readOnly)
+    visitItems(walk, value, pointer, at)
   } else if (kind === 'array' && key === 'additionalItems') {
     visitSubtree(walk, value, at, key, 'unaddressable', 'RJSF applies it to rows past the tuple positions, and Texaryn projects none.')
   } else if (kind === 'object' && key === 'additionalProperties') {
@@ -359,8 +359,9 @@ function uiObjectAt(root: JsonObject, projection: SchemaProjection, pointer: str
     const list = node ? node.type === 'array' : items !== undefined && member(ui, segment) === undefined
     let next: JsonValue | undefined
     if (list) {
-      next = !isCanonicalIndex(segment) ? undefined : isJsonArray(items) ? items[Number(segment)] : items
-      if (!isJsonArray(items)) rows = true
+      if (isJsonArray(items)) return undefined
+      next = isCanonicalIndex(segment) ? items : undefined
+      rows = true
     } else {
       next = segment.startsWith('ui:') ? undefined : member(ui, segment)
     }

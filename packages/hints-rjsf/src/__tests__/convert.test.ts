@@ -200,13 +200,14 @@ describe('nesting', () => {
     expect(component.uiSchemaAt(at('/tags/4'))?.options).toEqual({ field: 'TagPicker', max: 3 })
   })
 
-  it('addresses tuple positions only where the projection has a node', async () => {
+  it('reports array-form items positions and never converts them', async () => {
+    const tuple = 'RJSF applies an array-form items only to a fixed-items array, and the projection cannot tell a tuple position from a list row.'
     const unprojected = await convert(
       { pair: { items: [{ 'ui:placeholder': 'first' }] } },
       { type: 'object', properties: { pair: { type: 'array', prefixItems: [{ type: 'string' }, { type: 'number' }] } } },
     )
-    expect(unprojected.issues.map((issue) => [issue.code, issue.path, issue.pointer])).toEqual([
-      ['unaddressable', '/pair/items/0/ui:placeholder', '/pair/0'],
+    expect(unprojected.issues.map((issue) => [issue.code, issue.path, issue.pointer, issue.message])).toEqual([
+      ['unaddressable', '/pair/items/0/ui:placeholder', '/pair/0', tuple],
     ])
     const projection: SchemaProjection = {
       nodes: new Map<JsonPointer, NodeProjection>([
@@ -216,11 +217,22 @@ describe('nesting', () => {
       ]),
     }
     const projected = fromUiSchema({ pair: { items: [{ 'ui:placeholder': 'first' }, { 'ui:placeholder': 'second' }] } }, projection)
-    expect(projected.hints).toEqual({ '/pair': { canReorder: true }, '/pair/0': { placeholder: 'first' } })
+    expect(projected.hints).toEqual({ '/pair': { canReorder: true } })
     expect(projected.issues.map((issue) => [issue.code, issue.path, issue.pointer])).toEqual([
+      ['unaddressable', '/pair/items/0/ui:placeholder', '/pair/0'],
       ['unaddressable', '/pair/items/1/ui:placeholder', '/pair/1'],
     ])
-    expect(projected.uiSchemaAt(at('/pair/0'))?.options).toEqual({ placeholder: 'first' })
+    expect(projected.uiSchemaAt(at('/pair/0'))).toBeUndefined()
+
+    const port = await createJsonSchemaAdapter(schema)
+    const list = fromUiSchema({ tags: { items: [{ 'ui:placeholder': 'first' }, { 'ui:widget': 'password' }] } }, port.project({ tags: ['a', 'b'] }))
+    expect(list.hints['/tags/0']).toBeUndefined()
+    expect(list.components).toEqual([])
+    expect(list.issues.map((issue) => [issue.code, issue.path, issue.pointer])).toEqual([
+      ['unaddressable', '/tags/items/0/ui:placeholder', '/tags/0'],
+      ['unaddressable', '/tags/items/1/ui:widget', '/tags/1'],
+    ])
+    expect(list.uiSchemaAt(at('/tags/1'))).toBeUndefined()
   })
 
   it('reports additionalProperties, additionalItems and option uiSchemas', async () => {
