@@ -99,16 +99,16 @@ function componentAt(options: Options, kind: NodeKind, node?: NodeProjection): C
   return undefined
 }
 
-function checkShape(walk: Walk, ui: JsonObject, path: string, root: boolean): void {
+function checkShape(walk: Walk, ui: JsonObject, path: string, root: boolean, pointer?: JsonPointer): void {
   for (const key of Object.keys(ui)) {
     const value = ui[key] as JsonValue
     const at = append(path, key)
     if (key === 'ui:widget' && isJsonObject(value)) {
-      report(walk, { code: 'invalid-value', key, path: at, value, message: 'RJSF drops a ui:widget object; put the options under ui:options.' })
+      report(walk, { code: 'invalid-value', key, path: at, pointer, value, message: 'RJSF drops a ui:widget object; put the options under ui:options.' })
     } else if (key === 'ui:options' && !isJsonObject(value)) {
-      report(walk, { code: 'invalid-value', key, path: at, value, message: 'ui:options takes an object; RJSF reads anything else as an option named options.' })
+      report(walk, { code: 'invalid-value', key, path: at, pointer, value, message: 'ui:options takes an object; RJSF reads anything else as an option named options.' })
     } else if (key === 'ui:globalOptions' && root && !isJsonObject(value)) {
-      report(walk, { code: 'invalid-value', key, path: at, value, message: 'ui:globalOptions takes an object.' })
+      report(walk, { code: 'invalid-value', key, path: at, pointer, value, message: 'ui:globalOptions takes an object.' })
     }
   }
 }
@@ -117,19 +117,20 @@ function visitSubtree(
   walk: Walk,
   value: JsonValue,
   path: string,
+  key: string,
   code: UiSchemaIssueCode,
   message: string,
   pointer?: JsonPointer,
 ): void {
   if (isJsonArray(value)) {
-    value.forEach((entry, index) => visitSubtree(walk, entry, `${path}/${index}`, code, message))
+    value.forEach((entry, index) => visitSubtree(walk, entry, `${path}/${index}`, String(index), code, message))
     return
   }
   if (!isJsonObject(value)) {
-    report(walk, { code: 'invalid-value', key: '', path, pointer, value, message: NOT_AN_OBJECT })
+    report(walk, { code: 'invalid-value', key, path, pointer, value, message: NOT_AN_OBJECT })
     return
   }
-  checkShape(walk, value, path, false)
+  checkShape(walk, value, path, false, pointer)
   for (const [name, option] of effectiveOptions(value, path, new Map())) {
     if ((name === 'field' || name === 'widget') && typeof option.value !== 'string') {
       report(walk, {
@@ -146,8 +147,8 @@ function visitSubtree(
       report(walk, { code, key: `ui:${name}`, path: option.path, pointer, value: option.value, message })
     }
   }
-  for (const key of Object.keys(value)) {
-    if (!key.startsWith('ui:')) visitSubtree(walk, value[key] as JsonValue, append(path, key), code, message)
+  for (const name of Object.keys(value)) {
+    if (!name.startsWith('ui:')) visitSubtree(walk, value[name] as JsonValue, append(path, name), name, code, message)
   }
 }
 
@@ -179,9 +180,9 @@ function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string)
     if (key.startsWith('ui:')) continue
     const value = ui[key] as JsonValue
     const at = append(path, key)
-    if (key === 'oneOf' || key === 'anyOf') visitSubtree(walk, value, at, 'conditional', conditional(key))
+    if (key === 'oneOf' || key === 'anyOf') visitSubtree(walk, value, at, key, 'conditional', conditional(key))
     else if (key === 'additionalItems' || key === 'additionalProperties' || isJsonArray(value)) {
-      visitSubtree(walk, value, at, 'unaddressable', ROWS)
+      visitSubtree(walk, value, at, key, 'unaddressable', ROWS)
     } else if (isJsonObject(value)) visitRows(walk, value, array, at)
     else report(walk, { code: 'invalid-value', key, path: at, value, message: NOT_AN_OBJECT })
   }
@@ -204,7 +205,7 @@ function visitItems(walk: Walk, value: JsonValue, array: JsonPointer, path: stri
     } else if (nodeAt(walk.projection, row) !== undefined) {
       visitNode(walk, entry, row, at, readOnly, false)
     } else {
-      visitSubtree(walk, entry, at, 'unaddressable', `The projection has no node at ${row}, so nothing renders there.`, row)
+      visitSubtree(walk, entry, at, String(index), 'unaddressable', `The projection has no node at ${row}, so nothing renders there.`, row)
     }
   })
 }
@@ -286,11 +287,11 @@ function visitNesting(
   if (kind === 'array' && key === 'items') {
     visitItems(walk, value, pointer, at, readOnly)
   } else if (kind === 'array' && key === 'additionalItems') {
-    visitSubtree(walk, value, at, 'unaddressable', 'RJSF applies it to rows past the tuple positions, and Texaryn projects none.')
+    visitSubtree(walk, value, at, key, 'unaddressable', 'RJSF applies it to rows past the tuple positions, and Texaryn projects none.')
   } else if (kind === 'object' && key === 'additionalProperties') {
-    visitSubtree(walk, value, at, 'unaddressable', 'RJSF applies it to properties the data adds, and Texaryn projects no node for them.')
+    visitSubtree(walk, value, at, key, 'unaddressable', 'RJSF applies it to properties the data adds, and Texaryn projects no node for them.')
   } else if (key === 'oneOf' || key === 'anyOf') {
-    if (isJsonArray(value)) visitSubtree(walk, value, at, 'conditional', conditional(key))
+    if (isJsonArray(value)) visitSubtree(walk, value, at, key, 'conditional', conditional(key))
     else report(walk, { code: 'invalid-value', key, path: at, value, message: `RJSF reads ${key} as an array of option uiSchemas.` })
   } else if (key === 'classNames') {
     report(walk, { code: 'unsupported', key, path: at, pointer, value, message: 'Texaryn has no styling hook per location; style the widget registered for it.' })
@@ -308,10 +309,10 @@ function visitNesting(
 function visitNode(walk: Walk, ui: JsonObject, pointer: JsonPointer, path: string, inherited: boolean, root: boolean): void {
   const node = nodeAt(walk.projection, pointer)
   if (!node) {
-    visitSubtree(walk, ui, path, 'unaddressable', `The projection has no node at ${where(pointer)}, so nothing renders there.`, pointer)
+    visitSubtree(walk, ui, path, '', 'unaddressable', `The projection has no node at ${where(pointer)}, so nothing renders there.`, pointer)
     return
   }
-  checkShape(walk, ui, path, root)
+  checkShape(walk, ui, path, root, pointer)
   const kind = kindOf(node)
   const readOnly = inherited || node.annotations?.readOnly === true
   const options = effectiveOptions(ui, path, walk.global)

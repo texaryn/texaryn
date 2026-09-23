@@ -338,6 +338,13 @@ describe('totality', () => {
     expect(codes({ name: { 'ui:placeholder': Number.NaN } })).toEqual([['invalid-value', '/name/ui:placeholder']])
     expect(codes({ name: { 'ui:widget': { a: 1 } } })).toEqual([['invalid-value', '/name/ui:widget']])
     expect(codes({ name: { 'ui:options': 'odd' } })).toEqual([['invalid-value', '/name/ui:options']])
+    const shapes = fromUiSchema({ name: { 'ui:widget': { a: 1 }, 'ui:options': 'odd' } }, projection).issues
+    expect(shapes.map((issue) => [issue.path, issue.pointer])).toEqual([
+      ['/name/ui:widget', '/name'],
+      ['/name/ui:options', '/name'],
+    ])
+    const unprojected = fromUiSchema({ 'ui:widget': { a: 1 } }, { nodes: new Map() }).issues
+    expect(unprojected.map((issue) => [issue.code, issue.path, issue.pointer])).toEqual([['invalid-value', '/ui:widget', '']])
     expect(codes({ name: 'text' })).toEqual([['invalid-value', '/name']])
     expect(codes({ tags: { items: 7 } })).toEqual([['invalid-value', '/tags/items']])
     expect(codes(undefined)).toEqual([])
@@ -454,11 +461,11 @@ describe('fix round 1', () => {
       address: { oneOf: ['x', { city: 5 }] },
       tags: { items: { 'ui:field': 5 } },
     })
-    expect(conversion.issues.map((issue) => [issue.code, issue.path])).toEqual([
-      ['invalid-value', '/additionalProperties'],
-      ['invalid-value', '/address/oneOf/0'],
-      ['invalid-value', '/address/oneOf/1/city'],
-      ['invalid-value', '/tags/items/ui:field'],
+    expect(conversion.issues.map((issue) => [issue.code, issue.key, issue.path])).toEqual([
+      ['invalid-value', 'additionalProperties', '/additionalProperties'],
+      ['invalid-value', '0', '/address/oneOf/0'],
+      ['invalid-value', 'city', '/address/oneOf/1/city'],
+      ['invalid-value', 'ui:field', '/tags/items/ui:field'],
     ])
   })
 
