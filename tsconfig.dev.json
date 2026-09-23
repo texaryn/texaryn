@@ -11,6 +11,7 @@
       "@texaryn/react-mui": ["packages/react-mui/src/index.ts"],
       "@texaryn/vue": ["packages/vue/src/index.ts"],
       "@texaryn/web-components": ["packages/web-components/src/index.ts"],
+      "@texaryn/hints-rjsf": ["packages/hints-rjsf/src/index.ts"],
       "@texaryn/examples": ["packages/examples/src/index.ts"]
     }
   }

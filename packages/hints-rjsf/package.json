@@ -1,0 +1,40 @@
+{
+  "name": "@texaryn/hints-rjsf",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Converts an RJSF uiSchema into Texaryn UI hints and reports what it cannot carry",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/hints-rjsf"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "peerDependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@rjsf/utils": "5.24.13",
+    "@testing-library/react": "^16.0.0",
+    "@texaryn/core": "workspace:*",
+    "@texaryn/react": "workspace:*",
+    "@texaryn/schema-json": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}
