@@ -185,7 +185,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
 | [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | A `<texaryn-form>` custom element and native default widgets, usable from any framework or none |
 
-The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Two private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, and `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port.
+The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Three private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port, and `@texaryn/hints-rjsf`, which converts an RJSF uiSchema into Texaryn UI hints and reports what it cannot carry.
 
 ## Architecture
 

@@ -14,7 +14,8 @@
     "dist",
     ".changeset",
     "packages/examples",
-    "packages/schema-json-hyperjump"
+    "packages/schema-json-hyperjump",
+    "packages/hints-rjsf"
   ],
   "excludeFiles": ["CHANGELOG.md", "THIRD-PARTY-NOTICES.md", "ROADMAP.md", "404.md"],
   "rules": [
@@ -29,7 +30,7 @@
     "In React and Vue, FormRoot renders no <form> element. Start submission with dispatch({ type: 'Submit' }) and read submission.status, which moves through idle, validating, submitting and submitted.",
     "UI hints replace uiSchema. They are keyed by JSON Pointer, for example '/email', and carry widget, placeholder, helpText, order and validationTrigger ('blur', 'change' or 'submit').",
     "To translate built-in widget text, pass a FormMessages object from @texaryn/core as messages on FormProvider, provideFormRuntime or <texaryn-form>, instead of replacing widgets for their copy.",
-    "@texaryn/examples, @texaryn/playground and @texaryn/schema-json-hyperjump are private workspace packages that are not published to npm. Do not install or import them.",
+    "@texaryn/examples, @texaryn/playground, @texaryn/schema-json-hyperjump and @texaryn/hints-rjsf are private workspace packages that are not published to npm. Do not install or import them.",
     "Every package is pre-1.0 and versions on its own, so version numbers differ between packages. Install the latest of each rather than matching numbers across them."
   ]
 }

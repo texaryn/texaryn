@@ -21,7 +21,7 @@ While a package is below 1.0, its public API may change between minor versions.
 
 A fix ships as a new release of each affected package on the `latest` dist-tag. Earlier minor versions do not receive backports, so upgrading to the latest release is the way to pick up a fix. `npm view @texaryn/core version` prints the current release of a package.
 
-The five private workspace packages (`@texaryn/examples`, `@texaryn/schema-json-hyperjump`, `@texaryn/conformance-tests`, `@texaryn/playground` and `@texaryn/docs`) are not published to npm. The documentation site and playground at <https://texaryn.github.io/texaryn/> are built from this repository, and a vulnerability in them can be reported the same way.
+The six private workspace packages (`@texaryn/examples`, `@texaryn/schema-json-hyperjump`, `@texaryn/hints-rjsf`, `@texaryn/conformance-tests`, `@texaryn/playground` and `@texaryn/docs`) are not published to npm. The documentation site and playground at <https://texaryn.github.io/texaryn/> are built from this repository, and a vulnerability in them can be reported the same way.
 
 ## Reporting a vulnerability
 
