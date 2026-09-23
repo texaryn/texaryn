@@ -368,13 +368,12 @@ describe('totality', () => {
     expect(() => fromUiSchema({}, selfChild)).not.toThrow()
   })
 
-  it('reports every key as unaddressable when the projection is swapped or undefined', async () => {
+  it('reports the projection object as invalid JSON when swapped in, and every key as unaddressable when the projection is undefined', async () => {
     const port = await createJsonSchemaAdapter(schema)
     const projection = port.project({})
     const uiSchema = { name: { 'ui:placeholder': 'x' }, age: { 'ui:placeholder': 'y' } }
     const swapped = fromUiSchema(projection as unknown, uiSchema as never)
-    expect(swapped.issues.length).toBeGreaterThan(0)
-    expect(swapped.issues.every((issue) => issue.code === 'unaddressable')).toBe(true)
+    expect(swapped.issues.map((issue) => [issue.code, issue.path])).toEqual([['invalid-value', '/nodes']])
     const undef = fromUiSchema(uiSchema, undefined as never)
     expect(undef.issues.length).toBeGreaterThan(0)
     expect(undef.issues.every((issue) => issue.code === 'unaddressable')).toBe(true)
