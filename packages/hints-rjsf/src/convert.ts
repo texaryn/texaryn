@@ -54,12 +54,18 @@ const TUPLE =
 const NOT_A_GLOBAL_OPTION =
   'RJSF types only addable, copyable, orderable, removable, label, duplicateKeySuffixSeparator and enableMarkdownInDescription as global options and applies any other key at some call sites only; set it per location.'
 
-const GLOBAL_EFFECTS = new Map<string, readonly [JsonValue, string]>([
-  ['label', [false, 'Texaryn always renders labels.']],
-  ['addable', [false, 'Texaryn shows the add control until maxItems is reached.']],
-  ['removable', [false, 'Texaryn shows the remove controls until minItems is reached.']],
-  ['copyable', [true, 'Texaryn has no copy control.']],
-  ['enableMarkdownInDescription', [true, 'Texaryn renders descriptions as plain text.']],
+type Affects = (node: NodeProjection) => boolean
+
+const anyNode: Affects = () => true
+const arrayNode: Affects = (node) => node.type === 'array'
+const describedNode: Affects = (node) => node.annotations?.description !== undefined
+
+const GLOBAL_EFFECTS = new Map<string, readonly [JsonValue, string, Affects]>([
+  ['label', [false, 'Texaryn always renders labels.', anyNode]],
+  ['addable', [false, 'Texaryn shows the add control until maxItems is reached.', arrayNode]],
+  ['removable', [false, 'Texaryn shows the remove controls until minItems is reached.', arrayNode]],
+  ['copyable', [true, 'Texaryn has no copy control.', arrayNode]],
+  ['enableMarkdownInDescription', [true, 'Texaryn renders descriptions as plain text.', describedNode]],
 ])
 
 function where(pointer: JsonPointer): string {
@@ -341,6 +347,13 @@ function visitNode(walk: Walk, ui: JsonObject, pointer: JsonPointer, path: strin
   }
 }
 
+function projects(projection: SchemaProjection, affects: Affects): boolean {
+  for (const node of projection.nodes.values()) {
+    if (typeof node === 'object' && node !== null && affects(node)) return true
+  }
+  return false
+}
+
 function visitGlobal(walk: Walk, root: JsonObject): void {
   const raw = member(root, 'ui:globalOptions')
   if (!isJsonObject(raw)) return
@@ -352,7 +365,7 @@ function visitGlobal(walk: Walk, root: JsonObject): void {
       continue
     }
     const effect = GLOBAL_EFFECTS.get(key)
-    if (effect && value === effect[0]) {
+    if (effect && value === effect[0] && projects(walk.projection, effect[2])) {
       report(walk, { code: 'unsupported', key: `ui:${key}`, path, value, message: effect[1] })
     }
   }

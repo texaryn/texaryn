@@ -162,6 +162,16 @@ describe('the disposition table', () => {
     ])
   })
 
+  it('reports a typed global option only where the projection has a node it affects', async () => {
+    const flat = { type: 'object', properties: { name: { type: 'string' } } }
+    expect((await convert({ 'ui:globalOptions': { copyable: true } }, flat)).issues).toEqual([])
+    const quiet = await convert({ 'ui:globalOptions': { addable: false, removable: false, enableMarkdownInDescription: true, placeholder: 'x' } }, flat)
+    expect(quiet.issues.map((issue) => issue.path)).toEqual(['/ui:globalOptions/placeholder'])
+    expect(fromUiSchema({ 'ui:globalOptions': { label: false } }, { nodes: new Map() }).issues).toEqual([])
+    const described = await convert({ 'ui:globalOptions': { enableMarkdownInDescription: true } })
+    expect(described.issues.map((issue) => issue.path)).toEqual(['/ui:globalOptions/enableMarkdownInDescription'])
+  })
+
   it('converts ui:order onto the children', async () => {
     const conversion = await convert({ 'ui:order': ['bio', '*', 'name'] })
     expect(conversion.hints['/bio']).toEqual({ order: -1 })
