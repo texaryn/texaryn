@@ -6,7 +6,7 @@ Accepted. `@texaryn/hints-rjsf` converts a JSON-serializable RJSF 5.24.13 uiSche
 
 ## Context
 
-The Backstage adoption exercise found that template authors write presentation in RJSF's uiSchema: `ui:field` in 72% of public template files, `ui:options` in 68%, `ui:autofocus` in 41%. Texaryn's own hints are a flat map keyed by data pointer with a small vocabulary, and the only widget value any rendering family dispatches on is `textarea`. The roadmap rule is to leave RJSF's vocabulary out of Texaryn and offer a documented layer between the two instead.
+The Backstage adoption exercise found that template authors write presentation in RJSF's uiSchema. Measured over 142 public Backstage templates during the design review, `ui:field` appears in 72% of the template files, `ui:options` in 68% and `ui:autofocus` in 41%. Texaryn's own hints are a flat map keyed by data pointer with a small vocabulary, and the only widget value any rendering family dispatches on is `textarea`. The roadmap rule is to leave RJSF's vocabulary out of Texaryn and offer a documented layer between the two instead.
 
 ## Decision
 
@@ -17,7 +17,7 @@ A conversion outside core reads a uiSchema against the port's `SchemaProjection`
 - **Components are requirements, not losses.** `ui:field`, and a `ui:widget` Texaryn does not render itself, become a `ComponentRequirement`. `componentTester` routes them in all five families through the core `WidgetTester`, and `uiSchemaAt` hands the component RJSF's options and subtree. A component owns its subtree, as in RJSF.
 - **Six issue codes.** `unsupported`, `conflict`, `conditional`, `unaddressable`, `unknown-location`, `invalid-value`. The code is the contract; the message is not.
 - **Global options.** Only the seven keys RJSF types as global form the base under every location; any other key in `ui:globalOptions` is reported once, since RJSF applies it at some call sites only.
-- **Static addressing.** A value RJSF picks by the selected `oneOf` or `anyOf` option is `conditional`, and a hint for every row is `unaddressable`, because Texaryn hints address one data location.
+- **Static addressing.** A value RJSF picks by the selected `oneOf` or `anyOf` option is `conditional`, and a hint for every row is `unaddressable`, because Texaryn hints address one data location. An array-form `items` is `unaddressable` too: no port marks a tuple, so a position cannot be told from a list row.
 - **Backstage's embedded form.** `splitBackstageStep` applies Backstage's `extractSchemaFromStep` rules, records where each key was written, and lifts schema-level `enumNames` so the conversion reports it.
 
 ## Alternatives rejected
@@ -34,6 +34,6 @@ A conversion outside core reads a uiSchema against the port's `SchemaProjection`
 
 ## Consequences
 
-- An adopter sees exactly what a migration costs: a list of components to register and a list of differences with a path into the uiSchema, or into the step when `splitBackstageStep` produced it.
+- An adopter sees exactly what a migration costs: a list of components to register and a list of differences with a path into the uiSchema, and through `sources` a path into the step when `splitBackstageStep` produced it.
 - The reported gaps are the evidence for later decisions: enum labels first (17% of templates), then item templates and container descriptions.
 - RJSF v6 is not the reference. Its function form of `uiSchema.items`, layout grid, map-form `ui:enumNames` and `ui:enumOrder` fall outside the profile.
