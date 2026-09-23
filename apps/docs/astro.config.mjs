@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
-import { BASE, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
+import { BASE, BASE_PATH, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.config.mjs'
 
 // The root typedoc.json entry points except packages/web-components.
 // The root `pnpm docs` generation stays as it is: it feeds the docs:check
@@ -61,6 +61,10 @@ export default defineConfig({
           // condition means the 404 fallback already happened.
           tag: 'script',
           content: `(function(){var m=${JSON.stringify(PLAYGROUND_PATH)};if(location.pathname.indexOf(m)===0){location.replace(m+location.search)}})();`,
+        },
+        {
+          tag: 'link',
+          attrs: { rel: 'describedby', href: `${BASE_PATH}llms.txt` },
         },
       ],
       description:
