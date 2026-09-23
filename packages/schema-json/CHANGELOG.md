@@ -1,5 +1,15 @@
 # @texaryn/schema-json
 
+## 0.6.2
+
+### Patch Changes
+
+- d3ea7a8: `homepage` points at the documentation site, https://texaryn.github.io/texaryn/,
+  instead of the GitHub README. No code changes.
+- Updated dependencies [d3ea7a8]
+- Updated dependencies [d3ea7a8]
+  - @texaryn/core@0.12.1
+
 ## 0.6.1
 
 ### Patch Changes

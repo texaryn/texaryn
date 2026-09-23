@@ -1,5 +1,16 @@
 # @texaryn/react-mui
 
+## 0.4.1
+
+### Patch Changes
+
+- d3ea7a8: `homepage` points at the documentation site, https://texaryn.github.io/texaryn/,
+  instead of the GitHub README. No code changes.
+- Updated dependencies [d3ea7a8]
+- Updated dependencies [d3ea7a8]
+  - @texaryn/core@0.12.1
+  - @texaryn/react@0.5.1
+
 ## 0.4.0
 
 ### Minor Changes
