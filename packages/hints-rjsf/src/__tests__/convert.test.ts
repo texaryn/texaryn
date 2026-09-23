@@ -214,6 +214,31 @@ describe('nesting', () => {
     expect(component.uiSchemaAt(at('/tags/4'))?.options).toEqual({ field: 'TagPicker', max: 3 })
   })
 
+  it('reports a property inside items and routes its component to every row', async () => {
+    const conversion = await convert(
+      { contacts: { items: { name: { 'ui:placeholder': 'n', 'ui:help': 'h' }, role: { 'ui:field': 'RolePicker' } } } },
+      {
+        type: 'object',
+        properties: {
+          contacts: {
+            type: 'array',
+            items: { type: 'object', properties: { name: { type: 'string' }, role: { type: 'string' } } },
+          },
+        },
+      },
+    )
+    expect(conversion.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ['unaddressable', '/contacts/items/name/ui:placeholder'],
+      ['unaddressable', '/contacts/items/name/ui:help'],
+    ])
+    expect(conversion.components).toEqual([
+      { name: 'RolePicker', key: 'ui:field', path: '/contacts/items/role/ui:field', pointer: '/contacts', rows: true },
+    ])
+    expect(conversion.uiSchemaAt(at('/contacts/3/role'))?.component).toBe('RolePicker')
+    const row = { id: 'r', type: 'field', parentId: null, dataPointer: '/contacts/3/role', order: 0, visible: true, disabled: false, readOnly: false, annotations: {}, fieldType: 'string', constraints: {} } as unknown as UINode
+    expect(componentTester(conversion, 'RolePicker').test(row)).toBe(true)
+  })
+
   it('reports array-form items positions and never converts them', async () => {
     const tuple = 'RJSF applies an array-form items only to a fixed-items array, and the projection cannot tell a tuple position from a list row.'
     const unprojected = await convert(
