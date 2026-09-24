@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { renderHook, act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { useForm } from '../use-form.js'
+import { FormProvider } from '../../context.js'
+import { FormRoot } from '../../components/FormRoot.js'
+import { createDefaultRegistry } from '../../widgets/index.js'
 import type {
   SchemaEvaluationPort, SchemaProjection, NodeProjection,
-  ChildProjection, JsonPointer,
+  ChildProjection, JsonPointer, FormRuntime, NodeId,
 } from '@texaryn/core'
 
 function toPointer(s: string): JsonPointer { return s as JsonPointer }
@@ -43,6 +47,20 @@ function makePort(proj: SchemaProjection): SchemaEvaluationPort {
   }
 }
 
+function nameNodeId(runtime: FormRuntime): NodeId {
+  return Object.values(runtime.document.getSnapshot().nodes).find(
+    n => n.type === 'field' && n.dataPointer === '/name',
+  )!.id
+}
+
+function nextTask(): Promise<void> {
+  return new Promise(resolve => { setTimeout(resolve, 0) })
+}
+
+afterEach(() => {
+  cleanup()
+})
+
 describe('useForm', () => {
   it('returns document on initial render', () => {
     const port = makePort(simpleProjection)
@@ -69,9 +87,78 @@ describe('useForm', () => {
     expect((result.current.data as Record<string, unknown>).name).toBe('Bob')
   })
 
-  it('cleans up runtime on unmount', () => {
+  it('destroys the runtime on the task after unmount', async () => {
     const port = makePort(simpleProjection)
-    const { unmount } = renderHook(() => useForm(port))
+    const { result, unmount } = renderHook(() => useForm(port))
+    const runtime = result.current.runtime
+    const destroy = vi.spyOn(runtime, 'destroy')
     unmount()
+    expect(destroy).not.toHaveBeenCalled()
+    await nextTask()
+    expect(destroy).toHaveBeenCalledTimes(1)
+    expect(runtime.getNodeState(nameNodeId(runtime))).toBeUndefined()
+  })
+})
+
+describe('useForm under StrictMode', () => {
+  const registry = createDefaultRegistry()
+
+  function Form({ port, onSubmit, onRuntime }: {
+    port: SchemaEvaluationPort
+    onSubmit: (data: unknown) => void
+    onRuntime: (runtime: FormRuntime) => void
+  }) {
+    const form = useForm(port, { initialData: { name: '' }, validationDebounceMs: 0, onSubmit })
+    onRuntime(form.runtime)
+    return (
+      <FormProvider value={form.runtime}>
+        <FormRoot registry={registry} />
+        <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
+          Submit
+        </button>
+      </FormProvider>
+    )
+  }
+
+  function renderStrict() {
+    const onSubmit = vi.fn()
+    const runtimes = new Set<FormRuntime>()
+    const view = render(
+      <StrictMode>
+        <Form port={makePort(simpleProjection)} onSubmit={onSubmit} onRuntime={r => { runtimes.add(r) }} />
+      </StrictMode>,
+    )
+    return { ...view, onSubmit, runtimes }
+  }
+
+  it('keeps one live runtime through the effect replay, so typing and submit work', async () => {
+    const { onSubmit, runtimes } = renderStrict()
+    await nextTask()
+
+    expect(runtimes.size).toBe(1)
+    const [runtime] = runtimes
+    expect(runtime.getNodeState(nameNodeId(runtime))).toBeDefined()
+
+    const input = screen.getByLabelText(/^Name/) as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'Ada' } })
+    expect(input.value).toBe('Ada')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith({ name: 'Ada' })
+    })
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('still destroys the runtime once on a real unmount', async () => {
+    const { runtimes, unmount } = renderStrict()
+    await nextTask()
+    const [runtime] = runtimes
+    const destroy = vi.spyOn(runtime, 'destroy')
+
+    unmount()
+    await nextTask()
+    expect(destroy).toHaveBeenCalledTimes(1)
+    expect(runtime.getNodeState(nameNodeId(runtime))).toBeUndefined()
   })
 })

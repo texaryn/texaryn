@@ -30,10 +30,20 @@ export function useForm(
     runtimeRef.current = createFormRuntime(port, options)
   }
   const runtime = runtimeRef.current
+  const pendingDestroy = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // StrictMode reruns cleanup then setup synchronously in one commit, so that
+  // setup cancels the deferred destroy. After a real unmount the destroy runs.
   useEffect(() => {
+    if (pendingDestroy.current !== null) {
+      clearTimeout(pendingDestroy.current)
+      pendingDestroy.current = null
+    }
     return () => {
-      runtime.destroy()
+      pendingDestroy.current = setTimeout(() => {
+        pendingDestroy.current = null
+        runtime.destroy()
+      }, 0)
     }
   }, [runtime])
 
