@@ -56,6 +56,8 @@ export interface InitializationView {
    * creating it.
    */
   readonly conflicts: ReadonlyMap<Location, readonly string[]>
+  readonly expansion?: ReadonlySet<Location>
+  readonly defaultSources?: ReadonlyMap<Location, readonly string[]>
 }
 
 export type ProjectView = (data: unknown) => InitializationView
@@ -79,6 +81,10 @@ export interface DefaultRefusal {
     | 'non-container-ancestor'
     /** An ancestor is absent and the pointer does not say what kind of container it is. */
     | 'unknown-container-kind'
+    /** The projection reached the location only by expanding recursion past the data. */
+    | 'recursive-expansion'
+    /** One of the default's sources was already written above it in this run. */
+    | 'recursive-default'
 }
 
 export type InitializationResult =
@@ -147,16 +153,18 @@ export function initializeDefaults(
   const maxPasses = options.maxPasses ?? DEFAULT_MAX_PASSES
   let current = data
   const written: Location[] = []
+  const sourced: SourcedWrite[] = []
   const provisional = new Set(options.provisional ?? [])
 
   for (let pass = 1; pass <= maxPasses; pass += 1) {
-    const { writes, conflicts, refusals } = collect(current, view(current), provisional)
+    const { writes, conflicts, refusals } = collect(current, view(current), provisional, sourced)
     if (writes.length === 0) {
       return { outcome: 'initialized', data: current, written, conflicts, refusals, passes: pass }
     }
     for (const write of writes) {
       current = writeAtSegments(current, write.segments, deepCopy(write.value))
       written.push(write.location)
+      if (write.sources) sourced.push({ segments: write.segments, sources: write.sources })
       consumeProvisional(provisional, write.segments)
     }
   }
@@ -168,6 +176,24 @@ interface Write {
   readonly location: Location
   readonly segments: readonly string[]
   readonly value: unknown
+  readonly sources?: readonly string[]
+}
+
+interface SourcedWrite {
+  readonly segments: readonly string[]
+  readonly sources: readonly string[]
+}
+
+function repeatsAncestor(
+  segments: readonly string[],
+  sources: readonly string[],
+  sourced: readonly SourcedWrite[],
+): boolean {
+  return sourced.some(
+    (earlier) =>
+      isStrictDescendant(segments, earlier.segments) &&
+      earlier.sources.some((source) => sources.includes(source)),
+  )
 }
 
 /**
@@ -187,6 +213,7 @@ function collect(
   data: unknown,
   view: InitializationView,
   provisional: ReadonlySet<Location>,
+  sourced: readonly SourcedWrite[],
 ): { writes: Write[]; conflicts: DefaultConflict[]; refusals: DefaultRefusal[] } {
   const candidates: Write[] = []
   const conflicts: DefaultConflict[] = []
@@ -222,7 +249,19 @@ function collect(
       continue
     }
 
-    candidates.push({ location, segments, value: view.defaults.get(location) })
+    const sources = view.defaultSources?.get(location)
+    if (sources && repeatsAncestor(segments, sources, sourced)) {
+      refusals.push({ location, reason: 'recursive-default' })
+      continue
+    }
+
+    candidates.push({ location, segments, value: view.defaults.get(location), sources })
+  }
+
+  for (const location of view.expansion ?? []) {
+    if (isAbsent(data, parsePointer(location), provisional)) {
+      refusals.push({ location, reason: 'recursive-expansion' })
+    }
   }
 
   // A container default is materialised whole and recursed into on a later

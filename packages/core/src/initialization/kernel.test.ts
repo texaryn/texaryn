@@ -508,3 +508,92 @@ describe('what the run reports writing', () => {
     expect(result.written).toEqual(['/owner'])
   })
 })
+
+function sourced(
+  entries: Record<string, { value: unknown; sources: readonly string[] }>,
+  expansion: readonly string[] = [],
+): ProjectView {
+  return (data) => {
+    const reachable = new Set<Location>()
+    const defaults = new Map<Location, unknown>()
+    const defaultSources = new Map<Location, readonly string[]>()
+    for (const [location, { value, sources }] of Object.entries(entries)) {
+      const parent = location.slice(0, location.lastIndexOf('/'))
+      const container = parent === '' ? data : getAt(data, parent)
+      if (parent !== '' && (typeof container !== 'object' || container === null)) continue
+      reachable.add(location as Location)
+      defaults.set(location as Location, value)
+      defaultSources.set(location as Location, sources)
+    }
+    return {
+      reachable,
+      defaults,
+      conflicts: new Map(),
+      expansion: new Set(expansion as Location[]),
+      defaultSources,
+    }
+  }
+}
+
+function getAt(data: unknown, pointer: string): unknown {
+  let current = data
+  for (const segment of pointer.split('/').slice(1)) {
+    if (typeof current !== 'object' || current === null) return undefined
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}
+
+describe('recursion', () => {
+  it('refuses a default inside a recursive expansion and writes the rest', () => {
+    const view: ProjectView = () => ({
+      reachable: new Set(['/name'] as Location[]),
+      defaults: new Map([['/name' as Location, 'n']]),
+      conflicts: new Map(),
+      expansion: new Set(['/child/name'] as Location[]),
+    })
+    const result = initialized(initializeDefaults({}, view))
+    expect(result.data).toEqual({ name: 'n' })
+    expect(result.refusals).toEqual([{ location: '/child/name', reason: 'recursive-expansion' }])
+  })
+
+  it('refuses a source repeated beneath its own write', () => {
+    const view = sourced({
+      '/children': { value: [{}], sources: ['#/properties/children'] },
+      '/children/0/children': { value: [{}], sources: ['#/properties/children'] },
+    })
+    const result = initialized(initializeDefaults({}, view))
+    expect(result.data).toEqual({ children: [{}] })
+    expect(result.refusals).toEqual([
+      { location: '/children/0/children', reason: 'recursive-default' },
+    ])
+  })
+
+  it('refuses a repeat when the agreeing sources differ between levels', () => {
+    const view = sourced({
+      '/tree': { value: [{}], sources: ['#/$defs/n', '#/properties/tree'] },
+      '/tree/0/tree': { value: [{}], sources: ['#/$defs/n'] },
+    })
+    const result = initialized(initializeDefaults({}, view))
+    expect(result.data).toEqual({ tree: [{}] })
+    expect(result.refusals).toEqual([{ location: '/tree/0/tree', reason: 'recursive-default' }])
+  })
+
+  it('fills one source in two sibling branches', () => {
+    const view = sourced({
+      '/a': { value: 'x', sources: ['#/$defs/leaf'] },
+      '/b': { value: 'x', sources: ['#/$defs/leaf'] },
+    })
+    const result = initialized(initializeDefaults({}, view))
+    expect(result.data).toEqual({ a: 'x', b: 'x' })
+    expect(result.refusals).toEqual([])
+  })
+
+  it('does not refuse a source already in the data rather than written', () => {
+    const view = sourced({
+      '/children/0/children': { value: [{}], sources: ['#/properties/children'] },
+    })
+    const result = initialized(initializeDefaults({ children: [{}] }, view))
+    expect(result.data).toEqual({ children: [{ children: [{}] }] })
+  })
+})

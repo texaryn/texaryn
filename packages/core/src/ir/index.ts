@@ -24,3 +24,4 @@ export type {
 
 export type { CompileResult } from './compiler-types.js'
 export { compile } from './compiler.js'
+export { objectChildKey } from './child-key.js'

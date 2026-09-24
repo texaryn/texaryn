@@ -6,6 +6,26 @@ import type { SchemaProjection, NodeProjection } from '../../schema/port.js'
 import type { JsonPointer } from '../../types.js'
 import { identityKey } from '../../identity/key.js'
 
+describe('projection boundaries', () => {
+  it('copies an object node boundaries onto its container', () => {
+    const nodes = new Map<JsonPointer, NodeProjection>([
+      ['' as JsonPointer, {
+        type: 'object', constraints: {}, active: true, annotations: {},
+        children: [{ pointer: '/child' as JsonPointer, key: 'child', required: false }],
+      }],
+      ['/child' as JsonPointer, {
+        type: 'object', constraints: {}, active: true, annotations: {},
+        boundaries: ['recursion', 'budget'], children: [],
+      }],
+    ])
+    const { document } = compile({ nodes }, {})
+    const child = Object.values(document.nodes).find((n) => n.dataPointer === '/child') as ContainerNode
+    const root = Object.values(document.nodes).find((n) => n.dataPointer === '') as ContainerNode
+    expect(child.boundaries).toEqual(['recursion', 'budget'])
+    expect('boundaries' in root).toBe(false)
+  })
+})
+
 function makeProjection(
   entries: Array<[string, Partial<NodeProjection> & { type: NodeProjection['type'] }]>,
 ): SchemaProjection {

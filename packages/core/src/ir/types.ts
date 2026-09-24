@@ -1,5 +1,6 @@
 import type { NodeId, StableItemId, JsonPointer } from '../types.js'
 import type { IdentityKey } from '../identity/key.js'
+import type { ProjectionBoundary } from '../schema/port.js'
 
 export interface UIDocument {
   version: 1
@@ -81,6 +82,7 @@ export interface ContainerNode extends NodeBase {
   containerType: 'object' | 'array' | 'group' | 'layout'
   children: NodeId[]
   arrayMeta?: ArrayMeta
+  boundaries?: readonly ProjectionBoundary[]
 }
 
 export interface ArrayMeta {

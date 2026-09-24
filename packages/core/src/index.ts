@@ -32,6 +32,7 @@ export type {
 
 export type { CompileResult } from './ir/index.js'
 export { compile } from './ir/index.js'
+export { objectChildKey } from './ir/index.js'
 
 export type {
   SchemaEvaluationPort,
@@ -39,6 +40,7 @@ export type {
   ProjectionDiagnostic,
   ProjectionDiagnosticCode,
   NodeProjection,
+  ProjectionBoundary,
   ChildProjection,
   AnnotationSet,
 } from './schema/index.js'

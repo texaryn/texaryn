@@ -123,6 +123,8 @@ export type ProjectionDiagnosticCode =
    */
   | 'ambiguous-default'
 
+export type ProjectionBoundary = 'recursion' | 'budget'
+
 export interface NodeProjection {
   /**
    * The shape a renderer should present, which is not an assertion about the
@@ -160,6 +162,11 @@ export interface NodeProjection {
    * adapter that does not select provisionally keeps its current behaviour.
    */
   provisional?: boolean
+  boundaries?: readonly ProjectionBoundary[]
+  /** Reached only by expanding recursion past the data, so a policy must not write here (ADR-007). */
+  recursiveExpansion?: boolean
+  /** The schema positions whose agreeing `default` declarations supplied `annotations.default`. */
+  defaultSources?: readonly string[]
   /**
    * Schema positions whose `default` declarations apply to this node for the
    * instance as it stands, and disagree. Present exactly where
