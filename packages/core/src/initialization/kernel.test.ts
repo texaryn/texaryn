@@ -579,6 +579,16 @@ describe('recursion', () => {
     expect(result.refusals).toEqual([{ location: '/tree/0/tree', reason: 'recursive-default' }])
   })
 
+  it('refuses a repeat when the deeper level adds a source', () => {
+    const view = sourced({
+      '/tree': { value: [{}], sources: ['#/$defs/n'] },
+      '/tree/0/tree': { value: [{}], sources: ['#/$defs/a', '#/$defs/n'] },
+    })
+    const result = initialized(initializeDefaults({}, view))
+    expect(result.data).toEqual({ tree: [{}] })
+    expect(result.refusals).toEqual([{ location: '/tree/0/tree', reason: 'recursive-default' }])
+  })
+
   it('fills one source in two sibling branches', () => {
     const view = sourced({
       '/a': { value: 'x', sources: ['#/$defs/leaf'] },
