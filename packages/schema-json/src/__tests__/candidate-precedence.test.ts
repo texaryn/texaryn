@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createJsonSchemaAdapter } from '../index.js'
+import { createJsonSchemaAdapter, SameLocationCycleError } from '../index.js'
 import type { JsonPointer } from '@texaryn/core'
 
 async function project(schema: unknown, data: unknown) {
@@ -177,15 +177,16 @@ describe('recursive references', () => {
     ])
   })
 
-  it('handles a cycle reached through an applicator', async () => {
+  it('rejects a cycle reached through an applicator at creation', async () => {
     const viaApplicator = {
       $id: 'https://example.com/loop',
       type: 'object',
       properties: { flag: { type: 'boolean' } },
       allOf: [{ if: { properties: { flag: { const: true } } }, then: { $ref: '#' } }],
     }
-    const pointers = [...(await project(viaApplicator, { flag: true })).nodes.keys()]
-    expect(pointers).toContain('/flag')
+    await expect(
+      createJsonSchemaAdapter(viaApplicator, { defaultDialect: 'draft-07' }),
+    ).rejects.toBeInstanceOf(SameLocationCycleError)
   })
 
   it('shares one definition between two properties', async () => {
