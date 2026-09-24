@@ -59,6 +59,11 @@ const allToAll17 = (() => {
   )
   return { type: 'object', properties: { title: S('x'), ...refs() }, $defs }
 })()
+const allOfClosure = {
+  type: 'object',
+  properties: { a: { type: 'object', allOf: [{ $ref: '#/$defs/T' }] } },
+  $defs: { T: { type: 'object', properties: { v: S('d'), next: { $ref: '#/$defs/T' } } } },
+}
 
 const expansion = (location: string): Refusal => ({ location, reason: 'recursive-expansion' })
 const repeat = (location: string): Refusal => ({ location, reason: 'recursive-default' })
@@ -164,6 +169,14 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
           ...range(16).map((k) => expansion(`/p0/p${k + 1}/v${k + 1}`)),
         ],
       })
+      if (dialect === '2020-12') {
+        expectRun(
+          'leaf defaults beneath an allOf-wrapped recursion (2020-12 only: draft-07 has the known allOf active difference, spec ruling 8)',
+          allOfClosure,
+          {},
+          { data: {}, refusals: [expansion('/a/next/v'), expansion('/a/v')] },
+        )
+      }
     },
   )
 }

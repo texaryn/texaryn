@@ -34,6 +34,21 @@ const pairSite = (title: boolean) => ({
   $ref: '#/definitions/node',
   ...(title ? { title: 'ignored in draft-07' } : {}),
 })
+const range = (length: number) => Array.from({ length }, (_, i) => i)
+const kdistinct = (k: number) => {
+  const refs = () => Object.fromEntries(range(k).map((j) => [`p${j}`, R(`d${j}`)]))
+  return {
+    ...obj(refs()),
+    $defs: Object.fromEntries(range(k).map((i) => [`d${i}`, obj({ [`v${i}`]: S, ...refs() })])),
+  }
+}
+const wide = (leaves: number) => () => ({
+  ...obj({ a: R('A') }),
+  $defs: {
+    A: obj({ b: R('B') }),
+    B: obj({ a: R('A'), ...Object.fromEntries(range(leaves).map((i) => [`s${i}`, S])) }),
+  },
+})
 
 const fixtures: readonly Fixture[] = [
   { id: 'tree-no-id', schema: tree, data: treeData },
@@ -200,6 +215,17 @@ const fixtures: readonly Fixture[] = [
     schema: () => ({ ...obj({ child: pairSite(true) }), definitions: { node: obj({ name: S, child: pairSite(true) }) } }),
     data: treeData,
   },
+  {
+    id: 'allOf-closure',
+    schema: () => ({
+      ...obj({ a: { type: 'object', allOf: [R('T')] } }),
+      $defs: { T: obj({ v: { type: 'string', default: 'd' }, next: R('T') }) },
+    }),
+    data: [{}, { a: {} }, { a: { next: {} } }],
+  },
+  { id: 'kdistinct-6', schema: () => kdistinct(6), data: [{}] },
+  { id: 'wide-511', schema: wide(511), data: [{}] },
+  { id: 'wide-512', schema: wide(512), data: [{}] },
 ]
 
 interface Expected {
@@ -240,6 +266,25 @@ const rowLevels: readonly Expected[] = [
   ],
 ].map((pointers) => ({ pointers, boundaries: {}, expansion: [] }))
 
+const k6: Expected = (() => {
+  const six = range(6)
+  const admitted = six.flatMap((i) => six.filter((j) => j !== i).map((j) => [i, j] as const)).slice(0, 16)
+  const objects = admitted.map(([i, j]) => `/p${i}/p${j}`)
+  const leaves = [...six.map((i) => `/p${i}/v${i}`), ...admitted.map(([i, j]) => `/p${i}/p${j}/v${j}`)]
+  const both: readonly ProjectionBoundary[] = ['recursion', 'budget']
+  const withheld = (i: number) => admitted.filter(([a]) => a === i).length < 5
+  return {
+    pointers: ['', ...six.map((i) => `/p${i}`), ...objects, ...leaves].sort(),
+    boundaries: Object.fromEntries([
+      ...six.map((i) => [`/p${i}`, withheld(i) ? both : ['recursion' as const]]),
+      ...objects.map((pointer) => [pointer, both]),
+    ]),
+    expansion: [...objects, ...leaves].sort(),
+  }
+})()
+
+const wideLeaves = range(511).map((i) => `/a/b/s${i}`)
+
 const exact: Readonly<Record<string, readonly Expected[]>> = {
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
@@ -268,6 +313,32 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
     ...rowLevels.slice(0, 2),
   ],
   'insert-null-row': rowLevels,
+  'allOf-closure': [
+    {
+      pointers: ['', '/a', '/a/next', '/a/next/v', '/a/v'],
+      boundaries: { '/a/next': ['recursion'] },
+      expansion: ['/a/next', '/a/next/v', '/a/v'],
+    },
+    {
+      pointers: ['', '/a', '/a/next', '/a/next/v', '/a/v'],
+      boundaries: { '/a/next': ['recursion'] },
+      expansion: ['/a/next/v'],
+    },
+    {
+      pointers: ['', '/a', '/a/next', '/a/next/next', '/a/next/next/v', '/a/next/v', '/a/v'],
+      boundaries: { '/a/next/next': ['recursion'] },
+      expansion: ['/a/next/next/v'],
+    },
+  ],
+  'kdistinct-6': [k6],
+  'wide-511': [
+    {
+      pointers: ['', '/a', '/a/b', ...wideLeaves].sort(),
+      boundaries: { '/a': ['recursion'] },
+      expansion: ['/a/b', ...wideLeaves].sort(),
+    },
+  ],
+  'wide-512': [{ pointers: ['', '/a'], boundaries: { '/a': ['budget'] }, expansion: [] }],
 }
 
 const summarize = (projection: SchemaProjection) => {
@@ -345,6 +416,10 @@ const cycles: readonly [string, Record<string, unknown>, readonly (readonly stri
     [['#', '#/allOf/0', '#/allOf/0/then']],
   ],
   ['a typed root allOf', { ...obj({ name: S }), allOf: [{ $ref: '#' }] }, [['#', '#/allOf/0']]],
+  ['root not', { not: { $ref: '#' } }, [['#', '#/not']]],
+  ['root oneOf', { oneOf: [{ $ref: '#' }] }, [['#', '#/oneOf/0']]],
+  ['root if', { if: { $ref: '#' } }, [['#', '#/if']]],
+  ['root else', { if: { required: ['x'] }, else: { $ref: '#' } }, [['#', '#/else']]],
 ]
 
 const constructing: readonly [string, Record<string, unknown>][] = [
@@ -365,6 +440,17 @@ const mapCycles: readonly (readonly [Dialect, string, Record<string, unknown>, r
     (dialect) =>
       [dialect, 'dependencies', { dependencies: { a: { $ref: '#' } } }, [['#', '#/dependencies/a']]] as const,
   ),
+]
+
+const dialectConstructing: readonly (readonly [Dialect, string, Record<string, unknown>])[] = [
+  ['draft-07', '$dynamicRef', { $dynamicRef: '#' }],
+  ['2020-12', '$recursiveRef', { $recursiveRef: '#' }],
+  ['draft-07', 'dependentSchemas', { dependentSchemas: { a: { $ref: '#' } } }],
+]
+
+const dialectCycles: readonly (readonly [Dialect, string, Record<string, unknown>, readonly (readonly string[])[]])[] = [
+  ['2019-09', '$recursiveRef', { $recursiveRef: '#' }, [['#']]],
+  ['2020-12', '$dynamicRef', { $dynamicRef: '#' }, [['#']]],
 ]
 
 const expectCycle = async (created: Promise<unknown>, positions: readonly (readonly string[])[]) => {
@@ -417,6 +503,15 @@ export function recursiveRefSuite(
     it.each(mapCycles)('rejects a %s self-reference through %s', async (dialect, _keyword, schema, positions) => {
       await expectCycle(createAdapter(inDialect(dialect, schema)), positions)
     })
+
+    it.each(dialectConstructing)('%s constructs through %s, a keyword of another dialect', async (dialect, _keyword, schema) => {
+      const port = await createAdapter(inDialect(dialect, schema))
+      expect((await port.validate({ a: 1 })).valid).toBe(true)
+    })
+
+    it.each(dialectCycles)('%s rejects a self-reference through its own %s', async (dialect, _keyword, schema, positions) => {
+      await expectCycle(createAdapter(inDialect(dialect, schema)), positions)
+    })
   })
 }
 
@@ -442,6 +537,9 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
   'both-branches-recursive 2020-12 1': ['/child/child/name'],
   'both-branches-recursive 2020-12 2': ['/child/child/child/name'],
   'eq-two-oneOf-wrappers draft-07 2': ['/a/b/leaf'],
+  'allOf-closure draft-07 0': ['/a/next', '/a/next/v', '/a/v'],
+  'allOf-closure draft-07 1': ['/a/next', '/a/next/v', '/a/v'],
+  'allOf-closure draft-07 2': ['/a/next', '/a/next/next', '/a/next/next/v', '/a/next/v', '/a/v'],
 }
 
 /** Adapter choice must not change what a recursive form shows. */
