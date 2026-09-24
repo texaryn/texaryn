@@ -98,6 +98,28 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
       })
     })
 
+    it('typing in a field updates form data under StrictMode', async () => {
+      const schema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', title: 'Name' },
+        },
+      }
+      render(
+        <React.StrictMode>
+          <TestForm schema={schema} data={{ name: '' }} />
+        </React.StrictMode>,
+      )
+      await waitFor(() => {
+        expect(screen.getByLabelText('Name')).toBeTruthy()
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bob' } })
+      await waitFor(() => {
+        expect(screen.getByTestId('form-data').textContent).toContain('"name":"Bob"')
+      })
+    })
+
     it('conditional visibility works end to end', async () => {
       const schema = {
         type: 'object',
