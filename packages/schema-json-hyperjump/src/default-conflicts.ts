@@ -176,8 +176,8 @@ export function collectDefaultConflicts(
         const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
         if (itemSchema === undefined) return
         if (!projected.has(`${pointer}/${index}`)) return
-        const itemSchemaPointer =
-          prefixItems || tupleItems ? `${schemaPointer}/${keyword}/${index}` : `${schemaPointer}/${keyword}`
+        const inTuple = index < (prefixItems ?? tupleItems ?? []).length
+        const itemSchemaPointer = inTuple ? `${schemaPointer}/${keyword}/${index}` : `${schemaPointer}/items`
         visit(itemSchema, item, `${pointer}/${index}`, itemSchemaPointer, visited)
       })
     }

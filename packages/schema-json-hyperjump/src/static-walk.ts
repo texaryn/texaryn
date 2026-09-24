@@ -176,7 +176,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
       }
       for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
     }
-  }
+  } else if (typeof schema === 'boolean') out.add(position)
   stack.delete(position)
   const result = [...out]
   cache.closure.set(position, result)
@@ -298,11 +298,12 @@ function decideMember(
     return settle({ kind: 'skip' })
   }
   if (childData !== undefined && childData !== null) return settle({ kind: 'walk', lineage: undefined })
-  const recursive = (parentLineage?.recursive ?? false) || info.cyclic
+  // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
+  const recursive = (parentLineage?.recursive ?? false) || info.cyclic || info.key === ''
   const lineage: Lineage = { key: info.key, pointer: childPointer, recursive, parent: parentLineage }
   if (parentLineage === undefined) return settle({ kind: 'walk', lineage })
   for (let ancestor: Lineage | undefined = parentLineage; ancestor; ancestor = ancestor.parent) {
-    if (ancestor.key === info.key) {
+    if (info.key !== '' && ancestor.key === info.key) {
       addBoundary(state, ancestor.pointer, 'recursion')
       state.pruned.add(childPointer)
       return settle({ kind: 'skip' })
@@ -840,15 +841,12 @@ export function staticWalk(
     const itemsKeyword = prefixItems ? 'prefixItems' : 'items'
     data.forEach((item: unknown, index: number) => {
       const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
-      const itemSchemaPointer =
-        prefixItems || tupleItems
-          ? `${schemaPointer}/${itemsKeyword}/${index}`
-          : `${schemaPointer}/${itemsKeyword}`
+      const inTuple = index < (prefixItems ?? tupleItems ?? []).length
+      const itemSchemaPointer = inTuple ? `${schemaPointer}/${itemsKeyword}/${index}` : `${schemaPointer}/items`
       if (itemSchema !== undefined) {
-        const rowDeclaring =
-          prefixItems || tupleItems
-            ? [`#${itemSchemaPointer}`]
-            : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
+        const rowDeclaring = inTuple
+          ? [`#${itemSchemaPointer}`]
+          : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
         const decision = decideRow(recursion, `${pointer}/${index}`, rowDeclaring, rootSchema)
         if (decision.kind === 'skip') return
         staticWalk(

@@ -7,10 +7,19 @@ import { createHyperjumpAdapter } from '../index.js'
 import { createAdapter } from '../adapter.js'
 import { metaschemas } from './draft-07-metaschema.js'
 
+const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
+
 describe('the schema graph', () => {
   it('is the same file in both adapters', () => {
-    const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
     expect(read('../schema-graph.ts')).toBe(read('../../../schema-json/src/schema-graph.ts'))
+  })
+})
+
+describe('the draft-07 metaschema copy', () => {
+  it('holds the document schema-json bundles', () => {
+    const source = read('../../../schema-json/src/metaschemas/draft-07.ts')
+    const document = source.slice(source.indexOf('{"$schema"'), source.lastIndexOf(' as JsonSchema'))
+    expect(metaschemas).toEqual([JSON.parse(document)])
   })
 })
 
@@ -62,6 +71,38 @@ describe('once past the data', () => {
     const p = await project(mutual, {})
     expect(pointers(p)).toEqual(['', '/a', '/a/b', '/a/b/y', '/a/x'])
     expect(withBoundaries(p)).toEqual({ '/a': ['recursion'] })
+  })
+
+  it('reads a row past prefixItems from items', async () => {
+    const p = await project(on2020({
+      type: 'array',
+      prefixItems: [S],
+      items: { type: 'object', properties: { a: { type: 'object', properties: { b: S } } } },
+    }), ['x', {}])
+    expect(pointers(p)).toEqual(['', '/0', '/1', '/1/a', '/1/a/b'])
+    expect(withBoundaries(p)).toEqual({})
+  })
+
+  it('cuts a recursive row past prefixItems by the identity of items', async () => {
+    const p = await project(on2020({
+      type: 'array',
+      prefixItems: [S],
+      items: { $ref: '#/$defs/node' },
+      $defs: { node: { type: 'object', properties: { name: S, child: { $ref: '#/$defs/node' } } } },
+    }), ['x', {}])
+    expect(pointers(p)).toEqual(['', '/0', '/1', '/1/child', '/1/child/name', '/1/name'])
+    expect(withBoundaries(p)).toEqual({ '/1/child': ['recursion'] })
+  })
+
+  it('cuts a draft-07 reference to a boolean schema by the identity of its target', async () => {
+    const p = await project({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: { x: { $ref: '#/definitions/n' } },
+      definitions: { n: { $ref: '#/definitions/t', type: 'object', properties: { name: S, next: { $ref: '#/definitions/n' } } }, t: true },
+    }, {})
+    expect(pointers(p)).toEqual(['', '/x', '/x/name'])
+    expect(withBoundaries(p)).toEqual({ '/x': ['recursion'] })
   })
 
   it('lists no child without a node', async () => {
@@ -127,6 +168,17 @@ describe('the budget', () => {
       $defs: { s: S },
     }), {})
     expect(p.nodes.size).toBe(2001)
+  })
+})
+
+describe('default sources', () => {
+  it('names items as the source for a row past prefixItems', async () => {
+    const p = await project(on2020({
+      type: 'array',
+      prefixItems: [S],
+      items: { type: 'object', properties: { a: { type: 'string', default: 'd' } } },
+    }), ['x', {}])
+    expect(p.nodes.get('/1/a' as never)?.defaultSources).toEqual(['/items/properties/a'])
   })
 })
 

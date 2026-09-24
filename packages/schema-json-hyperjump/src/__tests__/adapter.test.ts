@@ -235,6 +235,25 @@ describe('createHyperjumpAdapter', () => {
       expect(projection.nodes.get('/coordinates/0' as JsonPointer)?.type).toBe('number')
       expect(projection.nodes.get('/coordinates/1' as JsonPointer)?.type).toBe('number')
     })
+
+    it('selects the branch of a row past prefixItems from its items scope', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'array',
+        prefixItems: [{ type: 'string' }],
+        items: {
+          type: 'object',
+          oneOf: [
+            { properties: { k: { const: 'a' }, av: { type: 'string' } }, required: ['k'] },
+            { properties: { k: { const: 'b' }, bv: { type: 'string' } }, required: ['k'] },
+          ],
+        },
+      })
+      const projection = adapter.project(['x', { k: 'a' }])
+      expect(projection.nodes.get('/1/av' as JsonPointer)?.active).toBe(true)
+      expect(projection.nodes.get('/1/av' as JsonPointer)?.provisional).toBeUndefined()
+      expect(projection.nodes.get('/1/bv' as JsonPointer)?.active).toBe(false)
+    })
   })
 
   describe('nullable type array', () => {
