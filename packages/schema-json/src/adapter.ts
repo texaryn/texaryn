@@ -16,6 +16,7 @@ import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
 import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
@@ -81,11 +82,13 @@ async function prepareSchema(
   // annotation unless the format-assertion vocabulary is declared, so asserting it
   // is a deviation rather than a stricter setting.
   const formatAssertion = dialect === 'draft-07' ? undefined : false
-  return compileSchema(schema as JsonSchema | BooleanSchema, {
+  const root = compileSchema(schema as JsonSchema | BooleanSchema, {
     draft: toDraftOption(dialect),
     formatAssertion,
     remotes,
   })
+  fixRootReference(root, dialect)
+  return root
 }
 
 // json-schema-library reports data pointers as "#"-prefixed URI fragments (e.g. "#/age");

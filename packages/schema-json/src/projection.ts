@@ -1,4 +1,4 @@
-import { mergeNode, type SchemaNode } from 'json-schema-library'
+import { mergeNode, isSchemaNode, type SchemaNode } from 'json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -219,7 +219,7 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
 function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean } {
   let current = node
   const seen = new Set<string>()
-  while (current.$ref) {
+  while (typeof current.$ref === 'string') {
     const position = positionOf(current)
     if (seen.has(position)) return { node: current, cycle: true }
     seen.add(position)
@@ -236,6 +236,33 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
 function dereference(node: SchemaNode): SchemaNode {
   return dereferenceChecked(node).node
+}
+
+// A dialect whose reducer leaves $ref unresolved reduces a selected `{ $ref }` branch to `{}`.
+function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: unknown): SchemaNode {
+  const reducedSchema = reduced.schema as Record<string, unknown>
+  if (reducedSchema && typeof reducedSchema === 'object') {
+    if (resolveExplicitType(reducedSchema) || inferProjectionShape(reducedSchema).kind === 'resolved') {
+      return reduced
+    }
+  }
+  const selected: SchemaNode[] = []
+  if (original.oneOf) {
+    const matching = original.oneOf.filter((branch) => branchApplies(branch, data))
+    if (matching.length === 1) selected.push(matching[0]!)
+  }
+  for (const branch of original.anyOf ?? []) {
+    if (branchApplies(branch, data)) selected.push(branch)
+  }
+  if (!selected.some((branch) => typeof branch.$ref === 'string')) return reduced
+  let merged: SchemaNode = reduced
+  for (const branch of selected) {
+    const target = dereference(branch)
+    if (!isSchemaNode(target)) continue
+    const targetReduced = target.reduceNode(data).node ?? target
+    merged = mergeNode(merged, targetReduced) ?? merged
+  }
+  return merged
 }
 
 export interface ProjectionLimits {
@@ -959,8 +986,8 @@ function walk(
     composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data)
     if (branchNode) {
-      resolved = branchNode
-      schema = branchNode.schema as Record<string, unknown>
+      resolved = resolveSelectedBranch(original, branchNode, data)
+      schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
       // reduceNode() returned no node at all: this is oneOf's behavior when data
@@ -1134,8 +1161,16 @@ function walk(
     // wrapper case), it has already been reduced against the real `data` at this
     // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
-    const reducedNode =
+    let reducedNode =
       resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
+    if (
+      reducedNode &&
+      resolved === original &&
+      !resolveExplicitType(originalSchema) &&
+      (original.oneOf || original.anyOf)
+    ) {
+      reducedNode = resolveSelectedBranch(original, reducedNode, dataRecord ?? {})
+    }
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??

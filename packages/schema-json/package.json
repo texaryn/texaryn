@@ -40,7 +40,7 @@
   "files": ["dist", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md"],
   "dependencies": {
     "@texaryn/core": "workspace:^",
-    "json-schema-library": "^11.6.2"
+    "json-schema-library": "~11.6.2"
   },
   "scripts": {
     "build": "tsc --build",

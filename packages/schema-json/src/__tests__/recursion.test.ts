@@ -82,8 +82,7 @@ describe('the budget', () => {
     expect(Object.keys(withBoundaries(p))).toEqual(expect.arrayContaining(['/p0/p1', '/p3', '/p4', '/p5']))
   })
 
-  // Needs the draft-07 root reference fix: until then its "$ref": "#" fields resolve to the wrong node.
-  it.skip('bounds the draft-07 metaschema', async () => {
+  it('bounds the draft-07 metaschema', async () => {
     const p = await project(metaNoId, {})
     expect(p.nodes.size).toBe(403)
     expect(flagged(p)).toBe(361)
@@ -163,6 +162,36 @@ describe('the reference cache', () => {
     expect(p.nodes.get('/a' as never)?.annotations).toEqual({ default: null })
     expect(p.nodes.get('/b' as never)?.annotations).toEqual({})
     expect(p.nodes.get('/b' as never)?.defaultSources).toBeUndefined()
+  })
+})
+
+describe('spellings of one tree', () => {
+  const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
+  it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {
+    const adapter = await createJsonSchemaAdapter(anonymous, { defaultDialect: dialect })
+    expect(pointers(adapter.project({}))).toEqual(['', '/child', '/child/name', '/name'])
+  })
+})
+
+describe('reduction repairs', () => {
+  it('follows an acyclic reference chain without a diagnostic', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: { p: { $ref: '#/$defs/a' } },
+      $defs: { a: { $ref: '#/$defs/b' }, b: { type: 'object', properties: { leaf: S } } },
+    }), {})
+    expect(pointers(p)).toEqual(['', '/p', '/p/leaf'])
+    expect(p.diagnostics ?? []).toEqual([])
+  })
+
+  it('keeps the subtree of a draft-07 oneOf wrapper once it holds data', async () => {
+    const p = await project({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: { child: { oneOf: [{ $ref: '#/definitions/node' }, { type: 'null' }] } },
+      definitions: { node: { type: 'object', properties: { name: S } } },
+    }, { child: { name: 'n' } })
+    expect(pointers(p)).toContain('/child/name')
   })
 })
 

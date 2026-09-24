@@ -57,6 +57,10 @@ function resolveFresh(node: SchemaNode): SchemaNode | undefined {
 }
 
 export function followRef(node: SchemaNode): SchemaNode | undefined {
+  if (node.$ref === '') {
+    const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
+    if (root) return root
+  }
   const context = (node as { context?: object }).context
   const raw = node.schema as Record<string, unknown> | undefined
   const dynamic = typeof raw === 'object' && raw !== null && ('$dynamicRef' in raw || '$recursiveRef' in raw)
@@ -108,7 +112,7 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   const addAllOf = (): void => {
     for (const branch of node.allOf ?? []) for (const p of closureOf(branch, cache, stack)) out.add(p)
   }
-  if (node.$ref) {
+  if (typeof node.$ref === 'string') {
     if (cache.dialect !== 'draft-07') {
       const raw = authoredSchema(node)
       if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
@@ -149,7 +153,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
     seen.add(position)
     expanded.push(node)
     stack.add(position)
-    if (node.$ref) {
+    if (typeof node.$ref === 'string') {
       const target = followRef(node)
       if (target) visitAll(target, stack)
     }
