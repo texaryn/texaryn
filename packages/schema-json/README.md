@@ -49,7 +49,7 @@ The returned object implements `SchemaEvaluationPort` from `@texaryn/core`.
 | 2019-09   | Supported         |
 | 2020-12   | Supported         |
 
-Dialect support does not mean every keyword generates a form control or that Texaryn provides full specification compliance. See the [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/) for the capability matrix, projection limits and validation behavior, including disabled `format` assertions for 2020-12.
+Dialect support does not mean every keyword generates a form control or that Texaryn provides full specification compliance. See the [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/) for the capability matrix, projection limits and validation behavior.
 
 The adapter detects the dialect from `$schema`. If `$schema` is absent or unrecognized, the adapter uses `draft-07` by default. You can override the fallback:
 
@@ -58,6 +58,8 @@ const adapter = await createJsonSchemaAdapter(schema, {
   defaultDialect: '2020-12',
 })
 ```
+
+The detected dialect alone decides whether the schema's own `format` keywords are asserted. Draft 7 asserts them, and so does a schema whose `$schema` is absent or unrecognized while the fallback is `draft-07`; 2019-09 and 2020-12 never do, even when the format-assertion vocabulary is declared, and the adapter has no option that changes that. The `format` keywords inside a published metaschema reached through `$ref` are asserted in every dialect.
 
 ## Projection
 

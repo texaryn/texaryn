@@ -68,13 +68,20 @@ Newer draft keywords such as `minContains`, `maxContains`,
 `unevaluatedProperties` and `unevaluatedItems` are delegated to that library;
 they are not an independent Texaryn compliance guarantee.
 
-For **2019-09 and 2020-12**, the adapter disables `format` assertions, because
-those dialects make `format` an annotation unless the format-assertion
-vocabulary is declared. A value such as `format: 'email'` stays available as
-field metadata but does not make an invalid email fail validation; declare that
-vocabulary in the schema to assert it. **Draft 7** asserts `format`, which the
-specification permits and which is the conventional behaviour there. The
-adapter exposes no format assertion option of its own, so the dialect decides.
+For **2019-09 and 2020-12**, the adapter never asserts the schema's own
+`format` keywords, because those dialects make `format` an annotation by
+default. A value such as `format: 'email'` stays available as field metadata
+but does not make an invalid email fail validation, and declaring the
+format-assertion vocabulary in `$vocabulary` does not turn assertion on.
+
+**Draft 7** asserts `format`, which the specification permits and which is the
+conventional behaviour there. That includes a schema whose `$schema` is missing
+or unrecognized, which falls back to Draft 7 unless `defaultDialect` names
+another dialect.
+
+The adapter exposes no format assertion option of its own, so for the schema's
+own keywords the detected dialect alone decides. The `format` keywords inside a
+published metaschema reached through `$ref` are asserted in every dialect.
 
 `validateAt(data, pointer)` validates the full instance and filters errors to
 the requested pointer and its descendants. It does not compile or validate an

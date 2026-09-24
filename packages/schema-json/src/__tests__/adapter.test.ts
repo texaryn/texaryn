@@ -173,7 +173,7 @@ describe('createJsonSchemaAdapter', () => {
       // specification asks only that it can be turned off.
       { dialect: 'draft-07', expected: false },
       // From 2019-09 format-annotation is the default vocabulary, so an
-      // invalid format string stays valid unless format-assertion is declared.
+      // invalid format string stays valid.
       { dialect: '2019-09', expected: true },
       { dialect: '2020-12', expected: true },
     ] as const
