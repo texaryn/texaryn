@@ -14,13 +14,22 @@ import type {
 } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
-import { buildProjection } from './projection.js'
-import { buildSchemaGraph, rejectSameLocationCycles } from './schema-graph.js'
+import { newProjectionCache } from './identity.js'
+import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
 export async function createJsonSchemaAdapter(
   schema: unknown,
   config?: AdapterConfig,
+): Promise<JsonSchemaAdapter> {
+  return createAdapter(schema, config, DEFAULT_LIMITS)
+}
+
+export async function createAdapter(
+  schema: unknown,
+  config: AdapterConfig | undefined,
+  limits: ProjectionLimits,
 ): Promise<JsonSchemaAdapter> {
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
@@ -33,10 +42,13 @@ export async function createJsonSchemaAdapter(
   const graph = buildSchemaGraph(schema, dialect, remotes ?? [])
   rejectSameLocationCycles(graph)
   const prepared = await prepareSchema(schema, dialect, remotes)
+  const rootId = (prepared as { $id?: unknown }).$id
+  const base = typeof rootId === 'string' && rootId !== '#' ? rootId.replace(/#.*$/, '') : ''
+  const cache = newProjectionCache(dialect, cyclicPositions(graph), base)
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(prepared, data)
+      return buildProjection(prepared, data, cache, limits)
     },
 
     validate(data: unknown): MaybePromise<ValidationResult> {

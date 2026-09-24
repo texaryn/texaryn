@@ -9,7 +9,16 @@ import type {
   JsonSchemaType,
   FieldConstraints,
   EnumOption,
+  ProjectionBoundary,
 } from '@texaryn/core'
+import {
+  childDeclaring,
+  followRef,
+  itemDeclaring,
+  locationInfo,
+  positionOf,
+  type ProjectionCache,
+} from './identity.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
   'string',
@@ -207,9 +216,67 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
   return schema.enum.map((value) => ({ value }))
 }
 
+function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean } {
+  let current = node
+  const seen = new Set<string>()
+  while (current.$ref) {
+    const position = positionOf(current)
+    if (seen.has(position)) return { node: current, cycle: true }
+    seen.add(position)
+    const next = followRef(current)
+    if (!next) {
+      const raw = current.resolveRef()
+      return { node: (raw ?? current) as SchemaNode, cycle: false }
+    }
+    current = next
+  }
+  return { node: current, cycle: false }
+}
+
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
 function dereference(node: SchemaNode): SchemaNode {
-  return node.$ref ? node.resolveRef() : node
+  return dereferenceChecked(node).node
+}
+
+export interface ProjectionLimits {
+  readonly objects: number
+  readonly nodes: number
+}
+
+export const DEFAULT_LIMITS: ProjectionLimits = { objects: 16, nodes: 512 }
+
+interface Lineage {
+  readonly key: string
+  readonly pointer: string
+  readonly recursive: boolean
+  readonly parent: Lineage | undefined
+}
+
+interface RecursionContext {
+  readonly cache: ProjectionCache
+  readonly limits: ProjectionLimits
+  readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly removed: Set<string>
+  readonly flagged: Set<string>
+  readonly reserved: Set<string>
+  readonly queue: (() => void)[]
+  objectsUsed: number
+  nodesUsed: number
+}
+
+function addBoundary(ctx: RecursionContext, pointer: string, reason: ProjectionBoundary): void {
+  const reasons = ctx.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
+  reasons.add(reason)
+  ctx.boundaries.set(pointer, reasons)
+}
+
+// A leaf needs no reduction, so it rides with its parent's budget unit.
+function isLeafSchema(schema: unknown): boolean {
+  if (typeof schema !== 'object' || schema === null) return true
+  const record = schema as Record<string, unknown>
+  const type = resolveExplicitType(record)
+  if (type !== undefined) return type !== 'object'
+  return ('enum' in record || 'const' in record) && !('properties' in record)
 }
 
 /**
@@ -385,6 +452,8 @@ function eachApplicable(
 interface DeclarationPositions {
   readonly unconditional: readonly SchemaNode[]
   readonly applicable: readonly SchemaNode[]
+  /** Every position declaring this location, from every branch applying at the parent, unmerged. */
+  readonly declaring: readonly SchemaNode[]
 }
 
 function declarationsFrom(
@@ -416,6 +485,7 @@ function childPositions(
   roots: DeclarationPositions,
   key: string,
   data: unknown,
+  declaring: readonly SchemaNode[],
 ): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
@@ -429,11 +499,15 @@ function childPositions(
     if (child) applicable.push(child)
   })
 
-  return { unconditional, applicable }
+  return { unconditional, applicable, declaring }
 }
 
 /** The positions that declare the elements of `roots`, by both reachability rules. */
-function itemPositions(roots: DeclarationPositions, data: unknown): DeclarationPositions {
+function itemPositions(
+  roots: DeclarationPositions,
+  data: unknown,
+  declaring: readonly SchemaNode[],
+): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
     if (node.items) unconditional.push(node.items)
@@ -444,7 +518,7 @@ function itemPositions(roots: DeclarationPositions, data: unknown): DeclarationP
     if (node.items) applicable.push(node.items)
   })
 
-  return { unconditional, applicable }
+  return { unconditional, applicable, declaring }
 }
 
 /**
@@ -800,9 +874,59 @@ function walk(
    * them, and the merge is what loses a disagreement.
    */
   declaredAt: DeclarationPositions,
+  ctx: RecursionContext,
+  /** Entered as an object member, which is the only way to be past the data. */
+  member: boolean,
+  /** The past-the-data ancestors, nearest first, up to the nearest location holding data. */
+  lineage: Lineage | undefined,
 ): void {
-  const original = dereference(node)
+  const info = locationInfo(declaredAt.declaring, ctx.cache)
+  const { node: original, cycle: referenceCycle } = dereferenceChecked(node)
+  if (info.cycle || referenceCycle) {
+    diagnostics.push({
+      pointer: toPointer(pointer),
+      code: 'unresolved-projection-shape',
+      message:
+        `A "$ref" or in-place applicator cycle never leaves this location, so there is no ` +
+        `shape to render.`,
+    })
+    return
+  }
+  const pastData = member && (data === undefined || data === null)
+  for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
+    if (ancestor.key === info.key) {
+      addBoundary(ctx, ancestor.pointer, 'recursion')
+      ctx.removed.add(pointer)
+      return
+    }
+  }
   const originalSchema = original.schema as Record<string, unknown>
+  const recursive = pastData && ((lineage?.recursive ?? false) || info.cyclic)
+  if (recursive && lineage !== undefined) {
+    const parent = pointer.slice(0, pointer.lastIndexOf('/'))
+    let admit: boolean
+    if (isLeafSchema(originalSchema)) {
+      const covered = ctx.reserved.has(parent)
+      admit = covered || ctx.nodesUsed < ctx.limits.nodes
+      if (admit && !covered) ctx.nodesUsed += 1
+    } else {
+      const leaves = [...collectCandidateProperties(original).values()].filter((candidate) =>
+        isLeafSchema(dereference(candidatePrototype(candidate)).schema),
+      ).length
+      admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
+      if (admit) {
+        ctx.objectsUsed += 1
+        ctx.nodesUsed += 1 + leaves
+        ctx.reserved.add(pointer)
+      }
+    }
+    if (!admit) {
+      addBoundary(ctx, parent, 'budget')
+      ctx.removed.add(pointer)
+      return
+    }
+    ctx.flagged.add(pointer)
+  }
   if (typeof originalSchema !== 'object' || originalSchema === null) return
 
   let resolved = original
@@ -945,6 +1069,9 @@ function walk(
   }
 
   if (!type) return
+  const selfLineage: Lineage | undefined = pastData
+    ? { key: info.key, pointer, recursive, parent: lineage }
+    : undefined
 
   // Reported at the location it is about, and after the shape gate above: a
   // pointer with no node has nothing to omit an annotation from, and saying
@@ -969,13 +1096,16 @@ function walk(
   // selects. A superset of the diagnostic's: every unconditional disagreement
   // is also an applicable one, so the node carries both kinds and a consumer
   // reads one place.
-  const applicableConflict = disagreeingDefaults(
-    collectApplicableDefaults(declaredAt.applicable, data),
-  )
+  const applicableDeclarations = collectApplicableDefaults(declaredAt.applicable, data)
+  const applicableConflict = disagreeingDefaults(applicableDeclarations)
   const conflictedDefault = applicableConflict !== undefined || ambiguousDefault !== undefined
   const defaultConflict = (applicableConflict ?? ambiguousDefault)?.map(
     (declaration) => declaration.source,
   )
+  const defaultSources =
+    !conflictedDefault && 'default' in schema
+      ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort()
+      : undefined
 
   const nodeActive = active && branchResolved
   // A node the schema applies is never also provisional; the two report
@@ -1073,6 +1203,7 @@ function walk(
       provisional: nodeProvisional ? true : undefined,
       defaultConflict,
       annotations: extractAnnotations(schema, conflictedDefault),
+      ...(defaultSources !== undefined ? { defaultSources } : {}),
     })
 
     for (const key of propKeys) {
@@ -1100,20 +1231,34 @@ function walk(
         reducedChildNode ??
         composeChild(candidate.direct, provisionalChildNode) ??
         candidatePrototype(candidate)
-      walk(
-        childNode,
-        childPointer,
-        dataRecord?.[key],
-        childActive,
-        childProvisional,
-        nodes,
-        diagnostics,
+      const positions = childPositions(
+        declaredAt,
+        key,
         // This node's own data, not the child's: the branches being entered
         // are this location's, so they are decided by the instance here. The
         // child's own conditional edges are entered by the child's walk, with
         // the child's data.
-        childPositions(declaredAt, key, data),
+        data,
+        childDeclaring(info, key),
       )
+      const enter = (): void =>
+        walk(
+          childNode,
+          childPointer,
+          dataRecord?.[key],
+          childActive,
+          childProvisional,
+          nodes,
+          diagnostics,
+          positions,
+          ctx,
+          true,
+          selfLineage,
+        )
+      // Below a location past the data every descendant is too, so deferring
+      // them admits the budget breadth first.
+      if (pastData) ctx.queue.push(enter)
+      else enter()
     }
     return
   }
@@ -1128,6 +1273,7 @@ function walk(
     provisional: nodeProvisional ? true : undefined,
     defaultConflict,
     annotations: extractAnnotations(schema, conflictedDefault),
+    ...(defaultSources !== undefined ? { defaultSources } : {}),
     // Deliberately not given the flag above. A conflict under `items` belongs
     // to the element locations, and each of those reports its own; this field
     // describes the item schema rather than being one of those locations, so
@@ -1141,7 +1287,7 @@ function walk(
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
-    const elementPositions = itemPositions(declaredAt, data)
+    const elementPositions = itemPositions(declaredAt, data, itemDeclaring(info))
     data.forEach((item, index) => {
       walk(
         resolved.items!,
@@ -1152,6 +1298,9 @@ function walk(
         nodes,
         diagnostics,
         elementPositions,
+        ctx,
+        false,
+        undefined,
       )
     })
   }
@@ -1167,9 +1316,57 @@ function walk(
  * contract), while array items are walked from `data` (an array's length is a data-time
  * fact, not a schema-time one). $ref is resolved transparently via node.resolveRef().
  */
-export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
+export function buildProjection(
+  root: SchemaNode,
+  data: unknown,
+  cache: ProjectionCache,
+  limits: ProjectionLimits = DEFAULT_LIMITS,
+): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
-  walk(root, '', data, true, false, nodes, diagnostics, { unconditional: [root], applicable: [root] })
+  const ctx: RecursionContext = {
+    cache,
+    limits,
+    boundaries: new Map(),
+    removed: new Set(),
+    flagged: new Set(),
+    reserved: new Set(),
+    queue: [],
+    objectsUsed: 0,
+    nodesUsed: 0,
+  }
+  walk(
+    root,
+    '',
+    data,
+    true,
+    false,
+    nodes,
+    diagnostics,
+    { unconditional: [root], applicable: [root], declaring: [root] },
+    ctx,
+    false,
+    undefined,
+  )
+  for (let next = 0; next < ctx.queue.length; next += 1) ctx.queue[next]!()
+  for (const node of nodes.values()) {
+    if (node.children?.some((child) => ctx.removed.has(child.pointer))) {
+      ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(
+        (child) => !ctx.removed.has(child.pointer),
+      )
+    }
+  }
+  for (const pointer of ctx.flagged) {
+    const node = nodes.get(toPointer(pointer))
+    if (node) (node as { recursiveExpansion?: true }).recursiveExpansion = true
+  }
+  for (const [pointer, reasons] of ctx.boundaries) {
+    const node = nodes.get(toPointer(pointer))
+    if (node) {
+      ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
+        ['recursion', 'budget'] as const
+      ).filter((reason) => reasons.has(reason))
+    }
+  }
   return { nodes, diagnostics }
 }

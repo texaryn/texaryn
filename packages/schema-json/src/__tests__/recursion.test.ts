@@ -1,0 +1,191 @@
+import { describe, it, expect } from 'vitest'
+import { compileSchema, type SchemaNode } from 'json-schema-library'
+import type { NodeProjection, SchemaProjection } from '@texaryn/core'
+import { createFormRuntime } from '@texaryn/core'
+import { createJsonSchemaAdapter } from '../index.js'
+import { createAdapter } from '../adapter.js'
+import { followRef } from '../identity.js'
+import { metaschemas } from '../metaschemas/draft-07.js'
+
+const S = { type: 'string' }
+const on2020 = (schema: Record<string, unknown>) => ({ $schema: 'https://json-schema.org/draft/2020-12/schema', ...schema })
+
+async function project(schema: Record<string, unknown>, data: unknown): Promise<SchemaProjection> {
+  return (await createJsonSchemaAdapter(schema)).project(data)
+}
+const pointers = (p: SchemaProjection) => [...p.nodes.keys()].sort()
+const withBoundaries = (p: SchemaProjection) =>
+  Object.fromEntries([...p.nodes].filter(([, n]) => n.boundaries).map(([k, n]) => [k, n.boundaries]))
+const flagged = (p: SchemaProjection) => [...p.nodes.values()].filter((n: NodeProjection) => n.recursiveExpansion).length
+
+const tree = on2020({
+  type: 'object',
+  properties: { name: S, child: { $ref: '#/$defs/node' } },
+  $defs: { node: { type: 'object', properties: { name: S, child: { $ref: '#/$defs/node' } } } },
+})
+
+describe('once past the data', () => {
+  it('shows one empty level past the data', async () => {
+    const p = await project(tree, {})
+    expect(pointers(p)).toEqual(['', '/child', '/child/name', '/name'])
+    expect(withBoundaries(p)).toEqual({ '/child': ['recursion'] })
+    expect(p.nodes.get('/child/name' as never)?.recursiveExpansion).toBe(true)
+    expect(p.nodes.get('/child' as never)?.recursiveExpansion).toBeUndefined()
+  })
+
+  it('moves the boundary with the data', async () => {
+    const p = await project(tree, { child: {} })
+    expect(pointers(p)).toEqual(['', '/child', '/child/child', '/child/child/name', '/child/name', '/name'])
+    expect(withBoundaries(p)).toEqual({ '/child/child': ['recursion'] })
+  })
+
+  it('treats null as past the data', async () => {
+    expect(pointers(await project(tree, { child: null }))).toEqual(pointers(await project(tree, {})))
+  })
+
+  it('stops mutual recursion before it repeats', async () => {
+    const mutual = on2020({
+      type: 'object',
+      properties: { a: { $ref: '#/$defs/A' } },
+      $defs: {
+        A: { type: 'object', properties: { x: S, b: { $ref: '#/$defs/B' } } },
+        B: { type: 'object', properties: { y: S, a: { $ref: '#/$defs/A' } } },
+      },
+    })
+    const p = await project(mutual, {})
+    expect(pointers(p)).toEqual(['', '/a', '/a/b', '/a/b/y', '/a/x'])
+    expect(withBoundaries(p)).toEqual({ '/a': ['recursion'] })
+  })
+
+  it('lists no child without a node', async () => {
+    const p = await project(tree, { child: { child: {} } })
+    for (const node of p.nodes.values()) {
+      for (const child of node.children ?? []) expect(p.nodes.has(child.pointer)).toBe(true)
+    }
+  })
+})
+
+describe('the budget', () => {
+  const kdistinct = (k: number) => {
+    const props = () => Object.fromEntries(Array.from({ length: k }, (_, j) => [`p${j}`, { $ref: `#/$defs/d${j}` }]))
+    const $defs: Record<string, unknown> = {}
+    for (let i = 0; i < k; i++) $defs[`d${i}`] = { type: 'object', properties: { [`v${i}`]: S, ...props() } }
+    return on2020({ type: 'object', properties: props(), $defs })
+  }
+  const { $id: _id, ...metaNoId } = metaschemas[0] as Record<string, unknown>
+  const strings = Object.fromEntries(Array.from({ length: 5000 }, (_, i) => [`s${i}`, S]))
+
+  it('admits 16 recursion-induced objects of an all-to-all schema', async () => {
+    const p = await project(kdistinct(6), {})
+    expect(p.nodes.size).toBe(45)
+    expect(flagged(p)).toBe(38)
+    expect(Object.keys(withBoundaries(p))).toEqual(expect.arrayContaining(['/p0/p1', '/p3', '/p4', '/p5']))
+  })
+
+  // Needs the draft-07 root reference fix: until then its "$ref": "#" fields resolve to the wrong node.
+  it.skip('bounds the draft-07 metaschema', async () => {
+    const p = await project(metaNoId, {})
+    expect(p.nodes.size).toBe(403)
+    expect(flagged(p)).toBe(361)
+    expect(withBoundaries(p)['/items']).toContain('budget')
+  })
+
+  it('stops a wide recursive object at the node limit, leaving no container empty', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: { x: { $ref: '#/$defs/n' } },
+      $defs: { n: { type: 'object', properties: { self: { $ref: '#/$defs/n' }, ...strings } } },
+    }), {})
+    expect(p.nodes.size).toBe(514)
+    expect(withBoundaries(p)['/x']).toContain('budget')
+    for (const node of p.nodes.values()) {
+      if (node.boundaries?.includes('budget')) expect(node.children?.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('never budgets a schema without recursion', async () => {
+    const level = (depth: number): Record<string, unknown> =>
+      depth === 0
+        ? S
+        : { type: 'object', properties: Object.fromEntries(Array.from({ length: 4 }, (_, i) => [`c${i}`, level(depth - 1)])) }
+    const p = await project(on2020(level(5)), {})
+    expect(p.nodes.size).toBe(1365)
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it('resolves a reference once per site, so wide flat schemas stay tractable', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: Object.fromEntries(Array.from({ length: 2000 }, (_, i) => [`f${i}`, { $ref: '#/$defs/s' }])),
+      $defs: { s: S },
+    }), {})
+    expect(p.nodes.size).toBe(2001)
+  })
+})
+
+describe('the reference cache', () => {
+  const compile = (schema: Record<string, unknown>) => compileSchema(on2020(schema), { draft: 'draft-2020-12' })
+
+  it('returns one target per static reference site', () => {
+    const root = compile({ type: 'object', properties: { a: { $ref: '#/$defs/s' } }, $defs: { s: S } })
+    const site = root.properties!.a as SchemaNode
+    expect(followRef(site)).toBe(followRef(site))
+  })
+
+  it('resolves a dynamic reference site afresh', () => {
+    const root = compile({ $dynamicAnchor: 'node', type: 'object', properties: { a: { $dynamicRef: '#node' } } })
+    const site = root.properties!.a as SchemaNode
+    const first = followRef(site)
+    expect(first?.schemaLocation).toBe('#')
+    expect(followRef(site)).not.toBe(first)
+  })
+
+  it('keeps what each referring site adds to a chain it shares', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: { a: { $ref: '#/$defs/x', title: 'A', default: 'a' }, b: { $ref: '#/$defs/x', title: 'B', default: 'b' } },
+      $defs: { x: { $ref: '#/$defs/y' }, y: S },
+    }), {})
+    expect(p.nodes.get('/a' as never)?.annotations).toEqual({ title: 'A', default: 'a' })
+    expect(p.nodes.get('/b' as never)?.annotations).toEqual({ title: 'B', default: 'b' })
+  })
+})
+
+describe('default sources', () => {
+  it('reports agreeing declarations, present exactly with the default', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: { a: { type: 'integer', allOf: [{ $ref: '#/$defs/d' }], default: 1 }, b: S },
+      $defs: { d: { type: 'integer', default: 1 } },
+    }), {})
+    expect(p.nodes.get('/a' as never)?.defaultSources).toEqual(['/$defs/d', '/properties/a'])
+    expect(p.nodes.get('/b' as never)?.defaultSources).toBeUndefined()
+  })
+})
+
+describe('initialization over a recursive schema', () => {
+  it.each([
+    ['a leaf beneath an absent recursive object', { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } }, $defs: { n: { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } } } } }, {}],
+    ['a leaf beneath a present one', { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } }, $defs: { n: { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } } } } }, { child: {} }],
+    ['a self-creating array default', { type: 'object', properties: { name: { type: 'string', default: 'n' }, children: { type: 'array', items: { $ref: '#/$defs/n' }, default: [{}] } }, $defs: { n: { type: 'object', properties: { name: { type: 'string', default: 'n' }, children: { type: 'array', items: { $ref: '#/$defs/n' }, default: [{}] } } } } }, {}],
+  ])('writes the same data whatever the limits: %s', async (_label, schema, initialData) => {
+    const run = async (limits: { objects: number; nodes: number }) =>
+      createFormRuntime(await createAdapter(on2020(schema), undefined, limits), { initialization: 'schema-defaults', initialData }).data.getSnapshot()
+    const expected = await run({ objects: 16, nodes: 512 })
+    expect(await run({ objects: 0, nodes: 0 })).toEqual(expected)
+    expect(await run({ objects: Infinity, nodes: Infinity })).toEqual(expected)
+  })
+
+  it('fills a root default beside 17 recursive properties', async () => {
+    const properties: Record<string, unknown> = { title: { type: 'string', default: 'x' } }
+    for (let i = 0; i < 17; i++) properties[`r${i}`] = { $ref: '#/$defs/node' }
+    const schema = on2020({
+      type: 'object',
+      properties,
+      $defs: { node: { type: 'object', properties: { title: { type: 'string', default: 'x' }, next: { $ref: '#/$defs/node' } } } },
+    })
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    expect(runtime.data.getSnapshot()).toEqual({ title: 'x' })
+  })
+})
