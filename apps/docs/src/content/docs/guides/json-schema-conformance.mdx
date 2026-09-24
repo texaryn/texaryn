@@ -82,11 +82,11 @@ which its note says.
 
 ## Format assertion differs by dialect
 
-`format` is annotation-only in 2019-09 and 2020-12 unless the format-assertion
-vocabulary is declared, and assertion is permitted in Draft 7.
-`@texaryn/schema-json` follows that: it asserts `format` in Draft 7 and treats
-it as an annotation in 2019-09 and 2020-12. To assert in the later dialects,
-declare the format-assertion vocabulary in the schema.
+`format` is annotation-only in 2019-09 and 2020-12 by default, and assertion is
+permitted in Draft 7. `@texaryn/schema-json` asserts `format` in Draft 7,
+including a schema with no `$schema` through the Draft 7 fallback, and never in
+2019-09 or 2020-12. Declaring the format-assertion vocabulary does not turn it
+on in the later dialects, and the adapter has no option that does.
 
 That is why Draft 7's optional count sits above the other two. Those cases
 deliberately measure an implementation with format assertion switched on, so a
