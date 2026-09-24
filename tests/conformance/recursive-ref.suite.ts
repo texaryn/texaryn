@@ -499,6 +499,18 @@ const dialectCycles: readonly (readonly [Dialect, string, Record<string, unknown
     },
     [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
   ],
+  [
+    '2019-09',
+    '$recursiveRef to a target without $recursiveAnchor',
+    {
+      $id: 'https://x.test/root',
+      $recursiveAnchor: true,
+      type: 'object',
+      allOf: [{ $ref: 'inner#/$defs/s' }],
+      $defs: { inner: { $id: 'https://x.test/inner', $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } } },
+    },
+    [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
+  ],
 ]
 
 const expectCycle = async (created: Promise<unknown>, positions: readonly (readonly string[])[]) => {

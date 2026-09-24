@@ -203,7 +203,8 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
         continue
       }
       list.push({ to: target, via: keyword, inPlace: true })
-      if (keyword === '$recursiveRef' && isRecord(targetSchema) && targetSchema.$recursiveAnchor === true) {
+      // json-schema-library resolves $recursiveRef dynamically whatever its static target declares.
+      if (keyword === '$recursiveRef') {
         for (const root of index.recursiveRoots) if (root !== target) list.push({ to: root, via: keyword, inPlace: true })
       }
     }
