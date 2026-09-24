@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, type MockInstance } from 'vitest'
 import { renderHook, act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { useForm } from '../use-form.js'
@@ -120,23 +120,33 @@ describe('useForm under StrictMode', () => {
     )
   }
 
+  // React 18.2 builds a runtime in each of StrictMode's two first renders,
+  // keeps the second and never mounts the first. React 19 builds one.
   function renderStrict() {
     const onSubmit = vi.fn()
-    const runtimes = new Set<FormRuntime>()
+    const destroys = new Map<FormRuntime, MockInstance<() => void>>()
+    let current: FormRuntime | undefined
     const view = render(
       <StrictMode>
-        <Form port={makePort(simpleProjection)} onSubmit={onSubmit} onRuntime={r => { runtimes.add(r) }} />
+        <Form
+          port={makePort(simpleProjection)}
+          onSubmit={onSubmit}
+          onRuntime={r => {
+            if (!destroys.has(r)) destroys.set(r, vi.spyOn(r, 'destroy'))
+            current = r
+          }}
+        />
       </StrictMode>,
     )
-    return { ...view, onSubmit, runtimes }
+    return { ...view, onSubmit, destroys, current: () => current! }
   }
 
-  it('keeps one live runtime through the effect replay, so typing and submit work', async () => {
-    const { onSubmit, runtimes } = renderStrict()
+  it('keeps the mounted runtime alive through the effect replay, so typing and submit work', async () => {
+    const { onSubmit, destroys, current } = renderStrict()
     await nextTask()
 
-    expect(runtimes.size).toBe(1)
-    const [runtime] = runtimes
+    const runtime = current()
+    expect(destroys.get(runtime)).not.toHaveBeenCalled()
     expect(runtime.getNodeState(nameNodeId(runtime))).toBeDefined()
 
     const input = screen.getByLabelText(/^Name/) as HTMLInputElement
@@ -148,17 +158,20 @@ describe('useForm under StrictMode', () => {
       expect(onSubmit).toHaveBeenCalledWith({ name: 'Ada' })
     })
     expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(current()).toBe(runtime)
+    expect(destroys.get(runtime)).not.toHaveBeenCalled()
   })
 
-  it('still destroys the runtime once on a real unmount', async () => {
-    const { runtimes, unmount } = renderStrict()
+  it('destroys only the mounted runtime, once, on a real unmount', async () => {
+    const { destroys, current, unmount } = renderStrict()
     await nextTask()
-    const [runtime] = runtimes
-    const destroy = vi.spyOn(runtime, 'destroy')
+    const runtime = current()
 
     unmount()
     await nextTask()
-    expect(destroy).toHaveBeenCalledTimes(1)
+    for (const [r, destroy] of destroys) {
+      expect(destroy).toHaveBeenCalledTimes(r === runtime ? 1 : 0)
+    }
     expect(runtime.getNodeState(nameNodeId(runtime))).toBeUndefined()
   })
 })
