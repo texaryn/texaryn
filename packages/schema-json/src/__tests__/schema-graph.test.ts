@@ -64,8 +64,6 @@ describe('reference keywords by dialect', () => {
     )
   })
 
-  // Concern: json-schema-library also evaluates 'dependencies' past draft-07, so the graph
-  // now adds this edge for every dialect instead of only where the reference already had it.
   it('2020-12 rejects a same-location cycle through dependencies, which the library evaluates there too', async () => {
     await expect(
       createJsonSchemaAdapter(inDialect('2020-12', { dependencies: { a: { $ref: '#' } } })),
