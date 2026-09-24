@@ -15,20 +15,42 @@ pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue vue
 
 ## Quick start
 
-```vue
-<script setup lang="ts">
-import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { ErrorSummary, FormRoot, useForm, provideFormRuntime, createDefaultRegistry } from '@texaryn/vue'
+`main.ts` creates the adapter before mounting and passes it to `App` as a prop,
+because awaiting `createJsonSchemaAdapter` inside `<script setup>` would make
+`App` an async component, which renders nothing as the root without a
+`<Suspense>` boundary.
 
-const schema = {
+```ts
+// schema.ts
+export const schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
   properties: { name: { type: 'string', title: 'Name' } },
   required: ['name'],
 }
+```
 
-const port = await createJsonSchemaAdapter(schema)
-const form = useForm(port, { initialData: { name: '' } })
+```ts
+// main.ts
+import { createApp } from 'vue'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import App from './App.vue'
+import { schema } from './schema'
+
+const adapter = await createJsonSchemaAdapter(schema)
+
+createApp(App, { adapter }).mount('#app')
+```
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import type { SchemaEvaluationPort } from '@texaryn/core'
+import { ErrorSummary, FormRoot, createDefaultRegistry, provideFormRuntime, useForm } from '@texaryn/vue'
+
+const props = defineProps<{ adapter: SchemaEvaluationPort }>()
+
+const form = useForm(props.adapter, { initialData: { name: '' } })
 provideFormRuntime(form.runtime)
 
 const registry = createDefaultRegistry()
