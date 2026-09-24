@@ -441,16 +441,20 @@ const cycles: readonly [string, Record<string, unknown>, readonly (readonly stri
   ['if false applying else', { if: false, else: { $ref: '#' } }, [['#', '#/else']]],
 ]
 
+const trivialConditionals: readonly [string, Record<string, unknown>][] = [
+  ['if false', { if: false, then: { $ref: '#' } }],
+  ['if true', { if: true, else: { $ref: '#' } }],
+  ['then without if', { then: { $ref: '#' } }],
+  ['else without if', { else: { $ref: '#' } }],
+]
+
 const constructing: readonly [string, Record<string, unknown>][] = [
   ['recursion through a property', obj({ next: { $ref: '#' } })],
   [
     'a conditional that recurses through a property',
     { type: 'object', if: { required: ['x'] }, then: { properties: { next: { $ref: '#' } } } },
   ],
-  ['if false', { if: false, then: { $ref: '#' } }],
-  ['if true', { if: true, else: { $ref: '#' } }],
-  ['then without if', { then: { $ref: '#' } }],
-  ['else without if', { else: { $ref: '#' } }],
+  ...trivialConditionals,
 ]
 
 const mapCycles: readonly (readonly [Dialect, string, Record<string, unknown>, readonly (readonly string[])[]])[] = [
@@ -480,6 +484,18 @@ const dialectCycles: readonly (readonly [Dialect, string, Record<string, unknown
       type: 'object',
       allOf: [{ $ref: 'inner#/$defs/s' }],
       $defs: { inner: { $id: 'https://x.test/inner', $recursiveAnchor: true, $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } } },
+    },
+    [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
+  ],
+  [
+    '2020-12',
+    '$dynamicRef to a $dynamicAnchor',
+    {
+      $id: 'https://x.test/root',
+      $dynamicAnchor: 'n',
+      type: 'object',
+      allOf: [{ $ref: 'inner#/$defs/s' }],
+      $defs: { inner: { $id: 'https://x.test/inner', $dynamicAnchor: 'n', $defs: { s: { allOf: [{ $dynamicRef: '#n' }] } } } },
     },
     [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
   ],
@@ -529,6 +545,12 @@ export function recursiveRefSuite(
       it.each(constructing)('constructs %s', async (_label, schema) => {
         const port = await createAdapter(inDialect(dialect, schema))
         expect((await port.validate({})).valid).toBe(true)
+      })
+
+      it.each(trivialConditionals)('projects the fields beside %s', async (_label, conditional) => {
+        const projection = (await createAdapter(inDialect(dialect, { ...obj({ a: S }), ...conditional }))).project({})
+        expect([...projection.nodes.keys()].sort()).toEqual(['', '/a'])
+        expect(projection.diagnostics).toEqual([])
       })
     })
 
