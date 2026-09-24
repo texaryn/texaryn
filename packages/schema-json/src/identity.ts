@@ -67,7 +67,14 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
     resolvedReferences.set(context, cache)
   }
   // The target is compiled with these keywords of the referring node copied onto it.
-  const copied = JSON.stringify(settings.PROPERTIES_TO_MERGE.map((keyword) => raw?.[keyword]))
+  const copied = JSON.stringify(
+    Object.fromEntries(
+      settings.PROPERTIES_TO_MERGE.filter((keyword) => raw?.[keyword] !== undefined).map((keyword) => [
+        keyword,
+        raw![keyword],
+      ]),
+    ),
+  )
   const key = `${positionOf(node)}|${node.$ref}|${copied}`
   if (cache.has(key)) return cache.get(key)
   const resolved = resolveFresh(node)

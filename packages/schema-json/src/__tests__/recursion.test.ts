@@ -150,6 +150,20 @@ describe('the reference cache', () => {
     expect(p.nodes.get('/a' as never)?.annotations).toEqual({ title: 'A', default: 'a' })
     expect(p.nodes.get('/b' as never)?.annotations).toEqual({ title: 'B', default: 'b' })
   })
+
+  it.each([
+    ['first', { a: { $ref: '#/$defs/x', default: null }, b: { $ref: '#/$defs/x' } }],
+    ['second', { b: { $ref: '#/$defs/x' }, a: { $ref: '#/$defs/x', default: null } }],
+  ])('tells a null default from none along a shared chain, with the null site %s', async (_order, properties) => {
+    const p = await project(on2020({
+      type: 'object',
+      properties,
+      $defs: { x: { $ref: '#/$defs/y' }, y: { type: ['string', 'null'] } },
+    }), {})
+    expect(p.nodes.get('/a' as never)?.annotations).toEqual({ default: null })
+    expect(p.nodes.get('/b' as never)?.annotations).toEqual({})
+    expect(p.nodes.get('/b' as never)?.defaultSources).toBeUndefined()
+  })
 })
 
 describe('default sources', () => {

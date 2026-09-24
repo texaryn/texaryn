@@ -452,7 +452,7 @@ function eachApplicable(
 interface DeclarationPositions {
   readonly unconditional: readonly SchemaNode[]
   readonly applicable: readonly SchemaNode[]
-  /** Every position declaring this location, from every branch applying at the parent, unmerged. */
+  /** Every position declaring this location, from every branch of every position applying at the parent, unmerged. */
   readonly declaring: readonly SchemaNode[]
 }
 
