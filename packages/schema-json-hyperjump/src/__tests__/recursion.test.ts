@@ -171,6 +171,48 @@ describe('the budget', () => {
   })
 })
 
+describe('percent-encoded references', () => {
+  const D7 = 'http://json-schema.org/draft-07/schema#'
+  const leafObjects = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`o${i}`, { type: 'object', properties: { s: S } }]))
+
+  it.each([D7, 'https://json-schema.org/draft/2020-12/schema'])('resolve like their decoded spelling in %s', async (uri) => {
+    const schema = (ref: string) => ({
+      $schema: uri,
+      type: 'object',
+      properties: { a: { $ref: ref } },
+      definitions: { $x: { type: 'object', properties: { s: S } }, x: { type: 'object', properties: { s: S } } },
+    })
+    const encoded = await project(schema('#/definitions/%24x'), {})
+    expect(pointers(encoded)).toEqual(['', '/a', '/a/s'])
+    expect(pointers(encoded)).toEqual(pointers(await project(schema('#/definitions/x'), {})))
+  })
+
+  it('leave a schema without recursion unbudgeted', async () => {
+    const p = await project({
+      $schema: D7,
+      type: 'object',
+      properties: { a: { $ref: '#/definitions/%24x', type: 'object', properties: leafObjects } },
+      definitions: { $x: true },
+    }, {})
+    expect(p.nodes.size).toBe(42)
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it('cut a recursion through them by identity', async () => {
+    const site = { $ref: '#/definitions/%24x', allOf: [{ $ref: '#/definitions/N' }] }
+    const p = await project({
+      $schema: D7,
+      type: 'object',
+      properties: { x: site },
+      definitions: { $x: true, N: { type: 'object', properties: { name: S, x: site } } },
+    }, {})
+    expect(pointers(p)).toEqual(['', '/x', '/x/name'])
+    expect(withBoundaries(p)).toEqual({ '/x': ['recursion'] })
+    expect(flagged(p)).toBe(0)
+  })
+})
+
 describe('default sources', () => {
   it('names items as the source for a row past prefixItems', async () => {
     const p = await project(on2020({

@@ -1,7 +1,7 @@
 export function schemaFragment(schemaUri: string): string {
   const hashIndex = schemaUri.indexOf('#')
   if (hashIndex === -1) return ''
-  return decodeURI(schemaUri.slice(hashIndex + 1))
+  return decodeURIComponent(schemaUri.slice(hashIndex + 1))
 }
 
 export function escapeSegment(segment: string): string {

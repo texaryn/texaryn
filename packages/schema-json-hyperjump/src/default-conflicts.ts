@@ -171,13 +171,12 @@ export function collectDefaultConflicts(
     const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
     const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
     if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(current)) {
-      const keyword = prefixItems ? 'prefixItems' : 'items'
       current.forEach((item, index) => {
-        const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
+        const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+        const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
         if (itemSchema === undefined) return
         if (!projected.has(`${pointer}/${index}`)) return
-        const inTuple = index < (prefixItems ?? tupleItems ?? []).length
-        const itemSchemaPointer = inTuple ? `${schemaPointer}/${keyword}/${index}` : `${schemaPointer}/items`
+        const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
         visit(itemSchema, item, `${pointer}/${index}`, itemSchemaPointer, visited)
       })
     }

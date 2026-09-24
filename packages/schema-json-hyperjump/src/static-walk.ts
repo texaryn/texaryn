@@ -838,13 +838,12 @@ export function staticWalk(
   const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
   const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
   if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data)) {
-    const itemsKeyword = prefixItems ? 'prefixItems' : 'items'
     data.forEach((item: unknown, index: number) => {
-      const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
-      const inTuple = index < (prefixItems ?? tupleItems ?? []).length
-      const itemSchemaPointer = inTuple ? `${schemaPointer}/${itemsKeyword}/${index}` : `${schemaPointer}/items`
+      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+      const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
+      const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
       if (itemSchema !== undefined) {
-        const rowDeclaring = inTuple
+        const rowDeclaring = tuple !== undefined
           ? [`#${itemSchemaPointer}`]
           : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
         const decision = decideRow(recursion, `${pointer}/${index}`, rowDeclaring, rootSchema)
