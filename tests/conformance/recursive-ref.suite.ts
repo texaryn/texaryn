@@ -285,6 +285,16 @@ const k6: Expected = (() => {
 
 const wideLeaves = range(511).map((i) => `/a/b/s${i}`)
 
+const pairLevels = treeLevels.map((level) => ({ ...level, pointers: level.pointers.filter((p) => p !== '/name') }))
+const titleLevels: readonly Expected[] = [
+  {
+    pointers: ['', '/child', '/child/child', '/child/child/name', '/child/name'],
+    boundaries: { '/child/child': ['recursion'] },
+    expansion: ['/child/child', '/child/child/name', '/child/name'],
+  },
+  ...pairLevels.slice(1),
+]
+
 const exact: Readonly<Record<string, readonly Expected[]>> = {
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
@@ -339,7 +349,14 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
     },
   ],
   'wide-512': [{ pointers: ['', '/a'], boundaries: { '/a': ['budget'] }, expansion: [] }],
+  'pair-plain': pairLevels,
+  'pair-title draft-07': pairLevels,
+  'pair-title 2020-12': titleLevels,
+  'ref-site-title draft-07': pairLevels,
+  'ref-site-title 2020-12': titleLevels,
 }
+
+const expectedFor = (id: string, dialect: Dialect) => exact[`${id} ${dialect}`] ?? exact[id]
 
 const summarize = (projection: SchemaProjection) => {
   const nodes = [...projection.nodes]
@@ -420,6 +437,8 @@ const cycles: readonly [string, Record<string, unknown>, readonly (readonly stri
   ['root oneOf', { oneOf: [{ $ref: '#' }] }, [['#', '#/oneOf/0']]],
   ['root if', { if: { $ref: '#' } }, [['#', '#/if']]],
   ['root else', { if: { required: ['x'] }, else: { $ref: '#' } }, [['#', '#/else']]],
+  ['if true applying then', { if: true, then: { $ref: '#' } }, [['#', '#/then']]],
+  ['if false applying else', { if: false, else: { $ref: '#' } }, [['#', '#/else']]],
 ]
 
 const constructing: readonly [string, Record<string, unknown>][] = [
@@ -431,6 +450,7 @@ const constructing: readonly [string, Record<string, unknown>][] = [
   ['if false', { if: false, then: { $ref: '#' } }],
   ['if true', { if: true, else: { $ref: '#' } }],
   ['then without if', { then: { $ref: '#' } }],
+  ['else without if', { else: { $ref: '#' } }],
 ]
 
 const mapCycles: readonly (readonly [Dialect, string, Record<string, unknown>, readonly (readonly string[])[]])[] = [
@@ -451,6 +471,18 @@ const dialectConstructing: readonly (readonly [Dialect, string, Record<string, u
 const dialectCycles: readonly (readonly [Dialect, string, Record<string, unknown>, readonly (readonly string[])[]])[] = [
   ['2019-09', '$recursiveRef', { $recursiveRef: '#' }, [['#']]],
   ['2020-12', '$dynamicRef', { $dynamicRef: '#' }, [['#']]],
+  [
+    '2019-09',
+    '$recursiveRef to a $recursiveAnchor',
+    {
+      $id: 'https://x.test/root',
+      $recursiveAnchor: true,
+      type: 'object',
+      allOf: [{ $ref: 'inner#/$defs/s' }],
+      $defs: { inner: { $id: 'https://x.test/inner', $recursiveAnchor: true, $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } } },
+    },
+    [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
+  ],
 ]
 
 const expectCycle = async (created: Promise<unknown>, positions: readonly (readonly string[])[]) => {
@@ -479,11 +511,11 @@ export function recursiveRefSuite(
       expect(violations(port.project(structuredClone(data)), data)).toEqual([])
     })
 
-    it.each(cases(own.filter((fixture) => exact[fixture.id])))(
+    it.each(cases(own).filter(({ fixture, dialect }) => expectedFor(fixture.id, dialect)))(
       '$fixture.id in $dialect at $data projects once past the data',
       async ({ fixture, dialect, data, depth }) => {
         const port = await createAdapter(inDialect(dialect, fixture.schema()))
-        expect(summarize(port.project(structuredClone(data)))).toEqual(exact[fixture.id]![depth])
+        expect(summarize(port.project(structuredClone(data)))).toEqual(expectedFor(fixture.id, dialect)![depth])
       },
     )
   })
