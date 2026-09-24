@@ -59,7 +59,7 @@ const adapter = await createJsonSchemaAdapter(schema, {
 })
 ```
 
-The detected dialect alone decides whether `format` is asserted. Draft 7 asserts it, and so does a schema whose `$schema` is absent or unrecognized while the fallback is `draft-07`. 2019-09 and 2020-12 never do: declaring the format-assertion vocabulary does not turn it on, and the adapter has no option that does.
+The detected dialect alone decides whether the schema's own `format` keywords are asserted. Draft 7 asserts them, and so does a schema whose `$schema` is absent or unrecognized while the fallback is `draft-07`; 2019-09 and 2020-12 never do, even when the format-assertion vocabulary is declared, and the adapter has no option that changes that. The `format` keywords inside a published metaschema reached through `$ref` are asserted in every dialect.
 
 ## Projection
 

@@ -83,23 +83,25 @@ which its note says.
 ## Format assertion differs by dialect
 
 `format` is annotation-only in 2019-09 and 2020-12 by default, and assertion is
-permitted in Draft 7. `@texaryn/schema-json` asserts `format` in Draft 7,
-including a schema with no `$schema` through the Draft 7 fallback, and never in
-2019-09 or 2020-12. Declaring the format-assertion vocabulary does not turn it
-on in the later dialects, and the adapter has no option that does.
+permitted in Draft 7. `@texaryn/schema-json` asserts the schema's own `format`
+keywords in Draft 7, including through the Draft 7 fallback a schema whose
+`$schema` is missing or unrecognized, and never in 2019-09 or 2020-12.
+Declaring the format-assertion vocabulary does not turn it on in the later
+dialects, and the adapter has no option that does.
 
 That is why Draft 7's optional count sits above the other two. Those cases
 deliberately measure an implementation with format assertion switched on, so a
 dialect that correctly leaves it off scores lower there. It is the one place in
 this report where a lower number is the specification-correct one.
 
-One consequence is worth knowing before it surprises you. Validating a schema
-against its metaschema inherits the dialect's `format` rule, so a malformed
-`pattern` regex or `$id` is caught under Draft 7, which asserts, and not under
-2019-09 or 2020-12, which do not. The same invalid schema can therefore pass
-its metaschema on one dialect and fail on another. That is the specification
-working as written rather than an inconsistency here, and strict schema linting
-would be a separate capability rather than a change to validation semantics.
+One exception is worth knowing before it surprises you. A schema that uses
+`$ref` to reach a published metaschema, to check that a document is itself a
+valid schema, has that metaschema's `format` keywords asserted in every
+dialect, because json-schema-library compiles those documents with its own
+default, which asserts. A malformed `pattern` regex therefore fails with
+keyword `format` under Draft 7, 2019-09 and 2020-12 alike, which in the later
+two is stricter than their annotation default. Strict schema linting would be
+a separate capability rather than a change to validation semantics.
 
 The mandatory suite cannot see any of this, which is worth knowing about the
 suite rather than about the adapter. Only 2020-12's `format.json` carries the
