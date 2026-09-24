@@ -920,15 +920,16 @@ function walk(
     return
   }
   const pastData = member && (data === undefined || data === null)
+  // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
+  const recursive = pastData && ((lineage?.recursive ?? false) || info.cyclic || info.key === '')
   for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
-    if (ancestor.key === info.key) {
+    if (info.key !== '' && ancestor.key === info.key) {
       addBoundary(ctx, ancestor.pointer, 'recursion')
       ctx.removed.add(pointer)
       return
     }
   }
   const originalSchema = original.schema as Record<string, unknown>
-  const recursive = pastData && ((lineage?.recursive ?? false) || info.cyclic)
   if (recursive && lineage !== undefined) {
     const parent = pointer.slice(0, pointer.lastIndexOf('/'))
     let admit: boolean

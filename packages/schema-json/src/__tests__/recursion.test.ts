@@ -65,6 +65,55 @@ describe('once past the data', () => {
   })
 })
 
+describe('conditionals inside a referenced definition', () => {
+  const dialects = {
+    'draft-07': ['http://json-schema.org/draft-07/schema#', 'definitions'],
+    '2020-12': ['https://json-schema.org/draft/2020-12/schema', '$defs'],
+  } as const
+  const wrappers = {
+    'if/then': (ref: object) => ({ type: 'object', if: { type: 'object' }, then: ref }),
+    'if/then/else': (ref: object) => ({ type: 'object', if: { required: ['x'] }, then: ref, else: { ...ref } }),
+  }
+  const chain = (dialect: keyof typeof dialects, wrap: (ref: object) => object) => {
+    const [$schema, defs] = dialects[dialect]
+    const level = (next: string) => ({ type: 'object', properties: { name: S, child: wrap({ $ref: `#/${defs}/${next}` }) } })
+    return { $schema, ...level('N1'), [defs]: { N1: level('N2'), N2: level('N3'), N3: level('N4'), N4: { type: 'object', properties: { name: S } } } }
+  }
+
+  it.each(
+    (['draft-07', '2020-12'] as const).flatMap((dialect) => Object.keys(wrappers).map((wrapper) => [wrapper, dialect] as const)),
+  )('projects every level of an %s chain in %s, unbudgeted', async (wrapper, dialect) => {
+    const p = await project(chain(dialect, wrappers[wrapper as keyof typeof wrappers]), {})
+    expect(pointers(p)).toEqual([
+      '', '/child', '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
+      '/child/child/child/name', '/child/child/name', '/child/name', '/name',
+    ])
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('keeps what a then declares below a member its if also declares, in %s', async (dialect) => {
+    const [$schema, defs] = dialects[dialect]
+    const deep = { type: 'object', properties: { r: { type: 'object', properties: { s: { type: 'object', properties: { t: S } } } } } }
+    const p = await project({
+      $schema,
+      type: 'object',
+      properties: { a: { $ref: `#/${defs}/A` } },
+      [defs]: {
+        A: {
+          type: 'object',
+          properties: {
+            p: { type: 'object', properties: { q: { type: 'object' } }, if: { properties: { q: { type: 'object' } } }, then: { properties: { q: deep } } },
+          },
+        },
+      },
+    }, {})
+    expect(pointers(p)).toEqual(['', '/a', '/a/p', '/a/p/q', '/a/p/q/r', '/a/p/q/r/s', '/a/p/q/r/s/t'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+})
+
 describe('the budget', () => {
   const kdistinct = (k: number) => {
     const props = () => Object.fromEntries(Array.from({ length: k }, (_, j) => [`p${j}`, { $ref: `#/$defs/d${j}` }]))

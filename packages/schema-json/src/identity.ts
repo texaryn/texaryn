@@ -42,9 +42,30 @@ function rootBaseOf(node: SchemaNode): string {
   return typeof rootId === 'string' && rootId !== '#' && rootId !== '' ? rootId.replace(/#.*$/, '') : ''
 }
 
+const locations = new WeakMap<SchemaNode, string>()
+
+// json-schema-library gives if, then and else inside a referenced definition one shared
+// schemaLocation, so a branch and everything under it are placed from the parent instead.
+function locationOf(node: SchemaNode): string {
+  const known = locations.get(node)
+  if (known !== undefined) return known
+  const own = (node as { schemaLocation?: unknown }).schemaLocation
+  let location = typeof own === 'string' ? own : '#?'
+  const parent = node.parent
+  if (parent && parent !== node && typeof own === 'string') {
+    const branch = IN_PLACE_BRANCHES.find((keyword) => parent[keyword] === node)
+    const parentOwn = parent.schemaLocation
+    if (branch) location = `${locationOf(parent)}/${branch}`
+    else if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {
+      location = `${locationOf(parent)}${own.slice(parentOwn.length)}`
+    }
+  }
+  locations.set(node, location)
+  return location
+}
+
 export function positionOf(node: SchemaNode): string {
-  const location = (node as { schemaLocation?: unknown }).schemaLocation
-  return `${rootBaseOf(node)}${typeof location === 'string' ? location : '#?'}`
+  return `${rootBaseOf(node)}${locationOf(node)}`
 }
 
 // resolveRef() compiles a fresh copy of the target on every call; one copy per

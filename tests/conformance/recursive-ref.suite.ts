@@ -50,6 +50,16 @@ const wide = (leaves: number) => () => ({
   },
 })
 
+const chain = (step: (target: string) => Record<string, unknown>) => () => ({
+  ...obj({ name: S, child: step('N1') }),
+  $defs: {
+    N1: obj({ name: S, child: step('N2') }),
+    N2: obj({ name: S, child: step('N3') }),
+    N3: obj({ name: S, child: step('N4') }),
+    N4: obj({ name: S }),
+  },
+})
+
 const fixtures: readonly Fixture[] = [
   { id: 'tree-no-id', schema: tree, data: treeData },
   { id: 'tree-with-id', schema: () => ({ $id: 'https://example.com/tree', ...tree() }), data: treeData },
@@ -223,6 +233,16 @@ const fixtures: readonly Fixture[] = [
     }),
     data: [{}, { a: {} }, { a: { next: {} } }],
   },
+  {
+    id: 'chain-if-then-acyclic',
+    schema: chain((target) => ({ type: 'object', if: { type: 'object' }, then: R(target) })),
+    data: treeData,
+  },
+  {
+    id: 'chain-if-then-else-acyclic',
+    schema: chain((target) => ({ type: 'object', if: { required: ['x'] }, then: R(target), else: R(target) })),
+    data: treeData,
+  },
   { id: 'kdistinct-6', schema: () => kdistinct(6), data: [{}] },
   { id: 'wide-511', schema: wide(511), data: [{}] },
   { id: 'wide-512', schema: wide(512), data: [{}] },
@@ -295,6 +315,15 @@ const titleLevels: readonly Expected[] = [
   ...pairLevels.slice(1),
 ]
 
+const chainLevel: Expected = {
+  pointers: [
+    '', '/child', '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
+    '/child/child/child/name', '/child/child/name', '/child/name', '/name',
+  ],
+  boundaries: {},
+  expansion: [],
+}
+
 const exact: Readonly<Record<string, readonly Expected[]>> = {
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
@@ -354,6 +383,8 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
   'pair-title 2020-12': titleLevels,
   'ref-site-title draft-07': pairLevels,
   'ref-site-title 2020-12': titleLevels,
+  'chain-if-then-acyclic': [chainLevel, chainLevel, chainLevel],
+  'chain-if-then-else-acyclic': [chainLevel, chainLevel, chainLevel],
 }
 
 const expectedFor = (id: string, dialect: Dialect) => exact[`${id} ${dialect}`] ?? exact[id]
@@ -606,6 +637,28 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
   'allOf-closure draft-07 0': ['/a/next', '/a/next/v', '/a/v'],
   'allOf-closure draft-07 1': ['/a/next', '/a/next/v', '/a/v'],
   'allOf-closure draft-07 2': ['/a/next', '/a/next/next', '/a/next/next/v', '/a/next/v', '/a/v'],
+  'chain-if-then-acyclic draft-07 1': ['/child/child', '/child/name'],
+  'chain-if-then-acyclic draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
+  'chain-if-then-acyclic 2020-12 0': [
+    '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
+    '/child/child/child/name', '/child/child/name', '/child/name',
+  ],
+  'chain-if-then-acyclic 2020-12 1': [
+    '/child/child/child', '/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name',
+    '/child/child/name',
+  ],
+  'chain-if-then-acyclic 2020-12 2': ['/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name'],
+  'chain-if-then-else-acyclic draft-07 1': ['/child/child', '/child/name'],
+  'chain-if-then-else-acyclic draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
+  'chain-if-then-else-acyclic 2020-12 0': [
+    '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
+    '/child/child/child/name', '/child/child/name', '/child/name',
+  ],
+  'chain-if-then-else-acyclic 2020-12 1': [
+    '/child/child/child', '/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name',
+    '/child/child/name',
+  ],
+  'chain-if-then-else-acyclic 2020-12 2': ['/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name'],
 }
 
 /** Adapter choice must not change what a recursive form shows. */
