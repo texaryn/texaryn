@@ -446,9 +446,11 @@ describe('createHyperjumpAdapter', () => {
     it('projects one level past the instance boundary then stops', async () => {
       const adapter = await createHyperjumpAdapter(recursiveObjectRefSchema)
       const projection = adapter.project({ name: 'A' })
-      expect(projection.nodes.get('/name' as JsonPointer)?.type).toBe('string')
-      expect(projection.nodes.get('/next' as JsonPointer)).toBeDefined()
-      expect(projection.nodes.get('/next/name' as JsonPointer)?.type).toBe('string')
+      expect([...projection.nodes.keys()].sort()).toEqual(['', '/name', '/next', '/next/name'])
+      const boundaries = [...projection.nodes].filter(([, node]) => node.boundaries)
+      expect(Object.fromEntries(boundaries.map(([pointer, node]) => [pointer, node.boundaries]))).toEqual({
+        '/next': ['recursion'],
+      })
     })
   })
 

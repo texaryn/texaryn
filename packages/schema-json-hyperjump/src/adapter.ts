@@ -6,7 +6,9 @@ import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { Output } from '@hyperjump/json-schema'
 import type { SchemaProjection, ValidationResult } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
-import { buildProjection } from './projection.js'
+import { buildProjection, DEFAULT_LIMITS } from './projection.js'
+import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
+import { newProjectionCache, type ProjectionLimits } from './static-walk.js'
 import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
@@ -31,6 +33,14 @@ export async function createHyperjumpAdapter(
   schema: unknown,
   config?: HyperjumpAdapterConfig,
 ): Promise<HyperjumpAdapter> {
+  return createAdapter(schema, config, DEFAULT_LIMITS)
+}
+
+export async function createAdapter(
+  schema: unknown,
+  config: HyperjumpAdapterConfig | undefined,
+  limits: ProjectionLimits,
+): Promise<HyperjumpAdapter> {
   // Hyperjump's schema registry is module-global (registerSchema keys by URI across the
   // whole process), so each adapter instance needs its own URI to avoid colliding with
   // another adapter instance registered for the same or a different schema.
@@ -38,6 +48,10 @@ export async function createHyperjumpAdapter(
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
+
+  const graph = buildSchemaGraph(schema, dialect)
+  rejectSameLocationCycles(graph)
+  const cache = newProjectionCache(dialect, cyclicPositions(graph))
 
   const register = registerByDialect[dialect]
   register(schema as Parameters<typeof registerSchema2020>[0], id, dialectIds[dialect])
@@ -47,7 +61,7 @@ export async function createHyperjumpAdapter(
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(schema, compiled, toJsonInstance(data))
+      return buildProjection(schema, compiled, toJsonInstance(data), cache, limits)
     },
 
     // hyperjump's async work (registerSchema -> getSchema -> compile) already happened
