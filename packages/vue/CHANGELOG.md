@@ -1,5 +1,13 @@
 # @texaryn/vue
 
+## 0.4.2
+
+### Patch Changes
+
+- 609ad71: The README quick start creates the adapter in `main.ts` and passes it to `App`
+  as a prop, so the example renders as the root component without a `<Suspense>`
+  boundary. No code changes.
+
 ## 0.4.1
 
 ### Patch Changes
