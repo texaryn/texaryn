@@ -112,8 +112,8 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
 // carries the referring site's merged annotations.
 function authoredSchema(node: SchemaNode): unknown {
   const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
-  const location = locationOf(node)
-  if (root && location.startsWith('#')) {
+  const location = (node as { schemaLocation?: unknown }).schemaLocation
+  if (root && typeof location === 'string' && location.startsWith('#')) {
     let current: unknown = root.schema
     for (const raw of location === '#' ? [] : location.slice(2).split('/')) {
       const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
@@ -154,12 +154,6 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   return result
 }
 
-export function branchCanApply(node: SchemaNode, keyword: 'if' | 'then' | 'else'): boolean {
-  if (keyword === 'if') return true
-  const condition = node.if === undefined ? undefined : (node.if.schema as unknown)
-  return condition !== undefined && condition !== (keyword === 'then' ? false : true)
-}
-
 export function locationInfo(declaring: readonly SchemaNode[], cache: ProjectionCache): LocationInfo {
   const memoKey = declaring.map(positionOf).sort().join('\n')
   const cached = cache.info.get(memoKey)
@@ -185,9 +179,14 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       const target = followRef(node)
       if (target) visitAll(target, stack)
     }
+    const raw = authoredSchema(node) as Record<string, unknown> | undefined
+    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
     for (const keyword of IN_PLACE_BRANCHES) {
       const branch = node[keyword] as SchemaNode | undefined
-      if (branch && isSchemaNode(branch) && branchCanApply(node, keyword)) visitAll(branch, stack)
+      const trivial =
+        (keyword === 'then' && (condition === undefined || condition === false)) ||
+        (keyword === 'else' && (condition === undefined || condition === true))
+      if (branch && isSchemaNode(branch) && !trivial) visitAll(branch, stack)
     }
     for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
       for (const branch of branches ?? []) visitAll(branch, stack)

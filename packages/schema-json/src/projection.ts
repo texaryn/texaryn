@@ -12,7 +12,6 @@ import type {
   ProjectionBoundary,
 } from '@texaryn/core'
 import {
-  branchCanApply,
   childDeclaring,
   followRef,
   itemDeclaring,
@@ -592,8 +591,8 @@ interface CandidateProperty {
  * matching, which is exactly the flicker the contract exists to prevent.
  *
  * **Recursion is through applicators only, and only those acting on this same
- * instance location**: `if`, a `then` or `else` its declaring position's own `if` can select,
- * `allOf`, `anyOf`, `oneOf`, `dependentSchemas`, and whatever a `$ref` resolves to. draft-07
+ * instance location**: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
+ * `dependentSchemas`, and whatever a `$ref` resolves to. draft-07
  * `dependencies` needs no separate handling, because json-schema-library
  * normalises it into `dependentSchemas` at parse time.
  *
@@ -620,10 +619,7 @@ interface CandidateProperty {
  * for one instance location; the same schema legitimately recurs at a deeper
  * pointer, and `walk` visits it again there.
  */
-function collectCandidateProperties(
-  node: SchemaNode,
-  declaring: readonly SchemaNode[] = [],
-): Map<string, CandidateProperty> {
+function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
   const candidates = new Map<string, CandidateProperty>()
   const visited = new Set<string | SchemaNode>()
 
@@ -661,16 +657,8 @@ function collectCandidateProperties(
       record(key, propNode, own)
     }
 
-    for (const keyword of ['if', 'then', 'else'] as const) {
-      const branch = resolved[keyword]
-      if (!branch) continue
-      let applies = branchCanApply(resolved, keyword)
-      if (own && declaring.length > 0) {
-        const holders = declaring.flatMap((d) => [d, dereference(d)]).filter((n) => n[keyword] !== undefined)
-        const owners = holders.filter((n) => deepEqual(n[keyword]!.schema, branch.schema))
-        applies = (owners.length > 0 ? owners : holders).some((n) => branchCanApply(n, keyword))
-      }
-      if (applies) visit(branch, false)
+    for (const branch of [resolved.if, resolved.then, resolved.else]) {
+      if (branch) visit(branch, false)
     }
     for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
       for (const branch of branches ?? []) visit(branch, false)
@@ -885,7 +873,7 @@ function computeRequiredSet(
 
 /**
  * Walks the compiled schema statically (via node.properties/node.items plus every
- * reachable conditional branch), only descending into array items that are actually present in
+ * conditional branch), only descending into array items that are actually present in
  * the data, and collects one NodeProjection per JsonPointer into `nodes`.
  *
  * Static (not data-driven) traversal is required for object properties so that fields
@@ -950,7 +938,7 @@ function walk(
       admit = covered || ctx.nodesUsed < ctx.limits.nodes
       if (admit && !covered) ctx.nodesUsed += 1
     } else {
-      const leaves = [...collectCandidateProperties(original, declaredAt.declaring).values()].filter((candidate) =>
+      const leaves = [...collectCandidateProperties(original).values()].filter((candidate) =>
         isLeafSchema(dereference(candidatePrototype(candidate)).schema),
       ).length
       admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
@@ -1221,7 +1209,7 @@ function walk(
     // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
-    const candidateProps = collectCandidateProperties(original, declaredAt.declaring)
+    const candidateProps = collectCandidateProperties(original)
     const propKeys = [...candidateProps.keys()]
 
     const children: ChildProjection[] | undefined =
