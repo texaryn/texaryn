@@ -165,10 +165,10 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   let cycle = false
   const expanded: SchemaNode[] = []
   const seen = new Set<string>()
-  const visitAll = (node: SchemaNode, stack: Set<string>, unreachable = false): void => {
+  const visitAll = (node: SchemaNode, stack: Set<string>): void => {
     const position = positionOf(node)
     if (stack.has(position)) {
-      if (!unreachable) cycle = true
+      cycle = true
       return
     }
     if (seen.has(position)) return
@@ -177,7 +177,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
     stack.add(position)
     if (typeof node.$ref === 'string') {
       const target = followRef(node)
-      if (target) visitAll(target, stack, unreachable)
+      if (target) visitAll(target, stack)
     }
     const raw = authoredSchema(node) as Record<string, unknown> | undefined
     const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
@@ -186,13 +186,13 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       const trivial =
         (keyword === 'then' && (condition === undefined || condition === false)) ||
         (keyword === 'else' && (condition === undefined || condition === true))
-      if (branch && isSchemaNode(branch)) visitAll(branch, stack, unreachable || trivial)
+      if (branch && isSchemaNode(branch) && !trivial) visitAll(branch, stack)
     }
     for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
-      for (const branch of branches ?? []) visitAll(branch, stack, unreachable)
+      for (const branch of branches ?? []) visitAll(branch, stack)
     }
     for (const dependency of Object.values(node.dependentSchemas ?? {})) {
-      if (dependency && isSchemaNode(dependency)) visitAll(dependency as SchemaNode, stack, unreachable)
+      if (dependency && isSchemaNode(dependency)) visitAll(dependency as SchemaNode, stack)
     }
     stack.delete(position)
   }

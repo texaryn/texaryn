@@ -591,7 +591,7 @@ interface CandidateProperty {
  * matching, which is exactly the flicker the contract exists to prevent.
  *
  * **Recursion is through applicators only, and only those acting on this same
- * instance location**: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
+ * instance location**: `if`, a `then` or `else` an `if` can select, `allOf`, `anyOf`, `oneOf`,
  * `dependentSchemas`, and whatever a `$ref` resolves to. draft-07
  * `dependencies` needs no separate handling, because json-schema-library
  * normalises it into `dependentSchemas` at parse time.
@@ -657,9 +657,11 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
       record(key, propNode, own)
     }
 
-    for (const branch of [resolved.if, resolved.then, resolved.else]) {
-      if (branch) visit(branch, false)
-    }
+    const raw = resolved.schema as Record<string, unknown> | undefined
+    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
+    if (resolved.if) visit(resolved.if, false)
+    if (resolved.then && condition !== undefined && condition !== false) visit(resolved.then, false)
+    if (resolved.else && condition !== undefined && condition !== true) visit(resolved.else, false)
     for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
       for (const branch of branches ?? []) visit(branch, false)
     }
@@ -873,7 +875,7 @@ function computeRequiredSet(
 
 /**
  * Walks the compiled schema statically (via node.properties/node.items plus every
- * conditional branch), only descending into array items that are actually present in
+ * reachable conditional branch), only descending into array items that are actually present in
  * the data, and collects one NodeProjection per JsonPointer into `nodes`.
  *
  * Static (not data-driven) traversal is required for object properties so that fields
