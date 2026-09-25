@@ -64,6 +64,18 @@ const allOfClosure = {
   properties: { a: { type: 'object', allOf: [{ $ref: '#/$defs/T' }] } },
   $defs: { T: { type: 'object', properties: { v: S('d'), next: { $ref: '#/$defs/T' } } } },
 }
+const conditionalSites = (order: readonly string[]) => ({
+  type: 'object',
+  properties: Object.fromEntries(order.map((key) => [key, { $ref: '#/$defs/node' }])),
+  $defs: {
+    node: {
+      type: 'object',
+      properties: { name: S(), child: { type: 'object' } },
+      if: { type: 'object' },
+      then: { properties: { child: { type: 'object', default: {}, allOf: [{ $ref: '#/$defs/node' }] } } },
+    },
+  },
+})
 
 const expansion = (location: string): Refusal => ({ location, reason: 'recursive-expansion' })
 const repeat = (location: string): Refusal => ({ location, reason: 'recursive-default' })
@@ -176,6 +188,14 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
           {},
           { data: {}, refusals: [expansion('/a/next/v'), expansion('/a/v')] },
         )
+        for (const order of [['a', 'b'], ['b', 'a']]) {
+          expectRun(
+            `a conditional recursion shared by two sites, ${order[0]} declared first (2020-12 only: draft-07 schema-json writes the same data but reports no refusal where hyperjump refuses /a/child/child and /b/child/child, the if/then active difference, spec ruling 8)`,
+            conditionalSites(order),
+            { initialData: { a: {}, b: {} } },
+            { data: { a: { child: {} }, b: { child: {} } }, refusals: [repeat('/a/child/child'), repeat('/b/child/child')] },
+          )
+        }
       }
     },
   )

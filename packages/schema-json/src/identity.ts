@@ -100,7 +100,8 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
       ]),
     ),
   )
-  const key = `${positionOf(node)}|${node.$ref}|${copied}`
+  // A copy keeps the referring site's library location, which default sources read.
+  const key = `${positionOf(node)}|${String(node.schemaLocation)}|${node.$ref}|${copied}`
   if (cache.has(key)) return cache.get(key)
   const resolved = resolveFresh(node)
   cache.set(key, resolved)
