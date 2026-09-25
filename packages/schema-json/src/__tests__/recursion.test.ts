@@ -119,7 +119,7 @@ describe('conditionals inside a referenced definition', () => {
 describe('trivially unreachable branches', () => {
   const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
   const deep = obj({ r: obj({ s: obj({ t: S }) }) })
-  const many = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`q${i}`, obj({ s: S })]))
+  const many = (n: number, prefix = 'q') => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${prefix}${i}`, obj({ s: S })]))
   const shapes = {
     'then under if: false': { if: false, then: { properties: { q: deep } } },
     'then without if': { then: { properties: { q: deep } } },
@@ -234,6 +234,133 @@ describe('trivially unreachable branches', () => {
     expect(pointers(one)).toEqual(['', '/child', '/child/child', '/child/child/name', '/child/name', '/name'])
     expect(withBoundaries(one)).toEqual({ '/child/child': ['recursion'] })
     expect(expansion(one)).toEqual(['/child/child/name'])
+  })
+
+  const initialize = async (schema: Record<string, unknown>, initialData?: unknown) => {
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), {
+      initialization: 'schema-defaults',
+      ...(initialData === undefined ? {} : { initialData }),
+    })
+    return { data: runtime.data.getSnapshot(), report: runtime.initialization.getSnapshot() }
+  }
+  const nestedLive = (properties: Record<string, unknown>) =>
+    obj({
+      child: {
+        ...obj({ child: { type: 'object', then: {} } }),
+        if: { required: ['z'] },
+        then: { if: { required: ['w'] }, then: { properties } },
+      },
+    })
+
+  it.each(['draft-07', '2020-12'] as const)('fills a default under a nested live condition beside a then without an if, in %s', async (dialect) => {
+    const { data, report } = await initialize(
+      inDialect(dialect, () => nestedLive({ q: obj({ s: { type: 'string', default: 'x' } }) })),
+      { child: { z: 1, w: 1 } },
+    )
+    expect(data).toEqual({ child: { z: 1, w: 1, q: { s: 'x' } } })
+    expect(report).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('never budgets 20 objects under a nested live condition, in %s', async (dialect) => {
+    const p = await projectIn(dialect, () => nestedLive(many(20, 'o')))
+    const fields = Array.from({ length: 20 }, (_, i) => [`/child/o${i}`, `/child/o${i}/s`]).flat()
+    expect(pointers(p)).toEqual(['', '/child', '/child/child', ...fields].sort())
+    expect(withBoundaries(p)).toEqual({})
+    expect(expansion(p)).toEqual([])
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('fills a live field beside a dead branch that holds an if, in %s', async (dialect) => {
+    const schema = () =>
+      inDialect(dialect, (defs) => ({
+        ...obj({
+          child: {
+            ...obj({ q: obj({ d: { type: 'string', default: 'x' } }), child: { type: 'object', then: { if: { required: ['k'] } } } }),
+            if: { required: ['z'] },
+            then: { then: { properties: { q: { $ref: `#/${defs}/R` } } } },
+          },
+          t: { type: 'array', items: { $ref: `#/${defs}/R` } },
+        }),
+        [defs]: { R: obj({ r: { type: 'array', items: { $ref: `#/${defs}/R` } } }) },
+      }))
+    const p = await project(schema(), {})
+    expect(pointers(p)).toEqual(['', '/child', '/child/child', '/child/q', '/child/q/d', '/t'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(expansion(p)).toEqual([])
+    const { data, report } = await initialize(schema())
+    expect(data).toEqual({ child: { q: { d: 'x' } } })
+    expect(report).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
+  })
+
+  const redeclared = (own: Record<string, unknown>, redeclaration: Record<string, unknown>) =>
+    obj({ a: { ...obj({ b: { type: 'object', if: { required: ['z'] }, ...own } }), if: {}, then: { properties: { b: redeclaration } } } })
+  const t = (p: SchemaProjection) => p.nodes.get('/a/b/t' as never)?.active
+
+  it.each(['draft-07', '2020-12'] as const)('keeps the own then of a field a branch redeclares with if: false, in %s', async (dialect) => {
+    const build = () => redeclared({ then: { properties: { t: S } } }, { if: false })
+    for (const [data, active] of [[{}, false], [{ a: { b: {} } }, false], [{ a: { b: { z: 1 } } }, true]] as const) {
+      const p = await projectIn(dialect, build, data)
+      expect(pointers(p)).toEqual(['', '/a', '/a/b', '/a/b/t'])
+      expect(t(p)).toBe(active)
+    }
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('keeps the own else of a field a branch redeclares with if: true, in %s', async (dialect) => {
+    const build = () => redeclared({ else: { properties: { t: S } } }, { if: true })
+    expect(pointers(await projectIn(dialect, build))).toEqual(['', '/a', '/a/b', '/a/b/t'])
+    for (const [data, active] of [[{ a: { b: {} } }, true], [{ a: { b: { z: 1 } } }, false]] as const) {
+      const p = await projectIn(dialect, build, data)
+      expect(pointers(p)).toEqual(['', '/a', '/a/b', '/a/b/t'])
+      expect(t(p)).toBe(active)
+    }
+  })
+
+  const paired = (own: Record<string, unknown>, other: Record<string, unknown>) =>
+    obj({ a: { ...obj({ b: { type: 'object', ...own } }), if: {}, then: { properties: { b: other } } } })
+
+  it.each(['draft-07', '2020-12'] as const)('never pairs an else with the if of another declaration, in %s', async (dialect) => {
+    const build = () => paired({ else: { properties: many(20) } }, { if: { required: ['z'] } })
+    for (const data of [{}, { a: { b: {} } }]) {
+      const p = await projectIn(dialect, build, data)
+      expect(pointers(p)).toEqual(['', '/a', '/a/b'])
+      expect(withBoundaries(p)).toEqual({})
+      expect(expansion(p)).toEqual([])
+    }
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('omits an else whose if only another declaration holds, in %s', async (dialect) => {
+    const schema = () =>
+      inDialect(dialect, () =>
+        paired(
+          { else: { properties: { q: obj({ s: { type: 'string', default: 'x' } }) } } },
+          { if: { required: ['z'] }, then: { properties: { t: S } } },
+        ),
+      )
+    expect(pointers(await project(schema(), {}))).toEqual(['', '/a', '/a/b', '/a/b/t'])
+    const { data, report } = await initialize(schema())
+    expect(data).toEqual({})
+    expect(report).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
+  })
+
+  const titledSite = (at: 'branch' | 'dead branch') => ({
+    $schema: dialects['2020-12'][0],
+    ...obj({
+      child: {
+        ...obj({ child: { type: 'object', then: { properties: { x: { $ref: '#/$defs/M', ...(at === 'dead branch' ? { title: 'd' } : {}) } } } } }),
+        if: { required: ['z'] },
+        then: { properties: { x: { $ref: '#/$defs/M', ...(at === 'branch' ? { title: 't' } : {}) } } },
+      },
+    }),
+    $defs: { M: obj({ m: { $ref: '#/$defs/M' } }) },
+  })
+
+  it.each([
+    ['branch', ['', '/child', '/child/child', '/child/x', '/child/x/m'], { '/child/x/m': ['recursion'] }, ['/child/x', '/child/x/m']],
+    ['dead branch', ['', '/child', '/child/child', '/child/x'], { '/child/x': ['recursion'] }, ['/child/x']],
+  ] as const)('identifies a reference site by its own title, with the title in the %s', async (at, expected, boundaries, flaggedPointers) => {
+    const p = await project(titledSite(at), {})
+    expect(pointers(p)).toEqual(expected)
+    expect(withBoundaries(p)).toEqual(boundaries)
+    expect(expansion(p)).toEqual(flaggedPointers)
   })
 })
 
