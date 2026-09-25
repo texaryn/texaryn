@@ -17,6 +17,12 @@ const pointers = (p: SchemaProjection) => [...p.nodes.keys()].sort()
 const withBoundaries = (p: SchemaProjection) =>
   Object.fromEntries([...p.nodes].filter(([, n]) => n.boundaries).map(([k, n]) => [k, n.boundaries]))
 const flagged = (p: SchemaProjection) => [...p.nodes.values()].filter((n: NodeProjection) => n.recursiveExpansion).length
+const expansion = (p: SchemaProjection) =>
+  [...p.nodes].filter(([, n]) => n.recursiveExpansion).map(([pointer]) => pointer).sort()
+const dialects = {
+  'draft-07': ['http://json-schema.org/draft-07/schema#', 'definitions'],
+  '2020-12': ['https://json-schema.org/draft/2020-12/schema', '$defs'],
+} as const
 
 const tree = on2020({
   type: 'object',
@@ -66,10 +72,6 @@ describe('once past the data', () => {
 })
 
 describe('conditionals inside a referenced definition', () => {
-  const dialects = {
-    'draft-07': ['http://json-schema.org/draft-07/schema#', 'definitions'],
-    '2020-12': ['https://json-schema.org/draft/2020-12/schema', '$defs'],
-  } as const
   const wrappers = {
     'if/then': (ref: object) => ({ type: 'object', if: { type: 'object' }, then: ref }),
     'if/then/else': (ref: object) => ({ type: 'object', if: { required: ['x'] }, then: ref, else: { ...ref } }),
@@ -111,6 +113,70 @@ describe('conditionals inside a referenced definition', () => {
     expect(pointers(p)).toEqual(['', '/a', '/a/p', '/a/p/q', '/a/p/q/r', '/a/p/q/r/s', '/a/p/q/r/s/t'])
     expect(withBoundaries(p)).toEqual({})
     expect(flagged(p)).toBe(0)
+  })
+})
+
+describe('trivially unreachable branches', () => {
+  const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
+  const deep = obj({ r: obj({ s: obj({ t: S }) }) })
+  const many = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`q${i}`, obj({ s: S })]))
+  const manyPointers = (prefix: string, n: number) =>
+    Array.from({ length: n }, (_, i) => [`${prefix}/q${i}`, `${prefix}/q${i}/s`]).flat()
+  const shapes = {
+    'then under if: false': { if: false, then: { properties: { q: deep } } },
+    'then without if': { then: { properties: { q: deep } } },
+    'else under if: true': { if: true, else: { properties: { q: deep } } },
+    'else without if': { else: { properties: { q: deep } } },
+  }
+  const projectIn = (dialect: keyof typeof dialects, build: (defs: string) => Record<string, unknown>) => {
+    const [$schema, defs] = dialects[dialect]
+    return project({ $schema, ...build(defs) }, {})
+  }
+
+  it.each(
+    (['draft-07', '2020-12'] as const).flatMap((dialect) => Object.keys(shapes).map((shape) => [shape, dialect] as const)),
+  )('projects the fields of %s in %s, unbudgeted', async (shape, dialect) => {
+    const p = await projectIn(dialect, () => obj({ p: { type: 'object', ...shapes[shape as keyof typeof shapes] } }))
+    expect(pointers(p)).toEqual(['', '/p', '/p/q', '/p/q/r', '/p/q/r/s', '/p/q/r/s/t'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(expansion(p)).toEqual([])
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('never budgets 20 objects under a dead branch, in %s', async (dialect) => {
+    const p = await projectIn(dialect, () => obj({ p: { type: 'object', if: false, then: { properties: many(20) } } }))
+    expect(pointers(p)).toEqual(['', '/p', ...manyPointers('/p', 20)].sort())
+    expect(withBoundaries(p)).toEqual({})
+    expect(expansion(p)).toEqual([])
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('leaves the budget to the recursion beside a dead branch, in %s', async (dialect) => {
+    const p = await projectIn(dialect, (defs) => ({
+      ...obj({ p: { type: 'object', if: false, then: { properties: many(16) } }, t: { $ref: `#/${defs}/A` } }),
+      [defs]: {
+        A: obj({ av: S, b: { $ref: `#/${defs}/B` } }),
+        B: obj({ bv: S, a: { $ref: `#/${defs}/A` } }),
+      },
+    }))
+    expect(pointers(p)).toEqual(['', '/p', ...manyPointers('/p', 16), '/t', '/t/av', '/t/b', '/t/b/bv'].sort())
+    expect(withBoundaries(p)).toEqual({ '/t': ['recursion'] })
+    expect(expansion(p)).toEqual(['/t/av', '/t/b', '/t/b/bv'])
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('bounds a root reference under a dead branch, in %s', async (dialect) => {
+    const p = await projectIn(dialect, () => obj({ a: S, p: { type: 'object', if: false, then: { $ref: '#' } } }))
+    expect(pointers(p)).toEqual(['', '/a', '/p', '/p/a'])
+    expect(withBoundaries(p)).toEqual({ '/p': ['recursion'] })
+    expect(expansion(p)).toEqual([])
+  })
+
+  it.each(['draft-07', '2020-12'] as const)('bounds a recursive definition under a dead branch, in %s', async (dialect) => {
+    const p = await projectIn(dialect, (defs) => ({
+      ...obj({ a: S, p: { type: 'object', if: false, then: { $ref: `#/${defs}/N` } } }),
+      [defs]: { N: obj({ n: S, q: { $ref: `#/${defs}/N` } }) },
+    }))
+    expect(pointers(p)).toEqual(['', '/a', '/p', '/p/n', '/p/q', '/p/q/n'])
+    expect(withBoundaries(p)).toEqual({ '/p/q': ['recursion'] })
+    expect(expansion(p)).toEqual([])
   })
 })
 
