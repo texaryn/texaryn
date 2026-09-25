@@ -179,14 +179,9 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       const target = followRef(node)
       if (target) visitAll(target, stack)
     }
-    const raw = authoredSchema(node) as Record<string, unknown> | undefined
-    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
     for (const keyword of IN_PLACE_BRANCHES) {
       const branch = node[keyword] as SchemaNode | undefined
-      const trivial =
-        (keyword === 'then' && (condition === undefined || condition === false)) ||
-        (keyword === 'else' && (condition === undefined || condition === true))
-      if (branch && isSchemaNode(branch) && !trivial) visitAll(branch, stack)
+      if (branch && isSchemaNode(branch)) visitAll(branch, stack)
     }
     for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
       for (const branch of branches ?? []) visitAll(branch, stack)

@@ -16,6 +16,7 @@ import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
 import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { withoutUnreachableBranches } from './normalize.js'
 import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
@@ -32,17 +33,18 @@ export async function createAdapter(
   config: AdapterConfig | undefined,
   limits: ProjectionLimits,
 ): Promise<JsonSchemaAdapter> {
-  const dialect = detectDialect(schema, {
+  const document = withoutUnreachableBranches(schema)
+  const dialect = detectDialect(document, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
 
   // A schema may reference its dialect's metaschema to assert itself valid; json-schema-library
   // carries draft definitions but not metaschema documents, so an unresolved reference fails closed.
-  const referenced = referencedDialects(schema)
+  const referenced = referencedDialects(document)
   const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
-  const graph = buildSchemaGraph(schema, dialect, remotes ?? [])
+  const graph = buildSchemaGraph(document, dialect, remotes ?? [])
   rejectSameLocationCycles(graph)
-  const prepared = await prepareSchema(schema, dialect, remotes)
+  const prepared = await prepareSchema(document, dialect, remotes)
   const rootId = (prepared as { $id?: unknown }).$id
   const base = typeof rootId === 'string' && rootId !== '#' ? rootId.replace(/#.*$/, '') : ''
   const cache = newProjectionCache(dialect, cyclicPositions(graph), base)

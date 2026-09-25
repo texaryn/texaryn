@@ -50,6 +50,32 @@ const wide = (leaves: number) => () => ({
   },
 })
 
+const deep = () => obj({ r: obj({ s: obj({ t: S }) }) })
+const deadForms: readonly (readonly [string, Record<string, unknown>])[] = [
+  ['dead-then-if-false', { if: false, then: { properties: { q: deep() } } }],
+  ['dead-then-no-if', { then: { properties: { q: deep() } } }],
+  ['dead-else-if-true', { if: true, else: { properties: { q: deep() } } }],
+  ['dead-else-no-if', { else: { properties: { q: deep() } } }],
+]
+const twenty = (prefix: string) => Object.fromEntries(range(20).map((i) => [`${prefix}${i}`, obj({ s: S })]))
+const defaulted = (name: string, value: string) => obj({ [name]: { type: 'string', default: value } })
+const nestedLive = (then: Record<string, unknown>) => () =>
+  obj({ child: { ...obj({ child: { type: 'object', then: {} } }), if: { required: ['z'] }, then: { if: { required: ['w'] }, then: { properties: then } } } })
+const redeclared = (own: Record<string, unknown>, other: Record<string, unknown>, condition: Record<string, unknown> = {}) => () =>
+  obj({ a: { ...obj({ b: { type: 'object', ...own } }), if: condition, then: { properties: { b: other } } } })
+const titledSite = (inDeadBranch: boolean) => () => ({
+  ...obj({
+    child: {
+      ...obj({ child: { type: 'object', then: { properties: { x: inDeadBranch ? { ...R('M'), title: 'd' } : R('M') } } } }),
+      if: { required: ['z'] },
+      then: { properties: { x: inDeadBranch ? R('M') : { ...R('M'), title: 't' } } },
+    },
+  }),
+  $defs: { M: obj({ m: R('M') }) },
+})
+const liveWhen = (keyword: 'then' | 'else', properties: Record<string, unknown>) => ({ if: { required: ['w'] }, [keyword]: { properties } })
+const pairData = [{}, { a: { b: {} } }, { a: { b: { w: 1 } } }]
+
 const chain = (step: (target: string) => Record<string, unknown>) => () => ({
   ...obj({ name: S, child: step('N1') }),
   $defs: {
@@ -246,6 +272,80 @@ const fixtures: readonly Fixture[] = [
   { id: 'kdistinct-6', schema: () => kdistinct(6), data: [{}] },
   { id: 'wide-511', schema: wide(511), data: [{}] },
   { id: 'wide-512', schema: wide(512), data: [{}] },
+  ...deadForms.map(([id, form]) => ({ id, schema: () => obj({ p: { type: 'object', ...form } }), data: [{}, { p: {} }, { p: { q: {} } }] })),
+  {
+    id: 'live-if-under-then-beside-then-no-if',
+    schema: nestedLive({ q: defaulted('s', 'x') }),
+    data: [{}, { child: {} }, { child: { z: 1, w: 1 } }],
+  },
+  { id: 'live-if-under-then-20-objects', schema: nestedLive(twenty('o')), data: [{}, { child: {} }, { child: { z: 1, w: 1 } }] },
+  {
+    id: 'live-field-beside-dead-if',
+    schema: () => ({
+      ...obj({
+        child: {
+          ...obj({ q: defaulted('d', 'x'), child: { type: 'object', then: { if: { required: ['k'] } } } }),
+          if: { required: ['z'] },
+          then: { then: { properties: { q: R('R') } } },
+        },
+        t: { type: 'array', items: R('R') },
+      }),
+      $defs: { R: obj({ r: { type: 'array', items: R('R') } }) },
+    }),
+    data: [{}, { child: {} }, { child: { z: 1 } }],
+  },
+  {
+    id: 'own-then-redeclared-if-false',
+    schema: redeclared({ if: { required: ['z'] }, then: { properties: { t: S } } }, { if: false }),
+    data: [{}, { a: { b: {} } }, { a: { b: { z: 1 } } }],
+  },
+  {
+    id: 'own-else-redeclared-if-true',
+    schema: redeclared({ if: { required: ['z'] }, else: { properties: { t: S } } }, { if: true }),
+    data: [{}, { a: { b: {} } }, { a: { b: { z: 1 } } }],
+  },
+  { id: 'site-title-in-live-branch', schema: titledSite(false), data: [{}, { child: {} }, { child: { z: 1, x: {} } }] },
+  { id: 'site-title-in-dead-branch', schema: titledSite(true), data: [{}, { child: {} }, { child: { z: 1, x: {} } }] },
+  {
+    id: 'else-no-if-beside-an-if-20-objects',
+    schema: redeclared({ else: { properties: twenty('q') } }, { if: { required: ['z'] } }),
+    data: [{}, { a: { b: {} } }],
+  },
+  {
+    id: 'else-no-if-beside-an-if-then',
+    schema: redeclared({ else: { properties: { q: defaulted('s', 'x') } } }, liveWhen('then', { t: S })),
+    data: [{}, { a: { b: {} } }],
+  },
+  {
+    id: 'dead-else-in-a-merged-branch',
+    schema: () =>
+      obj({
+        b: {
+          ...obj({ a: { type: 'object' } }),
+          if: {},
+          then: { properties: { a: { if: true, else: { properties: twenty('x') } } } },
+          else: { properties: { a: { if: false, else: { properties: { y: S } } } } },
+        },
+      }),
+    data: [{}, { b: {} }, { b: { a: {} } }],
+  },
+  { id: 'dead-then-wider-than-a-live-then', schema: redeclared({ then: { properties: { t: S, u: S } } }, liveWhen('then', { t: S })), data: pairData },
+  {
+    id: 'dead-else-wider-than-a-live-else',
+    schema: redeclared({ else: { properties: { t: S, u: S } } }, liveWhen('else', { t: S })),
+    data: [{}, { a: { b: {} } }, { a: { b: { t: 'x' } } }],
+  },
+  { id: 'dead-then-narrower-than-a-live-then', schema: redeclared({ then: { properties: { t: S } } }, liveWhen('then', { t: S, u: S })), data: pairData },
+  {
+    id: 'dead-if-false-then-wider-than-a-live-then',
+    schema: redeclared({ if: false, then: { properties: { t: S, u: S } } }, liveWhen('then', { t: S })),
+    data: pairData,
+  },
+  {
+    id: 'live-then-beside-a-dead-then',
+    schema: redeclared(liveWhen('then', { t: { type: 'string', minLength: 2 } }), { then: { properties: { t: { type: 'string', minLength: 1 } } } }),
+    data: [{}, { a: { b: {} } }, { a: { b: { w: 1, t: 'x' } } }],
+  },
 ]
 
 interface Expected {
@@ -324,7 +424,10 @@ const chainLevel: Expected = {
   expansion: [],
 }
 
+const deadLevel: Expected = { pointers: ['', '/p'], boundaries: {}, expansion: [] }
+
 const exact: Readonly<Record<string, readonly Expected[]>> = {
+  ...Object.fromEntries(deadForms.map(([id]) => [id, [deadLevel, deadLevel, deadLevel]])),
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
   'defs-node': treeLevels,
@@ -613,9 +716,9 @@ export function recursiveRefSuite(
 }
 
 /**
- * Pre-existing `active` differences, by case, with the pointers that differ.
- * Follow-up: the design spec's out-of-scope item on `active` beneath wrapped
- * recursion (`allOf`, `if`/`then`/`else`, draft-07 `oneOf`), which main shares.
+ * Pre-existing `active` differences, by case, with the pointers that differ, which main
+ * shares: beneath wrapped recursion (`allOf`, `if`/`then`/`else`, draft-07 `oneOf`), the design
+ * spec's out-of-scope item, and on conditional declarations without recursion.
  */
 const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
   'allOf-typed draft-07 0': ['/child/name'],
@@ -659,6 +762,23 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
     '/child/child/name',
   ],
   'chain-if-then-else-acyclic 2020-12 2': ['/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name'],
+  ...Object.fromEntries(
+    PROJECTED.flatMap((dialect) =>
+      (
+        [
+          ['live-if-under-then-beside-then-no-if', 0, ['/child']],
+          ['live-if-under-then-20-objects', 0, ['/child']],
+          ['own-else-redeclared-if-true', 0, ['/a/b/t']],
+          ['else-no-if-beside-an-if-then', 0, ['/a/b']],
+          ['dead-then-wider-than-a-live-then', 0, ['/a/b']],
+          ['dead-else-wider-than-a-live-else', 0, ['/a/b', '/a/b/t']],
+          ['dead-then-narrower-than-a-live-then', 0, ['/a/b']],
+          ['dead-if-false-then-wider-than-a-live-then', 0, ['/a/b']],
+          ['dead-if-false-then-wider-than-a-live-then', 2, ['/a/b/t']],
+        ] as const
+      ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
+    ),
+  ),
 }
 
 /** Adapter choice must not change what a recursive form shows. */

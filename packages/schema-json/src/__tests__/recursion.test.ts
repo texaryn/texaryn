@@ -114,6 +114,137 @@ describe('conditionals inside a referenced definition', () => {
   })
 })
 
+describe('branches the specification never evaluates', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const deep = { type: 'object', properties: { r: { type: 'object', properties: { s: { type: 'object', properties: { t: S } } } } } }
+  const forms = [
+    ['a then under if: false', { if: false, then: { properties: { q: deep } } }, 'then'],
+    ['a then without if', { then: { properties: { q: deep } } }, 'then'],
+    ['an else under if: true', { if: true, else: { properties: { q: deep } } }, 'else'],
+    ['an else without if', { else: { properties: { q: deep } } }, 'else'],
+  ] as const
+  const cases = dialects.flatMap(([dialect, $schema]) => forms.map(([label, form, branch]) => [label, dialect, $schema, form, branch] as const))
+
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    [{ then: S }, dialect, $schema],
+    [{ if: false, then: S }, dialect, $schema],
+    [{ if: true, else: S }, dialect, $schema],
+  ] as const))('accepts 1 against %j in %s, as the library does', async (schema, _dialect, $schema) => {
+    expect((await (await createJsonSchemaAdapter({ $schema, ...schema })).validate(1)).valid).toBe(true)
+  })
+
+  it.each(cases)('projects nothing from %s in %s', async (_label, _dialect, $schema, form) => {
+    const p = await project({ $schema, type: 'object', properties: { p: { type: 'object', ...form } } }, {})
+    expect(pointers(p)).toEqual(['', '/p'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it.each(cases)('projects %s that a reference points into as main does, in %s', async (_label, _dialect, $schema, form, branch) => {
+    const p = await project({
+      $schema,
+      type: 'object',
+      properties: { p: { type: 'object', ...form }, r: { $ref: `#/properties/p/${branch}` } },
+    }, {})
+    expect(pointers(p)).toEqual([
+      '', '/p', '/p/q', '/p/q/r', '/p/q/r/s', '/p/q/r/s/t', '/r', '/r/q', '/r/q/r', '/r/q/r/s', '/r/q/r/s/t',
+    ])
+    expect(p.nodes.get('/p/q' as never)?.active).toBe(false)
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
+  const twenty = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, obj({ s: S })]))
+  const byActivity = (p: SchemaProjection) => ({
+    active: [...p.nodes].filter(([, n]) => n.active).map(([k]) => k).sort(),
+    inactive: [...p.nodes].filter(([, n]) => !n.active).map(([k]) => k).sort(),
+  })
+  const beside = (own: Record<string, unknown>, keyword: 'then' | 'else') =>
+    obj({ a: { ...obj({ b: { type: 'object', ...own } }), if: { required: ['z'] }, then: { properties: { b: { if: { required: ['w'] }, [keyword]: { properties: { t: S } } } } } } })
+  const pairData = [{}, { a: { b: {} } }, { a: { z: 1, b: { w: 1 } } }]
+  const closed = { active: ['', '/a', '/a/b'], inactive: [] }
+  const tActive = { active: ['', '/a', '/a/b', '/a/b/t'], inactive: [] }
+  const tInactive = { active: ['', '/a', '/a/b'], inactive: ['/a/b/t'] }
+  const live = [
+    ['a then without if beside a live then', beside({ then: { properties: twenty } }, 'then'), pairData, [closed, closed, tActive]],
+    ['an else without if beside a live else', beside({ else: { properties: twenty } }, 'else'), pairData, [closed, closed, tInactive]],
+    ['a then under if: false beside a live then', beside({ if: false, then: { properties: twenty } }, 'then'), pairData, [closed, closed, tInactive]],
+    ['an else under if: true beside a live else', beside({ if: true, else: { properties: twenty } }, 'else'), pairData, [closed, closed, tInactive]],
+    [
+      'an else under if: true in a conditional branch',
+      obj({
+        b: {
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['k'] },
+          then: { properties: { a: { if: true, else: { properties: twenty } } } },
+          else: { properties: { a: { if: false, else: { properties: { y: S } } } } },
+        },
+      }),
+      [{}, { b: { k: 1 } }, { b: { a: {} } }],
+      [
+        { active: ['', '/b', '/b/a', '/b/a/y'], inactive: [] },
+        { active: ['', '/b', '/b/a'], inactive: [] },
+        { active: ['', '/b', '/b/a', '/b/a/y'], inactive: [] },
+      ],
+    ],
+    [
+      'a then under if: false in a merged branch',
+      obj({
+        b: {
+          ...obj({ a: { type: 'object', if: {} } }),
+          if: {},
+          then: { properties: { a: { if: false, then: { properties: { x: obj({ s: { type: 'string', default: 'v' } }) } } } } },
+          else: { properties: { a: { if: { required: ['z'] }, then: { properties: { y: S } } } } },
+        },
+      }),
+      [{}, { b: {} }, { b: { a: {} } }],
+      [
+        { active: ['', '/b', '/b/a'], inactive: [] },
+        { active: ['', '/b', '/b/a'], inactive: [] },
+        { active: ['', '/b', '/b/a'], inactive: [] },
+      ],
+    ],
+  ] as const
+
+  it.each(dialects.flatMap(([dialect, $schema]) => live.map(([label, schema, data, expected]) => [label, dialect, $schema, schema, data, expected] as const)))(
+    'projects the live fields beside %s as main does, in %s',
+    async (_label, _dialect, $schema, schema, data, expected) => {
+      for (const [state, value] of data.entries()) {
+        const p = await project({ $schema, ...schema }, value)
+        expect(byActivity(p)).toEqual(expected[state])
+        expect(withBoundaries(p)).toEqual({})
+        expect(flagged(p)).toBe(0)
+      }
+    },
+  )
+
+  const defaulted = (name: string) => obj({ [name]: { type: 'string', default: 'x' } })
+  const liveCondition = () =>
+    obj({ child: { ...obj({ child: { type: 'object', then: {} } }), if: { required: ['z'] }, then: { if: { required: ['w'] }, then: { properties: { q: defaulted('s') } } } } })
+  const deadIf = (defs: string) => {
+    const ref = { $ref: `#/${defs}/R` }
+    return {
+      ...obj({
+        child: { ...obj({ q: defaulted('d'), child: { type: 'object', then: { if: { required: ['k'] } } } }), if: { required: ['z'] }, then: { then: { properties: { q: ref } } } },
+        t: { type: 'array', items: ref },
+      }),
+      [defs]: { R: obj({ r: { type: 'array', items: ref } }) },
+    }
+  }
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    ['a live condition under a then', dialect, { $schema, ...liveCondition() }, { child: { z: 1, w: 1 } }, { child: { z: 1, w: 1, q: { s: 'x' } } }],
+    ['a dead branch that holds an if', dialect, { $schema, ...deadIf(dialect === 'draft-07' ? 'definitions' : '$defs') }, undefined, { child: { q: { d: 'x' } } }],
+  ] as const))('fills a live default beside %s as main does, in %s', async (_label, _dialect, schema, initialData, data) => {
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults', initialData })
+    expect(runtime.data.getSnapshot()).toEqual(data)
+    expect(runtime.initialization.getSnapshot()).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
+  })
+})
+
 describe('the budget', () => {
   const kdistinct = (k: number) => {
     const props = () => Object.fromEntries(Array.from({ length: k }, (_, j) => [`p${j}`, { $ref: `#/$defs/d${j}` }]))
