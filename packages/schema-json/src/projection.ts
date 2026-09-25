@@ -663,11 +663,14 @@ function collectCandidateProperties(
 
     for (const keyword of ['if', 'then', 'else'] as const) {
       const branch = resolved[keyword]
-      const applies =
-        own && declaring.length > 0
-          ? declaring.some((d) => [d, dereference(d)].some((n) => n[keyword] !== undefined && branchCanApply(n, keyword)))
-          : branchCanApply(resolved, keyword)
-      if (branch && applies) visit(branch, false)
+      if (!branch) continue
+      let applies = branchCanApply(resolved, keyword)
+      if (own && declaring.length > 0) {
+        const holders = declaring.flatMap((d) => [d, dereference(d)]).filter((n) => n[keyword] !== undefined)
+        const owners = holders.filter((n) => deepEqual(n[keyword]!.schema, branch.schema))
+        applies = (owners.length > 0 ? owners : holders).some((n) => branchCanApply(n, keyword))
+      }
+      if (applies) visit(branch, false)
     }
     for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
       for (const branch of branches ?? []) visit(branch, false)

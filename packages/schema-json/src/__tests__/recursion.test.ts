@@ -314,8 +314,8 @@ describe('trivially unreachable branches', () => {
     }
   })
 
-  const paired = (own: Record<string, unknown>, other: Record<string, unknown>) =>
-    obj({ a: { ...obj({ b: { type: 'object', ...own } }), if: {}, then: { properties: { b: other } } } })
+  const paired = (own: Record<string, unknown>, other: Record<string, unknown>, condition: Record<string, unknown> = {}) =>
+    obj({ a: { ...obj({ b: { type: 'object', ...own } }), if: condition, then: { properties: { b: other } } } })
 
   it.each(['draft-07', '2020-12'] as const)('never pairs an else with the if of another declaration, in %s', async (dialect) => {
     const build = () => paired({ else: { properties: many(20) } }, { if: { required: ['z'] } })
@@ -338,6 +338,68 @@ describe('trivially unreachable branches', () => {
     expect(pointers(await project(schema(), {}))).toEqual(['', '/a', '/a/b', '/a/b/t'])
     const { data, report } = await initialize(schema())
     expect(data).toEqual({})
+    expect(report).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
+  })
+
+  const dead = {
+    'then without if': [{ then: { properties: many(20) } }, 'then'],
+    'else without if': [{ else: { properties: many(20) } }, 'else'],
+    'then under if: false': [{ if: false, then: { properties: many(20) } }, 'then'],
+    'else under if: true': [{ if: true, else: { properties: many(20) } }, 'else'],
+  } as const
+
+  it.each(
+    (['draft-07', '2020-12'] as const).flatMap((dialect) => Object.keys(dead).map((form) => [form, dialect] as const)),
+  )('never enters a dead %s because another declaration holds a live one, in %s', async (form, dialect) => {
+    const [own, keyword] = dead[form as keyof typeof dead]
+    const build = () => paired(own, { if: { required: ['w'] }, [keyword]: { properties: { t: S } } }, { required: ['z'] })
+    for (const data of [{}, { a: { b: {} } }]) {
+      const p = await projectIn(dialect, build, data)
+      expect(pointers(p)).toEqual(['', '/a', '/a/b'])
+      expect(withBoundaries(p)).toEqual({})
+      expect(expansion(p)).toEqual([])
+    }
+  })
+
+  const mergedDeadElse = () =>
+    obj({
+      b: {
+        type: 'object',
+        properties: { a: { type: 'object' } },
+        if: {},
+        then: { properties: { a: { if: true, else: { properties: many(20, 'x') } } } },
+        else: { properties: { a: { if: false, else: { properties: { y: S } } } } },
+      },
+    })
+
+  it.each(['draft-07', '2020-12'] as const)('never enters a dead else the reduction merged in, in %s', async (dialect) => {
+    for (const data of [{}, { b: {} }]) {
+      const p = await projectIn(dialect, mergedDeadElse, data)
+      expect(pointers(p)).toEqual(['', '/b', '/b/a'])
+      expect(withBoundaries(p)).toEqual({})
+      expect(expansion(p)).toEqual([])
+    }
+  })
+
+  const mergedDeadThen = () =>
+    obj({
+      b: {
+        type: 'object',
+        properties: { a: { type: 'object', if: {} } },
+        if: {},
+        then: { properties: { a: { if: false, then: { properties: { x: obj({ s: { type: 'string', default: 'v' } }) } } } } },
+        else: { properties: { a: { if: { required: ['z'] }, then: { properties: { y: S } } } } },
+      },
+    })
+
+  it.each(['draft-07', '2020-12'] as const)('refuses no default under a dead then the reduction merged in, in %s', async (dialect) => {
+    for (const data of [{}, { b: { a: {} } }]) {
+      const p = await projectIn(dialect, mergedDeadThen, data)
+      expect(pointers(p)).toEqual(['', '/b', '/b/a'])
+      expect(expansion(p)).toEqual([])
+    }
+    const { data, report } = await initialize(inDialect(dialect, mergedDeadThen), { b: { a: {} } })
+    expect(data).toEqual({ b: { a: {} } })
     expect(report).toEqual(expect.objectContaining({ outcome: 'initialized', refusals: [] }))
   })
 
