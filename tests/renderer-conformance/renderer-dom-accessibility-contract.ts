@@ -641,8 +641,6 @@ export function rendererDomAccessibilityContract({
       )
     })
 
-    // ADR-004. Every word a built-in widget invents comes from the configured
-    // set, on both surfaces of each control, in every family alike.
     describe('element identity across a recompile', () => {
       it('keeps the input being typed into when an earlier sibling grows', async () => {
         const { surface, runtime, q } = await mount(
@@ -657,10 +655,12 @@ export function rendererDomAccessibilityContract({
           undefined,
         )
         const input = q.getAllByRole('textbox', { name: 'Name' })[0] as HTMLInputElement
+        const before = nodeAt(runtime, '/child/name')
         input.focus()
         await surface.act(() => {
-          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/child/name'), value: 'a' })
+          runtime.dispatch({ type: 'SetValue', nodeId: before, value: 'a' })
         })
+        expect(nodeAt(runtime, '/child/name')).not.toBe(before)
         const after = q.getAllByRole('textbox', { name: 'Name' })
         expect(after).toContain(input)
         expect(input.isConnected).toBe(true)
@@ -684,10 +684,14 @@ export function rendererDomAccessibilityContract({
         await surface.act(() => {
           runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/kind'), value: 'b' })
         })
+        const detail = runtime.document.getSnapshot().nodes[nodeAt(runtime, '/detail')]
+        expect(detail?.type === 'field' && detail.constraints.maxLength).toBe(5)
         expect(q.getByRole('textbox', { name: 'Detail' })).toBe(input)
       })
     })
 
+    // ADR-004. Every word a built-in widget invents comes from the configured
+    // set, on both surfaces of each control, in every family alike.
     describe('built-in copy', () => {
       const labelOf = (control: HTMLElement) =>
         control.ownerDocument.querySelector(`label[for="${control.id}"]`)?.textContent ??
