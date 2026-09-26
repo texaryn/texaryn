@@ -222,6 +222,10 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
     if (typeof node.$ref === 'string') {
       const target = followRef(node)
       if (target) visitAll(target, stack, dead)
+      if (cache.dialect === 'draft-07') {
+        stack.delete(position)
+        return
+      }
     }
     const raw = authoredSchema(node, cache) as Record<string, unknown> | undefined
     const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined

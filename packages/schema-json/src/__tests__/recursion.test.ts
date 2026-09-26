@@ -531,6 +531,30 @@ describe('the draft-07 reference registry', () => {
   })
 })
 
+describe('the siblings of a draft-07 $ref', () => {
+  const $schema = 'http://json-schema.org/draft-07/schema#'
+  const definitions = { x: { type: 'object', properties: { s: S } } }
+  const self = { $ref: '#/properties/p' }
+  it.each([
+    ['an if', { if: self }],
+    ['a then', { if: { required: ['k'] }, then: self }],
+    ['an else', { if: { required: ['k'] }, else: self }],
+  ])('ignores %s that re-reaches the site, as the dialect does', async (_label, siblings) => {
+    const adapter = await createJsonSchemaAdapter({ $schema, type: 'object', properties: { p: { $ref: '#/definitions/x', ...siblings } }, definitions })
+    for (const data of [{}, { p: { k: 1, s: 5 } }]) {
+      const p = adapter.project(data)
+      expect(pointers(p)).toEqual(['', '/p', '/p/s'])
+      expect(p.diagnostics).toEqual([])
+    }
+  })
+
+  it('ignores them at the root', async () => {
+    const p = await project({ $schema, $ref: '#/definitions/x', if: { required: ['k'] }, then: { $ref: '#' }, definitions }, { k: 1 })
+    expect(pointers(p)).toEqual(['', '/s'])
+    expect(p.diagnostics).toEqual([])
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {
