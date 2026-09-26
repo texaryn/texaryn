@@ -29,6 +29,7 @@ export function newProjectionCache(
 }
 
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
+const UNLOCATED_CHILDREN = [...IN_PLACE_BRANCHES, 'contains'] as const
 const NON_APPLYING = new Set([
   '$ref',
   '$schema',
@@ -51,11 +52,12 @@ function markerOf(node: SchemaNode): string | undefined {
 }
 
 // A boolean carries no marker, nor does an if, then or else json-schema-library parses beside a draft-07 $ref.
+// The library locates an if, then, else or contains by its parent's location plus the whole evaluation path, and reduceNode strips if, then and else.
 function unmarkedPosition(node: SchemaNode): string {
   const own = typeof node.schemaLocation === 'string' ? node.schemaLocation : '#'
   const parent = node.parent
   if (!parent || parent === node) return own
-  const branch = IN_PLACE_BRANCHES.find((keyword) => parent[keyword] === node)
+  const branch = UNLOCATED_CHILDREN.find((keyword) => parent[keyword] === node || node.evaluationPath === `${parent.evaluationPath}/${keyword}`)
   if (branch) return `${positionOf(parent)}/${branch}`
   const parentOwn = parent.schemaLocation
   if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {

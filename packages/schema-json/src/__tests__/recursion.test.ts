@@ -788,6 +788,83 @@ describe('a boolean definition a reference reaches after the root is reduced', (
   })
 })
 
+describe('a boolean branch or contains a reference reaches after its owner is reduced', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const a = (ref: string) => ({ type: 'object', allOf: [{ $ref: ref }], properties: { v: { type: 'string', default: 'd' } } })
+  const rows: readonly (readonly [string, Record<string, unknown>, readonly string[], Record<string, unknown>, readonly string[]])[] = [
+    [
+      'a boolean then beside a cyclic nested then',
+      {
+        p: {
+          type: 'object',
+          then: true,
+          properties: {
+            p: {
+              type: 'object',
+              if: { required: ['z'] },
+              then: { properties: { c: { $ref: '#/properties/p/properties/p' } } },
+              properties: { z: { type: 'string' } },
+            },
+          },
+        },
+        a: a('#/properties/p/then'),
+      },
+      ['', '/a', '/a/v', '/p', '/p/p', '/p/p/z'],
+      { '/p/p': ['recursion'] },
+      ['/p/p', '/p/p/z'],
+    ],
+    [
+      'a boolean else on a cyclic owner',
+      {
+        p: { type: 'object', if: { required: ['k'] }, else: true, properties: { c: { $ref: '#/properties/p' } } },
+        a: a('#/properties/p/else'),
+      },
+      ['', '/a', '/a/v', '/p'],
+      { '/p': ['recursion'] },
+      [],
+    ],
+    [
+      'a boolean contains beside a cyclic nested contains',
+      {
+        p: {
+          type: 'object',
+          contains: true,
+          properties: {
+            p: {
+              type: 'object',
+              contains: { type: 'object', properties: { c: { $ref: '#/properties/p/properties/p/contains' } } },
+              properties: { z: { type: 'string' } },
+            },
+          },
+        },
+        a: a('#/properties/p/contains'),
+      },
+      ['', '/a', '/a/v', '/p', '/p/p', '/p/p/z'],
+      {},
+      [],
+    ],
+  ]
+
+  it.each(dialects.flatMap(([dialect, $schema]) => rows.map(([label, properties, nodes, boundaries, recursive]) => [label, dialect, $schema, properties, nodes, boundaries, recursive] as const)))(
+    'writes the default beside %s, in %s',
+    async (_label, _dialect, $schema, properties, nodes, boundaries, recursive) => {
+      const schema = { $schema, type: 'object', properties }
+      const p = await project(schema, {})
+      expect(pointers(p)).toEqual(nodes)
+      expect(withBoundaries(p)).toEqual(boundaries)
+      expect(expanded(p)).toEqual(recursive)
+      const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+      const report = runtime.initialization.getSnapshot()
+      expect(runtime.data.getSnapshot()).toEqual({ a: { v: 'd' } })
+      expect(report?.outcome).toBe('initialized')
+      expect(report?.outcome === 'initialized' ? report.refusals.map(({ location, reason }) => [location, reason]) : []).toEqual([])
+    },
+  )
+})
+
 describe('reduction repairs', () => {
   it('follows an acyclic reference chain without a diagnostic', async () => {
     const p = await project(on2020({
