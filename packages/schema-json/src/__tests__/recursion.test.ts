@@ -745,6 +745,49 @@ describe('a boolean property whose name another property takes once escaped', ()
   })
 })
 
+describe('a boolean definition a reference reaches after the root is reduced', () => {
+  const dialects = { 'draft-07': 'http://json-schema.org/draft-07/schema#', '2020-12': 'https://json-schema.org/draft/2020-12/schema' } as const
+  const inner = (ref: string) => ({ type: 'object', properties: { t: { $ref: ref }, s: { type: 'string', default: 'v' } } })
+  const rows: readonly (readonly [string, keyof typeof dialects, Record<string, unknown>])[] = [
+    ['$defs a~1b before a/b', 'draft-07', { properties: { q: { $ref: '#/$defs/a~1b' } }, $defs: { 'a~1b': true, 'a/b': inner('#/$defs/a~01b') } }],
+    ['$defs a/b before a~1b', 'draft-07', { properties: { q: { $ref: '#/$defs/a~1b' } }, $defs: { 'a/b': inner('#/$defs/a~01b'), 'a~1b': true } }],
+    ['definitions a b beside a%20b', 'draft-07', { properties: { q: { $ref: '#/definitions/a%2520b' } }, definitions: { 'a b': true, 'a%20b': inner('#/definitions/a%20b') } }],
+    ['definitions $x beside %24x', 'draft-07', { properties: { q: { $ref: '#/definitions/%2524x' } }, definitions: { $x: true, '%24x': inner('#/definitions/%24x') } }],
+    ['$defs a~1b before a/b', '2020-12', { properties: { q: { $ref: '#/$defs/a~1b' } }, $defs: { 'a~1b': true, 'a/b': inner('#/$defs/a~01b') } }],
+    ['$defs a/b before a~1b', '2020-12', { properties: { q: { $ref: '#/$defs/a~1b' } }, $defs: { 'a/b': inner('#/$defs/a~01b'), 'a~1b': true } }],
+  ]
+
+  it.each(rows)('projects %s without recursion, in %s', async (_label, dialect, members) => {
+    const p = await project({ $schema: dialects[dialect], type: 'object', ...members }, {})
+    expect(pointers(p)).toEqual(['', '/q', '/q/s'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it.each(Object.entries(dialects))('refuses only the recursive default beside a boolean $x, in %s', async (_dialect, $schema) => {
+    const schema = {
+      $schema,
+      type: 'object',
+      properties: {
+        a: { type: 'object', allOf: [{ $ref: '#/definitions/%24x' }], properties: { v: { type: 'string', default: 'd' } } },
+        t: { $ref: '#/definitions/%2524x' },
+      },
+      definitions: {
+        $x: true,
+        '%24x': { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/definitions/%2524x' } } },
+      },
+    }
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    const report = runtime.initialization.getSnapshot()
+    expect(runtime.data.getSnapshot()).toEqual({ a: { v: 'd' } })
+    expect(report?.outcome).toBe('initialized')
+    expect(report?.outcome === 'initialized' ? report.refusals.map(({ location, reason }) => [location, reason]) : []).toEqual([
+      ['/t/name', 'recursive-expansion'],
+    ])
+    expect(expanded(await project(schema, {}))).toEqual(['/t/name'])
+  })
+})
+
 describe('reduction repairs', () => {
   it('follows an acyclic reference chain without a diagnostic', async () => {
     const p = await project(on2020({

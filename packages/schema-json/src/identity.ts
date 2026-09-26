@@ -61,7 +61,7 @@ function unmarkedPosition(node: SchemaNode): string {
   if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {
     const suffix = own.slice(parentOwn.length)
     const keyword = suffix.split('/')[1] ?? ''
-    const key = memberKey(parent, keyword, node)
+    const key = memberKey(parent, keyword, node) ?? strippedMemberKey(parent, keyword, node, suffix)
     return key === undefined ? `${positionOf(parent)}${suffix}` : `${positionOf(parent)}/${keyword}/${escape(key)}`
   }
   return own
@@ -92,6 +92,14 @@ function memberKey(parent: SchemaNode, keyword: string, node: SchemaNode): strin
     return keyIn(patterns, () => patterns.map(({ name, node: child }) => [name, child] as const), node)
   }
   return undefined
+}
+
+const STRIPPED_MAPS = new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties'])
+
+function strippedMemberKey(parent: SchemaNode, keyword: string, node: SchemaNode, suffix: string): string | undefined {
+  if (!STRIPPED_MAPS.has(keyword) || !node.evaluationPath.startsWith(`${parent.evaluationPath}/${keyword}/`)) return undefined
+  const spelled = suffix.slice(keyword.length + 2)
+  return keyword === 'definitions' ? decodeURIComponent(spelled).replace(/~1/g, '/').replace(/~0/g, '~') : spelled
 }
 
 export function positionOf(node: SchemaNode): string {
