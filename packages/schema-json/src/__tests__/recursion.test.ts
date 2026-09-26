@@ -642,6 +642,7 @@ describe('a reference spelled otherwise than the name it reaches', () => {
 
   it.each(dialects.flatMap(([dialect, $schema]) => [
     ['a b', 'a%20b'],
+    ['a%20b', 'a%2520b'],
     ['a/b', 'a~1b'],
   ].map(([name, spelled]) => [name, spelled, dialect, $schema] as const)))('finds the repeat of the property %j referenced as #/properties/%s at its own level, in %s', async (name, spelled, _dialect, $schema) => {
     const schema = { $schema, type: 'object', properties: { [name]: obj({ name: { type: 'string', default: 'n' }, child: { $ref: `#/properties/${spelled}` } }) } }
