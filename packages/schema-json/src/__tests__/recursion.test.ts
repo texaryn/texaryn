@@ -592,6 +592,20 @@ describe('an anchor inside a branch the specification never evaluates', () => {
   })
 })
 
+describe('one $id under both $defs and definitions', () => {
+  const n = { $id: 'node', type: 'object', default: {}, properties: { name: { type: 'string', default: 'n' }, next: { $ref: 'node' } } }
+  const orders = [['$defs first', { $defs: { n }, definitions: { n } }], ['definitions first', { definitions: { n }, $defs: { n } }]] as const
+  it.each(
+    ['http://json-schema.org/draft-07/schema#', 'https://json-schema.org/draft/2019-09/schema', 'https://json-schema.org/draft/2020-12/schema'].flatMap(
+      ($schema) => orders.map(([label, containers]) => [label, $schema, containers] as const),
+    ),
+  )('initializes the node the library resolves, with %s, in %s', async (_label, $schema, containers) => {
+    const schema = { $schema, $id: 'https://example.test/root', type: 'object', properties: { x: { $ref: 'node' } }, ...containers }
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    expect(runtime.data.getSnapshot()).toEqual({ x: { name: 'n' } })
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {

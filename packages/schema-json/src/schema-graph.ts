@@ -20,6 +20,8 @@ const INSTANCE_SINGLE = [
 ] as const
 const INSTANCE_MAP = ['properties', 'patternProperties'] as const
 const CONTAINERS = ['$defs', 'definitions'] as const
+// The index keeps the last node per $id; json-schema-library compiles $defs first and keeps the first from 2019-09.
+const INDEX_ORDER: Record<Dialect, readonly string[]> = { 'draft-07': CONTAINERS, '2019-09': ['definitions', '$defs'], '2020-12': ['definitions', '$defs'] }
 
 const REFERENCES: Record<Dialect, readonly string[]> = {
   'draft-07': ['$ref'],
@@ -98,7 +100,7 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     }
   }
   if (dialect === 'draft-07' && typeof schema.$ref === 'string') {
-    if (lexical) for (const key of CONTAINERS) addMap(key, false)
+    if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
     return found
   }
   const hasIf = 'if' in schema
@@ -122,7 +124,7 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     if (isRecord(value)) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
     else if (Array.isArray(value)) value.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: false }))
   }
-  if (lexical) for (const key of CONTAINERS) addMap(key, false)
+  if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
   return found
 }
 
