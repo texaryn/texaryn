@@ -136,16 +136,55 @@ describe('branches the specification never evaluates', () => {
     expect((await (await createJsonSchemaAdapter({ $schema, ...schema })).validate(1)).valid).toBe(true)
   })
 
-  it.each(dialects.flatMap(([dialect, $schema]) => [
-    ['#/properties/p/then#', 'p', dialect, $schema],
-    ['#/properties/application/json/then', 'application/json', dialect, $schema],
-  ] as const))('resolves %s into a branch under %s as main does, in %s', async ($ref, key, _dialect, $schema) => {
-    const adapter = await createJsonSchemaAdapter({ $schema, type: 'object', properties: { [key]: { type: 'object', then: S }, r: { $ref } } })
+  const on2019 = 'https://json-schema.org/draft/2019-09/schema'
+  const resolvesAsMain = async (schema: Record<string, unknown>) => {
+    const adapter = await createJsonSchemaAdapter(schema)
     expect(await adapter.validate({ r: 'x' })).toEqual(expect.objectContaining({ valid: true, errors: [] }))
     const invalid = await adapter.validate({ r: 5 })
     expect(invalid.valid).toBe(false)
     expect(invalid.errors.map((e) => [e.instancePointer, e.keyword])).toEqual([['/r', 'type']])
+  }
+
+  it.each([
+    ...dialects.flatMap(([dialect, $schema]) => [
+      ['#/properties/p/then#', 'p', dialect, $schema],
+      ['#/properties/application/json/then', 'application/json', dialect, $schema],
+    ] as const),
+    ['#/x#/properties/p/then', 'p', '2019-09', on2019],
+  ] as const)('resolves %s into a branch under %s as main does, in %s', async ($ref, key, _dialect, $schema) => {
+    await resolvesAsMain({ $schema, type: 'object', properties: { [key]: { type: 'object', then: S }, r: { $ref } } })
   })
+
+  const compiledFields = [
+    ['#/properties/a/prefixItems/0/then', 'array-form items', { type: 'array', items: [{ then: S }] }, ['draft-07', '2019-09']],
+    ['#/properties/a/items/then', 'additionalItems', { type: 'array', items: [{}], additionalItems: { then: S } }, ['draft-07', '2019-09']],
+    ['#/properties/a/dependentSchemas/w/then', 'dependencies', { type: 'object', dependencies: { w: { then: S } } }, ['draft-07', '2019-09', '2020-12']],
+  ] as const
+  const uris = { 'draft-07': dialects[0][1], '2019-09': on2019, '2020-12': dialects[1][1] }
+  it.each(compiledFields.flatMap(([$ref, label, holder, names]) => names.map((dialect) => [$ref, label, dialect, holder] as const)))(
+    'resolves %s into a branch under %s with a root $id as main does, in %s',
+    async ($ref, _label, dialect, holder) => {
+      await resolvesAsMain({ $schema: uris[dialect], $id: 'https://x.test/root', type: 'object', properties: { a: holder, r: { $ref } } })
+    },
+  )
+
+  const holder = { type: 'object', then: S }
+  const mixed = [
+    [
+      'an escaped $defs name and a raw property name',
+      { type: 'object', $defs: { 'a/b': { type: 'object', properties: { 'c/d': holder } } }, properties: { r: { $ref: '#/$defs/a~1b/properties/c/d/then' } } },
+    ],
+    [
+      '%2F in one segment and ~1 in another',
+      { type: 'object', properties: { 'a/b': { type: 'object', properties: { 'c/d': holder } }, r: { $ref: '#/properties/a%2Fb/properties/c~1d/then' } } },
+    ],
+  ] as const
+  it.each(dialects.flatMap(([dialect, $schema]) => mixed.map(([label, schema]) => [label, dialect, $schema, schema] as const)))(
+    'resolves a reference that mixes spellings, %s, as main does, in %s',
+    async (_label, _dialect, $schema, schema) => {
+      await resolvesAsMain({ $schema, ...schema })
+    },
+  )
 
   it.each(cases)('projects nothing from %s in %s', async (_label, _dialect, $schema, form) => {
     const p = await project({ $schema, type: 'object', properties: { p: { type: 'object', ...form } } }, {})

@@ -120,6 +120,7 @@ describe('withoutUnreachableBranches', () => {
       ['the branch with two trailing #', { $ref: '#/properties/p/then##' }],
       ['the branch without a leading slash', { $ref: '#properties/p/then' }],
       ['the branch without a #', { $ref: '/properties/p/then' }],
+      ['the branch after the last #', { $ref: '#/x#/properties/p/then' }],
     ])('keeps it when the reference points at %s', (_label, site) => {
       const schema = { properties: { p, r: site } }
       expect(withoutUnreachableBranches(schema)).toEqual(schema)
@@ -143,6 +144,32 @@ describe('withoutUnreachableBranches', () => {
       ['$defs', 'definitions'],
     ])('keeps it when the reference spells %s for a branch under %s', (spelled, declared) => {
       const schema = { $id: 'https://x.test/root', [declared]: { foo: p }, properties: { r: { $ref: `#/${spelled}/foo/then` } } }
+      expect(withoutUnreachableBranches(schema)).toEqual(schema)
+    })
+
+    it.each([
+      ['prefixItems', { type: 'array', items: [p] }, '#/properties/a/prefixItems/0/then'],
+      ['items for additionalItems', { type: 'array', items: [{}], additionalItems: p }, '#/properties/a/items/then'],
+      ['dependentSchemas', { type: 'object', dependencies: { w: p } }, '#/properties/a/dependentSchemas/w/then'],
+    ])('keeps it when the reference names the compiled field %s under a root $id', (_label, holder, $ref) => {
+      const schema = { $id: 'https://x.test/root', properties: { a: holder, r: { $ref } } }
+      expect(withoutUnreachableBranches(schema)).toEqual(schema)
+    })
+
+    it.each([
+      [
+        'an escaped $defs name and a raw property name',
+        { $defs: { 'a/b': { type: 'object', properties: { 'c/d': p } } }, properties: { r: { $ref: '#/$defs/a~1b/properties/c/d/then' } } },
+      ],
+      [
+        'an encoded $defs name and a raw percent property name',
+        { $defs: { 'a b': { type: 'object', properties: { 'c%20d': p } } }, properties: { r: { $ref: '#/$defs/a%20b/properties/c%20d/then' } } },
+      ],
+      [
+        '%2F in one segment and ~1 in another',
+        { properties: { 'a/b': { type: 'object', properties: { 'c/d': p } }, r: { $ref: '#/properties/a%2Fb/properties/c~1d/then' } } },
+      ],
+    ])('keeps it when the reference mixes spellings: %s', (_label, schema) => {
       expect(withoutUnreachableBranches(schema)).toEqual(schema)
     })
 

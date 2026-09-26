@@ -18,14 +18,22 @@ const LIST = new Set(['allOf', 'anyOf', 'items', 'oneOf', 'prefixItems'])
 const MAP = new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties'])
 const REFERENCES = new Set(['$ref', '$dynamicRef', '$recursiveRef'])
 const IDENTIFIERS = new Set(['$id', '$anchor', '$dynamicAnchor'])
+const ALIASES: Record<string, string> = { definitions: '$defs', dependentSchemas: 'dependencies', prefixItems: 'items', additionalItems: 'items' }
 
 const isRecord = (value: unknown): value is Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
+const unescape = (segment: string): string => segment.replace(/~1/g, '/').replace(/~0/g, '~')
+const alias = (segment: string): string => ALIASES[segment] ?? segment
 
-type Position = readonly [escaped: string, raw: string]
-const below = ([escaped, raw]: Position, key: string): Position => [`${escaped}/${escape(key)}`, `${raw}/${key}`]
+type Position = { escaped: string; raw: string; registry: string; keys: readonly string[] }
+const below = (p: Position, key: string, member = false): Position => ({
+  escaped: `${p.escaped}/${escape(key)}`,
+  raw: `${p.raw}/${key}`,
+  registry: `${p.registry}/${member ? encodeURIComponent(escape(key)) : key}`,
+  keys: [...p.keys, key],
+})
 
 function decode(fragment: string): string {
   try {
@@ -41,19 +49,22 @@ function copy(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, copy(child)]))
 }
 
-const aliased = (pointer: string): string =>
-  pointer.split('/').map((segment) => (segment === 'definitions' ? '$defs' : segment)).join('/')
+const aliased = (pointer: string): string => pointer.split('/').map(alias).join('/')
 
-function spellings(reference: string): string[] {
+type Reference = { strings: string[]; segments: string[] }
+function spellings(reference: string): Reference[] {
   const trimmed = reference.replace(/#+$/, '')
-  const hash = trimmed.indexOf('#')
-  if (hash < 0 && !trimmed.startsWith('/')) return []
-  const fragment = hash < 0 ? trimmed : trimmed.slice(hash + 1)
-  const pointer = fragment === '' || fragment.startsWith('/') ? fragment : `/${fragment}`
-  return [pointer, decode(pointer)].map(aliased)
+  const first = trimmed.indexOf('#')
+  if (first < 0 && !trimmed.startsWith('/')) return []
+  const fragments = first < 0 ? [trimmed] : [...new Set([trimmed.slice(first + 1), trimmed.slice(trimmed.lastIndexOf('#') + 1)])]
+  return fragments.map((fragment) => {
+    const pointer = fragment === '' || fragment.startsWith('/') ? fragment : `/${fragment}`
+    const segments = pointer === '' ? [] : pointer.slice(1).split('/').map((s) => alias(unescape(decode(s))))
+    return { strings: [pointer, decode(pointer)].map(aliased), segments }
+  })
 }
 
-function referencePointers(value: unknown, found: string[]): string[] {
+function referencePointers(value: unknown, found: Reference[]): Reference[] {
   if (Array.isArray(value)) for (const item of value) referencePointers(item, found)
   else if (isRecord(value)) {
     for (const [key, child] of Object.entries(value)) {
@@ -74,18 +85,25 @@ const unreachable = (schema: Json, keyword: string): boolean =>
   (keyword === 'then' && (schema.if === undefined || schema.if === false)) ||
   (keyword === 'else' && (schema.if === undefined || schema.if === true))
 
+const startsWith = (a: readonly string[], b: readonly string[]) => b.length <= a.length && b.every((s, i) => a[i] === s)
+
 /** Keeps a branch the specification never evaluates when a reference or an identifier could reach it. */
 export function withoutUnreachableBranches(document: unknown): unknown {
   const references = referencePointers(document, [])
-  const reached = ([escaped, raw]: Position, bases: readonly Position[]): boolean =>
+  const reached = (at: Position, bases: readonly Position[]): boolean =>
     bases.some((base) => {
-      const relative = [aliased(escaped.slice(base[0].length)), aliased(raw.slice(base[1].length))]
-      return references.some((reference) => relative.some((pointer) => reference === pointer || reference.startsWith(`${pointer}/`)))
+      const relative = [at.escaped.slice(base.escaped.length), at.raw.slice(base.raw.length), at.registry.slice(base.registry.length)].map(aliased)
+      const keys = at.keys.slice(base.keys.length).map(alias)
+      return references.some(
+        (reference) =>
+          reference.strings.some((s) => relative.some((pointer) => s === pointer || s.startsWith(`${pointer}/`))) ||
+          startsWith(reference.segments, keys),
+      )
     })
 
   const schemaAt = (schema: unknown, position: Position, bases: readonly Position[]): unknown => {
     if (!isRecord(schema)) return copy(schema)
-    const within = typeof schema.$id === 'string' && position[0] !== '' ? [...bases, position] : bases
+    const within = typeof schema.$id === 'string' && position.keys.length > 0 ? [...bases, position] : bases
     const entries: [string, unknown][] = []
     for (const [key, value] of Object.entries(schema)) {
       const at = below(position, key)
@@ -93,11 +111,13 @@ export function withoutUnreachableBranches(document: unknown): unknown {
       if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) entries.push([key, schemaAt(value, at, within)])
       else if (LIST.has(key) && Array.isArray(value)) entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within))])
       else if (MAP.has(key) && isRecord(value)) {
-        entries.push([key, Object.fromEntries(Object.entries(value).map(([name, member]) => [name, schemaAt(member, below(at, name), within)]))])
+        const member = key === '$defs' || key === 'definitions'
+        entries.push([key, Object.fromEntries(Object.entries(value).map(([name, m]) => [name, schemaAt(m, below(at, name, member), within)]))])
       } else entries.push([key, copy(value)])
     }
     return Object.fromEntries(entries)
   }
 
-  return schemaAt(document, ['', ''], [['', '']])
+  const root: Position = { escaped: '', raw: '', registry: '', keys: [] }
+  return schemaAt(document, root, [root])
 }
