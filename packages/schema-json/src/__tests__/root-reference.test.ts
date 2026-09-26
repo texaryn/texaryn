@@ -12,6 +12,13 @@ describe('a root reference in draft-07', () => {
     expect((await adapter.validate({ child: { name: 'n' } })).valid).toBe(true)
   })
 
+  it('validates against the root beside a branch the projection drops', async () => {
+    const adapter = await createJsonSchemaAdapter({ ...anonymousTree, then: { type: 'string' } }, { defaultDialect: 'draft-07' })
+    expect([...adapter.project({}).nodes.keys()].sort()).toEqual(['', '/child', '/child/name', '/name'])
+    expect((await adapter.validate({ child: 'text' })).valid).toBe(false)
+    expect((await adapter.validate({ child: { name: 'n' } })).valid).toBe(true)
+  })
+
   it('projects and validates an $id root', async () => {
     const adapter = await createJsonSchemaAdapter(
       { $id: 'https://example.com/tree', ...anonymousTree },

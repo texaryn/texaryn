@@ -207,8 +207,103 @@ describe('branches the specification never evaluates', () => {
     expect(flagged(p)).toBe(0)
   })
 
+  const outline = (p: SchemaProjection) => [
+    ...[...p.nodes.keys()].sort().map((key) => {
+      const n = p.nodes.get(key)!
+      return `${key}${n.active ? '' : '(i)'}${n.recursiveExpansion ? '(x)' : ''}${n.boundaries ? `[${n.boundaries.join()}]` : ''}`
+    }),
+    ...(p.diagnostics ?? []).map((d) => `${d.code}@${d.pointer}`),
+  ]
+  const inPlace = [
+    ['a then under if: false', (ref: string) => ({ if: false, then: { $ref: ref } }), 'then'],
+    ['an else under if: true', (ref: string) => ({ if: true, else: { $ref: ref } }), 'else'],
+    ['a then without if', (ref: string) => ({ then: { $ref: ref } }), 'then'],
+    ['an else without if', (ref: string) => ({ else: { $ref: ref } }), 'else'],
+  ] as const
+  const property = ['', '/p', '/p/a', '/r', '/r/a']
+  type Shape = readonly [string, Record<string, unknown>, readonly (readonly [unknown, readonly string[]])[]]
+  const selfApplying: readonly Shape[] = [
+    ...inPlace.flatMap(([label, form, branch]): Shape[] => [
+      [`${label} that applies the root`, { type: 'object', ...form('#'), properties: { a: S, x: { $ref: `#/${branch}` } } }, [
+        [{}, ['', '/a', '/x[recursion]', '/x/a(x)']],
+        [{ x: {} }, ['', '/a', '/x', '/x/a', '/x/x[recursion]', '/x/x/a(x)']],
+      ]],
+      [
+        `${label} that applies its parent property`,
+        { type: 'object', properties: { p: { type: 'object', properties: { a: S }, ...form('#/properties/p') }, r: { $ref: `#/properties/p/${branch}` } } },
+        [[{}, property], [{ p: {} }, property], [{ r: {} }, property]],
+      ],
+    ]),
+    ['a then under if: false that applies the root, with nothing beside it', { type: 'object', if: false, then: { $ref: '#' }, properties: { x: { $ref: '#/then' } } }, [
+      [{}, ['', '/x[recursion]']],
+      [{ x: {} }, ['', '/x', '/x/x[recursion]']],
+    ]],
+    [
+      'a then without if whose allOf applies its parent property',
+      { type: 'object', properties: { p: { type: 'object', properties: { a: S }, then: { allOf: [{ $ref: '#/properties/p' }] } }, r: { $ref: '#/properties/p/then' } } },
+      [{}, { p: {} }, { r: {} }].map((data) => [data, ['', '/p', '/p/a', 'unresolved-projection-shape@/r']]),
+    ],
+    [
+      'a then under if: false whose member refers to its parent property',
+      { type: 'object', properties: { p: { type: 'object', properties: { a: S }, if: false, then: { properties: { c: { $ref: '#/properties/p' } } } }, r: { $ref: '#/properties/p/then' } } },
+      [{}, { p: {} }, { r: {} }, { p: { c: {} } }].map((data) => [data, ['', '/p', '/p/a', '/p/c(i)', '/p/c/a(i)', '/r', '/r/c', '/r/c/a']]),
+    ],
+    ['a then without if in an x-defs container', { type: 'object', 'x-defs': { node: { type: 'object', then: { $ref: '#/x-defs/node' }, properties: { v: S } } }, properties: { r: { $ref: '#/x-defs/node' } } }, [[{}, ['', '/r', '/r/v']]]],
+    ['a branch kept by an unused $anchor', { type: 'object', if: false, then: { $anchor: 'unused', $ref: '#' }, properties: { v: S } }, [[{}, ['', '/v']]]],
+    ['a branch kept by an unused $id', { type: 'object', if: false, then: { $id: 'http://x.test/unused', $ref: '#' }, properties: { v: S } }, [[{}, ['', '/v']]]],
+    ['a branch kept by an $id inside default', { type: 'object', if: false, then: { default: { $id: 'record-1' }, $ref: '#' }, properties: { v: S } }, [[{}, ['', '/v']]]],
+  ]
+  it.each(dialects.flatMap(([dialect, $schema]) => selfApplying.map(([label, schema, states]) => [label, dialect, $schema, schema, states] as const)))(
+    'keeps the live location beside %s, in %s',
+    async (_label, _dialect, $schema, schema, states) => {
+      for (const [data, expected] of states) expect(outline(await project({ $schema, ...schema }, data))).toEqual(expected)
+    },
+  )
+
+  const merged = [
+    ['a dead then at a $ref site whose target holds the if', { unevaluatedProperties: false, $ref: '#/$defs/A', then: { properties: { u: {} } }, $defs: { A: { if: {}, then: {} } } }, { u: 1 }, [[], []]],
+    ['a dead then in a $ref target beside the site if', { unevaluatedProperties: false, $ref: '#/$defs/A', if: {}, then: {}, $defs: { A: { then: { properties: { u: {} } } } } }, { u: 1 }, [[], []]],
+    ['a dead else under if: true at a $ref site', { unevaluatedProperties: false, $ref: '#/$defs/A', if: true, else: { properties: { u: {} } }, $defs: { A: { if: false } } }, { u: 1 }, [[], []]],
+    [
+      'a dead then at a $ref site below a property',
+      { type: 'object', properties: { p: { unevaluatedProperties: false, $ref: '#/$defs/A', then: { properties: { u: {} } } } }, $defs: { A: { if: { required: ['k'] }, then: {} } } },
+      { p: { k: 1, u: 1 } },
+      [[['/p/k', 'unevaluatedProperties']], [['/p/k', 'unevaluatedProperties']]],
+    ],
+    ['a dead then with prefixItems at a $ref site', { unevaluatedItems: false, $ref: '#/$defs/A', then: { prefixItems: [true] }, $defs: { A: { if: {}, then: {} } } }, [1], [[['/0', 'unevaluatedItems']], []]],
+  ] as const
+  it.each(merged.flatMap(([label, schema, data, errors]) => [
+    [label, '2019-09', on2019, schema, data, errors[0]],
+    [label, '2020-12', uris['2020-12'], schema, data, errors[1]],
+  ] as const))('validates %s as main does, in %s', async (_label, _dialect, $schema, schema, data, errors) => {
+    const result = await (await createJsonSchemaAdapter({ $schema, ...schema })).validate(data)
+    expect(result.valid).toBe(errors.length === 0)
+    expect(result.errors.map((e) => [e.instancePointer, e.keyword])).toEqual(errors)
+  })
+
+  const N = { type: 'number' }
+  const collisions = [
+    ['a then declared before the live property', { type: 'object', then: { properties: { q: S } }, properties: { q: N, r: { $ref: '#/properties/q' } } }],
+    ['a then declared after the live property', { type: 'object', properties: { q: N, r: { $ref: '#/properties/q' } }, then: { properties: { q: S } } }],
+    ['a then below a property beside a root then', { type: 'object', then: S, properties: { p: { type: 'object', then: N }, r: { $ref: '#/then' } } }],
+    ['a then in $defs before the live one', { type: 'object', $defs: { foo: { type: 'object', properties: { q: { then: S } } } }, properties: { q: { then: N }, r: { $ref: '#/properties/q/then' } } }],
+    ['a then in $defs after the live one', { type: 'object', properties: { q: { then: N }, r: { $ref: '#/properties/q/then' } }, $defs: { foo: { type: 'object', properties: { q: { then: S } } } } }],
+    ['a then the library alone resolves into', { type: 'object', then: { properties: { q: S } }, properties: { r: { $ref: '#/properties/q' } } }],
+  ] as const
+  const stringOn = (dialect: string, label: string) => dialect !== 'draft-07' || label === 'a then the library alone resolves into'
+  it.each(Object.entries(uris).flatMap(([dialect, $schema]) => collisions.map(([label, schema]) => [label, dialect, $schema, schema] as const)))(
+    'validates a reference beside %s as main does before any projection, in %s',
+    async (label, dialect, $schema, schema) => {
+      const adapter = await createJsonSchemaAdapter({ $schema, ...schema })
+      const [valid, invalid] = stringOn(dialect, label) ? [{ r: 'x' }, { r: 5 }] : [{ r: 5 }, { r: 'x' }]
+      adapter.project(invalid)
+      expect(await adapter.validate(valid)).toEqual(expect.objectContaining({ valid: true, errors: [] }))
+      expect((await adapter.validate(invalid)).errors.map((e) => [e.instancePointer, e.keyword])).toEqual([['/r', 'type']])
+    },
+  )
+
   const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
-  const twenty = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, obj({ s: S })]))
+  const twenty =Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, obj({ s: S })]))
   const byActivity = (p: SchemaProjection) => ({
     active: [...p.nodes].filter(([, n]) => n.active).map(([k]) => k).sort(),
     inactive: [...p.nodes].filter(([, n]) => !n.active).map(([k]) => k).sort(),
@@ -222,7 +317,7 @@ describe('branches the specification never evaluates', () => {
   const live = [
     ['a then without if beside a live then', beside({ then: { properties: twenty } }, 'then'), pairData, [closed, closed, tActive]],
     ['an else without if beside a live else', beside({ else: { properties: twenty } }, 'else'), pairData, [closed, closed, tInactive]],
-    ['a then under if: false beside a live then', beside({ if: false, then: { properties: twenty } }, 'then'), pairData, [closed, closed, tInactive]],
+    ['a then under if: false beside a live then', beside({ if: false, then: { properties: twenty } }, 'then'), pairData, [closed, closed, tActive]],
     ['an else under if: true beside a live else', beside({ if: true, else: { properties: twenty } }, 'else'), pairData, [closed, closed, tInactive]],
     [
       'an else under if: true in a conditional branch',
@@ -261,7 +356,7 @@ describe('branches the specification never evaluates', () => {
   ] as const
 
   it.each(dialects.flatMap(([dialect, $schema]) => live.map(([label, schema, data, expected]) => [label, dialect, $schema, schema, data, expected] as const)))(
-    'projects the live fields beside %s as main does, in %s',
+    'projects the live fields beside %s, in %s',
     async (_label, _dialect, $schema, schema, data, expected) => {
       for (const [state, value] of data.entries()) {
         const p = await project({ $schema, ...schema }, value)

@@ -774,7 +774,6 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
           ['dead-else-wider-than-a-live-else', 0, ['/a/b', '/a/b/t']],
           ['dead-then-narrower-than-a-live-then', 0, ['/a/b']],
           ['dead-if-false-then-wider-than-a-live-then', 0, ['/a/b']],
-          ['dead-if-false-then-wider-than-a-live-then', 2, ['/a/b/t']],
         ] as const
       ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
     ),

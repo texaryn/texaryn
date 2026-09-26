@@ -15,7 +15,7 @@ import type {
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
-import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { buildProjection, deepEqual, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
 import { withoutUnreachableBranches } from './normalize.js'
 import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
@@ -33,33 +33,34 @@ export async function createAdapter(
   config: AdapterConfig | undefined,
   limits: ProjectionLimits,
 ): Promise<JsonSchemaAdapter> {
-  const document = withoutUnreachableBranches(schema)
-  const dialect = detectDialect(document, {
+  const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
 
-  // A schema may reference its dialect's metaschema to assert itself valid; json-schema-library
-  // carries draft definitions but not metaschema documents, so an unresolved reference fails closed.
-  const referenced = referencedDialects(document)
+  // json-schema-library carries no metaschema documents, so a schema referencing its own fails closed.
+  const referenced = referencedDialects(schema)
   const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
+  // json-schema-library evaluates some branches the specification never does, so only the projection drops them.
+  const document = withoutUnreachableBranches(schema)
   const graph = buildSchemaGraph(document, dialect, remotes ?? [])
   rejectSameLocationCycles(graph)
-  const prepared = await prepareSchema(document, dialect, remotes)
-  const rootId = (prepared as { $id?: unknown }).$id
+  const validated = await prepareSchema(schema, dialect, remotes)
+  const projected = deepEqual(document, schema) ? validated : await prepareSchema(document, dialect, remotes)
+  const rootId = (projected as { $id?: unknown }).$id
   const base = typeof rootId === 'string' && rootId !== '#' ? rootId.replace(/#.*$/, '') : ''
   const cache = newProjectionCache(dialect, cyclicPositions(graph), base)
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(prepared, data, cache, limits)
+      return buildProjection(projected, data, cache, limits)
     },
 
     validate(data: unknown): MaybePromise<ValidationResult> {
-      return runValidation(prepared, data)
+      return runValidation(validated, data)
     },
 
     validateAt(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult> {
-      return runValidationAt(prepared, data, pointer)
+      return runValidationAt(validated, data, pointer)
     },
   }
 }

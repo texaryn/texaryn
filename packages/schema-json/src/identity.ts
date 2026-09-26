@@ -6,6 +6,7 @@ export interface LocationInfo {
   readonly cycle: boolean
   readonly cyclic: boolean
   readonly expanded: readonly SchemaNode[]
+  readonly dead: ReadonlySet<SchemaNode>
   readonly children: Map<string, readonly SchemaNode[]>
   items?: readonly SchemaNode[]
 }
@@ -154,40 +155,54 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   return result
 }
 
+// A member of a branch that never applies declares its location, but its references do not extend live identity.
+const deadMembers = new WeakMap<readonly SchemaNode[], ReadonlySet<SchemaNode>>()
+
 export function locationInfo(declaring: readonly SchemaNode[], cache: ProjectionCache): LocationInfo {
-  const memoKey = declaring.map(positionOf).sort().join('\n')
+  const members = deadMembers.get(declaring)
+  const memoKey = declaring.map((node) => `${positionOf(node)}${members?.has(node) ? '|dead' : ''}`).sort().join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
 
   const identity = new Set<string>()
-  for (const node of declaring) for (const p of closureOf(node, cache, new Set())) identity.add(p)
+  for (const node of declaring) {
+    if (members?.has(node)) identity.add(positionOf(node))
+    else for (const p of closureOf(node, cache, new Set())) identity.add(p)
+  }
 
   let cycle = false
   const expanded: SchemaNode[] = []
+  const deadNodes = new Set<SchemaNode>()
   const seen = new Set<string>()
-  const visitAll = (node: SchemaNode, stack: Set<string>): void => {
+  const visitAll = (node: SchemaNode, stack: Set<string>, dead = false): void => {
     const position = positionOf(node)
     if (stack.has(position)) {
-      cycle = true
+      if (!dead) cycle = true
       return
     }
     if (seen.has(position)) return
     seen.add(position)
     expanded.push(node)
+    if (dead) deadNodes.add(node)
     stack.add(position)
     if (typeof node.$ref === 'string') {
       const target = followRef(node)
-      if (target) visitAll(target, stack)
+      if (target) visitAll(target, stack, dead)
     }
+    const raw = authoredSchema(node) as Record<string, unknown> | undefined
+    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
     for (const keyword of IN_PLACE_BRANCHES) {
       const branch = node[keyword] as SchemaNode | undefined
-      if (branch && isSchemaNode(branch)) visitAll(branch, stack)
+      const never =
+        (keyword === 'then' && (condition === undefined || condition === false)) ||
+        (keyword === 'else' && (condition === undefined || condition === true))
+      if (branch && isSchemaNode(branch)) visitAll(branch, stack, dead || never)
     }
     for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
-      for (const branch of branches ?? []) visitAll(branch, stack)
+      for (const branch of branches ?? []) visitAll(branch, stack, dead)
     }
     for (const dependency of Object.values(node.dependentSchemas ?? {})) {
-      if (dependency && isSchemaNode(dependency)) visitAll(dependency as SchemaNode, stack)
+      if (dependency && isSchemaNode(dependency)) visitAll(dependency as SchemaNode, stack, dead)
     }
     stack.delete(position)
   }
@@ -200,41 +215,42 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
     cycle,
     cyclic: [...identity].some((position) => cache.cyclic.has(documentPointer(position))),
     expanded,
+    dead: deadNodes,
     children: new Map(),
   }
   cache.info.set(memoKey, info)
   return info
 }
 
-export function childDeclaring(info: LocationInfo, key: string): readonly SchemaNode[] {
-  const cached = info.children.get(key)
-  if (cached) return cached
+function declaredBelow(info: LocationInfo, member: (node: SchemaNode) => SchemaNode | undefined): readonly SchemaNode[] {
   const found: SchemaNode[] = []
+  const dead = new Set<SchemaNode>()
   const seen = new Set<string>()
   for (const node of info.expanded) {
-    const child = node.properties?.[key] as SchemaNode | undefined
+    const child = member(node)
     if (!child) continue
     const position = positionOf(child)
     if (seen.has(position)) continue
     seen.add(position)
     found.push(child)
+    if (info.dead.has(node)) dead.add(child)
   }
+  if (dead.size > 0) deadMembers.set(found, dead)
+  return found
+}
+
+export function childDeclaring(info: LocationInfo, key: string): readonly SchemaNode[] {
+  const cached = info.children.get(key)
+  if (cached) return cached
+  const found = declaredBelow(info, (node) => node.properties?.[key] as SchemaNode | undefined)
   info.children.set(key, found)
   return found
 }
 
 export function itemDeclaring(info: LocationInfo): readonly SchemaNode[] {
-  if (info.items) return info.items
-  const found: SchemaNode[] = []
-  const seen = new Set<string>()
-  for (const node of info.expanded) {
+  info.items ??= declaredBelow(info, (node) => {
     const items = node.items as SchemaNode | undefined
-    if (!items || !isSchemaNode(items)) continue
-    const position = positionOf(items)
-    if (seen.has(position)) continue
-    seen.add(position)
-    found.push(items)
-  }
-  info.items = found
-  return found
+    return items && isSchemaNode(items) ? items : undefined
+  })
+  return info.items
 }

@@ -104,10 +104,13 @@ export function withoutUnreachableBranches(document: unknown): unknown {
   const schemaAt = (schema: unknown, position: Position, bases: readonly Position[]): unknown => {
     if (!isRecord(schema)) return copy(schema)
     const within = typeof schema.$id === 'string' && position.keys.length > 0 ? [...bases, position] : bases
+    const dropped = (key: string): boolean => unreachable(schema, key) && !reached(below(position, key), within) && !declaresIdentifier(schema[key])
+    const branches = ['then', 'else'].filter((key) => key in schema)
+    const bare = typeof schema.if === 'boolean' && branches.length > 0 && branches.every(dropped) && !reached(below(position, 'if'), within)
     const entries: [string, unknown][] = []
     for (const [key, value] of Object.entries(schema)) {
       const at = below(position, key)
-      if (unreachable(schema, key) && !reached(at, within) && !declaresIdentifier(value)) continue
+      if (dropped(key) || (key === 'if' && bare)) continue
       if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) entries.push([key, schemaAt(value, at, within)])
       else if (LIST.has(key) && Array.isArray(value)) entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within))])
       else if (MAP.has(key) && isRecord(value)) {

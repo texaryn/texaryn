@@ -12,8 +12,21 @@ describe('withoutUnreachableBranches', () => {
     ['a then under if: false', { if: false, then: S, else: S }, { if: false, else: S }],
     ['an else under if: true', { if: true, then: S, else: S }, { if: true, then: S }],
     ['boolean branches without if', { then: true, else: false }, {}],
+    ['if: false with the then it removes', { type: 'object', if: false, then: S }, { type: 'object' }],
+    ['if: true with the else it removes', { type: 'object', if: true, else: S }, { type: 'object' }],
   ])('removes %s', (_label, schema, expected) => {
     expect(withoutUnreachableBranches(schema)).toEqual(expected)
+  })
+
+  it('keeps an if beside no branch it removed', () => {
+    for (const schema of [{ if: false }, { if: true }, { if: false, then: S, properties: { r: { $ref: '#/then' } } }]) {
+      expect(withoutUnreachableBranches(schema)).toEqual(schema)
+    }
+  })
+
+  it('keeps an if a reference reaches, without the branch it removed', () => {
+    const schema = { properties: { p: { if: false, then: S }, r: { $ref: '#/properties/p/if' } } }
+    expect(withoutUnreachableBranches(schema)).toEqual({ properties: { p: { if: false }, r: { $ref: '#/properties/p/if' } } })
   })
 
   it('keeps both branches of a condition that can go either way', () => {
