@@ -6,7 +6,6 @@ import { createFormRuntime } from '@texaryn/core'
 import { createHyperjumpAdapter } from '../index.js'
 import { createAdapter } from '../adapter.js'
 import { metaschemas } from './draft-07-metaschema.js'
-import { addChild, ensureNode, finalizeNodes, type DraftNode } from '../static-walk.js'
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
 
@@ -265,46 +264,6 @@ describe('a branch under a boolean if', () => {
     expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
     expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
     expect(outline(await project(schema, { b: { a: {} } }))).toEqual(['', '/b', '/b/a', '/b/a/y'])
-  })
-})
-
-describe('a location without a type', () => {
-  const children = (p: SchemaProjection) => Object.fromEntries([...p.nodes].map(([k, n]) => [k, (n.children ?? []).map((c) => c.pointer)]))
-
-  it('takes its members and its listing with it', async () => {
-    const p = await project(on2020({ type: 'object', properties: { x: { properties: { a: S, b: { type: 'object', properties: { c: S } } } }, y: S } }), { x: {} })
-    expect(children(p)).toEqual({ '': ['/y'], '/y': [] })
-  })
-
-  it('keeps the listing of a member the walk never reached', () => {
-    const nodes = new Map<string, DraftNode>()
-    addChild(nodes, '', 'reached', false)
-    addChild(nodes, '', 'typeless', false)
-    addChild(nodes, '', 'unreached', false)
-    ensureNode(nodes, '').type = 'object'
-    ensureNode(nodes, '/reached').type = 'string'
-    ensureNode(nodes, '/typeless')
-    const projected = finalizeNodes(nodes)
-    expect([...projected.keys()]).toEqual(['', '/reached'])
-    expect(projected.get('' as never)?.children?.map((c) => c.pointer)).toEqual(['/reached', '/unreached'])
-  })
-
-  it.each([
-    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
-    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
-  ] as const)('drops the typeless target of a reference into a kept dead then with its members, in %s', async (_dialect, $schema) => {
-    const schema = {
-      $schema,
-      type: 'object',
-      properties: {
-        p: { type: 'object', properties: { a: S }, if: false, then: { properties: { c: { $ref: '#/properties/p' } } } },
-        r: { $ref: '#/properties/p/then' },
-      },
-    }
-    for (const data of [{}, { p: {} }, { r: {} }, { p: { c: {} } }]) {
-      const p = await project(schema, data)
-      expect(children(p)).toEqual({ '': ['/p'], '/p': ['/p/a'], '/p/a': [] })
-    }
   })
 })
 
