@@ -574,6 +574,24 @@ describe('a reference chain through a site with keywords of its own', () => {
   })
 })
 
+describe('an anchor inside a branch the specification never evaluates', () => {
+  const node = (ref: string) => ({ type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: ref } } })
+  it.each([
+    ['draft-07', 'http://json-schema.org/draft-07/schema#', { $id: '#x' }],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema', { $anchor: 'x' }],
+  ] as const)('recurses as the pointer spelling does, in %s', async (_dialect, $schema, anchor) => {
+    const spelled = (ref: string) => ({ $schema, type: 'object', properties: { child: { $ref: ref } }, then: { ...anchor, ...node(ref) } })
+    const summary = async (schema: Record<string, unknown>) => {
+      const p = await project(schema, {})
+      const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+      return { pointers: pointers(p), boundaries: withBoundaries(p), expanded: expanded(p), data: runtime.data.getSnapshot() }
+    }
+    const pointer = await summary(spelled('#/then'))
+    expect(pointer.expanded.length).toBeGreaterThan(0)
+    expect(await summary(spelled('#x'))).toEqual(pointer)
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {

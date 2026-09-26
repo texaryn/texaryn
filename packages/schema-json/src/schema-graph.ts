@@ -86,7 +86,7 @@ interface ResourceIndex {
   readonly baseAt: Map<string, string>
 }
 
-function childSchemas(schema: Record<string, unknown>, position: string, dialect: Dialect, includeContainers: boolean) {
+function childSchemas(schema: Record<string, unknown>, position: string, dialect: Dialect, lexical: boolean) {
   const found: { position: string; via: string; inPlace: boolean }[] = []
   const addMap = (keyword: string, inPlace: boolean): void => {
     const map = schema[keyword]
@@ -98,14 +98,14 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     }
   }
   if (dialect === 'draft-07' && typeof schema.$ref === 'string') {
-    if (includeContainers) for (const key of CONTAINERS) addMap(key, false)
+    if (lexical) for (const key of CONTAINERS) addMap(key, false)
     return found
   }
   const hasIf = 'if' in schema
   if (isRecord(schema.not)) found.push({ position: `${position}/not`, via: 'not', inPlace: true })
   if (isRecord(schema.if)) found.push({ position: `${position}/if`, via: 'if', inPlace: true })
-  if (isRecord(schema.then) && hasIf && schema.if !== false) found.push({ position: `${position}/then`, via: 'then', inPlace: true })
-  if (isRecord(schema.else) && hasIf && schema.if !== true) found.push({ position: `${position}/else`, via: 'else', inPlace: true })
+  if (isRecord(schema.then) && (lexical || (hasIf && schema.if !== false))) found.push({ position: `${position}/then`, via: 'then', inPlace: true })
+  if (isRecord(schema.else) && (lexical || (hasIf && schema.if !== true))) found.push({ position: `${position}/else`, via: 'else', inPlace: true })
   for (const keyword of IN_PLACE_LIST) {
     const list = schema[keyword]
     if (Array.isArray(list)) list.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: true }))
@@ -122,7 +122,7 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     if (isRecord(value)) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
     else if (Array.isArray(value)) value.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: false }))
   }
-  if (includeContainers) for (const key of CONTAINERS) addMap(key, false)
+  if (lexical) for (const key of CONTAINERS) addMap(key, false)
   return found
 }
 

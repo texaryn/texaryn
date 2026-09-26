@@ -71,6 +71,27 @@ describe('reference keywords by dialect', () => {
   })
 })
 
+describe('an identifier inside a branch the specification never evaluates', () => {
+  const anchors = [
+    ['draft-07', { $id: '#x' }],
+    ['2019-09', { $anchor: 'x' }],
+    ['2020-12', { $anchor: 'x' }],
+    ['2020-12', { $dynamicAnchor: 'x' }],
+  ] as const
+  const branches = [
+    ['a then without if', (branch: object) => ({ then: branch })],
+    ['a then under if false', (branch: object) => ({ if: false, then: branch })],
+    ['an else under if true', (branch: object) => ({ if: true, else: branch })],
+  ] as const
+  it.each(anchors.flatMap(([dialect, anchor]) => branches.map(([label, place]) => [dialect, anchor, label, place] as const)))(
+    '%s rejects a cycle through %j in %s',
+    async (dialect, anchor, _label, place) => {
+      const schema = inDialect(dialect, { allOf: [{ $ref: '#x' }], ...place({ ...anchor, allOf: [{ $ref: '#' }] }) })
+      await expect(createJsonSchemaAdapter(schema)).rejects.toBeInstanceOf(SameLocationCycleError)
+    },
+  )
+})
+
 describe('the error', () => {
   it('names every cycle it found', async () => {
     const error = await createJsonSchemaAdapter({ allOf: [{ $ref: '#' }] }).catch((e: unknown) => e)
