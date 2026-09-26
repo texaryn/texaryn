@@ -335,7 +335,9 @@ the reachable set has to be finite for the argument to close, and nothing
 guarantees that. So initialization runs to a budget, and exceeding it **discards
 the whole initialization**, leaving the caller's data as supplied. Keeping the
 partial writes would make the resulting data depend on the budget, which is an
-arbitrary number.
+arbitrary number. ADR-007 describes how a recursive schema stays finite: the
+projection expands it once past the data, and this pass never writes where the
+projection expanded the recursion.
 
 **How that failure is delivered differs by call surface, and both are named
 rather than left to the implementation.** Initialization reaches the runtime

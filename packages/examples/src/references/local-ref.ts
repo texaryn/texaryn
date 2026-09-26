@@ -64,4 +64,33 @@ export const reusedFragment: TexarynExample = {
   },
 }
 
-export const referenceExamples = [localRef, reusedFragment] as const
+export const recursiveRef: TexarynExample = {
+  id: 'reference-recursive',
+  title: 'Recursive $ref',
+  description:
+    'A tree whose child is the same definition again. The form shows the fields one level past the data, and filling a level exposes the next.',
+  category: 'references',
+  covers: ['schema.reference.recursive', 'schema.reference.local-ref', 'schema.type.object'],
+  schema: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $defs: {
+      node: {
+        type: 'object',
+        title: 'Node',
+        properties: {
+          name: { type: 'string', title: 'Name' },
+          child: { $ref: '#/$defs/node' },
+        },
+      },
+    },
+    type: 'object',
+    title: 'Tree',
+    properties: {
+      name: { type: 'string', title: 'Name' },
+      child: { $ref: '#/$defs/node' },
+    },
+  },
+  initialData: { name: 'Root', child: { name: 'First' } },
+}
+
+export const referenceExamples = [localRef, reusedFragment, recursiveRef] as const

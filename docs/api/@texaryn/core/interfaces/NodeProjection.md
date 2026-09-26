@@ -24,6 +24,12 @@ form should show.
 
 ***
 
+### boundaries?
+
+> `optional` **boundaries?**: readonly [`ProjectionBoundary`](../type-aliases/ProjectionBoundary.md)[]
+
+***
+
 ### children?
 
 > `optional` **children?**: [`ChildProjection`](ChildProjection.md)[]
@@ -68,6 +74,14 @@ Order is not a contract; the set is.
 
 ***
 
+### defaultSources?
+
+> `optional` **defaultSources?**: readonly `string`[]
+
+The schema positions whose agreeing `default` declarations supplied `annotations.default`.
+
+***
+
 ### enumValues?
 
 > `optional` **enumValues?**: [`EnumOption`](EnumOption.md)[]
@@ -109,6 +123,14 @@ that branch for the user to finish.
 
 Only meaningful while `active` is false, and absent means false, so an
 adapter that does not select provisionally keeps its current behaviour.
+
+***
+
+### recursiveExpansion?
+
+> `optional` **recursiveExpansion?**: `boolean`
+
+Reached only by expanding recursion past the data, so a policy must not write here (ADR-007).
 
 ***
 

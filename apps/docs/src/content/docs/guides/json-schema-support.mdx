@@ -55,8 +55,90 @@ Projection has these limits:
 - Unresolved `oneOf` object branches can remain inactive. The fallback does
   not cover unresolved primitive alternatives; a union is not automatically
   a branch picker.
+- Fields declared only under a branch the specification never evaluates (a
+  `then` or `else` without `if`, a `then` under `if: false`, an `else` under
+  `if: true`) are not projected, unless a `$ref` points into that branch.
+  Validation still runs on the schema as written, so an error that only such a
+  branch declares attaches to no field.
 - Remote schema loading, `$recursiveRef` and `$dynamicRef` are outside the
   documented form projection scope. Use local `$ref` for reusable fields.
+
+### Recursive references
+
+A local `$ref` can point back to a schema that contains it: `"$ref": "#"` for
+the root, or a definition under `$defs` or `definitions` that refers to itself
+directly or through other definitions. The form shows such a schema **once
+past the data**: below the last location that holds data, a path never applies
+the same schemas twice. Take this schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "child": { "$ref": "#" }
+  }
+}
+```
+
+With `{}` the form shows `/name`, `/child` and `/child/name`. Once `/child`
+holds an object, `/child/child` and `/child/child/name` appear, and each level
+the user fills exposes the next. `{ "child": null }` shows the same fields as
+`{}`. An array row counts as data, even when it holds `null`, so the fields of
+every row are shown.
+
+Where the projection stops, the object node says why in
+`NodeProjection.boundaries`, which the compiler copies to
+`ContainerNode.boundaries`:
+
+- `recursion`: a member of this object would apply the same schemas as the
+  object itself, and the object is past the data. That member is not
+  projected and is not listed in `children`.
+- `budget`: the projection withheld some members of this object to stay
+  within its limits. The limits cover only locations that exist because of
+  the recursion, two or more levels below the nearest location that holds
+  data: one projection shows at most 16 such objects and 512 such nodes. The
+  limits are fixed, and they never apply inside the data: every declared
+  member of a location that holds data is projected. A withheld object is not
+  listed in `children`, and the object that carries `budget` still shows its
+  own fields.
+
+Both are absent when the projection did not stop at that object. A binding can
+ignore them; the built-in bindings render the fields that are projected.
+
+`initialization: 'schema-defaults'` never writes into recursion expanded past
+the data. Such a node carries `NodeProjection.recursiveExpansion`, and each
+absent one that declares a default, or whose declarations disagree, is
+reported as a refusal with reason `recursive-expansion`: the field is shown,
+but its default is not written, because every level written would expose
+another. A default one of whose declarations was already written at an
+ancestor in the same run is refused as `recursive-default`, which stops a
+recursive default from recreating itself. The limits never change the data
+initialization writes.
+
+A schema that applies itself at one instance location, without crossing into a
+property or an item, makes the evaluator recurse without end, for example
+`allOf: [{ $ref: '#' }]` at the root. `createJsonSchemaAdapter` rejects it with
+`SameLocationCycleError`, exported from `@texaryn/schema-json`. Its `positions`
+field lists each cycle's schema positions, and its message names one of them
+and the path. For
+`allOf: [{ if: { properties: { flag: { const: true } } }, then: { $ref: '#' } }]`
+at the root the message is:
+
+```text wrap
+Schema position "#" applies itself to the instance location it is evaluating, without crossing into a property or item: "#" (allOf/0) "#/allOf/0" (then) "#/allOf/0/then" ($ref) "#". The evaluator recurses without end wherever this position is reached, so the schema is rejected.
+```
+
+The check reads the schema, not the data, so a cycle behind a conditional is
+rejected even while its `if` does not hold. It exempts only the branches the
+specification never evaluates, listed above. It is conservative for dynamic
+references: a 2020-12 `$dynamicRef` to a `$dynamicAnchor` counts as reaching
+every `$dynamicAnchor` of that name, and a 2019-09 `$recursiveRef` counts as
+reaching every schema that declares `$recursiveAnchor: true`, because which
+one applies is decided during evaluation. A schema whose dynamic references
+could close such a cycle is rejected even when no evaluation would select it.
+A reference keyword from another dialect, such as `$dynamicRef` in Draft 7, is
+not a reference there.
 
 ## Validation scope
 

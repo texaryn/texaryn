@@ -6,6 +6,10 @@
 
 # @texaryn/schema-json
 
+## Classes
+
+- [SameLocationCycleError](classes/SameLocationCycleError.md)
+
 ## Interfaces
 
 - [AdapterConfig](interfaces/AdapterConfig.md)

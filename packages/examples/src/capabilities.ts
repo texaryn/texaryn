@@ -215,6 +215,18 @@ export const capabilities = {
     },
   },
 
+  'schema.reference.recursive': {
+    title: 'A recursive $ref',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    keywordsByDialect: {
+      'draft-07': ['$ref', 'definitions'],
+      '2019-09': ['$ref', '$defs'],
+      '2020-12': ['$ref', '$defs'],
+    },
+  },
+
   'schema.conditional.if-then-else': {
     title: 'if / then / else',
     category: 'schema',

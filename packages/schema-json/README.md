@@ -84,7 +84,7 @@ The adapter currently handles the schema features required by Texaryn's runtime 
 - objects and primitive fields
 - arrays
 - enums
-- local `$ref`
+- local `$ref`, including recursive references
 - `if` / `then` / `else`
 - `oneOf`
 - `anyOf`
@@ -93,7 +93,21 @@ The adapter currently handles the schema features required by Texaryn's runtime 
 - Draft 7 `dependencies`
 - annotations and field constraints
 
-Inactive conditional fields remain represented in the projection with `active: false`, allowing the runtime and renderer to preserve a deterministic UI structure across branch changes.
+Inactive conditional fields remain represented in the projection with `active: false`, allowing the runtime and renderer to preserve a deterministic UI structure across branch changes. A branch the specification never evaluates (a `then` or `else` without `if`, a `then` under `if: false`, an `else` under `if: true`) contributes no fields unless a `$ref` points into it.
+
+## Recursive schemas
+
+A local `$ref` may point back to a schema that contains it, such as `{ properties: { child: { $ref: '#' } } }` or a definition that refers to itself. The projection expands such a schema once past the data: below the last location that holds data, a path never applies the same schemas twice. At `{}` the example above projects `/child`, and once `/child` holds an object it projects `/child/child`. Each level the user fills exposes the next.
+
+The object where the projection stopped carries `boundaries` on its `NodeProjection`: `recursion` when a member would repeat the object's schemas, `budget` when a fixed per-projection limit withheld members. The limits are 16 objects and 512 nodes, counted only over locations that exist because of the recursion, two or more levels below the data; they never cut a member of a location that holds data. A node the projection reached only by expanding the recursion carries `recursiveExpansion`, and `schema-defaults` initialization never writes there.
+
+A schema that applies itself at one instance location without crossing into a property or item, such as `{ allOf: [{ $ref: '#' }] }`, makes the evaluator recurse without end, so `createJsonSchemaAdapter` rejects it with `SameLocationCycleError`. Its `positions` field lists the schema positions of each cycle, and the message names one of them and the path through the cycle. The check reads the schema, not the data: a cycle behind an `if` is rejected even while the `if` does not hold, except the branches the specification never evaluates. It is conservative for dynamic references, treating a `$dynamicRef` to a `$dynamicAnchor` as reaching every `$dynamicAnchor` of that name and a `$recursiveRef` as reaching every schema that declares `$recursiveAnchor: true`, so a schema whose dynamic references could close such a cycle is rejected even when no evaluation selects it.
+
+The [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/#recursive-references) has the details, and ADR-007 records the decision.
+
+## json-schema-library version
+
+The dependency range is `~11.6.2`. In Draft 7, json-schema-library 11.6.2 overwrites the registry entry that `"$ref": "#"` resolves through, so without a fix the reference reaches another node and validation is wrong. The adapter pins that entry to the document root. Because the fix depends on the library's internal registry, adapter creation throws an error naming json-schema-library 11.6.2 when the registry is shaped differently, or when a self-test on two probe schemas shows the fix no longer repairs validation. A new json-schema-library minor needs a Texaryn release that verifies the internal again.
 
 ## Validation
 
@@ -135,6 +149,7 @@ The result contains validation errors at that pointer or below it.
 ```ts
 import {
   createJsonSchemaAdapter,
+  SameLocationCycleError,
   type AdapterConfig,
   type Dialect,
 } from '@texaryn/schema-json'
@@ -164,6 +179,19 @@ The union of dialect identifiers the adapter recognizes:
 
 ```ts
 type Dialect = 'draft-07' | '2019-09' | '2020-12'
+```
+
+### `SameLocationCycleError`
+
+Thrown by `createJsonSchemaAdapter` for a schema that applies itself at one instance location. A host that loads authored schemas can tell a broken schema from a failed load with `instanceof`:
+
+```ts
+try {
+  await createJsonSchemaAdapter(schema)
+} catch (error) {
+  if (error instanceof SameLocationCycleError) console.log(error.positions, error.message)
+  else throw error
+}
 ```
 
 ## Architecture
