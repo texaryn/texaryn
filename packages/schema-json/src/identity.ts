@@ -1,6 +1,6 @@
 import { isSchemaNode, settings, type SchemaNode } from 'json-schema-library'
 import type { Dialect } from './dialect.js'
-import { POSITION } from './schema-graph.js'
+import { POSITION, escape } from './schema-graph.js'
 
 export interface LocationInfo {
   readonly key: string
@@ -45,7 +45,8 @@ const NON_APPLYING = new Set([
 
 function markerOf(node: SchemaNode): string | undefined {
   const schema = node.schema as unknown
-  const marker = typeof schema === 'object' && schema !== null ? (schema as Record<string, unknown>)[POSITION] : undefined
+  const marker =
+    typeof schema === 'object' && schema !== null && Object.hasOwn(schema, POSITION) ? (schema as Record<string, unknown>)[POSITION] : undefined
   return typeof marker === 'string' ? marker : undefined
 }
 
@@ -58,9 +59,39 @@ function unmarkedPosition(node: SchemaNode): string {
   if (branch) return `${positionOf(parent)}/${branch}`
   const parentOwn = parent.schemaLocation
   if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {
-    return `${positionOf(parent)}${own.slice(parentOwn.length)}`
+    const suffix = own.slice(parentOwn.length)
+    const keyword = suffix.split('/')[1] ?? ''
+    const key = memberKey(parent, keyword, node)
+    return key === undefined ? `${positionOf(parent)}${suffix}` : `${positionOf(parent)}/${keyword}/${escape(key)}`
   }
   return own
+}
+
+const memberKeys = new WeakMap<object, ReadonlyMap<SchemaNode, string>>()
+
+function keyIn(map: object, entries: () => Iterable<readonly [string, unknown]>, node: SchemaNode): string | undefined {
+  let keys = memberKeys.get(map)
+  if (!keys) {
+    const index = new Map<SchemaNode, string>()
+    for (const [key, child] of entries()) if (isSchemaNode(child) && !index.has(child)) index.set(child, key)
+    memberKeys.set(map, index)
+    keys = index
+  }
+  return keys.get(node)
+}
+
+function memberKey(parent: SchemaNode, keyword: string, node: SchemaNode): string | undefined {
+  const map =
+    keyword === 'properties' ? parent.properties
+    : keyword === '$defs' || keyword === 'definitions' ? parent.$defs
+    : keyword === 'dependencies' || keyword === 'dependentSchemas' ? parent.dependentSchemas
+    : undefined
+  if (map) return keyIn(map, () => Object.entries(map), node)
+  const patterns = parent.patternProperties
+  if (keyword === 'patternProperties' && patterns) {
+    return keyIn(patterns, () => patterns.map(({ name, node: child }) => [name, child] as const), node)
+  }
+  return undefined
 }
 
 export function positionOf(node: SchemaNode): string {

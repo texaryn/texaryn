@@ -30,7 +30,7 @@ const REFERENCES: Record<Dialect, readonly string[]> = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
+export const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
 
 interface Documents {
   readonly local: unknown
@@ -59,7 +59,7 @@ function at(documents: Documents, position: string): unknown {
   for (const raw of pointer.slice(2).split('/')) {
     const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
     if (Array.isArray(current)) current = current[Number(segment)]
-    else if (isRecord(current)) current = current[segment]
+    else if (isRecord(current) && Object.hasOwn(current, segment)) current = current[segment]
     else return undefined
   }
   return current

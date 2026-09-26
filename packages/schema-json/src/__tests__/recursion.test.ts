@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { compileSchema, type SchemaNode } from 'json-schema-library'
+import { compileSchema, type JsonSchema, type SchemaNode } from 'json-schema-library'
 import type { NodeProjection, SchemaProjection } from '@texaryn/core'
 import { createFormRuntime } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '../index.js'
 import { createAdapter } from '../adapter.js'
-import { followRef } from '../identity.js'
+import { followRef, positionOf } from '../identity.js'
+import { buildSchemaGraph, markPositions } from '../schema-graph.js'
 import { metaschemas } from '../metaschemas/draft-07.js'
 
 const S = { type: 'string' }
@@ -678,6 +679,69 @@ describe('the marked copy', () => {
   it('leaves the shared metaschema documents unmarked', async () => {
     await project({ $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: { s: { $ref: 'http://json-schema.org/draft-07/schema#' } } }, {})
     expect(JSON.stringify(metaschemas)).not.toContain('x-texaryn-position')
+  })
+
+  it.each([
+    ['#/__proto__', { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object', properties: { a: { $ref: '#/__proto__' } } }],
+    ['#/definitions/%5F%5Fproto%5F%5F', { $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: { a: { $ref: '#/definitions/%5F%5Fproto%5F%5F' } }, definitions: {} }],
+  ])('marks nothing through a reference to %s, so a later schema projects as written', async (_ref, polluter) => {
+    try {
+      const p = await project(polluter, {})
+      expect(pointers(p)).toEqual([''])
+      expect((p.diagnostics ?? []).map((diagnostic) => diagnostic.code)).toEqual(['unresolved-projection-shape'])
+      expect(Object.hasOwn(Object.prototype, 'x-texaryn-position')).toBe(false)
+      const later = await project(on2020({
+        type: 'object',
+        properties: { a: { $ref: '#/examples/0' } },
+        examples: [{ type: 'object', properties: { x: { type: 'object', properties: { x1: { type: 'string' } } } } }],
+      }), {})
+      expect(pointers(later)).toEqual(['', '/a', '/a/x', '/a/x/x1'])
+      expect(withBoundaries(later)).toEqual({})
+      expect(flagged(later)).toBe(0)
+    } finally {
+      delete (Object.prototype as Record<string, unknown>)['x-texaryn-position']
+    }
+  })
+})
+
+describe('a boolean property whose name another property takes once escaped', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const inner = { type: 'object', properties: { x: { type: 'object', properties: { y: { type: 'string', default: 'v' } } } } }
+  const wide = {
+    type: 'object',
+    properties: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`o${i}`, { type: 'object', properties: { s: { type: 'string', default: 'v' } } }])),
+  }
+  const rows: readonly (readonly [string, Record<string, unknown>, (p: SchemaProjection) => unknown, unknown])[] = [
+    ['a~1b before a/b', { 'a~1b': true, 'a/b': inner }, pointers, ['', '/a~1b', '/a~1b/x', '/a~1b/x/y']],
+    ['a/b before a~1b', { 'a/b': inner, 'a~1b': true }, pointers, ['', '/a~1b', '/a~1b/x', '/a~1b/x/y']],
+    ['a~0b before a~b', { 'a~0b': true, 'a~b': inner }, pointers, ['', '/a~0b', '/a~0b/x', '/a~0b/x/y']],
+    ['a~b before a~0b', { 'a~b': inner, 'a~0b': true }, pointers, ['', '/a~0b', '/a~0b/x', '/a~0b/x/y']],
+    ['x/properties/y beside x', { 'x/properties/y': true, x: { type: 'object', properties: { y: inner } } }, pointers, ['', '/x', '/x/y', '/x/y/x', '/x/y/x/y']],
+    ['a~1b before a/b with 20 objects', { 'a~1b': true, 'a/b': wide }, (p) => p.nodes.size, 42],
+  ]
+
+  it.each(dialects.flatMap(([dialect, $schema]) => rows.map(([label, properties, read, expected]) => [label, dialect, $schema, properties, read, expected] as const)))(
+    'projects %s without recursion, in %s',
+    async (_label, _dialect, $schema, properties, read, expected) => {
+      const p = await project({ $schema, type: 'object', properties }, {})
+      expect(read(p)).toEqual(expected)
+      expect(withBoundaries(p)).toEqual({})
+      expect(flagged(p)).toBe(0)
+    },
+  )
+
+  it.each(dialects)('places a boolean member under its own name, in %s', (dialect, $schema) => {
+    const compileMarked = (document: Record<string, unknown>) =>
+      compileSchema(markPositions(buildSchemaGraph(document, dialect), document).document as JsonSchema, {
+        draft: dialect === 'draft-07' ? 'draft-07' : 'draft-2020-12',
+      })
+    const encoded = compileMarked({ $schema, type: 'object', properties: { a: { $ref: '#/definitions/%24x' } }, definitions: { $x: true } })
+    expect(positionOf(encoded.$defs!.$x!)).toBe('#/definitions/$x')
+    const collide = compileMarked({ $schema, type: 'object', properties: { 'a~1b': true, 'a/b': inner } })
+    expect(positionOf(collide.properties!['a~1b']!)).toBe('#/properties/a~01b')
   })
 })
 
