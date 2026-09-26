@@ -26,8 +26,8 @@ const VALID_TYPES = new Set<JsonSchemaType>([
  * Working node used while a projection is under construction. `type` starts
  * unresolved and is filled in by either the data-driven pass or this module's
  * static walk; a pointer whose type never resolves (no schema position ever
- * declares a `type` keyword) is dropped when the projection is finalized,
- * since the port's NodeProjection.type is not optional.
+ * declares a `type` keyword) is dropped with its members and its listing when
+ * the projection is finalized, since the port's NodeProjection.type is not optional.
  */
 export interface DraftNode {
   type?: JsonSchemaType
@@ -400,14 +400,23 @@ export function addChild(
 }
 
 export function finalizeNodes(nodes: Map<string, DraftNode>): Map<JsonPointer, NodeProjection> {
+  const kept = new Map<string, boolean>()
+  const keeps = (pointer: string): boolean => {
+    let answer = kept.get(pointer)
+    if (answer === undefined) {
+      answer = nodes.get(pointer)?.type !== undefined && (pointer === '' || keeps(pointer.slice(0, pointer.lastIndexOf('/'))))
+      kept.set(pointer, answer)
+    }
+    return answer
+  }
   const result = new Map<JsonPointer, NodeProjection>()
   for (const [pointer, node] of nodes) {
-    if (node.type === undefined) continue
+    if (node.type === undefined || !keeps(pointer)) continue
     result.set(pointer as JsonPointer, {
       type: node.type,
       format: node.format,
       constraints: node.constraints,
-      children: node.children,
+      children: node.children?.filter((child) => keeps(child.pointer) || !nodes.has(child.pointer)),
       enumValues: node.enumValues,
       active: node.active,
       // Belt and braces: `provisional` is only ever set on the branch that runs

@@ -22,6 +22,8 @@ interface Fixture {
   data: readonly unknown[]
   /** Reaches a schema through an `$id` resource rather than a `#` fragment. */
   nonLocal?: true
+  /** Compared across the adapters only: schema-json lists a child of it without a node. */
+  parityOnly?: true
 }
 
 const S = { type: 'string' }
@@ -378,6 +380,17 @@ const fixtures: readonly Fixture[] = [
       }),
     data: [{}, { b: { k: 1 } }, { b: { a: {} } }],
   },
+  {
+    id: 'kept-dead-then-refers-to-its-parent',
+    schema: () => obj({ p: { ...obj({ a: S }), if: false, then: { properties: { c: { $ref: '#/properties/p' } } } }, r: { $ref: '#/properties/p/then' } }),
+    data: [{}, { p: {} }, { r: {} }, { p: { c: {} } }],
+  },
+  {
+    id: 'kept-then-allOf-applies-its-parent',
+    parityOnly: true,
+    schema: () => obj({ p: { ...obj({ a: S }), then: { allOf: [{ $ref: '#/properties/p' }] } }, r: { $ref: '#/properties/p/then' } }),
+    data: [{}, { p: {} }, { r: {} }],
+  },
   { id: 'dead-then-wider-than-a-live-then', schema: redeclared({ then: { properties: { t: S, u: S } } }, liveWhen('then', { t: S })), data: pairData },
   {
     id: 'dead-else-wider-than-a-live-else',
@@ -587,6 +600,9 @@ function violations(projection: SchemaProjection, data: unknown): string[] {
     for (const child of node.children ?? []) {
       if (!projection.nodes.has(child.pointer)) found.push(`${pointer} lists ${child.pointer} without a node`)
     }
+    if (pointer !== '' && !projection.nodes.has(pointer.slice(0, pointer.lastIndexOf('/')) as typeof pointer)) {
+      found.push(`${pointer} has no parent node`)
+    }
     if (node.boundaries !== undefined) {
       if (node.type !== 'object') found.push(`${pointer} is ${node.type} and carries boundaries`)
       const ordered = BOUNDARY_ORDER.filter((reason) => node.boundaries!.includes(reason))
@@ -769,7 +785,7 @@ export function recursiveRefSuite(
   createAdapter: AdapterFactory,
   options: { localReferencesOnly?: boolean } = {},
 ): void {
-  const own = fixtures.filter((fixture) => !(options.localReferencesOnly && fixture.nonLocal))
+  const own = fixtures.filter((fixture) => !fixture.parityOnly && !(options.localReferencesOnly && fixture.nonLocal))
 
   describe(`${name}: recursive projection`, () => {
     it.each(cases(own))('$fixture.id in $dialect at $data keeps the projection whole', async ({ fixture, dialect, data }) => {
@@ -893,7 +909,10 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
 /**
  * Pre-existing pointer differences, by case: `a` lists what only the first adapter projects, `b`
  * what only the second does. Main's schema-json projects no field of an inactive branch below a
- * location another declaration already declares, where hyperjump projects it inactive.
+ * location another declaration already declares, where hyperjump projects it inactive. Where a
+ * reference keeps a dead branch, schema-json projects its members inactive and derives an object
+ * for a typeless location, as main does; hyperjump walks no dead branch and derives no shape. A
+ * typeless `allOf: [{ $ref }]` location is dropped by schema-json, as on main (a filed follow-up).
  */
 const KNOWN_POINTER_DIFFERENCES: Readonly<Record<string, { a?: readonly string[]; b?: readonly string[] }>> = Object.fromEntries(
   PROJECTED.flatMap((dialect) =>
@@ -903,6 +922,8 @@ const KNOWN_POINTER_DIFFERENCES: Readonly<Record<string, { a?: readonly string[]
         ['dead-else-in-a-merged-branch', 1, { b: ['/b/a/y'] }],
         ['dead-else-in-a-merged-branch', 2, { b: ['/b/a/y'] }],
         ['live-else-if-false-in-a-conditional-branch', 1, { b: ['/b/a/y'] }],
+        ...[0, 1, 2, 3].map((depth) => ['kept-dead-then-refers-to-its-parent', depth, { a: ['/p/c', '/p/c/a', '/r', '/r/c', '/r/c/a'] }] as const),
+        ...[0, 1, 2].map((depth) => ['kept-then-allOf-applies-its-parent', depth, { b: ['/r', '/r/a'] }] as const),
       ] as const
     ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
   ),
