@@ -1,6 +1,7 @@
 import React from 'react'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import { objectChildKey } from '@texaryn/core'
 import type { UINode } from '@texaryn/core'
 import { NodeRenderer, useObjectGroup, useRendererContext } from '@texaryn/react'
 
@@ -13,7 +14,7 @@ function MuiObjectLayoutImpl({ node }: WidgetProps) {
   const { nested, title, children } = useObjectGroup(node)
 
   const rendered = children.map((child) => (
-    <NodeRenderer key={child.id} node={child} document={document} registry={registry} />
+    <NodeRenderer key={objectChildKey(child)} node={child} document={document} registry={registry} />
   ))
 
   if (!nested) {

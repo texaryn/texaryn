@@ -1,3 +1,4 @@
+import { objectChildKey } from '@texaryn/core'
 import type { ContainerNode, StableItemId, UINode } from '@texaryn/core'
 import type { DomWidget, NodeBinding, RenderContext } from './widget.js'
 
@@ -61,20 +62,6 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   return element
 }
 
-/**
- * Object children are keyed by their property name, the last pointer
- * segment, never by node id. Node ids are positional, so when the row that
- * contains this object moves, every child arrives with a new id; the property
- * name is what still says "this is the same field", and keeping the binding
- * is what keeps its input element and the focus on it.
- */
-function childKey(node: UINode): string {
-  const pointer = node.dataPointer
-  if (pointer == null) return node.id
-  const index = pointer.lastIndexOf('/')
-  return index >= 0 ? pointer.slice(index + 1) : pointer
-}
-
 export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
   // Whether a node is nested is fixed for its lifetime, but its title is not:
   // a conditional subschema can add or drop one on any recompile, and this
@@ -112,7 +99,7 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
     const keep = new Set<string>()
     const elements: HTMLElement[] = []
     for (const child of wanted) {
-      const key = childKey(child)
+      const key = objectChildKey(child)
       keep.add(key)
       let binding = bindings.get(key)
       if (binding) {

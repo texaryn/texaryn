@@ -1,4 +1,5 @@
 import React from 'react'
+import { objectChildKey } from '@texaryn/core'
 import type { UINode } from '@texaryn/core'
 import { NodeRenderer } from '../components/NodeRenderer.js'
 import { useRendererContext } from '../components/renderer-context.js'
@@ -13,7 +14,7 @@ function ObjectLayoutImpl({ node }: WidgetProps) {
   const { nested, title, children } = useObjectGroup(node)
 
   const rendered = children.map((child) => (
-    <NodeRenderer key={child.id} node={child} document={document} registry={registry} />
+    <NodeRenderer key={objectChildKey(child)} node={child} document={document} registry={registry} />
   ))
 
   if (!nested) {

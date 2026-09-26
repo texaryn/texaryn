@@ -643,6 +643,51 @@ export function rendererDomAccessibilityContract({
 
     // ADR-004. Every word a built-in widget invents comes from the configured
     // set, on both surfaces of each control, in every family alike.
+    describe('element identity across a recompile', () => {
+      it('keeps the input being typed into when an earlier sibling grows', async () => {
+        const { surface, runtime, q } = await mount(
+          {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            properties: {
+              child: { $ref: '#' },
+              name: { type: 'string', title: 'Name' },
+            },
+          },
+          undefined,
+        )
+        const input = q.getAllByRole('textbox', { name: 'Name' })[0] as HTMLInputElement
+        input.focus()
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/child/name'), value: 'a' })
+        })
+        const after = q.getAllByRole('textbox', { name: 'Name' })
+        expect(after).toContain(input)
+        expect(input.isConnected).toBe(true)
+        expect(document.activeElement).toBe(input)
+        expect(input.value).toBe('a')
+      })
+
+      it('keeps a same-name field when a conditional switches its schema', async () => {
+        const { surface, runtime, q } = await mount(
+          {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            properties: { kind: { type: 'string', enum: ['a', 'b'], title: 'Kind' } },
+            if: { properties: { kind: { const: 'a' } } },
+            then: { properties: { detail: { type: 'string', title: 'Detail' } } },
+            else: { properties: { detail: { type: 'string', title: 'Detail', maxLength: 5 } } },
+          },
+          { kind: 'a' },
+        )
+        const input = q.getByRole('textbox', { name: 'Detail' })
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/kind'), value: 'b' })
+        })
+        expect(q.getByRole('textbox', { name: 'Detail' })).toBe(input)
+      })
+    })
+
     describe('built-in copy', () => {
       const labelOf = (control: HTMLElement) =>
         control.ownerDocument.querySelector(`label[for="${control.id}"]`)?.textContent ??
