@@ -116,6 +116,10 @@ describe('withoutUnreachableBranches', () => {
       ['the branch through a percent-encoded pointer', { $ref: '#/%70roperties/p/then' }],
       ['the branch through $dynamicRef', { $dynamicRef: '#/properties/p/then' }],
       ['the branch from inside a value keyword', { default: { $ref: '#/properties/p/then' } }],
+      ['the branch with a trailing #', { $ref: '#/properties/p/then#' }],
+      ['the branch with two trailing #', { $ref: '#/properties/p/then##' }],
+      ['the branch without a leading slash', { $ref: '#properties/p/then' }],
+      ['the branch without a #', { $ref: '/properties/p/then' }],
     ])('keeps it when the reference points at %s', (_label, site) => {
       const schema = { properties: { p, r: site } }
       expect(withoutUnreachableBranches(schema)).toEqual(schema)
@@ -123,6 +127,22 @@ describe('withoutUnreachableBranches', () => {
 
     it('matches a key that needs escaping', () => {
       const schema = { properties: { 'a/b~c': p, r: { $ref: '#/properties/a~1b~0c/then' } } }
+      expect(withoutUnreachableBranches(schema)).toEqual(schema)
+    })
+
+    it.each([
+      ['application/json', '#/properties/application/json/then'],
+      ['a%20b', '#/properties/a%20b/then'],
+    ])('keeps it when the reference spells the key %s unescaped', (key, $ref) => {
+      const schema = { properties: { [key]: p, r: { $ref } } }
+      expect(withoutUnreachableBranches(schema)).toEqual(schema)
+    })
+
+    it.each([
+      ['definitions', '$defs'],
+      ['$defs', 'definitions'],
+    ])('keeps it when the reference spells %s for a branch under %s', (spelled, declared) => {
+      const schema = { $id: 'https://x.test/root', [declared]: { foo: p }, properties: { r: { $ref: `#/${spelled}/foo/then` } } }
       expect(withoutUnreachableBranches(schema)).toEqual(schema)
     })
 

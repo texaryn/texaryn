@@ -136,6 +136,17 @@ describe('branches the specification never evaluates', () => {
     expect((await (await createJsonSchemaAdapter({ $schema, ...schema })).validate(1)).valid).toBe(true)
   })
 
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    ['#/properties/p/then#', 'p', dialect, $schema],
+    ['#/properties/application/json/then', 'application/json', dialect, $schema],
+  ] as const))('resolves %s into a branch under %s as main does, in %s', async ($ref, key, _dialect, $schema) => {
+    const adapter = await createJsonSchemaAdapter({ $schema, type: 'object', properties: { [key]: { type: 'object', then: S }, r: { $ref } } })
+    expect(await adapter.validate({ r: 'x' })).toEqual(expect.objectContaining({ valid: true, errors: [] }))
+    const invalid = await adapter.validate({ r: 5 })
+    expect(invalid.valid).toBe(false)
+    expect(invalid.errors.map((e) => [e.instancePointer, e.keyword])).toEqual([['/r', 'type']])
+  })
+
   it.each(cases)('projects nothing from %s in %s', async (_label, _dialect, $schema, form) => {
     const p = await project({ $schema, type: 'object', properties: { p: { type: 'object', ...form } } }, {})
     expect(pointers(p)).toEqual(['', '/p'])

@@ -24,6 +24,9 @@ const isRecord = (value: unknown): value is Json =>
 
 const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
 
+type Position = readonly [escaped: string, raw: string]
+const below = ([escaped, raw]: Position, key: string): Position => [`${escaped}/${escape(key)}`, `${raw}/${key}`]
+
 function decode(fragment: string): string {
   try {
     return decodeURIComponent(fragment)
@@ -38,14 +41,24 @@ function copy(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, copy(child)]))
 }
 
-function referenceFragments(value: unknown, found: string[]): string[] {
-  if (Array.isArray(value)) for (const item of value) referenceFragments(item, found)
+const aliased = (pointer: string): string =>
+  pointer.split('/').map((segment) => (segment === 'definitions' ? '$defs' : segment)).join('/')
+
+function spellings(reference: string): string[] {
+  const trimmed = reference.replace(/#+$/, '')
+  const hash = trimmed.indexOf('#')
+  if (hash < 0 && !trimmed.startsWith('/')) return []
+  const fragment = hash < 0 ? trimmed : trimmed.slice(hash + 1)
+  const pointer = fragment === '' || fragment.startsWith('/') ? fragment : `/${fragment}`
+  return [pointer, decode(pointer)].map(aliased)
+}
+
+function referencePointers(value: unknown, found: string[]): string[] {
+  if (Array.isArray(value)) for (const item of value) referencePointers(item, found)
   else if (isRecord(value)) {
     for (const [key, child] of Object.entries(value)) {
-      if (REFERENCES.has(key) && typeof child === 'string' && child.includes('#')) {
-        found.push(decode(child.slice(child.indexOf('#') + 1)))
-      }
-      referenceFragments(child, found)
+      if (REFERENCES.has(key) && typeof child === 'string') found.push(...spellings(child))
+      referencePointers(child, found)
     }
   }
   return found
@@ -63,28 +76,28 @@ const unreachable = (schema: Json, keyword: string): boolean =>
 
 /** Keeps a branch the specification never evaluates when a reference or an identifier could reach it. */
 export function withoutUnreachableBranches(document: unknown): unknown {
-  const fragments = referenceFragments(document, [])
-  const reached = (pointer: string, bases: readonly string[]): boolean =>
+  const references = referencePointers(document, [])
+  const reached = ([escaped, raw]: Position, bases: readonly Position[]): boolean =>
     bases.some((base) => {
-      const relative = pointer.slice(base.length)
-      return fragments.some((fragment) => fragment === relative || fragment.startsWith(`${relative}/`))
+      const relative = [aliased(escaped.slice(base[0].length)), aliased(raw.slice(base[1].length))]
+      return references.some((reference) => relative.some((pointer) => reference === pointer || reference.startsWith(`${pointer}/`)))
     })
 
-  const schemaAt = (schema: unknown, pointer: string, bases: readonly string[]): unknown => {
+  const schemaAt = (schema: unknown, position: Position, bases: readonly Position[]): unknown => {
     if (!isRecord(schema)) return copy(schema)
-    const within = typeof schema.$id === 'string' && pointer !== '' ? [...bases, pointer] : bases
+    const within = typeof schema.$id === 'string' && position[0] !== '' ? [...bases, position] : bases
     const entries: [string, unknown][] = []
     for (const [key, value] of Object.entries(schema)) {
-      const at = `${pointer}/${escape(key)}`
+      const at = below(position, key)
       if (unreachable(schema, key) && !reached(at, within) && !declaresIdentifier(value)) continue
       if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) entries.push([key, schemaAt(value, at, within)])
-      else if (LIST.has(key) && Array.isArray(value)) entries.push([key, value.map((item, i) => schemaAt(item, `${at}/${i}`, within))])
+      else if (LIST.has(key) && Array.isArray(value)) entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within))])
       else if (MAP.has(key) && isRecord(value)) {
-        entries.push([key, Object.fromEntries(Object.entries(value).map(([name, member]) => [name, schemaAt(member, `${at}/${escape(name)}`, within)]))])
+        entries.push([key, Object.fromEntries(Object.entries(value).map(([name, member]) => [name, schemaAt(member, below(at, name), within)]))])
       } else entries.push([key, copy(value)])
     }
     return Object.fromEntries(entries)
   }
 
-  return schemaAt(document, '', [''])
+  return schemaAt(document, ['', ''], [['', '']])
 }
