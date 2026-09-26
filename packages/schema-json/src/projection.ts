@@ -16,6 +16,7 @@ import {
   followRef,
   itemDeclaring,
   locationInfo,
+  onlyPoints,
   positionOf,
   type ProjectionCache,
 } from './identity.js'
@@ -230,6 +231,7 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
       return { node: (raw ?? current) as SchemaNode, cycle: false }
     }
     current = next
+    if (!onlyPoints(current)) break
   }
   return { node: current, cycle: false }
 }

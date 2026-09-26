@@ -44,6 +44,12 @@ const NON_APPLYING = new Set([
   POSITION,
 ])
 
+// Draft 7 ignores a $ref's siblings, and the library copies the annotations to merge onto the target.
+export function onlyPoints(node: SchemaNode): boolean {
+  if (node.getDraftVersion() === 'draft-07') return true
+  return Object.keys(node.schema as object).every((keyword) => NON_APPLYING.has(keyword) || settings.PROPERTIES_TO_MERGE.includes(keyword))
+}
+
 function markerOf(node: SchemaNode): string | undefined {
   const schema = node.schema as unknown
   const marker =

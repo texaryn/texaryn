@@ -555,6 +555,25 @@ describe('the siblings of a draft-07 $ref', () => {
   })
 })
 
+describe('a reference chain through a site with keywords of its own', () => {
+  it.each(['https://json-schema.org/draft/2019-09/schema', 'https://json-schema.org/draft/2020-12/schema'])('projects the site as main does, in %s', async ($schema) => {
+    const p = await project({
+      $schema,
+      type: 'object',
+      required: ['userId'],
+      properties: { userId: { $ref: '#/$defs/id' }, name: S, choice: { $ref: '#/$defs/site' } },
+      $defs: {
+        id: { $ref: '#/$defs/nonEmpty', type: 'string', format: 'uuid', title: 'User id' },
+        site: { $ref: '#/$defs/nonEmpty', type: 'string', enum: ['a', 'b'] },
+        nonEmpty: { minLength: 1 },
+      },
+    }, {})
+    expect(p.diagnostics).toEqual([])
+    expect(p.nodes.get('/userId' as never)).toEqual({ type: 'string', format: 'uuid', constraints: {}, active: true, annotations: { title: 'User id' } })
+    expect(p.nodes.get('/choice' as never)).toEqual({ type: 'string', constraints: {}, enumValues: [{ value: 'a' }, { value: 'b' }], active: true, annotations: {} })
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {
