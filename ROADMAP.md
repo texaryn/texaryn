@@ -1181,10 +1181,10 @@ Schema. Its responsibilities:
 1. **$ref resolution.** Resolve all `$ref` pointers including recursive refs.
    Use `$anchor` and `$dynamicAnchor` from 2020-12. A recursive schema expands
    once past the data: below the last location that holds data, a path is cut
-   where it would apply the same schemas again, and the object where the
-   projection stopped carries a `recursion` boundary instead of a placeholder
-   node (ADR-007). Local `$defs`/`$ref` is in the MVP scope; remote `$ref` and
-   `$dynamicRef` are deferred.
+   where it would apply the same schemas again, and the past-the-data object
+   whose schemas would repeat carries a `recursion` boundary instead of a
+   placeholder node (ADR-007). Local `$defs`/`$ref` is in the MVP scope;
+   remote `$ref` and `$dynamicRef` are deferred.
 
 2. **Active schema projection.** Process `if`/`then`/`else`,
    `dependentSchemas`/`dependentRequired`, and the draft-07 `dependencies`

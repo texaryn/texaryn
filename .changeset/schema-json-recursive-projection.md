@@ -21,9 +21,14 @@ root fields that reference the root. The fix pins an internal of
 json-schema-library 11.6.2, so the dependency range is `~11.6.2`, and adapter
 creation fails with an error naming that release if the internal changes.
 
+A field behind a chain of `$ref`s, a reference to a definition that is itself a
+`$ref`, now projects, where it was dropped with an `unresolved-projection-shape`
+diagnostic. In Draft 7, the fields under nested `oneOf` wrappers around a `$ref`
+stay projected once they hold data, where the subtree disappeared.
+
 Fields declared only under a branch the specification never evaluates (a
 `then` or `else` without `if`, a `then` under `if: false`, an `else` under
-`if: true`) are not projected unless a `$ref` points into the branch. Validation
-runs on the schema as written, so an error only such a branch declares attaches
-to no field, and `validate` returns the same result before and after a
-projection.
+`if: true`) are not projected unless a `$ref` points into the branch or a schema
+inside it declares an `$id`, `$anchor` or `$dynamicAnchor`. Validation runs on
+the schema as written, so an error only such a branch declares attaches to no
+field, and `validate` returns the same result before and after a projection.

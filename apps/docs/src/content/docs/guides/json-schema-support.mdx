@@ -57,7 +57,8 @@ Projection has these limits:
   a branch picker.
 - Fields declared only under a branch the specification never evaluates (a
   `then` or `else` without `if`, a `then` under `if: false`, an `else` under
-  `if: true`) are not projected, unless a `$ref` points into that branch.
+  `if: true`) are not projected, unless a `$ref` points into that branch or a
+  schema inside it declares an `$id`, `$anchor` or `$dynamicAnchor`.
   Validation still runs on the schema as written, so an error that only such a
   branch declares attaches to no field.
 - Remote schema loading, `$recursiveRef` and `$dynamicRef` are outside the
@@ -91,9 +92,9 @@ Where the projection stops, the object node says why in
 `NodeProjection.boundaries`, which the compiler copies to
 `ContainerNode.boundaries`:
 
-- `recursion`: a member of this object would apply the same schemas as the
-  object itself, and the object is past the data. That member is not
-  projected and is not listed in `children`.
+- `recursion`: a descendant of this object would apply the same schemas as
+  the object itself, and the object is past the data. That descendant is not
+  projected and is not listed in its parent's `children`.
 - `budget`: the projection withheld some members of this object to stay
   within its limits. The limits cover only locations that exist because of
   the recursion, two or more levels below the nearest location that holds
