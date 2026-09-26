@@ -18,6 +18,7 @@ import {
   locationInfo,
   onlyPoints,
   positionOf,
+  type LocationInfo,
   type ProjectionCache,
 } from './identity.js'
 import { POSITION } from './schema-graph.js'
@@ -279,6 +280,7 @@ interface Lineage {
   readonly key: string
   readonly pointer: string
   readonly recursive: boolean
+  readonly depth: number
   readonly parent: Lineage | undefined
 }
 
@@ -289,7 +291,7 @@ interface RecursionContext {
   readonly removed: Set<string>
   readonly flagged: Set<string>
   readonly reserved: Set<string>
-  readonly queue: (() => void)[]
+  readonly queue: (() => void)[][]
   objectsUsed: number
   nodesUsed: number
 }
@@ -874,6 +876,9 @@ function computeRequiredSet(
   return required
 }
 
+// An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
+const budgeted = (info: LocationInfo): boolean => info.cyclic || info.key === ''
+
 /**
  * Walks the compiled schema statically (via node.properties/node.items plus every
  * conditional branch), only descending into array items that are actually present in
@@ -923,8 +928,7 @@ function walk(
     return
   }
   const pastData = member && (data === undefined || data === null)
-  // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
-  const recursive = pastData && ((lineage?.recursive ?? false) || info.cyclic || info.key === '')
+  const recursive = pastData && ((lineage?.recursive ?? false) || budgeted(info))
   for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
     if (info.key !== '' && ancestor.key === info.key) {
       addBoundary(ctx, ancestor.pointer, 'recursion')
@@ -1101,7 +1105,7 @@ function walk(
 
   if (!type) return
   const selfLineage: Lineage | undefined = pastData
-    ? { key: info.key, pointer, recursive, parent: lineage }
+    ? { key: info.key, pointer, recursive, depth: (lineage?.depth ?? 0) + 1, parent: lineage }
     : undefined
 
   // Reported at the location it is about, and after the shape gate above: a
@@ -1294,9 +1298,9 @@ function walk(
           true,
           selfLineage,
         )
-      // Below a location past the data every descendant is too, so deferring
-      // them admits the budget breadth first.
-      if (pastData) ctx.queue.push(enter)
+      // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
+      const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
+      if (counted) (ctx.queue[selfLineage.depth] ??= []).push(enter)
       else enter()
     }
     return
@@ -1387,7 +1391,7 @@ export function buildProjection(
     false,
     undefined,
   )
-  for (let next = 0; next < ctx.queue.length; next += 1) ctx.queue[next]!()
+  for (const level of ctx.queue) for (const enter of level ?? []) enter()
   for (const node of nodes.values()) {
     if (node.children?.some((child) => ctx.removed.has(child.pointer))) {
       ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(

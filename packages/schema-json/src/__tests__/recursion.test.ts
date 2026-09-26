@@ -431,6 +431,15 @@ describe('the budget', () => {
     expect(Object.keys(withBoundaries(p))).toEqual(expect.arrayContaining(['/p0/p1', '/p3', '/p4', '/p5']))
   })
 
+  it('admits by depth below the anchor past a chain without recursion', async () => {
+    const { properties, ...all } = kdistinct(4) as Record<string, unknown>
+    const nest = (depth: number): Record<string, unknown> => ({ type: 'object', properties: { n: depth === 1 ? { $ref: '#/$defs/d0' } : nest(depth - 1) } })
+    const p = await project({ ...all, properties: { a: nest(3), ...(properties as object) } }, {})
+    expect(p.nodes.size).toBe(44)
+    expect(pointers(p).filter((pointer) => pointer.startsWith('/a'))).toEqual(['/a', '/a/n', '/a/n/n'])
+    expect(withBoundaries(p)['/a/n/n']).toEqual(['budget'])
+  })
+
   it('bounds the draft-07 metaschema', async () => {
     const p = await project(metaNoId, {})
     expect(p.nodes.size).toBe(403)
@@ -616,6 +625,22 @@ describe('a member named after an Object.prototype property', () => {
   it.each(['constructor', 'toString'])('is past the data at {} like any other name: %s', async (key) => {
     const rename = (p: SchemaProjection) => JSON.stringify([pointers(p), withBoundaries(p), expanded(p)]).replaceAll(`/${key}`, '/child')
     expect(rename(await project(named(key), {}))).toEqual(rename(await project(named('child'), {})))
+  })
+})
+
+describe('a schema without recursion', () => {
+  it.each(['http://json-schema.org/draft-07/schema#', 'https://json-schema.org/draft/2020-12/schema'])('projects and initializes in main\'s order, in %s', async ($schema) => {
+    const schema = {
+      $schema,
+      type: 'object',
+      properties: {
+        a: { type: 'object', properties: { x: { type: 'object', properties: { y: { type: 'string', default: 'deep' } } }, z: { type: 'string', default: 'shallow' } } },
+        b: { type: 'object', properties: { c: { type: 'string', default: 'c' } } },
+      },
+    }
+    expect([...(await project(schema, {})).nodes.keys()]).toEqual(['', '/a', '/a/x', '/a/x/y', '/a/z', '/b', '/b/c'])
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    expect(JSON.stringify(runtime.data.getSnapshot())).toBe('{"a":{"x":{"y":"deep"},"z":"shallow"},"b":{"c":"c"}}')
   })
 })
 
