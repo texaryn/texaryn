@@ -92,6 +92,16 @@ describe('an identifier inside a branch the specification never evaluates', () =
   )
 })
 
+describe('a reference fragment that is not valid percent-encoding', () => {
+  it.each(['draft-07', '2020-12'] as const)('constructs and resolves it as written, as main does, in %s', async (dialect) => {
+    const adapter = await createJsonSchemaAdapter(
+      inDialect(dialect, { type: 'object', properties: { '50%off': { type: 'string' }, b: { $ref: '#/properties/50%off' } } }),
+    )
+    expect([...adapter.project({}).nodes.keys()]).toEqual(['', '/50%off', '/b'])
+    expect((await adapter.validate({})).valid).toBe(true)
+  })
+})
+
 describe('the error', () => {
   it('names every cycle it found', async () => {
     const error = await createJsonSchemaAdapter({ allOf: [{ $ref: '#' }] }).catch((e: unknown) => e)

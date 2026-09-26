@@ -168,6 +168,14 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
   return index
 }
 
+function decoded(fragment: string): string {
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return fragment
+  }
+}
+
 function resolveReference(reference: string, base: string, index: ResourceIndex, documents: Documents): string | undefined {
   const uri = resolveUri(reference, base)
   if (!uri) return undefined
@@ -177,7 +185,7 @@ function resolveReference(reference: string, base: string, index: ResourceIndex,
   if (resource === undefined) return undefined
   if (fragment === '') return resource
   if (fragment.startsWith('/')) {
-    const position = `${resource}${decodeURIComponent(fragment)}`
+    const position = `${resource}${decoded(fragment)}`
     return at(documents, position) === undefined ? undefined : position
   }
   return index.anchors.get(uri)
