@@ -119,6 +119,14 @@ const fixtures: readonly Fixture[] = [
     data: treeData,
   },
   {
+    id: 'defs-node-one-site-object',
+    schema: () => {
+      const site = R('node')
+      return { ...obj({ name: S, child: site }), $defs: { node: obj({ name: S, child: site }) } }
+    },
+    data: treeData,
+  },
+  {
     id: 'definitions-node',
     schema: () => ({
       ...obj({ name: S, child: { $ref: '#/definitions/node' } }),
@@ -503,6 +511,7 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
   'defs-node': treeLevels,
+  'defs-node-one-site-object': treeLevels,
   'definitions-node': treeLevels,
   'definitions-spaced-name': treeLevels,
   'null-child': treeLevels,

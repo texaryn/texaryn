@@ -319,6 +319,33 @@ describe('default sources', () => {
   })
 })
 
+describe('a schema whose reference sites are one object', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2019-09', 'https://json-schema.org/draft/2019-09/schema'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const containers = [
+    ['definitions', 'TreeNode', 'TreeNode'],
+    ['$defs', 'Tree/Node', 'Tree~1Node'],
+  ] as const
+
+  it.each(dialects.flatMap(([dialect, $schema]) => containers.map(([defs, name, spelled]) => [defs, name, dialect, $schema, spelled] as const)))(
+    'initializes a tree under %s %s, in %s',
+    async (defs, name, _dialect, $schema, spelled) => {
+      const site = { $ref: `#/${defs}/${spelled}` }
+      const named = { type: 'string', default: 'n' }
+      const schema = { $schema, type: 'object', properties: { name: named, child: site }, [defs]: { [name]: { type: 'object', properties: { name: named, child: site } } } }
+      const runtime = createFormRuntime(await createHyperjumpAdapter(schema), { initialization: 'schema-defaults' })
+      expect(runtime.data.getSnapshot()).toEqual({ name: 'n' })
+      expect(runtime.initialization.getSnapshot()).toEqual(expect.objectContaining({
+        outcome: 'initialized',
+        refusals: [{ location: '/child/name', reason: 'recursive-expansion' }],
+      }))
+    },
+  )
+})
+
 describe('initialization over a recursive schema', () => {
   it.each([
     ['a leaf beneath an absent recursive object', { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } }, $defs: { n: { type: 'object', properties: { name: { type: 'string', default: 'n' }, child: { $ref: '#/$defs/n' } } } } }, {}],
