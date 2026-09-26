@@ -695,6 +695,41 @@ const dialectCycles: readonly (readonly [Dialect, string, Record<string, unknown
     },
     [['#', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0']],
   ],
+  [
+    '2019-09',
+    '$recursiveRef to a $recursiveAnchor on an allOf member',
+    {
+      $id: 'https://x.test/root',
+      allOf: [{ $recursiveAnchor: true, allOf: [{ $ref: 'inner#/$defs/s' }] }],
+      $defs: { inner: { $id: 'https://x.test/inner', $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } } },
+    },
+    [['#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0', '#/allOf/0', '#/allOf/0/allOf/0']],
+  ],
+  [
+    '2019-09',
+    '$recursiveRef to a $recursiveAnchor under $defs',
+    {
+      $id: 'https://x.test/root',
+      allOf: [{ $ref: '#/$defs/a' }],
+      $defs: {
+        a: { $recursiveAnchor: true, allOf: [{ $ref: 'inner#/$defs/s' }] },
+        inner: { $id: 'https://x.test/inner', $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } },
+      },
+    },
+    [['#/$defs/a', '#/$defs/a/allOf/0', '#/$defs/inner/$defs/s', '#/$defs/inner/$defs/s/allOf/0']],
+  ],
+]
+
+const dialectAcyclic: readonly (readonly [Dialect, string, Record<string, unknown>])[] = [
+  [
+    '2019-09',
+    '$recursiveRef with no $recursiveAnchor to reach',
+    {
+      $id: 'https://x.test/root',
+      allOf: [{ allOf: [{ $ref: 'inner#/$defs/s' }] }],
+      $defs: { inner: { $id: 'https://x.test/inner', $defs: { s: { allOf: [{ $recursiveRef: '#' }] } } } },
+    },
+  ],
 ]
 
 const expectCycle = async (created: Promise<unknown>, positions: readonly (readonly string[])[]) => {
@@ -761,6 +796,11 @@ export function recursiveRefSuite(
 
     it.each(dialectCycles)('%s rejects a self-reference through its own %s', async (dialect, _keyword, schema, positions) => {
       await expectCycle(createAdapter(inDialect(dialect, schema)), positions)
+    })
+
+    it.each(dialectAcyclic)('%s constructs %s', async (dialect, _label, schema) => {
+      const port = await createAdapter(inDialect(dialect, schema))
+      expect((await port.validate({})).valid).toBe(true)
     })
   })
 }

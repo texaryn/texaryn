@@ -82,7 +82,7 @@ interface ResourceIndex {
   readonly resources: Map<string, string>
   readonly anchors: Map<string, string>
   readonly dynamicAnchors: Map<string, string[]>
-  readonly recursiveRoots: string[]
+  readonly recursiveAnchors: string[]
   readonly baseAt: Map<string, string>
 }
 
@@ -127,12 +127,11 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
 }
 
 function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
-  const index: ResourceIndex = { resources: new Map(), anchors: new Map(), dynamicAnchors: new Map(), recursiveRoots: [], baseAt: new Map() }
-  const visit = (position: string, parentBase: string, documentRoot: boolean): void => {
+  const index: ResourceIndex = { resources: new Map(), anchors: new Map(), dynamicAnchors: new Map(), recursiveAnchors: [], baseAt: new Map() }
+  const visit = (position: string, parentBase: string): void => {
     const schema = at(documents, position)
     if (!isRecord(schema)) return
     let base = parentBase
-    let resourceRoot = documentRoot
     const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
     if (!ignoresSiblings && typeof schema.$id === 'string') {
       if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
@@ -142,7 +141,6 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
         if (resolved) {
           base = withoutFragment(resolved)
           index.resources.set(base, position)
-          resourceRoot = true
         }
       }
     }
@@ -154,16 +152,16 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
         list.push(position)
         index.dynamicAnchors.set(schema.$dynamicAnchor, list)
       }
-      if (dialect === '2019-09' && resourceRoot && schema.$recursiveAnchor === true) index.recursiveRoots.push(position)
+      if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
     }
     index.baseAt.set(position, base)
-    for (const child of childSchemas(schema, position, dialect, true)) visit(child.position, base, false)
+    for (const child of childSchemas(schema, position, dialect, true)) visit(child.position, base)
   }
   index.resources.set(ANONYMOUS_BASE, '#')
-  visit('#', ANONYMOUS_BASE, true)
+  visit('#', ANONYMOUS_BASE)
   for (const prefix of documents.remote.keys()) {
     index.resources.set(prefix, `${prefix}#`)
-    visit(`${prefix}#`, prefix, true)
+    visit(`${prefix}#`, prefix)
   }
   return index
 }
@@ -210,7 +208,7 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
       list.push({ to: target, via: keyword, inPlace: true })
       // json-schema-library resolves $recursiveRef dynamically whatever its static target declares.
       if (keyword === '$recursiveRef') {
-        for (const root of index.recursiveRoots) if (root !== target) list.push({ to: root, via: keyword, inPlace: true })
+        for (const anchor of index.recursiveAnchors) if (anchor !== target) list.push({ to: anchor, via: keyword, inPlace: true })
       }
     }
     for (const child of childSchemas(schema, position, dialect, false)) list.push({ to: child.position, via: child.via, inPlace: child.inPlace })
