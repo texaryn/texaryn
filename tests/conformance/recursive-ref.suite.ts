@@ -72,6 +72,10 @@ const deadForms: readonly (readonly [string, Record<string, unknown>])[] = [
   ['dead-else-if-true', { if: true, else: { properties: { q: deep() } } }],
   ['dead-else-no-if', { else: { properties: { q: deep() } } }],
 ]
+const liveForms: readonly (readonly [string, Record<string, unknown>])[] = [
+  ['live-else-if-false', { if: false, then: { properties: { d: S } }, else: { properties: { q: deep() } } }],
+  ['live-then-if-true', { if: true, then: { properties: { q: deep() } }, else: { properties: { d: S } } }],
+]
 const twenty = (prefix: string) => Object.fromEntries(range(20).map((i) => [`${prefix}${i}`, obj({ s: S })]))
 const defaulted = (name: string, value: string) => obj({ [name]: { type: 'string', default: value } })
 const nestedLive = (then: Record<string, unknown>) => () =>
@@ -304,7 +308,7 @@ const fixtures: readonly Fixture[] = [
   { id: 'property-slash-reference', schema: propertyTree('a/b', 'a~1b'), data: [{}, { 'a/b': {} }, { 'a/b': { child: {} } }] },
   { id: 'wide-511', schema: wide(511), data: [{}] },
   { id: 'wide-512', schema: wide(512), data: [{}] },
-  ...deadForms.map(([id, form]) => ({ id, schema: () => obj({ p: { type: 'object', ...form } }), data: [{}, { p: {} }, { p: { q: {} } }] })),
+  ...[...deadForms, ...liveForms].map(([id, form]) => ({ id, schema: () => obj({ p: { type: 'object', ...form } }), data: [{}, { p: {} }, { p: { q: {} } }] })),
   {
     id: 'live-if-under-then-beside-then-no-if',
     schema: nestedLive({ q: defaulted('s', 'x') }),
@@ -360,6 +364,19 @@ const fixtures: readonly Fixture[] = [
         },
       }),
     data: [{}, { b: {} }, { b: { a: {} } }],
+  },
+  {
+    id: 'live-else-if-false-in-a-conditional-branch',
+    schema: () =>
+      obj({
+        b: {
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['k'] },
+          then: { properties: { a: { if: true, else: { properties: twenty('q') } } } },
+          else: { properties: { a: { if: false, else: { properties: { y: S } } } } },
+        },
+      }),
+    data: [{}, { b: { k: 1 } }, { b: { a: {} } }],
   },
   { id: 'dead-then-wider-than-a-live-then', schema: redeclared({ then: { properties: { t: S, u: S } } }, liveWhen('then', { t: S })), data: pairData },
   {
@@ -465,9 +482,11 @@ const chainLevel: Expected = {
 }
 
 const deadLevel: Expected = { pointers: ['', '/p'], boundaries: {}, expansion: [] }
+const liveLevel: Expected = { pointers: ['', '/p', '/p/q', '/p/q/r', '/p/q/r/s', '/p/q/r/s/t'], boundaries: {}, expansion: [] }
 
 const exact: Readonly<Record<string, readonly Expected[]>> = {
   ...Object.fromEntries(deadForms.map(([id]) => [id, [deadLevel, deadLevel, deadLevel]])),
+  ...Object.fromEntries(liveForms.map(([id]) => [id, [liveLevel, liveLevel, liveLevel]])),
   'tree-no-id': treeLevels,
   'tree-with-id': treeLevels,
   'defs-node': treeLevels,
@@ -864,11 +883,36 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
           ['dead-else-wider-than-a-live-else', 0, ['/a/b', '/a/b/t']],
           ['dead-then-narrower-than-a-live-then', 0, ['/a/b']],
           ['dead-if-false-then-wider-than-a-live-then', 0, ['/a/b']],
+          ['live-else-if-false-in-a-conditional-branch', 0, ['/b/a/y']],
         ] as const
       ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
     ),
   ),
 }
+
+/**
+ * Pre-existing pointer differences, by case: `a` lists what only the first adapter projects, `b`
+ * what only the second does. Main's schema-json projects no field of an inactive branch below a
+ * location another declaration already declares, where hyperjump projects it inactive.
+ */
+const KNOWN_POINTER_DIFFERENCES: Readonly<Record<string, { a?: readonly string[]; b?: readonly string[] }>> = Object.fromEntries(
+  PROJECTED.flatMap((dialect) =>
+    (
+      [
+        ['dead-else-in-a-merged-branch', 0, { b: ['/b/a/y'] }],
+        ['dead-else-in-a-merged-branch', 1, { b: ['/b/a/y'] }],
+        ['dead-else-in-a-merged-branch', 2, { b: ['/b/a/y'] }],
+        ['live-else-if-false-in-a-conditional-branch', 1, { b: ['/b/a/y'] }],
+      ] as const
+    ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
+  ),
+)
+
+const without = (summary: ReturnType<typeof summarize>, pointers: readonly string[]) => ({
+  pointers: summary.pointers.filter((pointer) => !pointers.includes(pointer)),
+  boundaries: Object.fromEntries(Object.entries(summary.boundaries).filter(([pointer]) => !pointers.includes(pointer))),
+  expansion: summary.expansion.filter((pointer) => !pointers.includes(pointer)),
+})
 
 /** Adapter choice must not change what a recursive form shows. */
 export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFactory): void {
@@ -878,7 +922,14 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
       const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
       const [pa, pb] = [a.project(structuredClone(data)), b.project(structuredClone(data))]
       // hyperjump follows only `#`-local references, as on main.
-      if (!fixture.nonLocal) expect(summarize(pb)).toEqual(summarize(pa))
+      if (!fixture.nonLocal) {
+        const [sa, sb] = [summarize(pa), summarize(pb)]
+        const known = KNOWN_POINTER_DIFFERENCES[`${fixture.id} ${dialect} ${depth}`] ?? {}
+        expect(sa.pointers.filter((pointer) => !sb.pointers.includes(pointer))).toEqual(known.a ?? [])
+        expect(sb.pointers.filter((pointer) => !sa.pointers.includes(pointer))).toEqual(known.b ?? [])
+        const differing = [...(known.a ?? []), ...(known.b ?? [])]
+        expect(without(sb, differing)).toEqual(without(sa, differing))
+      }
       const differing = [...pa.nodes]
         .filter(([pointer, node]) => pb.nodes.has(pointer) && pb.nodes.get(pointer)!.active !== node.active)
         .map(([pointer]) => pointer)

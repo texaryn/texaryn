@@ -516,6 +516,12 @@ function resolveRef(
  */
 export type BranchChecker = (schemaPointer: string, instancePointer: string, suffix: string) => boolean
 
+export function liveBranch(schema: Record<string, unknown>): 'then' | 'else' | undefined {
+  if (typeof schema.if !== 'boolean') return undefined
+  const keyword = schema.if ? 'then' : 'else'
+  return isRecord(schema[keyword]) ? keyword : undefined
+}
+
 /**
  * Walks the raw schema document statically (no data evaluation) to backfill
  * declared-but-currently-unfilled fields: optional properties nobody has typed
@@ -683,6 +689,24 @@ export function staticWalk(
         lineage,
       )
     })
+  }
+  const live = liveBranch(schema)
+  if (live !== undefined) {
+    staticWalk(
+      schema[live],
+      data,
+      pointer,
+      `${schemaPointer}/${live}`,
+      active,
+      provisional,
+      isBranchActive,
+      nodes,
+      visited,
+      rootSchema,
+      recursion,
+      declaring,
+      lineage,
+    )
   }
 
   // Dynamic branches (if/then/else, oneOf, anyOf, dependentSchemas, dependencies)

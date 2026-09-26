@@ -213,6 +213,60 @@ describe('percent-encoded references', () => {
   })
 })
 
+describe('a branch under a boolean if', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const forms = [
+    ['the else under if: false', false, 'else', 'then'],
+    ['the then under if: true', true, 'then', 'else'],
+  ] as const
+
+  it.each(dialects.flatMap(([dialect, $schema]) => forms.map(([label, condition, live, dead]) => [label, dialect, $schema, condition, live, dead] as const)))(
+    'projects %s with its default and skips the other branch, in %s',
+    async (_label, _dialect, $schema, condition, live, dead) => {
+      const schema = {
+        $schema,
+        type: 'object',
+        properties: {
+          p: { type: 'object', if: condition, [live]: { properties: { y: { type: 'string', default: 'v' } } }, [dead]: { properties: { d: S } } },
+        },
+      }
+      for (const data of [{}, { p: {} }, { p: { y: 'w' } }]) {
+        const p = await project(schema, data)
+        expect(pointers(p)).toEqual(['', '/p', '/p/y'])
+        expect(p.nodes.get('/p/y' as never)).toMatchObject({
+          active: true,
+          annotations: { default: 'v' },
+          defaultSources: [`/properties/p/${live}/properties/y`],
+        })
+      }
+    },
+  )
+
+  it.each(dialects)('walks the live else under if: false inside a conditional branch, in %s', async (_dialect, $schema) => {
+    const twenty = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, { type: 'object', properties: { s: S } }]))
+    const schema = {
+      $schema,
+      type: 'object',
+      properties: {
+        b: {
+          type: 'object',
+          properties: { a: { type: 'object' } },
+          if: { required: ['k'] },
+          then: { properties: { a: { if: true, else: { properties: twenty } } } },
+          else: { properties: { a: { if: false, else: { properties: { y: S } } } } },
+        },
+      },
+    }
+    const outline = (p: SchemaProjection) => pointers(p).map((key) => `${key}${p.nodes.get(key)!.active ? '' : '(i)'}`)
+    expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
+    expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
+    expect(outline(await project(schema, { b: { a: {} } }))).toEqual(['', '/b', '/b/a', '/b/a/y'])
+  })
+})
+
 describe('default sources', () => {
   it('names items as the source for a row past prefixItems', async () => {
     const p = await project(on2020({

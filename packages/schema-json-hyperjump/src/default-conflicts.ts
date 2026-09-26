@@ -1,5 +1,5 @@
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
-import { deepEqual, selectProvisionalBranch } from './static-walk.js'
+import { deepEqual, liveBranch, selectProvisionalBranch } from './static-walk.js'
 import type { BranchChecker } from './static-walk.js'
 
 /** One `default` declaration, and the schema position that makes it. */
@@ -116,6 +116,8 @@ export function collectDefaultConflicts(
           visit(schema.else, current, pointer, `${schemaPointer}/else`, visited)
         }
       }
+      const live = liveBranch(schema)
+      if (live !== undefined) visit(schema[live], current, pointer, `${schemaPointer}/${live}`, visited)
 
       if (Array.isArray(schema.oneOf)) {
         const branches = schema.oneOf as unknown[]
