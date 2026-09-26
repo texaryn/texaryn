@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted, for issue #119. Both JSON Schema adapters, `@texaryn/schema-json` and the private `@texaryn/schema-json-hyperjump`, project, validate and initialize every local recursive schema in bounded work, and reject at creation a schema that applies itself at one instance location. The published surface is `ProjectionBoundary`, `NodeProjection.boundaries`, `NodeProjection.recursiveExpansion`, `NodeProjection.defaultSources`, `ContainerNode.boundaries`, the refusal reasons `recursive-expansion` and `recursive-default`, and `objectChildKey` in `@texaryn/core`, and `SameLocationCycleError` in `@texaryn/schema-json`.
+Accepted, for issue #119. Both JSON Schema adapters, `@texaryn/schema-json` and the private `@texaryn/schema-json-hyperjump`, project, validate and initialize every local recursive schema in bounded work, and reject at creation a schema that applies itself at one instance location. The published surface in `@texaryn/core` is `ProjectionBoundary`, `NodeProjection.boundaries`, `NodeProjection.recursiveExpansion`, `NodeProjection.defaultSources`, `ContainerNode.boundaries`, the refusal reasons `recursive-expansion` and `recursive-default`, and `objectChildKey`; in `@texaryn/schema-json` it is `SameLocationCycleError`.
 
 ## Context
 
