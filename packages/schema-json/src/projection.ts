@@ -19,6 +19,7 @@ import {
   positionOf,
   type ProjectionCache,
 } from './identity.js'
+import { POSITION } from './schema-graph.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
   'string',
@@ -817,7 +818,7 @@ function branchAccepts(branch: SchemaNode, key: string, value: unknown): boolean
   return true
 }
 
-export function deepEqual(a: unknown, b: unknown): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (Array.isArray(a) && Array.isArray(b)) {
     return a.length === b.length && a.every((item, index) => deepEqual(item, b[index]))
@@ -1045,7 +1046,7 @@ function walk(
    * That schema is genuinely unprojectable and has to be reported.
    */
   const isTransientBranchMiss = (): boolean =>
-    Object.keys(schema).length === 0 && compositionHasRenderableAlternative(original)
+    Object.keys(schema).every((keyword) => keyword === POSITION) && compositionHasRenderableAlternative(original)
 
   // Last resort, after the oneOf/anyOf branch above has had its chance: that
   // path handles a typeless wrapper whose type only exists once a branch is

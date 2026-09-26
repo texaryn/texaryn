@@ -37,6 +37,15 @@ interface Documents {
   readonly remote: Map<string, unknown>
 }
 
+function documentsOf(document: unknown, remotes: readonly unknown[]): Documents {
+  const documents: Documents = { local: document, remote: new Map() }
+  for (const remote of remotes) {
+    const id = isRecord(remote) && typeof remote.$id === 'string' ? withoutFragment(remote.$id) : undefined
+    if (id) documents.remote.set(id, remote)
+  }
+  return documents
+}
+
 // A position is "#/pointer" in the schema itself and "uri#/pointer" in a remote document.
 function split(position: string): { prefix: string; pointer: string } {
   const hash = position.indexOf('#')
@@ -175,11 +184,7 @@ function resolveReference(reference: string, base: string, index: ResourceIndex,
 }
 
 export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: readonly unknown[] = []): SchemaGraph {
-  const documents: Documents = { local: document, remote: new Map() }
-  for (const remote of remotes) {
-    const id = isRecord(remote) && typeof remote.$id === 'string' ? withoutFragment(remote.$id) : undefined
-    if (id) documents.remote.set(id, remote)
-  }
+  const documents = documentsOf(document, remotes)
   const index = indexResources(documents, dialect)
   const edges = new Map<string, Edge[]>()
   const reachable = new Set<string>()
@@ -213,6 +218,46 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
   }
   visit('#')
   return { edges, reachable }
+}
+
+export const POSITION = 'x-texaryn-position'
+
+const INSTANCE_DATA = ['const', 'default', 'enum', 'examples'] as const
+const MAPS = ['properties', 'patternProperties', 'dependencies', 'dependentSchemas', ...CONTAINERS] as const
+
+const copy = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(copy)
+  if (!isRecord(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return value
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, copy(child)]))
+}
+
+export interface MarkedDocuments {
+  readonly document: unknown
+  readonly remotes: readonly unknown[]
+  readonly at: (position: string) => unknown
+}
+
+/** Copies of the documents in which every reachable schema object names its own graph position under `POSITION`. */
+export function markPositions(graph: SchemaGraph, document: unknown, remotes: readonly unknown[] = []): MarkedDocuments {
+  const copies = remotes.map(copy)
+  const documents = documentsOf(copy(document), copies)
+  const schemas = [...graph.reachable].flatMap((position) => {
+    const schema = at(documents, position)
+    return isRecord(schema) ? [[position, schema] as const] : []
+  })
+  // A reference can point into instance data or at a map of subschemas, which a marker would change.
+  const held = new Set<unknown>()
+  const hold = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null || held.has(value)) return
+    held.add(value)
+    for (const child of Object.values(value)) hold(child)
+  }
+  for (const [, schema] of schemas) {
+    for (const keyword of INSTANCE_DATA) hold(schema[keyword])
+    for (const keyword of MAPS) if (isRecord(schema[keyword])) held.add(schema[keyword])
+  }
+  for (const [position, schema] of schemas) if (!held.has(schema)) schema[POSITION] = position
+  return { document: documents.local, remotes: copies, at: (position) => at(documents, position) }
 }
 
 function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean): string[][] {

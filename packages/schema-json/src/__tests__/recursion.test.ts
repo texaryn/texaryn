@@ -578,6 +578,108 @@ describe('a definitions name the library percent-encodes', () => {
   )
 })
 
+describe('a reference spelled otherwise than the name it reaches', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
+  const shape = (p: SchemaProjection) => ({ pointers: pointers(p), boundaries: withBoundaries(p), expansion: expanded(p) })
+  const parens = (name: string) => encodeURIComponent(name).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
+  const escaped = (name: string) => name.replace(/~/g, '~0').replace(/\//g, '~1')
+  const initialize = async (schema: Record<string, unknown>) => {
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    const report = runtime.initialization.getSnapshot()
+    return {
+      data: runtime.data.getSnapshot(),
+      outcome: report?.outcome,
+      refusals: report?.outcome === 'initialized' ? report.refusals.map(({ location, reason }) => [location, reason]) : [],
+    }
+  }
+  const named = ($schema: string, keyword: string, name: string, ref: string) => ({
+    $schema,
+    ...obj({ child: { $ref: ref } }),
+    [keyword]: { [name]: obj({ name: { type: 'string', default: 'n' }, child: { $ref: ref } }) },
+  })
+  const allToAll = ($schema: string, name: (i: number) => string, target: (name: string) => string) => {
+    const refs = () => Object.fromEntries([0, 1, 2, 3].map((j) => [`p${j}`, { $ref: target(name(j)) }]))
+    const members = Object.fromEntries([0, 1, 2, 3].map((i) => [name(i), obj({ [`v${i}`]: S, ...refs() })]))
+    return target('').startsWith('#/definitions/H/') ? { $schema, ...obj(refs()), definitions: { H: obj(members) } } : { $schema, ...obj(refs()), $defs: members }
+  }
+
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    ['Item (v2)', `#/$defs/${parens('Item (v2)')}`],
+    ['Größe', '#/$defs/Gr%c3%b6%c3%9fe'],
+    ['Tree/Node', '#/$defs/Tree~1Node'],
+    ['Tree~Node', '#/$defs/Tree~0Node'],
+  ].map(([name, ref]) => [name, ref, dialect, $schema] as const)))('initializes a tree under the $defs name %j referenced as %s, in %s', async (name, ref, _dialect, $schema) => {
+    const schema = named($schema, '$defs', name, ref)
+    expect(await initialize(schema)).toEqual({ data: {}, outcome: 'initialized', refusals: [['/child/name', 'recursive-expansion']] })
+    expect(shape(await project(schema, {}))).toEqual(shape(await project(named($schema, '$defs', 'TreeNode', '#/$defs/TreeNode'), {})))
+  })
+
+  it.each(dialects)('initializes a tree held as a property of a definition, in %s', async (_dialect, $schema) => {
+    const ref = { $ref: '#/definitions/H/properties/Tree%20Node' }
+    const schema = { $schema, ...obj({ child: ref }), definitions: { H: obj({ 'Tree Node': obj({ name: { type: 'string', default: 'n' }, child: ref }) }) } }
+    expect(await initialize(schema)).toEqual({ data: {}, outcome: 'initialized', refusals: [['/child/name', 'recursive-expansion']] })
+  })
+
+  it.each(dialects.flatMap(([dialect, $schema]) => ([
+    ['$defs names d(i) referenced as %28 and %29', (i: number) => `d(${i})`, (name: string) => `#/$defs/${parens(name)}`],
+    ['$defs names d/i', (i: number) => `d/${i}`, (name: string) => `#/$defs/${escaped(name)}`],
+    ['$defs names d~i', (i: number) => `d~${i}`, (name: string) => `#/$defs/${escaped(name)}`],
+    ['hubs held as properties of a definition', (i: number) => `d ${i}`, (name: string) => `#/definitions/H/properties/${encodeURIComponent(name)}`],
+  ] as const).map(([label, name, target]) => [label, dialect, $schema, name, target] as const)))(
+    'budgets an all-to-all recursion over %s as over plain names, in %s',
+    async (_label, _dialect, $schema, name, target) => {
+      const p = await project(allToAll($schema, name, target), {})
+      expect(p.nodes.size).toBe(41)
+      expect(flagged(p)).toBe(36)
+      expect(Object.values(withBoundaries(p)).filter((reasons) => reasons?.includes('budget'))).toHaveLength(14)
+      expect(shape(p)).toEqual(shape(await project(allToAll($schema, (i) => `d${i}`, (plain) => `#/$defs/${plain}`), {})))
+    },
+  )
+
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    ['a b', 'a%20b'],
+    ['a/b', 'a~1b'],
+  ].map(([name, spelled]) => [name, spelled, dialect, $schema] as const)))('finds the repeat of the property %j referenced as #/properties/%s at its own level, in %s', async (name, spelled, _dialect, $schema) => {
+    const schema = { $schema, type: 'object', properties: { [name]: obj({ name: { type: 'string', default: 'n' }, child: { $ref: `#/properties/${spelled}` } }) } }
+    const at = `/${escaped(name)}`
+    expect(shape(await project(schema, {}))).toEqual({ pointers: ['', at, `${at}/name`], boundaries: { [at]: ['recursion'] }, expansion: [`${at}/name`] })
+    expect(await initialize(schema)).toEqual({ data: {}, outcome: 'initialized', refusals: [[`${at}/name`, 'recursive-expansion']] })
+  })
+
+  it.each(dialects.flatMap(([dialect, $schema]) => [{ then: true }, { then: false }, { if: true, then: {} }].map((branch) => [branch, dialect, $schema] as const)))(
+    'places the boolean in %j of a definition a root reference reaches under that definition, in %s',
+    async (branch, _dialect, $schema) => {
+      const p = await project({ $schema, $ref: '#/definitions/D', definitions: { D: { ...obj({ v: S }), if: { required: ['v'] }, ...branch } } }, {})
+      expect(pointers(p)).toEqual(['', '/v'])
+      expect(p.diagnostics).toEqual([])
+    },
+  )
+})
+
+describe('the marked copy', () => {
+  it('leaves instance data a reference points into as written', async () => {
+    const a = { type: 'string', examples: [S], default: S, enum: [S] }
+    const refs = { b: { $ref: '#/properties/a/examples/0' }, c: { $ref: '#/properties/a/default' }, d: { $ref: '#/properties/a/enum/0' } }
+    const node = (await project(on2020({ type: 'object', properties: { a, ...refs } }), {})).nodes.get('/a' as never)
+    expect(node?.annotations).toEqual({ examples: [S], default: S })
+    expect(node?.enumValues).toEqual([{ value: S }])
+  })
+
+  it('adds no member to a map a reference points at', async () => {
+    const p = await project(on2020({ type: 'object', properties: { a: S }, allOf: [{ $ref: '#/properties' }] }), {})
+    expect(p.nodes.get('' as never)?.children?.map((child) => child.key)).toEqual(['a'])
+  })
+
+  it('leaves the shared metaschema documents unmarked', async () => {
+    await project({ $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: { s: { $ref: 'http://json-schema.org/draft-07/schema#' } } }, {})
+    expect(JSON.stringify(metaschemas)).not.toContain('x-texaryn-position')
+  })
+})
+
 describe('reduction repairs', () => {
   it('follows an acyclic reference chain without a diagnostic', async () => {
     const p = await project(on2020({

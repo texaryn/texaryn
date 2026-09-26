@@ -42,6 +42,21 @@ const kdistinct = (k: number) => {
     $defs: Object.fromEntries(range(k).map((i) => [`d${i}`, obj({ [`v${i}`]: S, ...refs() })])),
   }
 }
+const escaped = (name: string) => name.replace(/~/g, '~0').replace(/\//g, '~1')
+const parens = (name: string) => encodeURIComponent(name).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
+const kspelled = (name: (i: number) => string, spell: (name: string) => string) => () => {
+  const refs = () => Object.fromEntries(range(6).map((j) => [`p${j}`, { $ref: `#/$defs/${spell(name(j))}` }]))
+  return { ...obj(refs()), $defs: Object.fromEntries(range(6).map((i) => [name(i), obj({ [`v${i}`]: S, ...refs() })])) }
+}
+const khubs = () => {
+  const refs = () => Object.fromEntries(range(6).map((j) => [`p${j}`, { $ref: `#/definitions/H/properties/d%20${j}` }]))
+  return { ...obj(refs()), definitions: { H: obj(Object.fromEntries(range(6).map((i) => [`d ${i}`, obj({ [`v${i}`]: S, ...refs() })]))) } }
+}
+const namedTree = (name: string, ref: string) => () => ({
+  ...obj({ name: S, child: { $ref: ref } }),
+  $defs: { [name]: obj({ name: S, child: { $ref: ref } }) },
+})
+const propertyTree = (name: string, spelled: string) => () => obj({ [name]: obj({ name: S, child: { $ref: `#/properties/${spelled}` } }) })
 const wide = (leaves: number) => () => ({
   ...obj({ a: R('A') }),
   $defs: {
@@ -278,6 +293,15 @@ const fixtures: readonly Fixture[] = [
     data: treeData,
   },
   { id: 'kdistinct-6', schema: () => kdistinct(6), data: [{}] },
+  { id: 'kdistinct-6-encoded-names', schema: kspelled((i) => `d(${i})`, parens), data: [{}] },
+  { id: 'kdistinct-6-slash-names', schema: kspelled((i) => `d/${i}`, escaped), data: [{}] },
+  { id: 'kdistinct-6-tilde-names', schema: kspelled((i) => `d~${i}`, escaped), data: [{}] },
+  { id: 'kdistinct-6-hub-properties', schema: khubs, data: [{}] },
+  { id: 'defs-encoded-reference', schema: namedTree('Item (v2)', `#/$defs/${parens('Item (v2)')}`), data: treeData },
+  { id: 'defs-slash-name', schema: namedTree('Tree/Node', '#/$defs/Tree~1Node'), data: treeData },
+  { id: 'defs-tilde-name', schema: namedTree('Tree~Node', '#/$defs/Tree~0Node'), data: treeData },
+  { id: 'property-encoded-reference', schema: propertyTree('a b', 'a%20b'), data: [{}, { 'a b': {} }, { 'a b': { child: {} } }] },
+  { id: 'property-slash-reference', schema: propertyTree('a/b', 'a~1b'), data: [{}, { 'a/b': {} }, { 'a/b': { child: {} } }] },
   { id: 'wide-511', schema: wide(511), data: [{}] },
   { id: 'wide-512', schema: wide(512), data: [{}] },
   ...deadForms.map(([id, form]) => ({ id, schema: () => obj({ p: { type: 'object', ...form } }), data: [{}, { p: {} }, { p: { q: {} } }] })),
@@ -414,6 +438,14 @@ const k6: Expected = (() => {
 const wideLeaves = range(511).map((i) => `/a/b/s${i}`)
 
 const pairLevels = treeLevels.map((level) => ({ ...level, pointers: level.pointers.filter((p) => p !== '/name') }))
+const underProperty = (segment: string): readonly Expected[] => {
+  const move = (pointer: string) => pointer.replace(/^\/child/, `/${segment}`)
+  return pairLevels.map((level) => ({
+    pointers: level.pointers.map(move),
+    boundaries: Object.fromEntries(Object.entries(level.boundaries).map(([pointer, reasons]) => [move(pointer), reasons])),
+    expansion: level.expansion.map(move),
+  }))
+}
 const titleLevels: readonly Expected[] = [
   {
     pointers: ['', '/child', '/child/child', '/child/child/name', '/child/name'],
@@ -482,6 +514,15 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
     },
   ],
   'kdistinct-6': [k6],
+  'kdistinct-6-encoded-names': [k6],
+  'kdistinct-6-slash-names': [k6],
+  'kdistinct-6-tilde-names': [k6],
+  'kdistinct-6-hub-properties': [k6],
+  'defs-encoded-reference': treeLevels,
+  'defs-slash-name': treeLevels,
+  'defs-tilde-name': treeLevels,
+  'property-encoded-reference': underProperty('a b'),
+  'property-slash-reference': underProperty('a~1b'),
   'wide-511': [
     {
       pointers: ['', '/a', '/a/b', ...wideLeaves].sort(),

@@ -1,5 +1,6 @@
 import { isSchemaNode, settings, type SchemaNode } from 'json-schema-library'
 import type { Dialect } from './dialect.js'
+import { POSITION } from './schema-graph.js'
 
 export interface LocationInfo {
   readonly key: string
@@ -13,14 +14,18 @@ export interface LocationInfo {
 
 export interface ProjectionCache {
   readonly dialect: Dialect
-  readonly base: string
+  readonly schemaAt: (position: string) => unknown
   readonly closure: Map<string, readonly string[]>
   readonly info: Map<string, LocationInfo>
   readonly cyclic: ReadonlySet<string>
 }
 
-export function newProjectionCache(dialect: Dialect, cyclic: ReadonlySet<string>, base: string): ProjectionCache {
-  return { dialect, base, closure: new Map(), info: new Map(), cyclic }
+export function newProjectionCache(
+  dialect: Dialect,
+  cyclic: ReadonlySet<string>,
+  schemaAt: (position: string) => unknown,
+): ProjectionCache {
+  return { dialect, schemaAt, closure: new Map(), info: new Map(), cyclic }
 }
 
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
@@ -35,54 +40,31 @@ const NON_APPLYING = new Set([
   '$comment',
   '$defs',
   'definitions',
+  POSITION,
 ])
 
-function rootBaseOf(node: SchemaNode): string {
-  const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
-  const rootId = root?.$id
-  return typeof rootId === 'string' && rootId !== '#' && rootId !== '' ? rootId.replace(/#.*$/, '') : ''
+function markerOf(node: SchemaNode): string | undefined {
+  const schema = node.schema as unknown
+  const marker = typeof schema === 'object' && schema !== null ? (schema as Record<string, unknown>)[POSITION] : undefined
+  return typeof marker === 'string' ? marker : undefined
 }
 
-const locations = new WeakMap<SchemaNode, string>()
-
-// json-schema-library gives if, then and else inside a referenced definition one shared
-// schemaLocation, so a branch and everything under it are placed from the parent instead.
-function locationOf(node: SchemaNode): string {
-  const known = locations.get(node)
-  if (known !== undefined) return known
-  const own = (node as { schemaLocation?: unknown }).schemaLocation
-  let location = typeof own === 'string' ? own : '#?'
+// A boolean carries no marker, nor does an if, then or else json-schema-library parses beside a draft-07 $ref.
+function unmarkedPosition(node: SchemaNode): string {
+  const own = typeof node.schemaLocation === 'string' ? node.schemaLocation : '#'
   const parent = node.parent
-  if (parent && parent !== node && typeof own === 'string') {
-    const branch = IN_PLACE_BRANCHES.find((keyword) => parent[keyword] === node)
-    const parentOwn = parent.schemaLocation
-    if (branch) location = `${locationOf(parent)}/${branch}`
-    else if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {
-      location = `${locationOf(parent)}${own.slice(parentOwn.length)}`
-    }
+  if (!parent || parent === node) return own
+  const branch = IN_PLACE_BRANCHES.find((keyword) => parent[keyword] === node)
+  if (branch) return `${positionOf(parent)}/${branch}`
+  const parentOwn = parent.schemaLocation
+  if (typeof parentOwn === 'string' && (own === parentOwn || own.startsWith(`${parentOwn}/`))) {
+    return `${positionOf(parent)}${own.slice(parentOwn.length)}`
   }
-  locations.set(node, location)
-  return location
+  return own
 }
 
 export function positionOf(node: SchemaNode): string {
-  return `${rootBaseOf(node)}${locationOf(node)}`
-}
-
-function decodeSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment)
-  } catch {
-    return segment
-  }
-}
-
-// json-schema-library percent-encodes a `definitions` name in the locations it builds, and no other segment.
-function asGraphPosition(position: string): string {
-  const hash = position.indexOf('#')
-  if (hash < 0) return position
-  const segments = position.slice(hash).split('/')
-  return position.slice(0, hash) + segments.map((segment, i) => (segments[i - 1] === 'definitions' ? decodeSegment(segment) : segment)).join('/')
+  return markerOf(node) ?? unmarkedPosition(node)
 }
 
 // resolveRef() compiles a fresh copy of the target on every call; one copy per
@@ -127,18 +109,9 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
 
 // Read from the document rather than the node: a node reached through `$ref`
 // carries the referring site's merged annotations.
-function authoredSchema(node: SchemaNode): unknown {
-  const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
-  const location = (node as { schemaLocation?: unknown }).schemaLocation
-  if (root && typeof location === 'string' && location.startsWith('#')) {
-    let current: unknown = root.schema
-    for (const raw of location === '#' ? [] : asGraphPosition(location).slice(2).split('/')) {
-      const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
-      current = typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined
-    }
-    if (current !== undefined) return current
-  }
-  return node.schema
+function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknown {
+  const marker = markerOf(node)
+  return (marker === undefined ? undefined : cache.schemaAt(marker)) ?? node.schema
 }
 
 function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>): readonly string[] {
@@ -153,7 +126,7 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   }
   if (typeof node.$ref === 'string') {
     if (cache.dialect !== 'draft-07') {
-      const raw = authoredSchema(node)
+      const raw = authoredSchema(node, cache)
       if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
         out.add(position)
       }
@@ -209,7 +182,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       const target = followRef(node)
       if (target) visitAll(target, stack, dead)
     }
-    const raw = authoredSchema(node) as Record<string, unknown> | undefined
+    const raw = authoredSchema(node, cache) as Record<string, unknown> | undefined
     const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
     for (const keyword of IN_PLACE_BRANCHES) {
       const branch = node[keyword] as SchemaNode | undefined
@@ -228,12 +201,10 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   }
   for (const node of declaring) visitAll(node, new Set())
 
-  const documentPointer = (position: string): string =>
-    asGraphPosition(position.startsWith(`${cache.base}#`) ? position.slice(cache.base.length) : position)
   const info: LocationInfo = {
     key: [...identity].sort().join('\n'),
     cycle,
-    cyclic: [...identity].some((position) => cache.cyclic.has(documentPointer(position))),
+    cyclic: [...identity].some((position) => cache.cyclic.has(position)),
     expanded,
     dead: deadNodes,
     children: new Map(),

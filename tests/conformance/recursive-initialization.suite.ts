@@ -82,6 +82,13 @@ const spacedName = {
   properties: { child: { $ref: '#/definitions/Tree%20Node' } },
   definitions: { 'Tree Node': node({ $ref: '#/definitions/Tree%20Node' }) },
 }
+const defsNamed = (name: string, ref: string) => ({ type: 'object', properties: { child: { $ref: ref } }, $defs: { [name]: node({ $ref: ref }) } })
+const hubTree = {
+  type: 'object',
+  properties: { child: { $ref: '#/definitions/H/properties/Tree%20Node' } },
+  definitions: { H: { type: 'object', properties: { 'Tree Node': node({ $ref: '#/definitions/H/properties/Tree%20Node' }) } } },
+}
+const propertyTree = (name: string, spelled: string) => ({ type: 'object', properties: { [name]: node({ $ref: `#/properties/${spelled}` }) } })
 
 const expansion = (location: string): Refusal => ({ location, reason: 'recursive-expansion' })
 const repeat = (location: string): Refusal => ({ location, reason: 'recursive-default' })
@@ -187,6 +194,22 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
           ...range(16).map((k) => expansion(`/p0/p${k + 1}/v${k + 1}`)),
         ],
       })
+      expectRun('a leaf default beneath a recursion held as a property of a definition', hubTree, {}, {
+        data: {},
+        refusals: [expansion('/child/name')],
+      })
+      for (const [name, spelled] of [['a b', 'a%20b'], ['a/b', 'a~1b']]) {
+        expectRun(`a leaf default beneath the property ${JSON.stringify(name)} referenced as #/properties/${spelled}`, propertyTree(name!, spelled!), {}, {
+          data: {},
+          refusals: [expansion(`/${name!.replace('/', '~1')}/name`)],
+        })
+      }
+      for (const [name, ref] of [['Item (v2)', '#/$defs/Item%20%28v2%29'], ['Tree/Node', '#/$defs/Tree~1Node'], ['Tree~Node', '#/$defs/Tree~0Node']]) {
+        expectRun(`a leaf default beneath a recursion under the $defs name ${JSON.stringify(name)} referenced as ${ref}`, defsNamed(name!, ref!), {}, {
+          data: {},
+          refusals: [expansion('/child/name')],
+        })
+      }
       if (dialect === 'draft-07') {
         expectRun(
           'a leaf default beneath a recursion under a percent-encoded definitions name (draft-07 only: hyperjump throws on a default beside definitions in 2020-12, as on main)',

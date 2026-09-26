@@ -15,10 +15,10 @@ import type {
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
-import { buildProjection, deepEqual, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
 import { withoutUnreachableBranches } from './normalize.js'
 import { fixRootReference } from './root-reference.js'
-import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
+import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions } from './schema-graph.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
 export async function createJsonSchemaAdapter(
@@ -44,11 +44,10 @@ export async function createAdapter(
   const document = withoutUnreachableBranches(schema)
   const graph = buildSchemaGraph(document, dialect, remotes ?? [])
   rejectSameLocationCycles(graph)
+  const marked = markPositions(graph, document, remotes ?? [])
   const validated = await prepareSchema(schema, dialect, remotes)
-  const projected = deepEqual(document, schema) ? validated : await prepareSchema(document, dialect, remotes)
-  const rootId = (projected as { $id?: unknown }).$id
-  const base = typeof rootId === 'string' && rootId !== '#' ? rootId.replace(/#.*$/, '') : ''
-  const cache = newProjectionCache(dialect, cyclicPositions(graph), base)
+  const projected = await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+  const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at)
 
   return {
     project(data: unknown): SchemaProjection {
