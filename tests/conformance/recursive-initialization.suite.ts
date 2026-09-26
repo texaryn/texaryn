@@ -77,6 +77,12 @@ const conditionalSites = (order: readonly string[]) => ({
   },
 })
 
+const spacedName = {
+  type: 'object',
+  properties: { child: { $ref: '#/definitions/Tree%20Node' } },
+  definitions: { 'Tree Node': node({ $ref: '#/definitions/Tree%20Node' }) },
+}
+
 const expansion = (location: string): Refusal => ({ location, reason: 'recursive-expansion' })
 const repeat = (location: string): Refusal => ({ location, reason: 'recursive-default' })
 const byLocation = (list: readonly Refusal[]) =>
@@ -181,6 +187,14 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
           ...range(16).map((k) => expansion(`/p0/p${k + 1}/v${k + 1}`)),
         ],
       })
+      if (dialect === 'draft-07') {
+        expectRun(
+          'a leaf default beneath a recursion under a percent-encoded definitions name (draft-07 only: hyperjump throws on a default beside definitions in 2020-12, as on main)',
+          spacedName,
+          {},
+          { data: {}, refusals: [expansion('/child/name')] },
+        )
+      }
       if (dialect === '2020-12') {
         expectRun(
           'leaf defaults beneath an allOf-wrapped recursion (2020-12 only: draft-07 has the known allOf active difference, spec ruling 8)',

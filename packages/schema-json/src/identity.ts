@@ -69,6 +69,22 @@ export function positionOf(node: SchemaNode): string {
   return `${rootBaseOf(node)}${locationOf(node)}`
 }
 
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
+// json-schema-library percent-encodes a `definitions` name in the locations it builds, and no other segment.
+function asGraphPosition(position: string): string {
+  const hash = position.indexOf('#')
+  if (hash < 0) return position
+  const segments = position.slice(hash).split('/')
+  return position.slice(0, hash) + segments.map((segment, i) => (segments[i - 1] === 'definitions' ? decodeSegment(segment) : segment)).join('/')
+}
+
 // resolveRef() compiles a fresh copy of the target on every call; one copy per
 // static reference site and compiled document is enough.
 const resolvedReferences = new WeakMap<object, Map<string, SchemaNode | undefined>>()
@@ -116,7 +132,7 @@ function authoredSchema(node: SchemaNode): unknown {
   const location = (node as { schemaLocation?: unknown }).schemaLocation
   if (root && typeof location === 'string' && location.startsWith('#')) {
     let current: unknown = root.schema
-    for (const raw of location === '#' ? [] : location.slice(2).split('/')) {
+    for (const raw of location === '#' ? [] : asGraphPosition(location).slice(2).split('/')) {
       const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
       current = typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined
     }
@@ -173,17 +189,21 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   let cycle = false
   const expanded: SchemaNode[] = []
   const deadNodes = new Set<SchemaNode>()
-  const seen = new Set<string>()
+  const seen = new Map<string, SchemaNode>()
   const visitAll = (node: SchemaNode, stack: Set<string>, dead = false): void => {
     const position = positionOf(node)
     if (stack.has(position)) {
       if (!dead) cycle = true
       return
     }
-    if (seen.has(position)) return
-    seen.add(position)
-    expanded.push(node)
-    if (dead) deadNodes.add(node)
+    const first = seen.get(position)
+    if (first && (dead || !deadNodes.has(first))) return
+    if (first) deadNodes.delete(first)
+    else {
+      seen.set(position, node)
+      expanded.push(node)
+      if (dead) deadNodes.add(node)
+    }
     stack.add(position)
     if (typeof node.$ref === 'string') {
       const target = followRef(node)
@@ -209,7 +229,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   for (const node of declaring) visitAll(node, new Set())
 
   const documentPointer = (position: string): string =>
-    position.startsWith(`${cache.base}#`) ? position.slice(cache.base.length) : position
+    asGraphPosition(position.startsWith(`${cache.base}#`) ? position.slice(cache.base.length) : position)
   const info: LocationInfo = {
     key: [...identity].sort().join('\n'),
     cycle,

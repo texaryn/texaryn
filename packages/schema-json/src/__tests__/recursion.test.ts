@@ -17,6 +17,7 @@ const pointers = (p: SchemaProjection) => [...p.nodes.keys()].sort()
 const withBoundaries = (p: SchemaProjection) =>
   Object.fromEntries([...p.nodes].filter(([, n]) => n.boundaries).map(([k, n]) => [k, n.boundaries]))
 const flagged = (p: SchemaProjection) => [...p.nodes.values()].filter((n: NodeProjection) => n.recursiveExpansion).length
+const expanded = (p: SchemaProjection) => [...p.nodes].filter(([, n]) => n.recursiveExpansion).map(([k]) => k).sort()
 
 const tree = on2020({
   type: 'object',
@@ -260,6 +261,28 @@ describe('branches the specification never evaluates', () => {
     },
   )
 
+  const X = { $ref: '#/$defs/X' }
+  const deadFirst = { type: 'object', if: false, then: X, allOf: [X], $defs: { X: { type: 'object', properties: { c: X, v: S } }, keep: { $ref: '#/then' } } }
+  it.each(dialects.flatMap(([dialect, $schema]) => [
+    [{}, dialect, $schema, ['', '/c', '/c/v', '/v'], { '/c': ['recursion'] }, ['/c/v']],
+    [{ c: {} }, dialect, $schema, ['', '/c', '/c/c', '/c/c/v', '/c/v', '/v'], { '/c/c': ['recursion'] }, ['/c/c/v']],
+  ] as const))('bounds a recursion a kept dead then reaches before a live allOf, at %j in %s', async (data, _dialect, $schema, expected, boundaries, expansion) => {
+    const p = await project({ $schema, ...deadFirst }, data)
+    expect(pointers(p)).toEqual(expected)
+    expect(withBoundaries(p)).toEqual(boundaries)
+    expect(expanded(p)).toEqual(expansion)
+  })
+
+  it.each(dialects)('projects the then of a $defs member named constructor that a reference points into, in %s', async (_dialect, $schema) => {
+    const p = await project({
+      $schema,
+      type: 'object',
+      $defs: { constructor: { type: 'object', then: { type: 'object', properties: { q: S } } } },
+      properties: { r: { $ref: '#/$defs/constructor/then' } },
+    }, {})
+    expect(pointers(p)).toEqual(['', '/r', '/r/q'])
+  })
+
   const merged = [
     ['a dead then at a $ref site whose target holds the if', { unevaluatedProperties: false, $ref: '#/$defs/A', then: { properties: { u: {} } }, $defs: { A: { if: {}, then: {} } } }, { u: 1 }, [[], []]],
     ['a dead then in a $ref target beside the site if', { unevaluatedProperties: false, $ref: '#/$defs/A', if: {}, then: {}, $defs: { A: { then: { properties: { u: {} } } } } }, { u: 1 }, [[], []]],
@@ -496,6 +519,63 @@ describe('spellings of one tree', () => {
     const adapter = await createJsonSchemaAdapter(anonymous, { defaultDialect: dialect })
     expect(pointers(adapter.project({}))).toEqual(['', '/child', '/child/name', '/name'])
   })
+})
+
+describe('a definitions name the library percent-encodes', () => {
+  const dialects = [
+    ['draft-07', 'http://json-schema.org/draft-07/schema#'],
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema'],
+  ] as const
+  const obj = (properties: Record<string, unknown>) => ({ type: 'object', properties })
+  const shape = (p: SchemaProjection) => ({ pointers: pointers(p), boundaries: withBoundaries(p), expansion: expanded(p) })
+
+  it.each(dialects)('initializes a tree under a name with a space, in %s', async (_dialect, $schema) => {
+    const ref = { $ref: '#/definitions/Tree%20Node' }
+    const schema = { $schema, ...obj({ child: ref }), definitions: { 'Tree Node': obj({ name: { type: 'string', default: 'n' }, child: ref }) } }
+    const runtime = createFormRuntime(await createJsonSchemaAdapter(schema), { initialization: 'schema-defaults' })
+    const report = runtime.initialization.getSnapshot()
+    expect(runtime.data.getSnapshot()).toEqual({})
+    expect(report?.outcome).toBe('initialized')
+    expect(report?.outcome === 'initialized' ? report.refusals.map(({ location, reason }) => [location, reason]) : []).toEqual([
+      ['/child/name', 'recursive-expansion'],
+    ])
+  })
+
+  const allToAll = ($schema: string, name: (i: number) => string) => {
+    const refs = () => Object.fromEntries([0, 1, 2, 3].map((j) => [`p${j}`, { $ref: `#/definitions/${encodeURIComponent(name(j))}` }]))
+    return { $schema, ...obj(refs()), definitions: Object.fromEntries([0, 1, 2, 3].map((i) => [name(i), obj({ [`v${i}`]: S, ...refs() })])) }
+  }
+  it.each(dialects)('budgets an all-to-all recursion under names with a space as under plain names, in %s', async (_dialect, $schema) => {
+    const spaced = await project(allToAll($schema, (i) => `d ${i}`), {})
+    expect(spaced.nodes.size).toBe(41)
+    expect(flagged(spaced)).toBe(36)
+    expect(Object.values(withBoundaries(spaced)).filter((reasons) => reasons?.includes('budget'))).toHaveLength(14)
+    expect(shape(spaced)).toEqual(shape(await project(allToAll($schema, (i) => `d${i}`), {})))
+  })
+
+  const titledAlias = ($schema: string, alias: string) => {
+    const ref = `#/definitions/${encodeURIComponent(alias)}`
+    return {
+      $schema,
+      ...obj({ t: { $ref: ref, title: 'x' }, p: { $ref: ref } }),
+      definitions: { [alias]: { $ref: '#/definitions/N' }, N: obj({ v: S, next: { $ref: '#/definitions/N' } }) },
+    }
+  }
+  it.each(dialects)('reads an alias under a name with a space as written, not as a titled site merged it, in %s', async (_dialect, $schema) => {
+    const spaced = await project(titledAlias($schema, 'A B'), {})
+    expect(pointers(spaced).filter((pointer) => pointer.startsWith('/p'))).toEqual(['/p', '/p/v'])
+    expect(withBoundaries(spaced)['/p']).toEqual(['recursion'])
+    expect(shape(spaced)).toEqual(shape(await project(titledAlias($schema, 'AB'), {})))
+  })
+
+  it.each(dialects.flatMap(([dialect, $schema]) => (['$defs', 'definitions'] as const).map((keyword) => [keyword, dialect, $schema] as const)))(
+    'flags the recursion under a %s name that holds a percent escape, in %s',
+    async (keyword, _dialect, $schema) => {
+      const ref = { $ref: `#/${keyword}/a%2520b` }
+      const p = await project({ $schema, ...obj({ name: S, child: ref }), [keyword]: { 'a%20b': obj({ name: S, child: ref }) } }, {})
+      expect(shape(p)).toEqual({ pointers: ['', '/child', '/child/name', '/name'], boundaries: { '/child': ['recursion'] }, expansion: ['/child/name'] })
+    },
+  )
 })
 
 describe('reduction repairs', () => {
