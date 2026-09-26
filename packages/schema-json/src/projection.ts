@@ -1284,7 +1284,7 @@ function walk(
         walk(
           childNode,
           childPointer,
-          dataRecord?.[key],
+          dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined,
           childActive,
           childProvisional,
           nodes,

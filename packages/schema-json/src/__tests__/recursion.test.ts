@@ -606,6 +606,19 @@ describe('one $id under both $defs and definitions', () => {
   })
 })
 
+describe('a member named after an Object.prototype property', () => {
+  const named = (key: string) => ({
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    type: 'object',
+    properties: { [key]: { $ref: '#/definitions/n' } },
+    definitions: { n: { type: 'object', properties: { name: { type: 'string', default: 'n' }, [key]: { $ref: '#/definitions/n' } } } },
+  })
+  it.each(['constructor', 'toString'])('is past the data at {} like any other name: %s', async (key) => {
+    const rename = (p: SchemaProjection) => JSON.stringify([pointers(p), withBoundaries(p), expanded(p)]).replaceAll(`/${key}`, '/child')
+    expect(rename(await project(named(key), {}))).toEqual(rename(await project(named('child'), {})))
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {
