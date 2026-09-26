@@ -27,13 +27,17 @@ function rootKey(root: SchemaNode): string {
 function fail(reason: string): never {
   throw new Error(
     `@texaryn/schema-json: json-schema-library's reference registry is not shaped as in ${TESTED} ` +
-      `(${reason}). The Draft 7 adapter keeps the document root's registry entry fixed, because ` +
-      `that release overwrites it during reductions and "$ref": "#" then resolves to another ` +
-      `node; without the fix Draft 7 validation is wrong, so the adapter refuses to start.`,
+      `(${reason}). The Draft 7 adapter keeps each registry entry compiled for its own location ` +
+      `fixed, because that release overwrites entries during reductions and a "$ref" then resolves ` +
+      `to a reduced copy; without the fix Draft 7 validation is wrong, so the adapter refuses to start.`,
   )
 }
 
-function pinRoot(root: SchemaNode): void {
+function pin(refs: Registry, key: string, node: SchemaNode): void {
+  Object.defineProperty(refs, key, { get: () => node, set: () => {}, enumerable: true, configurable: true })
+}
+
+function pinRegistry(root: SchemaNode): void {
   const refs = registryOf(root)
   const key = rootKey(root)
   const descriptor = Object.getOwnPropertyDescriptor(refs, key)
@@ -42,12 +46,11 @@ function pinRoot(root: SchemaNode): void {
     fail(`the entry for ${JSON.stringify(key)} is not a writable data property`)
   }
   if (!isSchemaNode(descriptor.value)) fail(`the entry for ${JSON.stringify(key)} is not a schema node`)
-  Object.defineProperty(refs, key, {
-    get: () => root,
-    set: () => {},
-    enumerable: true,
-    configurable: true,
-  })
+  pin(refs, key, root)
+  // The parser also files a node under its path from an ancestor, and compiling that location later corrects it.
+  for (const [other, node] of Object.entries(refs)) {
+    if (isSchemaNode(node) && other === `${key}${node.evaluationPath}`) pin(refs, other, node)
+  }
 }
 
 let verified = false
@@ -61,7 +64,7 @@ function selfTest(): void {
   )
   const child = anonymous.properties?.child as SchemaNode | undefined
   if (child?.$ref !== '') fail('"$ref": "#" no longer normalises to the empty key')
-  pinRoot(anonymous)
+  pinRegistry(anonymous)
   anonymous.reduceNode({})
   if (anonymous.validate({ child: 'text' }).valid) fail('an anonymous "#" does not resolve to the root')
   if (!anonymous.validate({ child: {} }).valid) fail('an anonymous "#" rejects a valid instance')
@@ -76,7 +79,7 @@ function selfTest(): void {
     },
     { draft: 'draft-07' },
   )
-  pinRoot(identified)
+  pinRegistry(identified)
   identified.reduceNode({})
   if (identified.validate({ child: { x: 1 } }).valid) fail('an identified "#" does not resolve to the root')
   verified = true
@@ -86,5 +89,5 @@ function selfTest(): void {
 export function fixRootReference(root: SchemaNode, dialect: Dialect): void {
   if (dialect !== 'draft-07') return
   selfTest()
-  pinRoot(root)
+  pinRegistry(root)
 }

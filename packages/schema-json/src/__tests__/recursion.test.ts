@@ -514,6 +514,23 @@ describe('the reference cache', () => {
   })
 })
 
+describe('the draft-07 reference registry', () => {
+  const schema = {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    $id: 'https://e.test/root',
+    properties: {
+      w: { properties: {}, if: {}, else: { properties: { v: { oneOf: [{ $ref: '#/definitions/é' }] } } } },
+      a: { properties: { b: { $ref: '#/definitions/%C3%A9' } } },
+    },
+    definitions: { é: { properties: { x: S }, if: { properties: { flag: { const: true } }, required: ['flag'] }, then: { properties: { t: S } } } },
+  }
+  const typed = { a: { b: { x: 'typed' } } }
+  it.each([[[{}, typed]], [[typed, {}]]])('lists a definition\'s members whatever was projected before, projecting %j in turn', async (datas) => {
+    const adapter = await createJsonSchemaAdapter(schema)
+    for (const data of datas) expect(adapter.project(data).nodes.get('/a/b' as never)?.children?.map((child) => child.key)).toEqual(['x', 'flag'])
+  })
+})
+
 describe('spellings of one tree', () => {
   const anonymous = { type: 'object', properties: { name: S, child: { $ref: '#' } } }
   it.each(['draft-07', '2020-12'] as const)('%s projects `#` without an $id like $defs', async (dialect) => {
