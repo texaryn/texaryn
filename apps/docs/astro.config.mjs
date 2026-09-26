@@ -28,6 +28,8 @@ const API_PACKAGE_NAMES = API_ENTRY_POINTS.map(
     JSON.parse(readFileSync(new URL(`${entryPoint}/package.json`, import.meta.url), 'utf8')).name,
 )
 
+const analyticsScript = `(function(){if(location.hostname!=='texaryn.github.io'||location.pathname.indexOf(${JSON.stringify(PLAYGROUND_PATH)})===0)return;window.dataLayer=window.dataLayer||[];window.gtag=function(){window.dataLayer.push(arguments)};window.gtag('js',new Date());window.gtag('config','G-TH8GG8HPH6');var script=document.createElement('script');script.async=true;script.src='https://www.googletagmanager.com/gtag/js?id=G-TH8GG8HPH6';document.head.appendChild(script)})()`
+
 // The site is served from texaryn.github.io/texaryn, with the playground
 // composed into the same artifact under /playground. `site` and `base` are
 // what make every generated link carry the prefix.
@@ -47,6 +49,10 @@ export default defineConfig({
         ThemeSelect: './src/components/ThemeSelect.astro',
       },
       head: [
+        {
+          tag: 'script',
+          content: analyticsScript,
+        },
         {
           // The playground materializes a real entry point for every catalog
           // example, so a valid id never reaches a 404. An id that does is

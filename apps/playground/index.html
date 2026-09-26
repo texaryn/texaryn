@@ -4,6 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Texaryn Playground</title>
+  <script>
+    (function () {
+      if (location.hostname !== 'texaryn.github.io') return;
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', 'G-TH8GG8HPH6');
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-TH8GG8HPH6';
+      document.head.appendChild(script);
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>
