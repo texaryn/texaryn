@@ -440,6 +440,16 @@ describe('the budget', () => {
     expect(withBoundaries(p)['/a/n/n']).toEqual(['budget'])
   })
 
+  it('admits ties within a depth in walk order past a chain without recursion', async () => {
+    const { properties, ...all } = kdistinct(4) as Record<string, unknown>
+    const nest = (depth: number): Record<string, unknown> => ({ type: 'object', properties: { n: depth === 1 ? { $ref: '#/$defs/d0' } : nest(depth - 1) } })
+    const p = await project({ ...all, properties: { ...(properties as object), a: nest(2) } }, {})
+    expect(p.nodes.size).toBe(43)
+    expect(pointers(p)).toContain('/p0/p2/p3')
+    expect(pointers(p).filter((pointer) => pointer.startsWith('/a'))).toEqual(['/a', '/a/n'])
+    expect(withBoundaries(p)['/a/n']).toEqual(['budget'])
+  })
+
   it('bounds the draft-07 metaschema', async () => {
     const p = await project(metaNoId, {})
     expect(p.nodes.size).toBe(403)

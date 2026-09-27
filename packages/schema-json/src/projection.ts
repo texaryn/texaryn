@@ -291,9 +291,14 @@ interface RecursionContext {
   readonly removed: Set<string>
   readonly flagged: Set<string>
   readonly reserved: Set<string>
-  readonly queue: (() => void)[][]
+  readonly queue: { path: readonly number[]; enter: () => void }[][]
   objectsUsed: number
   nodesUsed: number
+}
+
+function walkOrder(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i]! - b[i]!
+  return a.length - b.length
 }
 
 function addBoundary(ctx: RecursionContext, pointer: string, reason: ProjectionBoundary): void {
@@ -914,6 +919,7 @@ function walk(
   member: boolean,
   /** The past-the-data ancestors, nearest first, up to the nearest location holding data. */
   lineage: Lineage | undefined,
+  path: readonly number[],
 ): void {
   const info = locationInfo(declaredAt.declaring, ctx.cache)
   const { node: original, cycle: referenceCycle } = dereferenceChecked(node)
@@ -1249,7 +1255,7 @@ function walk(
       ...(defaultSources !== undefined ? { defaultSources } : {}),
     })
 
-    for (const key of propKeys) {
+    for (const [index, key] of propKeys.entries()) {
       const childPointer = `${pointer}/${escapeSegment(key)}`
       const childActive = nodeActive && activeKeys.has(key)
       // A descendant inherits exposure, not activity: under a provisionally
@@ -1297,10 +1303,11 @@ function walk(
           ctx,
           true,
           selfLineage,
+          [...path, index],
         )
       // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
       const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
-      if (counted) (ctx.queue[selfLineage.depth] ??= []).push(enter)
+      if (counted) (ctx.queue[selfLineage.depth] ??= []).push({ path: [...path, index], enter })
       else enter()
     }
     return
@@ -1344,6 +1351,7 @@ function walk(
         ctx,
         false,
         undefined,
+        [...path, index],
       )
     })
   }
@@ -1390,8 +1398,9 @@ export function buildProjection(
     ctx,
     false,
     undefined,
+    [],
   )
-  for (const level of ctx.queue) for (const enter of level ?? []) enter()
+  for (const level of ctx.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   for (const node of nodes.values()) {
     if (node.children?.some((child) => ctx.removed.has(child.pointer))) {
       ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(
