@@ -12,7 +12,7 @@ describe('collectDefaultConflicts, recursive $ref', () => {
     ],
   }
   const collect = async (data: unknown) =>
-    collectDefaultConflicts(schema, data, undefined, (await createHyperjumpAdapter(schema)).project(data).nodes)
+    collectDefaultConflicts(schema, data, undefined, (await createHyperjumpAdapter(schema)).project(data).nodes, 'draft-07')
 
   // One depth per level the data provides, and one more, which is `staticWalk`'s
   // boundary rather than a separate rule: a recursive `$ref` is projected one

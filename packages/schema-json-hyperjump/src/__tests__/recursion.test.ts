@@ -171,6 +171,50 @@ describe('the budget', () => {
   })
 })
 
+describe('dependentSchemas in draft-07', () => {
+  const D7 = 'http://json-schema.org/draft-07/schema#'
+  const allToAll = ($schema: string, k: number) => {
+    const site = (j: number) => ({ type: 'object', dependentSchemas: { x: { $ref: `#/definitions/d${j}` } } })
+    const sites = () => Object.fromEntries(Array.from({ length: k }, (_, j) => [`p${j}`, site(j)]))
+    const definitions = Object.fromEntries(Array.from({ length: k }, (_, i) => [`d${i}`, { type: 'object', properties: { [`v${i}`]: S, ...sites() } }]))
+    return { $schema, type: 'object', properties: sites(), definitions }
+  }
+
+  it.each([{}, { k: 1, b: {} }])('is ignored beside the fields it would repeat, at %j', async (data) => {
+    const p = await project({
+      $schema: D7,
+      type: 'object',
+      properties: { a: S, b: { type: 'object', properties: { c: S } } },
+      dependentSchemas: { k: { $ref: '#' } },
+    }, data)
+    expect(pointers(p)).toEqual(['', '/a', '/b', '/b/c'])
+    expect(p.diagnostics).toEqual([])
+  })
+
+  it('declares no default through it', async () => {
+    const p = await project({
+      $schema: D7,
+      type: 'object',
+      properties: { a: { type: 'string', default: 'x' } },
+      dependentSchemas: { k: { properties: { a: { default: 'y' } } } },
+    }, { k: 1 })
+    expect(p.nodes.get('/a' as never)?.annotations.default).toBe('x')
+    expect(p.nodes.get('/a' as never)?.defaultSources).toEqual(['/properties/a'])
+  })
+
+  it('adds no member to an all-to-all schema whose sites use it', async () => {
+    const p = await project(allToAll(D7, 4), {})
+    expect(pointers(p)).toEqual(['', '/p0', '/p1', '/p2', '/p3'])
+    expect(withBoundaries(p)).toEqual({})
+    expect(flagged(p)).toBe(0)
+  })
+
+  it('still budgets the same schema in 2020-12', async () => {
+    const p = await project(allToAll('https://json-schema.org/draft/2020-12/schema', 4), {})
+    expect(Object.values(withBoundaries(p)).filter((reasons) => reasons?.includes('budget')).length).toBeGreaterThan(0)
+  })
+})
+
 describe('percent-encoded references', () => {
   const D7 = 'http://json-schema.org/draft-07/schema#'
   const leafObjects = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`o${i}`, { type: 'object', properties: { s: S } }]))

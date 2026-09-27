@@ -1,6 +1,7 @@
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
 import { deepEqual, liveBranch, selectProvisionalBranch } from './static-walk.js'
 import type { BranchChecker } from './static-walk.js'
+import type { Dialect } from './dialect.js'
 
 /** One `default` declaration, and the schema position that makes it. */
 interface DefaultDeclaration {
@@ -58,6 +59,7 @@ export function collectDefaultConflicts(
   isBranchActive: BranchChecker | undefined,
   /** The pointers the projection holds; the walk enters no other location. */
   projected: { has(pointer: string): boolean },
+  dialect: Dialect,
   /** Receives the positions declaring each pointer's `default`, sorted and without duplicates. */
   sourcesOut?: Map<string, readonly string[]>,
 ): Map<string, readonly string[]> {
@@ -143,7 +145,7 @@ export function collectDefaultConflicts(
         })
       }
 
-      if (isRecord(schema.dependentSchemas)) {
+      if (dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
         for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
           if (!isRecord(current) || !(key in current)) continue
           visit(

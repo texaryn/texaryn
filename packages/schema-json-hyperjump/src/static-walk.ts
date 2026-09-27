@@ -222,7 +222,7 @@ export function locationInfo(
       const branches = schema[keyword]
       if (Array.isArray(branches)) branches.forEach((_: unknown, index: number) => visitAll(`${position}/${keyword}/${index}`, stack))
     }
-    for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
+    for (const keyword of cache.dialect === 'draft-07' ? (['dependencies'] as const) : (['dependentSchemas', 'dependencies'] as const)) {
       const map = schema[keyword]
       if (!isRecord(map)) continue
       for (const [key, branch] of Object.entries(map)) {
@@ -790,7 +790,7 @@ export function staticWalk(
     })
   }
 
-  if (isRecord(schema.dependentSchemas)) {
+  if (recursion.cache.dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
     for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
       const keyPresent = isRecord(data) && key in data
       dynamicBranches.push({

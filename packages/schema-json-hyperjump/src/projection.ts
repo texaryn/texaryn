@@ -220,8 +220,8 @@ export function buildProjection(
   // reports. The second is a superset of the first, so the annotation is
   // omitted wherever either found a disagreement.
   const sources = new Map<string, readonly string[]>()
-  const schemaConflicts = collectDefaultConflicts(rawSchema, data, undefined, nodes)
-  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker, nodes, sources)
+  const schemaConflicts = collectDefaultConflicts(rawSchema, data, undefined, nodes, cache.dialect)
+  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker, nodes, cache.dialect, sources)
   for (const pointer of applicableConflicts.keys()) {
     const node = nodes.get(pointer)
     if (node) delete node.annotations.default
