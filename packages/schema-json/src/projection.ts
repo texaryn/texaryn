@@ -1144,7 +1144,7 @@ function walk(
     (declaration) => declaration.source,
   )
   const defaultSources =
-    !conflictedDefault && 'default' in schema
+    !conflictedDefault && 'default' in schema && info.cyclic
       ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort()
       : undefined
 

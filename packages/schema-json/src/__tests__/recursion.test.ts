@@ -1028,14 +1028,24 @@ describe('reduction repairs', () => {
 })
 
 describe('default sources', () => {
-  it('reports agreeing declarations, present exactly with the default', async () => {
+  it('reports agreeing declarations at a node on a cycle', async () => {
     const p = await project(on2020({
       type: 'object',
-      properties: { a: { type: 'integer', allOf: [{ $ref: '#/$defs/d' }], default: 1 }, b: S },
-      $defs: { d: { type: 'integer', default: 1 } },
+      properties: { a: { type: 'object', allOf: [{ $ref: '#/$defs/d' }], default: {}, properties: { next: { $ref: '#/properties/a' } } }, b: S },
+      $defs: { d: { type: 'object', default: {} } },
     }), {})
     expect(p.nodes.get('/a' as never)?.defaultSources).toEqual(['/$defs/d', '/properties/a'])
     expect(p.nodes.get('/b' as never)?.defaultSources).toBeUndefined()
+  })
+
+  it('reports none at a node on no cycle', async () => {
+    const p = await project(on2020({
+      type: 'object',
+      properties: { a: { type: 'integer', allOf: [{ $ref: '#/$defs/d' }], default: 1 } },
+      $defs: { d: { type: 'integer', default: 1 } },
+    }), {})
+    expect(p.nodes.get('/a' as never)?.annotations.default).toBe(1)
+    expect(p.nodes.get('/a' as never)?.defaultSources).toBeUndefined()
   })
 })
 
