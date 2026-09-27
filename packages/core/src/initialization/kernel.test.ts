@@ -618,4 +618,18 @@ describe('recursion', () => {
       { location: '/children/0/children', reason: 'recursive-default' },
     ])
   })
+
+  it.each([
+    ['an empty array', []],
+    ['null', null],
+    ['a scalar', 'x'],
+  ])('fills a repeated source whose default is %s, which opens no level', (_label, value) => {
+    const view = sourced({
+      '/replies': { value: [], sources: ['#/properties/replies'] },
+      '/replies/0/replies': { value, sources: ['#/properties/replies'] },
+    })
+    const result = initialized(initializeDefaults({ replies: [{}] }, view))
+    expect(result.data).toEqual({ replies: [{ replies: value }] })
+    expect(result.refusals).toEqual([])
+  })
 })

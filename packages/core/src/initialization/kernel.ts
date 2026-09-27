@@ -196,6 +196,10 @@ function repeatsAncestor(
   )
 }
 
+function opensLevel(value: unknown): boolean {
+  return Array.isArray(value) ? value.length > 0 : typeof value === 'object' && value !== null
+}
+
 function repeatsPresentAncestor(
   data: unknown,
   segments: readonly string[],
@@ -266,6 +270,7 @@ function collect(
     const sources = view.defaultSources?.get(location)
     if (
       sources &&
+      opensLevel(view.defaults.get(location)) &&
       (repeatsAncestor(segments, sources, sourced) ||
         repeatsPresentAncestor(data, segments, sources, view, provisional))
     ) {
