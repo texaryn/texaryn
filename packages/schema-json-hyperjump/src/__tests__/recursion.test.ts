@@ -215,6 +215,33 @@ describe('dependentSchemas in draft-07', () => {
   })
 })
 
+describe('the siblings of a draft-07 $ref', () => {
+  const self = { $ref: '#/properties/p' }
+  it.each([
+    ['an allOf', { allOf: [self] }],
+    ['an anyOf', { anyOf: [self] }],
+    ['a oneOf', { oneOf: [self] }],
+    ['an if', { if: self }],
+    ['a then', { if: { required: ['k'] }, then: self }],
+    ['an else', { if: { required: ['k'] }, else: self }],
+    ['a dependencies', { dependencies: { k: self } }],
+    ['a dependentSchemas', { dependentSchemas: { k: self } }],
+    ['a not', { not: self }],
+  ])('ignores %s that re-reaches the site, as the dialect does', async (_label, siblings) => {
+    const adapter = await createHyperjumpAdapter({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: { p: { $ref: '#/definitions/x', ...siblings } },
+      definitions: { x: { type: 'object', properties: { s: S } } },
+    })
+    for (const data of [{}, { p: { k: 1 } }, { p: { s: 5 } }]) {
+      const p = adapter.project(data)
+      expect(pointers(p)).toEqual(['', '/p', '/p/s'])
+      expect(p.diagnostics).toEqual([])
+    }
+  })
+})
+
 describe('percent-encoded references', () => {
   const D7 = 'http://json-schema.org/draft-07/schema#'
   const leafObjects = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`o${i}`, { type: 'object', properties: { s: S } }]))

@@ -212,6 +212,10 @@ export function locationInfo(
     stack.add(position)
     const target = refTarget(schema)
     if (target !== undefined) visitAll(target, stack)
+    if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
+      stack.delete(position)
+      return
+    }
     for (const keyword of IN_PLACE_BRANCHES) {
       const trivial =
         (keyword === 'then' && (!('if' in schema) || schema.if === false)) ||
