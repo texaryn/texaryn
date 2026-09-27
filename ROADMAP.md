@@ -1677,7 +1677,7 @@ against a strict JSON Schema for the IR itself. Unknown properties are rejected.
 Node types must be from the known set. Action types must exist in the host's
 action registry.
 
-**Schema depth limits.** A recursive schema's projection past the data has two
+**Schema expansion limits.** A recursive schema's projection past the data has two
 fixed limits per projection, 16 objects and 512 nodes, and a schema that applies
 itself at one instance location is rejected when the adapter is created
 (ADR-007). The `oneOf`/`anyOf` evaluator has a branch limit (default: 20).

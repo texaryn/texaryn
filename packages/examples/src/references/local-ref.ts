@@ -68,7 +68,7 @@ export const recursiveRef: TexarynExample = {
   id: 'reference-recursive',
   title: 'Recursive $ref',
   description:
-    'A tree whose child is the same definition again. The form shows the fields one level past the data, and filling a level exposes the next.',
+    'A tree whose child is a node, and whose node\'s child is the same node definition again. The form shows the fields one level past the data, and filling a level exposes the next.',
   category: 'references',
   covers: ['schema.reference.recursive', 'schema.reference.local-ref', 'schema.type.object'],
   schema: {

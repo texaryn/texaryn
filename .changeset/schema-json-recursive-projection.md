@@ -2,13 +2,13 @@
 '@texaryn/schema-json': minor
 ---
 
-A recursive local `$ref` projects, validates and initializes. The projection
-expands it once past the data, marks where it stopped with `recursion` or
-`budget` boundaries, and projects at most 16 objects and 512 nodes that exist
-because of the recursion, never cutting a member of a location that holds data.
-Each `$ref` site resolves to one compiled target per adapter, which bounds the
-cost of a large object behind one `$ref`: 500 string fields project in 5 ms on
-an Apple M1 Max.
+A recursive local `$ref` projects, validates and initializes, closing #119. The
+projection expands it once past the data, marks the objects above what it
+withheld with `recursion` or `budget` boundaries, and projects at most 16
+objects and 512 nodes that exist because of the recursion, never cutting a
+member of a location that holds data. Each `$ref` site resolves to one compiled
+target per adapter, which bounds the cost of a large object behind one `$ref`:
+500 string fields project in 5 ms on an Apple M1 Max.
 
 `createJsonSchemaAdapter` rejects a schema that applies itself at one instance
 location with `SameLocationCycleError`, which names the position and the path.
@@ -23,12 +23,13 @@ creation fails with an error naming that release if the internal changes.
 
 A field behind a chain of `$ref`s, a reference to a definition that is itself a
 `$ref`, now projects, where it was dropped with an `unresolved-projection-shape`
-diagnostic. In Draft 7, the fields under nested `oneOf` wrappers around a `$ref`
-stay projected once they hold data, where the subtree disappeared.
+diagnostic. In Draft 7, the fields under a `oneOf` or `anyOf` wrapper around a
+`$ref`, nested or not, stay projected once they hold data, where the subtree
+disappeared.
 
-Fields declared only under a branch the specification never evaluates (a
-`then` or `else` without `if`, a `then` under `if: false`, an `else` under
-`if: true`) are not projected unless a `$ref` points into the branch or a schema
-inside it declares an `$id`, `$anchor` or `$dynamicAnchor`. Validation runs on
-the schema as written, so an error only such a branch declares attaches to no
-field, and `validate` returns the same result before and after a projection.
+Fields declared only under a branch the specification never evaluates (a `then`
+or `else` without `if`, a `then` under `if: false`, an `else` under `if: true`)
+are not projected unless a reference points into the branch or a schema inside
+it declares an `$id`, `$anchor` or `$dynamicAnchor`. Validation runs on the
+schema as written, so an error only such a branch declares attaches to no field,
+and `validate` returns the same result before and after a projection.
