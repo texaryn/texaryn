@@ -78,6 +78,7 @@ export interface RecursionState {
   readonly queue: { path: readonly number[]; enter: () => void }[][]
   readonly reserved: Set<string>
   readonly flagged: Set<string>
+  readonly onCycle: Set<string>
   objectsUsed: number
   nodesUsed: number
 }
@@ -119,6 +120,7 @@ export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimi
     queue: [],
     reserved: new Set(),
     flagged: new Set(),
+    onCycle: new Set(),
     objectsUsed: 0,
     nodesUsed: 0,
   }
@@ -603,6 +605,7 @@ export function staticWalk(
   // (fields unique to the unselected branch) are created for skeleton rendering.
   const existed = nodes.has(pointer)
   const node = ensureNode(nodes, pointer)
+  if (locationInfo(declaring, rootSchema, recursion).cyclic) recursion.onCycle.add(pointer)
   // A provisionally selected branch is shown, so it writes structure and
   // annotations like an active one. The branch order below puts it ahead of any
   // inactive sibling, so the fill-gaps-only policy keeps those from

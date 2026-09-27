@@ -127,7 +127,7 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
         expect(runtime.data.getSnapshot()).toEqual(expected.data)
         expect(byLocation(report?.outcome === 'initialized' ? report.refusals : [])).toEqual(byLocation(expected.refusals))
         const nodes = [...port.project(runtime.data.getSnapshot()).nodes]
-        expect(nodes.filter(([, n]) => 'default' in n.annotations !== (n.defaultSources !== undefined))).toEqual([])
+        expect(nodes.filter(([, n]) => n.defaultSources !== undefined && !('default' in n.annotations))).toEqual([])
       }
 
       const expectRun = (

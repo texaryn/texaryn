@@ -232,7 +232,7 @@ export function buildProjection(
     if (node) delete node.annotations.default
   }
   for (const [pointer, node] of nodes) {
-    if ('default' in node.annotations) node.defaultSources = sources.get(pointer) ?? []
+    if ('default' in node.annotations && recursion.onCycle.has(pointer)) node.defaultSources = sources.get(pointer) ?? []
   }
 
   const projected = finalizeNodes(nodes)

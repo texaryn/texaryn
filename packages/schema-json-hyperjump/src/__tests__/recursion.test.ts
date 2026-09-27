@@ -218,7 +218,7 @@ describe('dependentSchemas in draft-07', () => {
       dependentSchemas: { k: { properties: { a: { default: 'y' } } } },
     }, { k: 1 })
     expect(p.nodes.get('/a' as never)?.annotations.default).toBe('x')
-    expect(p.nodes.get('/a' as never)?.defaultSources).toEqual(['/properties/a'])
+    expect(p.nodes.get('/a' as never)?.defaultSources).toBeUndefined()
   })
 
   it('adds no member to an all-to-all schema whose sites use it', async () => {
@@ -342,11 +342,7 @@ describe('a branch under a boolean if', () => {
       for (const data of [{}, { p: {} }, { p: { y: 'w' } }]) {
         const p = await project(schema, data)
         expect(pointers(p)).toEqual(['', '/p', '/p/y'])
-        expect(p.nodes.get('/p/y' as never)).toMatchObject({
-          active: true,
-          annotations: { default: 'v' },
-          defaultSources: [`/properties/p/${live}/properties/y`],
-        })
+        expect(p.nodes.get('/p/y' as never)).toMatchObject({ active: true, annotations: { default: 'v' } })
       }
     },
   )
@@ -374,13 +370,23 @@ describe('a branch under a boolean if', () => {
 })
 
 describe('default sources', () => {
-  it('names items as the source for a row past prefixItems', async () => {
+  it('names items as the source for a recursive row past prefixItems', async () => {
+    const p = await project(on2020({
+      type: 'array',
+      prefixItems: [S],
+      items: { type: 'object', properties: { a: { type: 'object', default: {}, properties: { next: { $ref: '#/items/properties/a' } } } } },
+    }), ['x', {}])
+    expect(p.nodes.get('/1/a' as never)?.defaultSources).toEqual(['/items/properties/a'])
+  })
+
+  it('reports none at a node on no cycle', async () => {
     const p = await project(on2020({
       type: 'array',
       prefixItems: [S],
       items: { type: 'object', properties: { a: { type: 'string', default: 'd' } } },
     }), ['x', {}])
-    expect(p.nodes.get('/1/a' as never)?.defaultSources).toEqual(['/items/properties/a'])
+    expect(p.nodes.get('/1/a' as never)?.annotations.default).toBe('d')
+    expect(p.nodes.get('/1/a' as never)?.defaultSources).toBeUndefined()
   })
 })
 

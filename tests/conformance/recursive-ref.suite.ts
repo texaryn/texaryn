@@ -610,8 +610,8 @@ function violations(projection: SchemaProjection, data: unknown): string[] {
     if (node.recursiveExpansion && value !== undefined && value !== null) {
       found.push(`${pointer} holds data and is a recursive expansion`)
     }
-    if ('default' in node.annotations !== (node.defaultSources !== undefined)) {
-      found.push(`${pointer} default and defaultSources disagree on presence`)
+    if (node.defaultSources !== undefined && !('default' in node.annotations)) {
+      found.push(`${pointer} carries defaultSources without a default`)
     }
   }
   return found
