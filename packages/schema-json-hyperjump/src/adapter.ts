@@ -6,7 +6,9 @@ import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { Output } from '@hyperjump/json-schema'
 import type { SchemaProjection, ValidationResult } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
-import { buildProjection } from './projection.js'
+import { buildProjection, DEFAULT_LIMITS } from './projection.js'
+import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
+import { newProjectionCache, type ProjectionLimits } from './static-walk.js'
 import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
@@ -27,9 +29,25 @@ const dialectIds: Record<Dialect, string> = {
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
 }
 
+function unshared(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(unshared)
+  if (typeof value !== 'object' || value === null) return value
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return value
+  return Object.fromEntries(Object.entries(value).map(([key, member]) => [key, unshared(member)]))
+}
+
 export async function createHyperjumpAdapter(
   schema: unknown,
   config?: HyperjumpAdapterConfig,
+): Promise<HyperjumpAdapter> {
+  return createAdapter(schema, config, DEFAULT_LIMITS)
+}
+
+export async function createAdapter(
+  schema: unknown,
+  config: HyperjumpAdapterConfig | undefined,
+  limits: ProjectionLimits,
 ): Promise<HyperjumpAdapter> {
   // Hyperjump's schema registry is module-global (registerSchema keys by URI across the
   // whole process), so each adapter instance needs its own URI to avoid colliding with
@@ -39,15 +57,21 @@ export async function createHyperjumpAdapter(
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
 
+  const graph = buildSchemaGraph(schema, dialect)
+  rejectSameLocationCycles(graph)
+  const cache = newProjectionCache(dialect, cyclicPositions(graph))
+
   const register = registerByDialect[dialect]
-  register(schema as Parameters<typeof registerSchema2020>[0], id, dialectIds[dialect])
+  // From 2019-09, registration rewrites each `$ref` of its clone in place, and the clone keeps shared
+  // objects shared, so an object reached from two positions would be read a second time already rewritten.
+  register(unshared(schema) as Parameters<typeof registerSchema2020>[0], id, dialectIds[dialect])
 
   const schemaDoc = await getSchema(id)
   const compiled = await compile(schemaDoc)
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(schema, compiled, toJsonInstance(data))
+      return buildProjection(schema, compiled, toJsonInstance(data), cache, limits)
     },
 
     // hyperjump's async work (registerSchema -> getSchema -> compile) already happened

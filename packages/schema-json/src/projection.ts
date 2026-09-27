@@ -1,4 +1,4 @@
-import { mergeNode, type SchemaNode } from 'json-schema-library'
+import { mergeNode, isSchemaNode, type SchemaNode } from 'json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -9,7 +9,19 @@ import type {
   JsonSchemaType,
   FieldConstraints,
   EnumOption,
+  ProjectionBoundary,
 } from '@texaryn/core'
+import {
+  childDeclaring,
+  followRef,
+  itemDeclaring,
+  locationInfo,
+  onlyPoints,
+  positionOf,
+  type LocationInfo,
+  type ProjectionCache,
+} from './identity.js'
+import { POSITION } from './schema-graph.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
   'string',
@@ -207,9 +219,101 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
   return schema.enum.map((value) => ({ value }))
 }
 
+function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean } {
+  let current = node
+  const seen = new Set<string>()
+  while (typeof current.$ref === 'string') {
+    const position = positionOf(current)
+    if (seen.has(position)) return { node: current, cycle: true }
+    seen.add(position)
+    const next = followRef(current)
+    if (!next) {
+      const raw = current.resolveRef()
+      return { node: (raw ?? current) as SchemaNode, cycle: false }
+    }
+    current = next
+    if (!onlyPoints(current)) break
+  }
+  return { node: current, cycle: false }
+}
+
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
 function dereference(node: SchemaNode): SchemaNode {
-  return node.$ref ? node.resolveRef() : node
+  return dereferenceChecked(node).node
+}
+
+// A dialect whose reducer leaves $ref unresolved reduces a selected `{ $ref }` branch to `{}`.
+function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: unknown): SchemaNode {
+  const reducedSchema = reduced.schema as Record<string, unknown>
+  if (reducedSchema && typeof reducedSchema === 'object') {
+    if (resolveExplicitType(reducedSchema) || inferProjectionShape(reducedSchema).kind === 'resolved') {
+      return reduced
+    }
+  }
+  const selected: SchemaNode[] = []
+  if (original.oneOf) {
+    const matching = original.oneOf.filter((branch) => branchApplies(branch, data))
+    if (matching.length === 1) selected.push(matching[0]!)
+  }
+  for (const branch of original.anyOf ?? []) {
+    if (branchApplies(branch, data)) selected.push(branch)
+  }
+  if (!selected.some((branch) => typeof branch.$ref === 'string')) return reduced
+  let merged: SchemaNode = reduced
+  for (const branch of selected) {
+    const target = dereference(branch)
+    if (!isSchemaNode(target)) continue
+    const targetReduced = target.reduceNode(data).node ?? target
+    merged = mergeNode(merged, targetReduced) ?? merged
+  }
+  return merged
+}
+
+export interface ProjectionLimits {
+  readonly objects: number
+  readonly nodes: number
+}
+
+export const DEFAULT_LIMITS: ProjectionLimits = { objects: 16, nodes: 512 }
+
+interface Lineage {
+  readonly key: string
+  readonly pointer: string
+  readonly recursive: boolean
+  readonly depth: number
+  readonly parent: Lineage | undefined
+}
+
+interface RecursionContext {
+  readonly cache: ProjectionCache
+  readonly limits: ProjectionLimits
+  readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly removed: Set<string>
+  readonly flagged: Set<string>
+  readonly reserved: Set<string>
+  readonly queue: { path: readonly number[]; enter: () => void }[][]
+  objectsUsed: number
+  nodesUsed: number
+}
+
+function walkOrder(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i]! - b[i]!
+  return a.length - b.length
+}
+
+function addBoundary(ctx: RecursionContext, pointer: string, reason: ProjectionBoundary): void {
+  const reasons = ctx.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
+  reasons.add(reason)
+  ctx.boundaries.set(pointer, reasons)
+}
+
+// A leaf needs no reduction, so it rides with its parent's budget unit.
+function isLeafSchema(schema: unknown): boolean {
+  if (typeof schema !== 'object' || schema === null) return true
+  const record = schema as Record<string, unknown>
+  const type = resolveExplicitType(record)
+  if (type !== undefined) return type !== 'object'
+  return ('enum' in record || 'const' in record) && !('properties' in record)
 }
 
 /**
@@ -385,6 +489,8 @@ function eachApplicable(
 interface DeclarationPositions {
   readonly unconditional: readonly SchemaNode[]
   readonly applicable: readonly SchemaNode[]
+  /** Every position declaring this location, from every branch of every position applying at the parent, unmerged. */
+  readonly declaring: readonly SchemaNode[]
 }
 
 function declarationsFrom(
@@ -416,6 +522,7 @@ function childPositions(
   roots: DeclarationPositions,
   key: string,
   data: unknown,
+  declaring: readonly SchemaNode[],
 ): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
@@ -429,11 +536,15 @@ function childPositions(
     if (child) applicable.push(child)
   })
 
-  return { unconditional, applicable }
+  return { unconditional, applicable, declaring }
 }
 
 /** The positions that declare the elements of `roots`, by both reachability rules. */
-function itemPositions(roots: DeclarationPositions, data: unknown): DeclarationPositions {
+function itemPositions(
+  roots: DeclarationPositions,
+  data: unknown,
+  declaring: readonly SchemaNode[],
+): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
     if (node.items) unconditional.push(node.items)
@@ -444,7 +555,7 @@ function itemPositions(roots: DeclarationPositions, data: unknown): DeclarationP
     if (node.items) applicable.push(node.items)
   })
 
-  return { unconditional, applicable }
+  return { unconditional, applicable, declaring }
 }
 
 /**
@@ -770,6 +881,9 @@ function computeRequiredSet(
   return required
 }
 
+// An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
+const budgeted = (info: LocationInfo): boolean => info.cyclic || info.key === ''
+
 /**
  * Walks the compiled schema statically (via node.properties/node.items plus every
  * conditional branch), only descending into array items that are actually present in
@@ -800,9 +914,60 @@ function walk(
    * them, and the merge is what loses a disagreement.
    */
   declaredAt: DeclarationPositions,
+  ctx: RecursionContext,
+  /** Entered as an object member, which is the only way to be past the data. */
+  member: boolean,
+  /** The past-the-data ancestors, nearest first, up to the nearest location holding data. */
+  lineage: Lineage | undefined,
+  path: readonly number[],
 ): void {
-  const original = dereference(node)
+  const info = locationInfo(declaredAt.declaring, ctx.cache)
+  const { node: original, cycle: referenceCycle } = dereferenceChecked(node)
+  if (info.cycle || referenceCycle) {
+    diagnostics.push({
+      pointer: toPointer(pointer),
+      code: 'unresolved-projection-shape',
+      message:
+        `A "$ref" or in-place applicator cycle never leaves this location, so there is no ` +
+        `shape to render.`,
+    })
+    return
+  }
+  const pastData = member && (data === undefined || data === null)
+  const recursive = pastData && ((lineage?.recursive ?? false) || budgeted(info))
+  for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
+    if (info.key !== '' && ancestor.key === info.key) {
+      addBoundary(ctx, ancestor.pointer, 'recursion')
+      ctx.removed.add(pointer)
+      return
+    }
+  }
   const originalSchema = original.schema as Record<string, unknown>
+  if (recursive && lineage !== undefined) {
+    const parent = pointer.slice(0, pointer.lastIndexOf('/'))
+    let admit: boolean
+    if (isLeafSchema(originalSchema)) {
+      const covered = ctx.reserved.has(parent)
+      admit = covered || ctx.nodesUsed < ctx.limits.nodes
+      if (admit && !covered) ctx.nodesUsed += 1
+    } else {
+      const leaves = [...collectCandidateProperties(original).values()].filter((candidate) =>
+        isLeafSchema(dereference(candidatePrototype(candidate)).schema),
+      ).length
+      admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
+      if (admit) {
+        ctx.objectsUsed += 1
+        ctx.nodesUsed += 1 + leaves
+        ctx.reserved.add(pointer)
+      }
+    }
+    if (!admit) {
+      addBoundary(ctx, parent, 'budget')
+      ctx.removed.add(pointer)
+      return
+    }
+    ctx.flagged.add(pointer)
+  }
   if (typeof originalSchema !== 'object' || originalSchema === null) return
 
   let resolved = original
@@ -835,8 +1000,8 @@ function walk(
     composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data)
     if (branchNode) {
-      resolved = branchNode
-      schema = branchNode.schema as Record<string, unknown>
+      resolved = resolveSelectedBranch(original, branchNode, data)
+      schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
       // reduceNode() returned no node at all: this is oneOf's behavior when data
@@ -893,7 +1058,7 @@ function walk(
    * That schema is genuinely unprojectable and has to be reported.
    */
   const isTransientBranchMiss = (): boolean =>
-    Object.keys(schema).length === 0 && compositionHasRenderableAlternative(original)
+    Object.keys(schema).every((keyword) => keyword === POSITION) && compositionHasRenderableAlternative(original)
 
   // Last resort, after the oneOf/anyOf branch above has had its chance: that
   // path handles a typeless wrapper whose type only exists once a branch is
@@ -945,6 +1110,9 @@ function walk(
   }
 
   if (!type) return
+  const selfLineage: Lineage | undefined = pastData
+    ? { key: info.key, pointer, recursive, depth: (lineage?.depth ?? 0) + 1, parent: lineage }
+    : undefined
 
   // Reported at the location it is about, and after the shape gate above: a
   // pointer with no node has nothing to omit an annotation from, and saying
@@ -969,13 +1137,16 @@ function walk(
   // selects. A superset of the diagnostic's: every unconditional disagreement
   // is also an applicable one, so the node carries both kinds and a consumer
   // reads one place.
-  const applicableConflict = disagreeingDefaults(
-    collectApplicableDefaults(declaredAt.applicable, data),
-  )
+  const applicableDeclarations = collectApplicableDefaults(declaredAt.applicable, data)
+  const applicableConflict = disagreeingDefaults(applicableDeclarations)
   const conflictedDefault = applicableConflict !== undefined || ambiguousDefault !== undefined
   const defaultConflict = (applicableConflict ?? ambiguousDefault)?.map(
     (declaration) => declaration.source,
   )
+  const defaultSources =
+    !conflictedDefault && 'default' in schema && info.cyclic
+      ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort()
+      : undefined
 
   const nodeActive = active && branchResolved
   // A node the schema applies is never also provisional; the two report
@@ -1004,8 +1175,16 @@ function walk(
     // wrapper case), it has already been reduced against the real `data` at this
     // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
-    const reducedNode =
+    let reducedNode =
       resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
+    if (
+      reducedNode &&
+      resolved === original &&
+      !resolveExplicitType(originalSchema) &&
+      (original.oneOf || original.anyOf)
+    ) {
+      reducedNode = resolveSelectedBranch(original, reducedNode, dataRecord ?? {})
+    }
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
@@ -1073,9 +1252,10 @@ function walk(
       provisional: nodeProvisional ? true : undefined,
       defaultConflict,
       annotations: extractAnnotations(schema, conflictedDefault),
+      ...(defaultSources !== undefined ? { defaultSources } : {}),
     })
 
-    for (const key of propKeys) {
+    for (const [index, key] of propKeys.entries()) {
       const childPointer = `${pointer}/${escapeSegment(key)}`
       const childActive = nodeActive && activeKeys.has(key)
       // A descendant inherits exposure, not activity: under a provisionally
@@ -1100,20 +1280,35 @@ function walk(
         reducedChildNode ??
         composeChild(candidate.direct, provisionalChildNode) ??
         candidatePrototype(candidate)
-      walk(
-        childNode,
-        childPointer,
-        dataRecord?.[key],
-        childActive,
-        childProvisional,
-        nodes,
-        diagnostics,
+      const positions = childPositions(
+        declaredAt,
+        key,
         // This node's own data, not the child's: the branches being entered
         // are this location's, so they are decided by the instance here. The
         // child's own conditional edges are entered by the child's walk, with
         // the child's data.
-        childPositions(declaredAt, key, data),
+        data,
+        childDeclaring(info, key),
       )
+      const enter = (): void =>
+        walk(
+          childNode,
+          childPointer,
+          dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined,
+          childActive,
+          childProvisional,
+          nodes,
+          diagnostics,
+          positions,
+          ctx,
+          true,
+          selfLineage,
+          [...path, index],
+        )
+      // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
+      const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
+      if (counted) (ctx.queue[selfLineage.depth] ??= []).push({ path: [...path, index], enter })
+      else enter()
     }
     return
   }
@@ -1128,6 +1323,7 @@ function walk(
     provisional: nodeProvisional ? true : undefined,
     defaultConflict,
     annotations: extractAnnotations(schema, conflictedDefault),
+    ...(defaultSources !== undefined ? { defaultSources } : {}),
     // Deliberately not given the flag above. A conflict under `items` belongs
     // to the element locations, and each of those reports its own; this field
     // describes the item schema rather than being one of those locations, so
@@ -1141,7 +1337,7 @@ function walk(
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
-    const elementPositions = itemPositions(declaredAt, data)
+    const elementPositions = itemPositions(declaredAt, data, itemDeclaring(info))
     data.forEach((item, index) => {
       walk(
         resolved.items!,
@@ -1152,6 +1348,10 @@ function walk(
         nodes,
         diagnostics,
         elementPositions,
+        ctx,
+        false,
+        undefined,
+        [...path, index],
       )
     })
   }
@@ -1167,9 +1367,58 @@ function walk(
  * contract), while array items are walked from `data` (an array's length is a data-time
  * fact, not a schema-time one). $ref is resolved transparently via node.resolveRef().
  */
-export function buildProjection(root: SchemaNode, data: unknown): SchemaProjection {
+export function buildProjection(
+  root: SchemaNode,
+  data: unknown,
+  cache: ProjectionCache,
+  limits: ProjectionLimits = DEFAULT_LIMITS,
+): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
-  walk(root, '', data, true, false, nodes, diagnostics, { unconditional: [root], applicable: [root] })
+  const ctx: RecursionContext = {
+    cache,
+    limits,
+    boundaries: new Map(),
+    removed: new Set(),
+    flagged: new Set(),
+    reserved: new Set(),
+    queue: [],
+    objectsUsed: 0,
+    nodesUsed: 0,
+  }
+  walk(
+    root,
+    '',
+    data,
+    true,
+    false,
+    nodes,
+    diagnostics,
+    { unconditional: [root], applicable: [root], declaring: [root] },
+    ctx,
+    false,
+    undefined,
+    [],
+  )
+  for (const level of ctx.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
+  for (const node of nodes.values()) {
+    if (node.children?.some((child) => ctx.removed.has(child.pointer))) {
+      ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(
+        (child) => !ctx.removed.has(child.pointer),
+      )
+    }
+  }
+  for (const pointer of ctx.flagged) {
+    const node = nodes.get(toPointer(pointer))
+    if (node) (node as { recursiveExpansion?: true }).recursiveExpansion = true
+  }
+  for (const [pointer, reasons] of ctx.boundaries) {
+    const node = nodes.get(toPointer(pointer))
+    if (node) {
+      ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
+        ['recursion', 'budget'] as const
+      ).filter((reason) => reasons.has(reason))
+    }
+  }
   return { nodes, diagnostics }
 }

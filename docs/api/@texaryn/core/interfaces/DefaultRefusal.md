@@ -20,4 +20,4 @@ cap in #118 taught against.
 
 ### reason
 
-> `readonly` **reason**: `"non-container-ancestor"` \| `"unknown-container-kind"`
+> `readonly` **reason**: `"non-container-ancestor"` \| `"unknown-container-kind"` \| `"recursive-expansion"` \| `"recursive-default"`

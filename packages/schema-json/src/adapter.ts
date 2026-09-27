@@ -14,30 +14,52 @@ import type {
 } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
-import { buildProjection } from './projection.js'
+import { newProjectionCache } from './identity.js'
+import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { withoutUnreachableBranches } from './normalize.js'
+import { fixRootReference } from './root-reference.js'
+import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions } from './schema-graph.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
 export async function createJsonSchemaAdapter(
   schema: unknown,
   config?: AdapterConfig,
 ): Promise<JsonSchemaAdapter> {
+  return createAdapter(schema, config, DEFAULT_LIMITS)
+}
+
+export async function createAdapter(
+  schema: unknown,
+  config: AdapterConfig | undefined,
+  limits: ProjectionLimits,
+): Promise<JsonSchemaAdapter> {
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
 
-  const prepared = await prepareSchema(schema, dialect)
+  // json-schema-library carries no metaschema documents, so a schema referencing its own fails closed.
+  const referenced = referencedDialects(schema)
+  const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
+  // json-schema-library evaluates some branches the specification never does, so only the projection drops them.
+  const document = withoutUnreachableBranches(schema)
+  const graph = buildSchemaGraph(document, dialect, remotes ?? [])
+  rejectSameLocationCycles(graph)
+  const marked = markPositions(graph, document, remotes ?? [])
+  const validated = await prepareSchema(schema, dialect, remotes)
+  const projected = await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+  const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at)
 
   return {
     project(data: unknown): SchemaProjection {
-      return buildProjection(prepared, data)
+      return buildProjection(projected, data, cache, limits)
     },
 
     validate(data: unknown): MaybePromise<ValidationResult> {
-      return runValidation(prepared, data)
+      return runValidation(validated, data)
     },
 
     validateAt(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult> {
-      return runValidationAt(prepared, data, pointer)
+      return runValidationAt(validated, data, pointer)
     },
   }
 }
@@ -51,24 +73,24 @@ function toDraftOption(dialect: Dialect): string {
 // compileSchema() is synchronous for schemas with only local $ref (Phase 1's scope); it is
 // wrapped in a Promise so the factory signature stays uniform with libraries whose
 // preparation step is genuinely async (e.g. hyperjump's annotate()).
-async function prepareSchema(schema: unknown, dialect: Dialect): Promise<SchemaNode> {
-  // A schema may reference its dialect's metaschema to assert that it is
-  // itself a valid schema. json-schema-library carries the draft definitions
-  // but not the metaschema documents, and an unresolved reference fails
-  // closed, so without these a valid schema is reported invalid.
-  const referenced = referencedDialects(schema)
-  const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
+async function prepareSchema(
+  schema: unknown,
+  dialect: Dialect,
+  remotes: JsonSchema[] | undefined,
+): Promise<SchemaNode> {
   // json-schema-library asserts `format` in every dialect. Draft 7 permits that:
   // assertion is the conventional behaviour there and the specification only asks
   // that it can be disabled. From 2019-09 the default inverted, and `format` is an
   // annotation unless the format-assertion vocabulary is declared, so asserting it
   // is a deviation rather than a stricter setting.
   const formatAssertion = dialect === 'draft-07' ? undefined : false
-  return compileSchema(schema as JsonSchema | BooleanSchema, {
+  const root = compileSchema(schema as JsonSchema | BooleanSchema, {
     draft: toDraftOption(dialect),
     formatAssertion,
     remotes,
   })
+  fixRootReference(root, dialect)
+  return root
 }
 
 // json-schema-library reports data pointers as "#"-prefixed URI fragments (e.g. "#/age");

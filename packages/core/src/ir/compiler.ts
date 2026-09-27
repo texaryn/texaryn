@@ -186,6 +186,7 @@ function compileNode(
       dataPointer: pointer,
       order,
       visible: isExposed(proj),
+      ...(proj.boundaries ? { boundaries: proj.boundaries } : {}),
       disabled: false,
       readOnly,
       annotations,

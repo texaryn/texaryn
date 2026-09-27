@@ -43,6 +43,16 @@ describe('$ref brings the referenced fields into the projection', () => {
     expect(node(projection, '/work/street')).toBeDefined()
     expect(node(projection, '/home/street')).not.toBe(node(projection, '/work/street'))
   })
+
+  it('expands a recursive reference one level past the data', async () => {
+    const ex = example('reference-recursive')
+    const projection = await project(ex, ex.initialData)
+
+    expect(node(projection, '/child/name')?.recursiveExpansion).toBeUndefined()
+    expect(node(projection, '/child/child')?.boundaries).toEqual(['recursion'])
+    expect(node(projection, '/child/child/name')?.recursiveExpansion).toBe(true)
+    expect(node(projection, '/child/child/child')).toBeUndefined()
+  })
 })
 
 describe('if/then/else activates the branch the discriminator selects', () => {

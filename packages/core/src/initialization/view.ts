@@ -17,6 +17,8 @@ export function viewFromProjection(projection: SchemaProjection): Initialization
   const reachable = new Set<Location>()
   const defaults = new Map<Location, unknown>()
   const conflicts = new Map<Location, readonly string[]>()
+  const expansion = new Set<Location>()
+  const defaultSources = new Map<Location, readonly string[]>()
 
   for (const [pointer, node] of projection.nodes) {
     // Rule 5's "reachable", which is exposure rather than activity. A branch the
@@ -24,10 +26,15 @@ export function viewFromProjection(projection: SchemaProjection): Initialization
     // complete it, and filling only the active locations would leave the field
     // it exposes empty: the ADR's own defect, one branch deeper.
     if (!node.active && node.provisional !== true) continue
+    if (node.recursiveExpansion === true) {
+      if ('default' in node.annotations || node.defaultConflict) expansion.add(pointer)
+      continue
+    }
     reachable.add(pointer)
     // Presence, not truthiness. A schema declaring `default: false` declares a
     // default, and `0`, `''` and `null` are values like any other.
     if ('default' in node.annotations) defaults.set(pointer, node.annotations.default)
+    if (node.defaultSources) defaultSources.set(pointer, node.defaultSources)
     // The node rather than `projection.diagnostics`, which carries only the
     // disagreements that hold whatever the instance is. The pass acts on what
     // applies to the data in front of it, and a `oneOf` branch competing with
@@ -37,5 +44,5 @@ export function viewFromProjection(projection: SchemaProjection): Initialization
     if (node.defaultConflict) conflicts.set(pointer, node.defaultConflict)
   }
 
-  return { reachable, defaults, conflicts }
+  return { reachable, defaults, conflicts, expansion, defaultSources }
 }

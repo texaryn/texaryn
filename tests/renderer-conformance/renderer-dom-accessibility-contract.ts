@@ -641,6 +641,55 @@ export function rendererDomAccessibilityContract({
       )
     })
 
+    describe('element identity across a recompile', () => {
+      it('keeps the input being typed into when an earlier sibling grows', async () => {
+        const { surface, runtime, q } = await mount(
+          {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            properties: {
+              child: { $ref: '#' },
+              name: { type: 'string', title: 'Name' },
+            },
+          },
+          undefined,
+        )
+        const input = q.getAllByRole('textbox', { name: 'Name' })[0] as HTMLInputElement
+        const before = nodeAt(runtime, '/child/name')
+        input.focus()
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: before, value: 'a' })
+        })
+        expect(nodeAt(runtime, '/child/name')).not.toBe(before)
+        const after = q.getAllByRole('textbox', { name: 'Name' })
+        expect(after).toContain(input)
+        expect(input.isConnected).toBe(true)
+        expect(document.activeElement).toBe(input)
+        expect(input.value).toBe('a')
+      })
+
+      it('keeps a same-name field when a conditional switches its schema', async () => {
+        const { surface, runtime, q } = await mount(
+          {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            properties: { kind: { type: 'string', enum: ['a', 'b'], title: 'Kind' } },
+            if: { properties: { kind: { const: 'a' } } },
+            then: { properties: { detail: { type: 'string', title: 'Detail' } } },
+            else: { properties: { detail: { type: 'string', title: 'Detail', maxLength: 5 } } },
+          },
+          { kind: 'a' },
+        )
+        const input = q.getByRole('textbox', { name: 'Detail' })
+        await surface.act(() => {
+          runtime.dispatch({ type: 'SetValue', nodeId: nodeAt(runtime, '/kind'), value: 'b' })
+        })
+        const detail = runtime.document.getSnapshot().nodes[nodeAt(runtime, '/detail')]
+        expect(detail?.type === 'field' && detail.constraints.maxLength).toBe(5)
+        expect(q.getByRole('textbox', { name: 'Detail' })).toBe(input)
+      })
+    })
+
     // ADR-004. Every word a built-in widget invents comes from the configured
     // set, on both surfaces of each control, in every family alike.
     describe('built-in copy', () => {

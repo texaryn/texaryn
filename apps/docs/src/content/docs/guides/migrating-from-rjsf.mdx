@@ -68,6 +68,18 @@ cancellation, rather than calling a handler straight after validation.
 
 <Example id="runtime-submission" />
 
+**A recursive schema grows with the data.** RJSF 5.24.13 renders a recursive
+object schema level after level until the page stops responding. RJSF 6
+detects the cycle and renders `CyclicSchemaExpandTemplate` there, an explicit
+action the user takes to show the next level. Texaryn expands the recursion
+once past the data, and filling a level shows the next, so the form needs no
+expand action. A schema that applies itself at one instance location, such as
+`allOf: [{ $ref: '#' }]` at the root, is rejected when the adapter is created.
+[JSON Schema support](/texaryn/guides/json-schema-support/#recursive-references)
+describes both.
+
+<Example id="reference-recursive" />
+
 ## Migration checklist
 
 1. **Inventory your `uiSchema`.** Map each `ui:` key to a Texaryn hint at the

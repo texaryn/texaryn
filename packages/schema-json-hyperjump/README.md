@@ -68,7 +68,7 @@ The adapter projects both populated and unfilled schema fields.
 It supports current Texaryn requirements including:
 
 - local `$ref`
-- recursive local `$ref`, bounded by instance depth
+- recursive local `$ref`, expanded once past the data by the rule `@texaryn/schema-json` documents
 - arrays with `items` and `prefixItems`
 - `if` / `then` / `else`
 - `oneOf`
@@ -80,6 +80,10 @@ It supports current Texaryn requirements including:
 - active and inactive branch skeletons
 
 Dynamic branches are resolved so selected but incomplete branches can still expose the fields the user needs to complete them.
+
+A recursive schema follows the same rule as the primary adapter, from a byte-identical copy of its schema graph: below the last location that holds data, a path never applies the same schemas twice, a past-the-data object whose schemas a descendant would repeat carries a `recursion` boundary, an object whose members the budget withheld carries `budget`, and the limits are 16 objects and 512 nodes that exist because of the recursion. `createHyperjumpAdapter` rejects a schema that applies itself at one instance location with the package's own `SameLocationCycleError`. Only `#`-local references are followed.
+
+One difference from the primary adapter concerns `defaultSources`. Where Hyperjump's evaluator reports a default that its static conflict walk never visits (under `additionalProperties` or `patternProperties`, in a Draft 7 `dependencies` branch, or behind a reference that is not `#`-local), a node whose schemas lie on a cycle carries an empty `defaultSources`. `schema-defaults` initialization then cannot see that default repeat at a deeper level, so a default that recreates itself in one of those shapes runs until the 32-pass initialization budget is exhausted. A `default` beside `$ref` in 2019-09 and 2020-12 does not: Hyperjump reports it only where the data holds the location, and never writes it.
 
 ## Validation
 

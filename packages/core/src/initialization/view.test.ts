@@ -134,3 +134,40 @@ describe('what counts as a conflict', () => {
     expect(view.conflicts.size).toBe(0)
   })
 })
+
+describe('recursion expanded past the data', () => {
+  it('keeps a recursive expansion out of reachable and lists its default', () => {
+    const view = viewFromProjection(
+      projection({
+        '/name': node({ annotations: { default: 'n' } }),
+        '/child/name': node({ recursiveExpansion: true, annotations: { default: 'n' } }),
+        '/child/other': node({ recursiveExpansion: true }),
+      }),
+    )
+    expect([...view.reachable]).toEqual(['/name'])
+    expect([...(view.expansion ?? [])]).toEqual(['/child/name'])
+  })
+
+  it('lists a conflict inside a recursive expansion', () => {
+    const view = viewFromProjection(
+      projection({ '/a/b': node({ recursiveExpansion: true, defaultConflict: ['#/x', '#/y'] }) }),
+    )
+    expect([...(view.expansion ?? [])]).toEqual(['/a/b'])
+    expect([...view.conflicts.keys()]).toEqual([])
+  })
+
+  it('never reads boundaries', () => {
+    const view = viewFromProjection(
+      projection({ '/r': node({ type: 'object', boundaries: ['budget'], annotations: { default: {} } }) }),
+    )
+    expect([...view.reachable]).toEqual(['/r'])
+    expect(view.defaults.get('/r' as JsonPointer)).toEqual({})
+  })
+
+  it('carries default sources', () => {
+    const view = viewFromProjection(
+      projection({ '/a': node({ annotations: { default: 1 }, defaultSources: ['#/$defs/a'] }) }),
+    )
+    expect(view.defaultSources?.get('/a' as JsonPointer)).toEqual(['#/$defs/a'])
+  })
+})

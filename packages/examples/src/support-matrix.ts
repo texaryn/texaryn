@@ -36,8 +36,13 @@ export const formProjectionSupport: readonly SupportRow[] = [
   },
   {
     title: 'Local references',
-    capabilities: ['schema.reference.local-ref', 'schema.reference.reused-fragment'],
-    formBehavior: 'Referenced field schemas are resolved locally.',
+    capabilities: [
+      'schema.reference.local-ref',
+      'schema.reference.reused-fragment',
+      'schema.reference.recursive',
+    ],
+    formBehavior:
+      'Referenced field schemas are resolved locally; a recursive reference expands once past the data.',
   },
   {
     title: 'Composition',

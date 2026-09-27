@@ -1179,9 +1179,12 @@ The first (and for v1, only) adapter implements `SchemaEvaluationPort` for JSON
 Schema. Its responsibilities:
 
 1. **$ref resolution.** Resolve all `$ref` pointers including recursive refs.
-   Use `$anchor` and `$dynamicAnchor` from 2020-12. Handle circular refs by
-   detecting cycles and inserting placeholder nodes. Local `$defs`/`$ref` is
-   in the MVP scope; remote `$ref` and `$dynamicRef` are deferred.
+   Use `$anchor` and `$dynamicAnchor` from 2020-12. A recursive schema expands
+   once past the data: below the last location that holds data, a path is cut
+   where it would apply the same schemas again, and the past-the-data object
+   whose schemas would repeat carries a `recursion` boundary instead of a
+   placeholder node (ADR-007). Local `$defs`/`$ref` is in the MVP scope;
+   remote `$ref` and `$dynamicRef` are deferred.
 
 2. **Active schema projection.** Process `if`/`then`/`else`,
    `dependentSchemas`/`dependentRequired`, and the draft-07 `dependencies`
@@ -1674,8 +1677,10 @@ against a strict JSON Schema for the IR itself. Unknown properties are rejected.
 Node types must be from the known set. Action types must exist in the host's
 action registry.
 
-**Schema depth limits.** The `$ref` resolver has a configurable recursion limit
-(default: 10). The `oneOf`/`anyOf` evaluator has a branch limit (default: 20).
+**Schema expansion limits.** A recursive schema's projection past the data has two
+fixed limits per projection, 16 objects and 512 nodes, and a schema that applies
+itself at one instance location is rejected when the adapter is created
+(ADR-007). The `oneOf`/`anyOf` evaluator has a branch limit (default: 20).
 These prevent resource exhaustion from adversarial schemas.
 
 **No HTML in IR.** The IR contains strings (titles, descriptions, error

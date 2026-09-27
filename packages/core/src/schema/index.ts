@@ -4,6 +4,7 @@ export type {
   ProjectionDiagnostic,
   ProjectionDiagnosticCode,
   NodeProjection,
+  ProjectionBoundary,
   ChildProjection,
   AnnotationSet,
 } from './port.js'

@@ -6,7 +6,9 @@ import type {
   JsonSchemaType,
   FieldConstraints,
   EnumOption,
+  ProjectionBoundary,
 } from '@texaryn/core'
+import type { Dialect } from './dialect.js'
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
@@ -37,6 +39,330 @@ export interface DraftNode {
   /** Set by a provisionally selected branch; never set alongside `active`. */
   provisional?: boolean
   annotations: AnnotationSet
+  boundaries?: ProjectionBoundary[]
+  recursiveExpansion?: true
+  defaultSources?: readonly string[]
+}
+
+export interface ProjectionCache {
+  readonly dialect: Dialect
+  readonly closure: Map<string, readonly string[]>
+  readonly info: Map<string, LocationInfo>
+  readonly cyclic: ReadonlySet<string>
+}
+
+export function newProjectionCache(dialect: Dialect, cyclic: ReadonlySet<string>): ProjectionCache {
+  return { dialect, closure: new Map(), info: new Map(), cyclic }
+}
+
+export interface ProjectionLimits {
+  readonly objects: number
+  readonly nodes: number
+}
+
+export interface Lineage {
+  readonly key: string
+  readonly pointer: string
+  readonly recursive: boolean
+  readonly depth: number
+  readonly parent: Lineage | undefined
+}
+
+export interface RecursionState {
+  readonly cache: ProjectionCache
+  readonly limits: ProjectionLimits
+  readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly pruned: Set<string>
+  readonly cycles: Set<string>
+  readonly decisions: Map<string, Decision>
+  readonly queue: { path: readonly number[]; enter: () => void }[][]
+  readonly reserved: Set<string>
+  readonly flagged: Set<string>
+  readonly onCycle: Set<string>
+  objectsUsed: number
+  nodesUsed: number
+}
+
+export type Decision = { kind: 'walk'; lineage: Lineage | undefined } | { kind: 'skip' }
+
+export interface LocationInfo {
+  readonly key: string
+  readonly cycle: boolean
+  readonly cyclic: boolean
+  readonly expanded: readonly string[]
+  readonly children: Map<string, readonly string[]>
+  items?: readonly string[]
+}
+
+function isLeafSchema(schema: unknown, rootSchema: unknown): boolean {
+  let current = schema
+  const seen = new Set<string>()
+  while (isRecord(current)) {
+    const target = refTarget(current)
+    if (target === undefined || seen.has(target)) break
+    seen.add(target)
+    current = resolveJsonPointer(rootSchema, target.slice(1))
+  }
+  if (!isRecord(current)) return true
+  const type = Array.isArray(current.type) ? current.type.find((t) => VALID_TYPES.has(t as JsonSchemaType)) : current.type
+  if (typeof type === 'string') return type !== 'object'
+  return ('enum' in current || 'const' in current) && !('properties' in current)
+}
+
+export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimits): RecursionState {
+  return {
+    cache,
+    limits,
+    boundaries: new Map(),
+    pruned: new Set(),
+    cycles: new Set(),
+    decisions: new Map(),
+    queue: [],
+    reserved: new Set(),
+    flagged: new Set(),
+    onCycle: new Set(),
+    objectsUsed: 0,
+    nodesUsed: 0,
+  }
+}
+
+function addBoundary(state: RecursionState, pointer: string, reason: ProjectionBoundary): void {
+  const set = state.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
+  set.add(reason)
+  state.boundaries.set(pointer, set)
+}
+
+const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
+const NON_APPLYING = new Set([
+  '$ref',
+  '$schema',
+  '$id',
+  '$anchor',
+  '$dynamicAnchor',
+  '$recursiveAnchor',
+  '$vocabulary',
+  '$comment',
+  '$defs',
+  'definitions',
+])
+
+const refTarget = (schema: Record<string, unknown>): string | undefined => {
+  const ref = schema.$ref
+  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
+  return `#${schemaFragment(ref)}`
+}
+
+// Draft 7 ignores a `$ref` site's siblings, so the site adds nothing to an
+// identity; from 2019-09 it adds itself when a sibling keyword applies.
+function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache, stack: Set<string>): readonly string[] {
+  const cached = cache.closure.get(position)
+  if (cached) return cached
+  if (stack.has(position)) return []
+  stack.add(position)
+  const out = new Set<string>()
+  const schema = resolveJsonPointer(rootSchema, position.slice(1))
+  const addAllOf = (record: Record<string, unknown>): void => {
+    if (!Array.isArray(record.allOf)) return
+    record.allOf.forEach((_: unknown, index: number) => {
+      for (const p of closureOf(`${position}/allOf/${index}`, rootSchema, cache, stack)) out.add(p)
+    })
+  }
+  if (isRecord(schema)) {
+    const target = refTarget(schema)
+    if (target === undefined) {
+      out.add(position)
+      addAllOf(schema)
+    } else {
+      if (cache.dialect !== 'draft-07') {
+        if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
+        addAllOf(schema)
+      }
+      for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
+    }
+  } else if (typeof schema === 'boolean') out.add(position)
+  stack.delete(position)
+  const result = [...out]
+  cache.closure.set(position, result)
+  return result
+}
+
+export function locationInfo(
+  declaring: readonly string[],
+  rootSchema: unknown,
+  state: RecursionState,
+): LocationInfo {
+  const cache = state.cache
+  const memoKey = [...declaring].sort().join('\n')
+  const cached = cache.info.get(memoKey)
+  if (cached) return cached
+  const at = (position: string): unknown => resolveJsonPointer(rootSchema, position.slice(1))
+  const identity = new Set<string>()
+  for (const position of declaring) for (const p of closureOf(position, rootSchema, cache, new Set())) identity.add(p)
+
+  let cycle = false
+  const expanded: string[] = []
+  const seen = new Set<string>()
+  const visitAll = (position: string, stack: Set<string>): void => {
+    if (stack.has(position)) {
+      cycle = true
+      return
+    }
+    if (seen.has(position)) return
+    seen.add(position)
+    const schema = at(position)
+    if (!isRecord(schema)) return
+    expanded.push(position)
+    stack.add(position)
+    const target = refTarget(schema)
+    if (target !== undefined) visitAll(target, stack)
+    if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
+      stack.delete(position)
+      return
+    }
+    for (const keyword of IN_PLACE_BRANCHES) {
+      const trivial =
+        (keyword === 'then' && (!('if' in schema) || schema.if === false)) ||
+        (keyword === 'else' && (!('if' in schema) || schema.if === true))
+      if (isRecord(schema[keyword]) && !trivial) visitAll(`${position}/${keyword}`, stack)
+    }
+    for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
+      const branches = schema[keyword]
+      if (Array.isArray(branches)) branches.forEach((_: unknown, index: number) => visitAll(`${position}/${keyword}/${index}`, stack))
+    }
+    for (const keyword of cache.dialect === 'draft-07' ? (['dependencies'] as const) : (['dependentSchemas', 'dependencies'] as const)) {
+      const map = schema[keyword]
+      if (!isRecord(map)) continue
+      for (const [key, branch] of Object.entries(map)) {
+        if (isRecord(branch)) visitAll(`${position}/${keyword}/${escapeSegment(key)}`, stack)
+      }
+    }
+    stack.delete(position)
+  }
+  for (const position of declaring) visitAll(position, new Set())
+
+  const info: LocationInfo = {
+    key: [...identity].sort().join('\n'),
+    cycle,
+    cyclic: [...identity].some((position) => cache.cyclic.has(position)),
+    expanded,
+    children: new Map(),
+  }
+  cache.info.set(memoKey, info)
+  return info
+}
+
+function childDeclaring(info: LocationInfo, key: string, rootSchema: unknown): readonly string[] {
+  const cached = info.children.get(key)
+  if (cached) return cached
+  const found: string[] = []
+  for (const position of info.expanded) {
+    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    if (isRecord(schema) && isRecord(schema.properties) && key in schema.properties) {
+      const child = `${position}/properties/${escapeSegment(key)}`
+      if (!found.includes(child)) found.push(child)
+    }
+  }
+  info.children.set(key, found)
+  return found
+}
+
+function itemDeclaring(info: LocationInfo, rootSchema: unknown): readonly string[] {
+  if (info.items) return info.items
+  const found: string[] = []
+  for (const position of info.expanded) {
+    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    if (isRecord(schema) && schema.items !== undefined && !Array.isArray(schema.items)) {
+      found.push(`${position}/items`)
+    }
+  }
+  info.items = found
+  return found
+}
+
+// A location holding data and every member of one are always projected. Below
+// that, a location repeating a past-the-data ancestor's identity is cut, and
+// the recursion-induced rest are admitted breadth first against the budget when dequeued.
+function decideMember(
+  state: RecursionState,
+  parentPointer: string,
+  childPointer: string,
+  childData: unknown,
+  declaring: readonly string[],
+  rootSchema: unknown,
+  parentLineage: Lineage | undefined,
+  phase: 'enqueue' | 'dequeue',
+  leaf = false,
+): Decision | 'defer' {
+  const cached = state.decisions.get(childPointer)
+  if (cached) return cached
+  const info = locationInfo(declaring, rootSchema, state)
+  const settle = (decision: Decision): Decision => {
+    state.decisions.set(childPointer, decision)
+    return decision
+  }
+  if (info.cycle) {
+    state.cycles.add(childPointer)
+    return settle({ kind: 'skip' })
+  }
+  if (childData !== undefined && childData !== null) return settle({ kind: 'walk', lineage: undefined })
+  // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
+  const recursive = (parentLineage?.recursive ?? false) || info.cyclic || info.key === ''
+  const lineage: Lineage = { key: info.key, pointer: childPointer, recursive, depth: (parentLineage?.depth ?? 0) + 1, parent: parentLineage }
+  if (parentLineage === undefined) return settle({ kind: 'walk', lineage })
+  for (let ancestor: Lineage | undefined = parentLineage; ancestor; ancestor = ancestor.parent) {
+    if (info.key !== '' && ancestor.key === info.key) {
+      addBoundary(state, ancestor.pointer, 'recursion')
+      state.pruned.add(childPointer)
+      return settle({ kind: 'skip' })
+    }
+  }
+  if (!recursive) return settle({ kind: 'walk', lineage })
+  if (phase === 'enqueue') return 'defer'
+  let admit: boolean
+  if (leaf) {
+    const covered = state.reserved.has(parentPointer)
+    admit = covered || state.nodesUsed < state.limits.nodes
+    if (admit && !covered) state.nodesUsed += 1
+  } else {
+    const leaves = leafMembers(info, rootSchema)
+    admit = state.objectsUsed < state.limits.objects && state.nodesUsed + 1 + leaves <= state.limits.nodes
+    if (admit) {
+      state.objectsUsed += 1
+      state.nodesUsed += 1 + leaves
+      state.reserved.add(childPointer)
+    }
+  }
+  if (!admit) {
+    addBoundary(state, parentPointer, 'budget')
+    state.pruned.add(childPointer)
+    return settle({ kind: 'skip' })
+  }
+  state.flagged.add(childPointer)
+  return settle({ kind: 'walk', lineage })
+}
+
+function leafMembers(info: LocationInfo, rootSchema: unknown): number {
+  const keys = new Set<string>()
+  for (const position of info.expanded) {
+    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    if (isRecord(schema) && isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
+  }
+  let count = 0
+  for (const key of keys) {
+    const first = childDeclaring(info, key, rootSchema)[0]
+    if (first !== undefined && isLeafSchema(resolveJsonPointer(rootSchema, first.slice(1)), rootSchema)) count += 1
+  }
+  return count
+}
+
+function decideRow(state: RecursionState, rowPointer: string, declaring: readonly string[], rootSchema: unknown): Decision {
+  const cached = state.decisions.get(rowPointer)
+  if (cached) return cached
+  const info = locationInfo(declaring, rootSchema, state)
+  if (info.cycle) state.cycles.add(rowPointer)
+  const decision: Decision = info.cycle ? { kind: 'skip' } : { kind: 'walk', lineage: undefined }
+  state.decisions.set(rowPointer, decision)
+  return decision
 }
 
 export function ensureNode(nodes: Map<string, DraftNode>, pointer: string): DraftNode {
@@ -96,6 +422,9 @@ export function finalizeNodes(nodes: Map<string, DraftNode>): Map<JsonPointer, N
       // dropping the guard changes no observable behaviour.
       provisional: node.active ? undefined : node.provisional,
       annotations: node.annotations,
+      ...(node.boundaries && node.boundaries.length > 0 ? { boundaries: node.boundaries } : {}),
+      ...(node.recursiveExpansion ? { recursiveExpansion: true as const } : {}),
+      ...(node.defaultSources !== undefined ? { defaultSources: node.defaultSources } : {}),
     })
   }
   return result
@@ -194,6 +523,12 @@ function resolveRef(
  */
 export type BranchChecker = (schemaPointer: string, instancePointer: string, suffix: string) => boolean
 
+export function liveBranch(schema: Record<string, unknown>): 'then' | 'else' | undefined {
+  if (typeof schema.if !== 'boolean') return undefined
+  const keyword = schema.if ? 'then' : 'else'
+  return isRecord(schema[keyword]) ? keyword : undefined
+}
+
 /**
  * Walks the raw schema document statically (no data evaluation) to backfill
  * declared-but-currently-unfilled fields: optional properties nobody has typed
@@ -203,8 +538,7 @@ export type BranchChecker = (schemaPointer: string, instancePointer: string, suf
  * anything).
  *
  * Unlike the data-driven pass, this walk also follows local $ref (including
- * recursive $ref, bounded by the (schemaPointer, instancePointer) pair so the
- * same recursive $ref can still be walked once per instance depth) and
+ * recursive $ref, which `decideMember` bounds past the data) and
  * recurses into items/prefixItems for array indices the instance data
  * actually has. `schemaPointer` tracks the position in the schema *document*
  * (reset to the $ref target on follow) separately from `pointer`, the instance
@@ -228,19 +562,20 @@ export function staticWalk(
   nodes: Map<string, DraftNode>,
   visited: Set<string>,
   rootSchema: unknown,
+  recursion: RecursionState,
+  /** The schema positions that declare this location, which is what its identity is taken from. */
+  declaring: readonly string[],
+  /** This location and its past-the-data ancestors, nearest first; undefined unless it is past the data. */
+  lineage: Lineage | undefined,
+  path: readonly number[],
 ): void {
   if (!isRecord(schema)) return
+  let step = 0
+  const nextPath = (): readonly number[] => [...path, step++]
 
   const ref = resolveRef(schema, rootSchema)
   if (ref) {
-    // When data exists at this pointer, key on (schemaPointer, instancePointer) so
-    // the same recursive $ref can be walked at each instance depth the data provides.
-    // When data is undefined (past the instance boundary), key on schema pointer
-    // alone: a recursive $ref is projected one level past the data boundary (so its
-    // direct properties appear as unfilled fields), then stopped.
-    const cycleKey = data === undefined || data === null
-      ? ref.pointer
-      : `${ref.pointer}@${pointer}`
+    const cycleKey = `${ref.pointer}@${pointer}`
     if (visited.has(cycleKey)) return
     visited.add(cycleKey)
     staticWalk(
@@ -254,6 +589,10 @@ export function staticWalk(
       nodes,
       visited,
       rootSchema,
+      recursion,
+      declaring,
+      lineage,
+      path,
     )
     visited.delete(cycleKey)
     return
@@ -266,6 +605,7 @@ export function staticWalk(
   // (fields unique to the unselected branch) are created for skeleton rendering.
   const existed = nodes.has(pointer)
   const node = ensureNode(nodes, pointer)
+  if (locationInfo(declaring, rootSchema, recursion).cyclic) recursion.onCycle.add(pointer)
   // A provisionally selected branch is shown, so it writes structure and
   // annotations like an active one. The branch order below puts it ahead of any
   // inactive sibling, so the fill-gaps-only policy keeps those from
@@ -295,6 +635,12 @@ export function staticWalk(
     )
     for (const [key, sub] of Object.entries(schema.properties)) {
       const escaped = escapeSegment(key)
+      const childData = isRecord(data) ? data[key] : undefined
+      const childPointer = `${pointer}/${escaped}`
+      const childSchemaPointer = `${schemaPointer}/properties/${escaped}`
+      const memberDeclaring = childDeclaring(locationInfo(declaring, rootSchema, recursion), key, rootSchema)
+      const decision = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'enqueue')
+      if (decision !== 'defer' && decision.kind === 'skip') continue
       // Gated on the branch applying. A branch that does not apply demands
       // nothing, and a provisionally selected one demands it of the user
       // without the validator asking yet.
@@ -307,19 +653,35 @@ export function staticWalk(
         active,
         provisional && required.has(key),
       )
-      const childData = isRecord(data) ? data[key] : undefined
-      staticWalk(
-        sub,
-        childData,
-        `${pointer}/${escaped}`,
-        `${schemaPointer}/properties/${escaped}`,
-        active,
-        provisional,
-        isBranchActive,
-        nodes,
-        visited,
-        rootSchema,
-      )
+      const childPath = nextPath()
+      const enter = (settled: Decision): void => {
+        if (settled.kind === 'skip') return
+        staticWalk(
+          sub,
+          childData,
+          childPointer,
+          childSchemaPointer,
+          active,
+          provisional,
+          isBranchActive,
+          nodes,
+          decision === 'defer' ? new Set() : visited,
+          rootSchema,
+          recursion,
+          memberDeclaring,
+          settled.lineage,
+          childPath,
+        )
+      }
+      if (decision === 'defer') {
+        ;(recursion.queue[lineage!.depth] ??= []).push({
+          path: childPath,
+          enter: () => {
+            const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
+            if (settled !== 'defer') enter(settled)
+          },
+        })
+      } else enter(decision)
     }
   }
 
@@ -339,8 +701,31 @@ export function staticWalk(
         nodes,
         visited,
         rootSchema,
+        recursion,
+        declaring,
+        lineage,
+        nextPath(),
       )
     })
+  }
+  const live = liveBranch(schema)
+  if (live !== undefined) {
+    staticWalk(
+      schema[live],
+      data,
+      pointer,
+      `${schemaPointer}/${live}`,
+      active,
+      provisional,
+      isBranchActive,
+      nodes,
+      visited,
+      rootSchema,
+      recursion,
+      declaring,
+      lineage,
+      nextPath(),
+    )
   }
 
   // Dynamic branches (if/then/else, oneOf, anyOf, dependentSchemas, dependencies)
@@ -424,7 +809,7 @@ export function staticWalk(
     })
   }
 
-  if (isRecord(schema.dependentSchemas)) {
+  if (recursion.cache.dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
     for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
       const keyPresent = isRecord(data) && key in data
       dynamicBranches.push({
@@ -468,6 +853,10 @@ export function staticWalk(
       nodes,
       visited,
       rootSchema,
+      recursion,
+      declaring,
+      lineage,
+      nextPath(),
     )
   }
 
@@ -493,14 +882,16 @@ export function staticWalk(
   const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
   const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
   if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data)) {
-    const itemsKeyword = prefixItems ? 'prefixItems' : 'items'
     data.forEach((item: unknown, index: number) => {
-      const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
-      const itemSchemaPointer =
-        prefixItems || tupleItems
-          ? `${schemaPointer}/${itemsKeyword}/${index}`
-          : `${schemaPointer}/${itemsKeyword}`
+      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+      const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
+      const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
       if (itemSchema !== undefined) {
+        const rowDeclaring = tuple !== undefined
+          ? [`#${itemSchemaPointer}`]
+          : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
+        const decision = decideRow(recursion, `${pointer}/${index}`, rowDeclaring, rootSchema)
+        if (decision.kind === 'skip') return
         staticWalk(
           itemSchema,
           item,
@@ -512,6 +903,10 @@ export function staticWalk(
           nodes,
           visited,
           rootSchema,
+          recursion,
+          rowDeclaring,
+          undefined,
+          nextPath(),
         )
       }
     })

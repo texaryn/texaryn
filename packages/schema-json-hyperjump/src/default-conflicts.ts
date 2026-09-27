@@ -1,6 +1,7 @@
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
-import { deepEqual, selectProvisionalBranch } from './static-walk.js'
+import { deepEqual, liveBranch, selectProvisionalBranch } from './static-walk.js'
 import type { BranchChecker } from './static-walk.js'
+import type { Dialect } from './dialect.js'
 
 /** One `default` declaration, and the schema position that makes it. */
 interface DefaultDeclaration {
@@ -55,7 +56,12 @@ export function collectDefaultConflicts(
    * branch cannot be counted here and reported inactive on the node, or the
    * other way round.
    */
-  isBranchActive?: BranchChecker,
+  isBranchActive: BranchChecker | undefined,
+  /** The pointers the projection holds; the walk enters no other location. */
+  projected: { has(pointer: string): boolean },
+  dialect: Dialect,
+  /** Receives the positions declaring each pointer's `default`, sorted and without duplicates. */
+  sourcesOut?: Map<string, readonly string[]>,
 ): Map<string, readonly string[]> {
   const declarations = new Map<string, DefaultDeclaration[]>()
 
@@ -77,18 +83,11 @@ export function collectDefaultConflicts(
     // A `$ref` is followed to its target, which then stands in for this
     // position entirely: `schemaPointer` becomes the target's, so a declaration
     // is named by where it is written rather than by what pointed at it.
-    //
-    // The cycle guard is `staticWalk`'s, and it has to be. While the instance
-    // provides data the pair of pointers is the key, so the same recursive
-    // `$ref` is walked once per instance depth. Past the instance boundary the
-    // schema pointer alone is the key: the instance pointer would keep growing
-    // and no key would ever repeat, so a recursive `$ref` would not terminate.
     const ref =
       typeof schema.$ref === 'string' && schema.$ref.startsWith('#') ? schema.$ref : undefined
     if (ref !== undefined) {
       const target = schemaFragment(ref)
-      const cycleKey =
-        current === undefined || current === null ? target : `${target}@${pointer}`
+      const cycleKey = `${target}@${pointer}`
       if (visited.has(cycleKey)) return
       visited.add(cycleKey)
       visit(resolveJsonPointer(rootSchema, target), current, pointer, target, visited)
@@ -119,6 +118,8 @@ export function collectDefaultConflicts(
           visit(schema.else, current, pointer, `${schemaPointer}/else`, visited)
         }
       }
+      const live = liveBranch(schema)
+      if (live !== undefined) visit(schema[live], current, pointer, `${schemaPointer}/${live}`, visited)
 
       if (Array.isArray(schema.oneOf)) {
         const branches = schema.oneOf as unknown[]
@@ -144,7 +145,7 @@ export function collectDefaultConflicts(
         })
       }
 
-      if (isRecord(schema.dependentSchemas)) {
+      if (dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
         for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
           if (!isRecord(current) || !(key in current)) continue
           visit(
@@ -161,13 +162,10 @@ export function collectDefaultConflicts(
     if (isRecord(schema.properties)) {
       for (const [key, child] of Object.entries(schema.properties)) {
         const escaped = escapeSegment(key)
-        visit(
-          child,
-          isRecord(current) ? current[key] : undefined,
-          `${pointer}/${escaped}`,
-          `${schemaPointer}/properties/${escaped}`,
-          visited,
-        )
+        const childPointer = `${pointer}/${escaped}`
+        const childCurrent = isRecord(current) ? current[key] : undefined
+        if (!projected.has(childPointer)) continue
+        visit(child, childCurrent, childPointer, `${schemaPointer}/properties/${escaped}`, visited)
       }
     }
 
@@ -177,19 +175,13 @@ export function collectDefaultConflicts(
     const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
     const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
     if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(current)) {
-      const keyword = prefixItems ? 'prefixItems' : 'items'
       current.forEach((item, index) => {
-        const itemSchema = prefixItems?.[index] ?? tupleItems?.[index] ?? singleItems
+        const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+        const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
         if (itemSchema === undefined) return
-        visit(
-          itemSchema,
-          item,
-          `${pointer}/${index}`,
-          prefixItems || tupleItems
-            ? `${schemaPointer}/${keyword}/${index}`
-            : `${schemaPointer}/${keyword}`,
-          visited,
-        )
+        if (!projected.has(`${pointer}/${index}`)) return
+        const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
+        visit(itemSchema, item, `${pointer}/${index}`, itemSchemaPointer, visited)
       })
     }
   }
@@ -197,6 +189,11 @@ export function collectDefaultConflicts(
   visit(rootSchema, data, '', '', new Set())
 
   const conflicts = new Map<string, readonly string[]>()
+  if (sourcesOut) {
+    for (const [pointer, list] of declarations) {
+      sourcesOut.set(pointer, [...new Set(list.map((declaration) => declaration.source))].sort())
+    }
+  }
   for (const [pointer, list] of declarations) {
     const [first, ...rest] = list
     // Several declarations that agree state the same answer more than once,

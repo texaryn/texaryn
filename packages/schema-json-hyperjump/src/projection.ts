@@ -15,10 +15,21 @@ import {
   addChild,
   finalizeNodes,
   resolveTypeValue,
+  newRecursionState,
+  locationInfo,
+  type ProjectionCache,
+  type ProjectionLimits,
   type DraftNode,
   type BranchChecker,
 } from './static-walk.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
+
+export const DEFAULT_LIMITS: ProjectionLimits = { objects: 16, nodes: 512 }
+
+function walkOrder(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i]! - b[i]!
+  return a.length - b.length
+}
 
 /**
  * Reads branch selection off each construct's own local scope validity (see
@@ -113,6 +124,8 @@ export function buildProjection(
   rawSchema: unknown,
   compiled: CompiledSchema,
   data: unknown,
+  cache: ProjectionCache,
+  limits: ProjectionLimits = DEFAULT_LIMITS,
 ): SchemaProjection {
   const plugin = new ProjectionPlugin()
   interpret(compiled, Instance.fromJs(data as Parameters<typeof Instance.fromJs>[0]), {
@@ -179,7 +192,25 @@ export function buildProjection(
 
   const branchChecker = makeBranchChecker(plugin.scopeValidity)
 
-  staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema)
+  const recursion = newRecursionState(cache, limits)
+  const rootInfo = locationInfo(['#'], rawSchema, recursion)
+  if (rootInfo.cycle) recursion.cycles.add('')
+  else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
+  for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
+  for (const pointer of recursion.flagged) {
+    const node = nodes.get(pointer)
+    if (node) node.recursiveExpansion = true
+  }
+  for (const [pointer, reasons] of recursion.boundaries) {
+    const node = nodes.get(pointer)
+    if (node?.type === 'object') node.boundaries = (['recursion', 'budget'] as const).filter((reason) => reasons.has(reason))
+  }
+  for (const node of nodes.values()) {
+    if (!node.children) continue
+    node.children = node.children.filter(
+      (child) => !recursion.pruned.has(child.pointer) || nodes.has(child.pointer),
+    )
+  }
 
   // After both passes, because either can have written the annotation: pass 1
   // reads the keyword off the schema position that fired, pass 2 fills the gap
@@ -193,11 +224,15 @@ export function buildProjection(
   // walk also enters the branches this instance selects, which is what the node
   // reports. The second is a superset of the first, so the annotation is
   // omitted wherever either found a disagreement.
-  const schemaConflicts = collectDefaultConflicts(rawSchema, data)
-  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker)
+  const sources = new Map<string, readonly string[]>()
+  const schemaConflicts = collectDefaultConflicts(rawSchema, data, undefined, nodes, cache.dialect)
+  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker, nodes, cache.dialect, sources)
   for (const pointer of applicableConflicts.keys()) {
     const node = nodes.get(pointer)
     if (node) delete node.annotations.default
+  }
+  for (const [pointer, node] of nodes) {
+    if ('default' in node.annotations && recursion.onCycle.has(pointer)) node.defaultSources = sources.get(pointer) ?? []
   }
 
   const projected = finalizeNodes(nodes)
@@ -208,6 +243,15 @@ export function buildProjection(
   }
 
   const diagnostics: ProjectionDiagnostic[] = []
+  for (const pointer of recursion.cycles) {
+    diagnostics.push({
+      pointer: pointer as JsonPointer,
+      code: 'unresolved-projection-shape',
+      message:
+        `A "$ref" or in-place applicator cycle never leaves this location, so there is no ` +
+        `shape to render.`,
+    })
+  }
   for (const [pointer, sources] of schemaConflicts) {
     // A pointer that projects no node has nothing to omit an annotation from,
     // which is the only reason a conflict goes unreported here.

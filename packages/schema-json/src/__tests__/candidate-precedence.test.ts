@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createJsonSchemaAdapter } from '../index.js'
+import { createJsonSchemaAdapter, SameLocationCycleError } from '../index.js'
 import type { JsonPointer } from '@texaryn/core'
 
 async function project(schema: unknown, data: unknown) {
@@ -107,85 +107,29 @@ describe('two branches defining the same key', () => {
  * If the applicator cases below hang rather than pass, that assumption is back.
  */
 describe('recursive references', () => {
-  const tree = {
-    $id: 'https://example.com/tree',
-    type: 'object',
-    properties: {
-      name: { type: 'string' },
-      child: { $ref: '#' },
-    },
-  }
-
-  /**
-   * `tree` is deliberately not projected here.
-   *
-   * A self-referential property overflows the stack, because `walk` descends
-   * into every declared property whether the data reaches it or not, so the
-   * descent has no bound. That is a pre-existing defect on a different
-   * mechanism from this collector's guard, verified against `main` before this
-   * change, and it is tracked as issue #119 with the reproduction.
-   *
-   * It is documented and tracked, not pinned. There is no regression test for
-   * it here, so nothing will fail when it is fixed, and the first attempt to
-   * write one is the reason:
-   * `toThrow(RangeError)` passed locally and failed in CI, because available
-   * stack depth varies with the platform and with the coverage instrumentation
-   * CI runs. A test that depends on where the stack happens to run out is not
-   * evidence of anything. The deterministic half of the same behaviour, that
-   * descent is static rather than data-driven, is already pinned by
-   * "derives a shape at every depth" in `implicit-types.test.ts`.
-   *
-   * **The `$id` is load-bearing, and not for the reason it looks like.**
-   * `$ref: '#'` resolves against the nearest `$id`, so json-schema-library
-   * normalises this one to `https://example.com/tree`. Drop the `$id` and it
-   * normalises to the empty string instead, which `dereference` reads as no
-   * reference at all, and the whole subtree is then dropped with an
-   * `unresolved-projection-shape` diagnostic rather than descended. Both
-   * behaviours are #119; this fixture selects the overflow, and the test below
-   * selects the drop.
-   */
-
-  /**
-   * The half of #119 that is deterministic, so it can be pinned where the
-   * overflow cannot.
-   *
-   * Nothing here depends on stack depth: the descent stops at the shape gate,
-   * because the node that reaches it is the literal `{ $ref: '#' }`. The
-   * diagnostic is misleading while it does, since the schema this reference
-   * names declares `type: 'object'`, and `resolveRef()` returns it correctly
-   * when it is called.
-   *
-   * Asserted so that fixing `dereference` fails this test rather than turning
-   * a silent drop into a stack overflow unnoticed. The two are coupled: this
-   * form is the only recursive `$ref` the adapter does not follow, so it is
-   * also the only one that does not already overflow.
-   */
-  it('drops a root-relative $ref subtree with no $id, rather than descending it', async () => {
+  it('follows a root-relative $ref with no $id, once past the data', async () => {
     const rootRelative = {
       type: 'object',
       properties: { name: { type: 'string' }, child: { $ref: '#' } },
     }
     const projection = await project(rootRelative, { name: 'root', child: {} })
 
-    expect([...projection.nodes.keys()]).toEqual(['', '/name'])
-    expect(projection.diagnostics).toEqual([
-      {
-        pointer: '/child',
-        code: 'unresolved-projection-shape',
-        message: expect.stringContaining('no keyword that implies one'),
-      },
+    expect([...projection.nodes.keys()].sort()).toEqual([
+      '', '/child', '/child/child', '/child/child/name', '/child/name', '/name',
     ])
+    expect(projection.diagnostics ?? []).toEqual([])
   })
 
-  it('handles a cycle reached through an applicator', async () => {
+  it('rejects a cycle reached through an applicator at creation', async () => {
     const viaApplicator = {
       $id: 'https://example.com/loop',
       type: 'object',
       properties: { flag: { type: 'boolean' } },
       allOf: [{ if: { properties: { flag: { const: true } } }, then: { $ref: '#' } }],
     }
-    const pointers = [...(await project(viaApplicator, { flag: true })).nodes.keys()]
-    expect(pointers).toContain('/flag')
+    await expect(
+      createJsonSchemaAdapter(viaApplicator, { defaultDialect: 'draft-07' }),
+    ).rejects.toBeInstanceOf(SameLocationCycleError)
   })
 
   it('shares one definition between two properties', async () => {

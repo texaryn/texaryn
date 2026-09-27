@@ -28,6 +28,12 @@
 
 ***
 
+### boundaries?
+
+> `optional` **boundaries?**: readonly [`ProjectionBoundary`](../type-aliases/ProjectionBoundary.md)[]
+
+***
+
 ### children
 
 > **children**: [`NodeId`](../type-aliases/NodeId.md)[]

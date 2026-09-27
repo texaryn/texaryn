@@ -1,5 +1,6 @@
 import { computed, defineComponent, h } from 'vue'
 import type { PropType } from 'vue'
+import { objectChildKey } from '@texaryn/core'
 import type { ContainerNode, UINode } from '@texaryn/core'
 import { useFormMessages, useFormRuntime } from '../context.js'
 import { useStore } from '../use-store.js'
@@ -31,7 +32,7 @@ export const ObjectLayout = defineComponent({
     )
 
     return () => {
-      const rendered = children.value.map((child) => h(NodeRenderer, { key: child.id, node: child }))
+      const rendered = children.value.map((child) => h(NodeRenderer, { key: objectChildKey(child), node: child }))
       if (!nested) return h('div', rendered)
       // The root object is the form itself, so only a nested titled object
       // names a group. An unnamed group is noise, so the fieldset stops being
