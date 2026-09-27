@@ -1,5 +1,15 @@
 # @texaryn/web-components
 
+## 0.4.2
+
+### Patch Changes
+
+- eae5f41: Object children are keyed with `objectChildKey` from `@texaryn/core` instead of
+  a local copy of the same function, so this release needs the `@texaryn/core`
+  release that exports it. Rendering does not change.
+- Updated dependencies [eae5f41]
+  - @texaryn/core@0.13.0
+
 ## 0.4.1
 
 ### Patch Changes
