@@ -182,7 +182,7 @@ NodeIds are pre-order counters, so growth before the field being typed into renu
 
 ## Consequences
 
-**Measured cost.** Every timing here is the median of 20 calls on one adapter (projections, adapter creations or one `SetValue` dispatch) after 3 warm-up calls, on an Apple M1 Max with 32 GB and Node 26.5.1, running the TypeScript sources through `tsx`, with other processes holding the load average at 4 to 5. "Before" is `c868832`.
+**Measured cost.** Every timing here except the creation table is the median of 20 calls on one adapter (projections or one `SetValue` dispatch) after 3 warm-up calls, on an Apple M1 Max with 32 GB and Node 26.5.1, running the TypeScript sources through `tsx`, with other processes holding the load average at 4 to 5. "Before" is `c868832`.
 
 | schema at `{}` | schema-json before | schema-json | hyperjump before | hyperjump |
 |---|---|---|---|---|
@@ -192,7 +192,22 @@ NodeIds are pre-order counters, so growth before the field being typed into renu
 | six definitions, each referring to all six | `RangeError` | 45 nodes, 1.8 ms | not measured | 45 nodes, 1.5 ms |
 | a recursive object with 5,000 string fields behind a definition | `RangeError` | 514 nodes, 51.0 ms | not measured | 514 nodes, 44.2 ms |
 
-On the metaschema form, one `SetValue` dispatch takes 1.7 ms before and 35.6 ms now, and creating the adapter 0.21 ms before and 1.05 ms now, which includes the schema graph and the second compiled tree.
+On the metaschema form, one `SetValue` dispatch takes 1.7 ms before and 35.6 ms now.
+
+**Creating a schema-json adapter costs 2.4 to 4.6 times what it did at `c868832`, and the design accepts that one-time cost.** Creation normalises the document, builds the schema graph, checks it for same-location cycles, marks positions and compiles a second tree; the graph and the second compiled tree take most of it. It stays under 20 ms at 1,365 nodes. These rows are the final review's measurements on this machine: built JavaScript, the median of 20 creations, `c868832` and this decision interleaved.
+
+| schema | before | now | ratio |
+|---|---|---|---|
+| small, no remote | 0.03 ms | 0.08 ms | 2.8x |
+| small, 2020-12 metaschema remote | 1.66 ms | 3.96 ms | 2.4x |
+| small, draft-07 metaschema remote | 0.40 ms | 1.29 ms | 3.2x |
+| 200 flat string fields, 2020-12 | 0.62 ms | 2.59 ms | 4.2x |
+| 200 flat string fields, draft-07 | 0.56 ms | 2.29 ms | 4.1x |
+| nested objects, 5 deep, 4 children each (1,365 nodes) | 3.96 ms | 18.41 ms | 4.6x |
+| the draft-07 metaschema without its `$id` | 0.21 ms | 0.90 ms | 4.3x |
+| six definitions, each referring to all six | 0.18 ms | 0.77 ms | 4.3x |
+
+Creating a hyperjump adapter costs 1.04 to 1.31 times what it did.
 
 **The draft-07 metaschema costs more because the adapter now renders fields it used to drop.** With both limits at 0 it projects 42 nodes in 19.7 ms, against 33 nodes in 1.8 ms before: it follows the 9 root fields that reference the root, each a reduction of the whole metaschema. It renders 41 of its 46 root fields (32 before), and hyperjump 44 (44 before). The five schema-json does not render are `default` and `const`, which are boolean schemas, and `minLength`, `minItems` and `minProperties`, whose `nonNegativeIntegerDefault0` is a typeless `allOf` wrapper around a `$ref`, which schema-json does not project; hyperjump misses the two boolean ones.
 
