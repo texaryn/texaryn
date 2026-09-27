@@ -196,6 +196,20 @@ function repeatsAncestor(
   )
 }
 
+function repeatsPresentAncestor(
+  data: unknown,
+  segments: readonly string[],
+  sources: readonly string[],
+  view: InitializationView,
+  provisional: ReadonlySet<Location>,
+): boolean {
+  return properAncestors(segments).some((ancestor) => {
+    if (isAbsent(data, ancestor.segments, provisional)) return false
+    const earlier = view.defaultSources?.get(ancestor.location)
+    return earlier !== undefined && earlier.some((source) => sources.includes(source))
+  })
+}
+
 /**
  * Ends the provisional status of every location the write landed at or beneath.
  *
@@ -250,7 +264,11 @@ function collect(
     }
 
     const sources = view.defaultSources?.get(location)
-    if (sources && repeatsAncestor(segments, sources, sourced)) {
+    if (
+      sources &&
+      (repeatsAncestor(segments, sources, sourced) ||
+        repeatsPresentAncestor(data, segments, sources, view, provisional))
+    ) {
       refusals.push({ location, reason: 'recursive-default' })
       continue
     }

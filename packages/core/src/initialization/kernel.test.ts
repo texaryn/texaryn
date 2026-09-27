@@ -599,11 +599,23 @@ describe('recursion', () => {
     expect(result.refusals).toEqual([])
   })
 
-  it('does not refuse a source already in the data rather than written', () => {
+  it('does not refuse a source that no ancestor in the data carries', () => {
     const view = sourced({
       '/children/0/children': { value: [{}], sources: ['#/properties/children'] },
     })
     const result = initialized(initializeDefaults({ children: [{}] }, view))
     expect(result.data).toEqual({ children: [{ children: [{}] }] })
+  })
+
+  it('refuses a source repeated beneath an ancestor already in the data', () => {
+    const view = sourced({
+      '/children': { value: [{}], sources: ['#/properties/children'] },
+      '/children/0/children': { value: [{}], sources: ['#/properties/children'] },
+    })
+    const result = initialized(initializeDefaults({ children: [{}] }, view))
+    expect(result.data).toEqual({ children: [{}] })
+    expect(result.refusals).toEqual([
+      { location: '/children/0/children', reason: 'recursive-default' },
+    ])
   })
 })

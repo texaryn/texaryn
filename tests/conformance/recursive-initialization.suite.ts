@@ -77,6 +77,27 @@ const conditionalSites = (order: readonly string[]) => ({
   },
 })
 
+const containerDefault = {
+  type: 'object',
+  properties: { title: S('t'), x: { $ref: '#/$defs/n' } },
+  $defs: { n: { type: 'object', default: {}, properties: { name: S('n'), next: { $ref: '#/$defs/n' } } } },
+}
+const sharedWithoutRecursion = (name: string, member: string, definition: Record<string, unknown>) => ({
+  type: 'object',
+  properties: { person: { type: 'object', allOf: [{ $ref: `#/$defs/${name}` }], properties: { [member]: { $ref: `#/$defs/${name}` } } } },
+  $defs: { [name]: definition },
+})
+const entity = sharedWithoutRecursion('Entity', 'employer', { type: 'object', default: {} })
+const box = sharedWithoutRecursion('Box', 'inner', { type: 'object', default: { tag: 'd' }, properties: { tag: S('t') } })
+const nonCyclicSource = {
+  type: 'object',
+  properties: { x: { $ref: '#/$defs/n' } },
+  $defs: {
+    n: { type: 'object', allOf: [{ $ref: '#/$defs/S' }], properties: { name: S('n'), next: { $ref: '#/$defs/n' } } },
+    S: { type: 'object', default: {} },
+  },
+}
+
 const spacedName = {
   type: 'object',
   properties: { child: { $ref: '#/definitions/Tree%20Node' } },
@@ -171,6 +192,58 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
         data: { name: 'n', children: [{ name: 'n' }] },
         refusals: [repeat('/children/0/children')],
       })
+      const expectStableOverEdits = (
+        title: string,
+        schema: Record<string, unknown>,
+        field: string,
+        initial: string,
+        expected: (value: string) => { data: unknown; refusals: readonly Refusal[] },
+      ) => {
+        it(title, async () => {
+          const created = await run(schema, {})
+          expectOutcome(created, expected(initial))
+          for (const edit of range(4)) {
+            created.runtime.dispatch({ type: 'SetValue', nodeId: nodeIdFor(created.runtime, field), value: `edit${edit}` })
+            expectOutcome(created, expected(`edit${edit}`))
+          }
+        })
+      }
+      expectStableOverEdits('E8 keeps its construction depth over four edits of an unrelated field', selfCreating, '/name', 'n', (name) => ({
+        data: { name, children: [{ name: 'n' }] },
+        refusals: [repeat('/children/0/children')],
+      }))
+      expectStableOverEdits('a $defs container default keeps its construction depth over four edits of an unrelated field', containerDefault, '/title', 't', (title) => ({
+        data: { title, x: { name: 'n' } },
+        refusals: [repeat('/x/next'), expansion('/x/next/name')],
+      }))
+      const hyperjump = name === '@hyperjump/json-schema'
+      expectRun('a definition shared without recursion fills both of its sites, as on main', entity, {}, {
+        data: { person: { employer: {} } },
+        refusals: [],
+      })
+      expectRun('a definition shared without recursion fills a present site, as on main', entity, { initialData: { person: {} } }, {
+        data: { person: { employer: {} } },
+        refusals: [],
+      })
+      expectRun(
+        'a container default shared without recursion is written whole at both sites, as on main (json-schema-library merges no allOf default onto the object, pre-existing)',
+        box,
+        {},
+        {
+          data: hyperjump
+            ? { person: { tag: 'd', inner: { tag: 'd' } } }
+            : { person: { inner: { tag: 'd' }, ...(dialect === 'draft-07' ? {} : { tag: 't' }) } },
+          refusals: [],
+        },
+      )
+      expectRun(
+        'a default repeated through a definition on no cycle stops at a recursive node (json-schema-library merges no allOf default onto the object, pre-existing)',
+        nonCyclicSource,
+        {},
+        hyperjump
+          ? { data: { x: { name: 'n' } }, refusals: [repeat('/x/next'), expansion('/x/next/name')] }
+          : { data: {}, refusals: [expansion('/x/name')] },
+      )
       expectRun('E10 a recursion boundary with its own defaults', bothReasons, {}, {
         data: { x: Object.fromEntries(range(140).map((i) => [`p${i}`, 'd'])) },
         refusals: [repeat('/x/self'), ...range(140).map((i) => expansion(`/x/self/p${i}`))],
