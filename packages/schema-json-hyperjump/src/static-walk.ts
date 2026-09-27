@@ -64,6 +64,7 @@ export interface Lineage {
   readonly key: string
   readonly pointer: string
   readonly recursive: boolean
+  readonly depth: number
   readonly parent: Lineage | undefined
 }
 
@@ -74,7 +75,7 @@ export interface RecursionState {
   readonly pruned: Set<string>
   readonly cycles: Set<string>
   readonly decisions: Map<string, Decision>
-  readonly queue: (() => void)[]
+  readonly queue: { path: readonly number[]; enter: () => void }[][]
   readonly reserved: Set<string>
   readonly flagged: Set<string>
   objectsUsed: number
@@ -278,7 +279,7 @@ function itemDeclaring(info: LocationInfo, rootSchema: unknown): readonly string
 
 // A location holding data and every member of one are always projected. Below
 // that, a location repeating a past-the-data ancestor's identity is cut, and
-// the rest are admitted breadth first against the budget when dequeued.
+// the recursion-induced rest are admitted breadth first against the budget when dequeued.
 function decideMember(
   state: RecursionState,
   parentPointer: string,
@@ -304,7 +305,7 @@ function decideMember(
   if (childData !== undefined && childData !== null) return settle({ kind: 'walk', lineage: undefined })
   // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
   const recursive = (parentLineage?.recursive ?? false) || info.cyclic || info.key === ''
-  const lineage: Lineage = { key: info.key, pointer: childPointer, recursive, parent: parentLineage }
+  const lineage: Lineage = { key: info.key, pointer: childPointer, recursive, depth: (parentLineage?.depth ?? 0) + 1, parent: parentLineage }
   if (parentLineage === undefined) return settle({ kind: 'walk', lineage })
   for (let ancestor: Lineage | undefined = parentLineage; ancestor; ancestor = ancestor.parent) {
     if (info.key !== '' && ancestor.key === info.key) {
@@ -313,8 +314,8 @@ function decideMember(
       return settle({ kind: 'skip' })
     }
   }
-  if (phase === 'enqueue') return 'defer'
   if (!recursive) return settle({ kind: 'walk', lineage })
+  if (phase === 'enqueue') return 'defer'
   let admit: boolean
   if (leaf) {
     const covered = state.reserved.has(parentPointer)
@@ -564,8 +565,11 @@ export function staticWalk(
   declaring: readonly string[],
   /** This location and its past-the-data ancestors, nearest first; undefined unless it is past the data. */
   lineage: Lineage | undefined,
+  path: readonly number[],
 ): void {
   if (!isRecord(schema)) return
+  let step = 0
+  const nextPath = (): readonly number[] => [...path, step++]
 
   const ref = resolveRef(schema, rootSchema)
   if (ref) {
@@ -586,6 +590,7 @@ export function staticWalk(
       recursion,
       declaring,
       lineage,
+      path,
     )
     visited.delete(cycleKey)
     return
@@ -645,6 +650,7 @@ export function staticWalk(
         active,
         provisional && required.has(key),
       )
+      const childPath = nextPath()
       const enter = (settled: Decision): void => {
         if (settled.kind === 'skip') return
         staticWalk(
@@ -661,12 +667,16 @@ export function staticWalk(
           recursion,
           memberDeclaring,
           settled.lineage,
+          childPath,
         )
       }
       if (decision === 'defer') {
-        recursion.queue.push(() => {
-          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
-          if (settled !== 'defer') enter(settled)
+        ;(recursion.queue[lineage!.depth] ??= []).push({
+          path: childPath,
+          enter: () => {
+            const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
+            if (settled !== 'defer') enter(settled)
+          },
         })
       } else enter(decision)
     }
@@ -691,6 +701,7 @@ export function staticWalk(
         recursion,
         declaring,
         lineage,
+        nextPath(),
       )
     })
   }
@@ -710,6 +721,7 @@ export function staticWalk(
       recursion,
       declaring,
       lineage,
+      nextPath(),
     )
   }
 
@@ -841,6 +853,7 @@ export function staticWalk(
       recursion,
       declaring,
       lineage,
+      nextPath(),
     )
   }
 
@@ -890,6 +903,7 @@ export function staticWalk(
           recursion,
           rowDeclaring,
           undefined,
+          nextPath(),
         )
       }
     })

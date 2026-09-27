@@ -26,6 +26,11 @@ import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 export const DEFAULT_LIMITS: ProjectionLimits = { objects: 16, nodes: 512 }
 
+function walkOrder(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i]! - b[i]!
+  return a.length - b.length
+}
+
 /**
  * Reads branch selection off each construct's own local scope validity (see
  * ProjectionPlugin.scopeValidity), not off the (globally valid-gated) `records`
@@ -190,8 +195,8 @@ export function buildProjection(
   const recursion = newRecursionState(cache, limits)
   const rootInfo = locationInfo(['#'], rawSchema, recursion)
   if (rootInfo.cycle) recursion.cycles.add('')
-  else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined)
-  for (let next = 0; next < recursion.queue.length; next += 1) recursion.queue[next]!()
+  else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
+  for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   for (const pointer of recursion.flagged) {
     const node = nodes.get(pointer)
     if (node) node.recursiveExpansion = true
