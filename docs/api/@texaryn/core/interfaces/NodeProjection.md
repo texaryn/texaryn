@@ -78,7 +78,7 @@ Order is not a contract; the set is.
 
 > `optional` **defaultSources?**: readonly `string`[]
 
-The schema positions whose agreeing `default` declarations supplied `annotations.default`.
+The schema positions that supplied `annotations.default`, when this node applies a position on a cycle.
 
 ***
 

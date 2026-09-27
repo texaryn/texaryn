@@ -33,3 +33,18 @@ are not projected unless a reference points into the branch or a schema inside
 it declares an `$id`, `$anchor` or `$dynamicAnchor`. Validation runs on the
 schema as written, so an error only such a branch declares attaches to no field,
 and `validate` returns the same result before and after a projection.
+
+A schema with no recursive position projects its nodes in the same order as
+before, so `schema-defaults` writes the same keys in the same order. In Draft 7,
+the siblings of a `$ref` take no part in schema identity, and every registry
+entry json-schema-library files for its own location is pinned, so a projection
+cannot replace a definition with a reduced copy that a later reference resolves
+to. A `$ref` chain is followed only through sites that add nothing but
+annotations, so a `type`, `format` or `enum` beside a 2019-09 or 2020-12 `$ref`
+still applies. An `$anchor`, `$dynamicAnchor` or Draft 7 fragment `$id` inside
+such a kept branch is a reference target, so a cycle through it is rejected and
+recursion through it is bounded. An `$id` declared under both `$defs` and
+`definitions` resolves as json-schema-library resolves it, a reference with a
+malformed percent escape such as `#/properties/50%off` keeps its raw spelling,
+and only an own property of the data counts as holding data, so a member named
+`constructor` is absent at `{}`.

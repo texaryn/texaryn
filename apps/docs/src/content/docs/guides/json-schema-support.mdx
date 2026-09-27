@@ -112,10 +112,13 @@ the data. A node the projection reached only by expanding the recursion
 carries `NodeProjection.recursiveExpansion`, and each absent one that declares
 a default, or whose declarations disagree, is reported as a refusal with
 reason `recursive-expansion`: the field is shown, but its default is not
-written, because every level written would expose another. A default one of
-whose declarations was already written at an ancestor in the same run is
-refused as `recursive-default`, which stops a recursive default from
-recreating itself. The limits never change the data initialization writes.
+written, because every level written would expose another. At a node whose
+schemas lie on a cycle, a default that opens a level (an object or a non-empty
+array) is refused as `recursive-default` when an ancestor that holds data, or
+that the same run wrote, has a default from one of the same sources. That
+stops a recursive default from recreating itself, including across edits,
+while a default of `[]`, `null` or a scalar is written. The limits never
+change the data initialization writes.
 
 A schema that applies itself at one instance location, without crossing into a
 property or an item, makes the evaluator recurse without end, for example

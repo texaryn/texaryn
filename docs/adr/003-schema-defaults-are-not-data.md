@@ -336,8 +336,10 @@ guarantees that. So initialization runs to a budget, and exceeding it **discards
 the whole initialization**, leaving the caller's data as supplied. Keeping the
 partial writes would make the resulting data depend on the budget, which is an
 arbitrary number. ADR-007 describes how a recursive schema stays finite: the
-projection expands it once past the data, and this pass never writes where the
-projection expanded the recursion.
+projection expands it once past the data, this pass never writes where the
+projection expanded the recursion, and it refuses a default that opens a level
+when an ancestor in the data, or one it already wrote, has one of the same
+sources.
 
 **How that failure is delivered differs by call surface, and both are named
 rather than left to the implementation.** Initialization reaches the runtime
