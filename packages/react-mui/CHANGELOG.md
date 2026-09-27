@@ -1,5 +1,18 @@
 # @texaryn/react-mui
 
+## 0.4.2
+
+### Patch Changes
+
+- eae5f41: Object children are keyed by property name, with `objectChildKey` from
+  `@texaryn/core`, so a field keeps its element and its focus when the form grows
+  ahead of it, for example when typing into a recursive object exposes the next
+  level.
+- Updated dependencies [eae5f41]
+- Updated dependencies [eae5f41]
+  - @texaryn/core@0.13.0
+  - @texaryn/react@0.5.3
+
 ## 0.4.1
 
 ### Patch Changes
