@@ -70,6 +70,16 @@ export function undefinedInstanceSuite(name: string, createAdapter: AdapterFacto
       expect(projection.nodes.get('/age' as JsonPointer)?.type).toBe('number')
     })
 
+    it.each([
+      ['an object', schema],
+      ['a required property', requiredSchema],
+      ['a typeless root', { properties: { age: { type: 'number' } } }],
+      ['a conditional', { ...schema, if: { required: ['age'] }, then: { required: ['name'] } }],
+    ])('projects an undefined root as an empty object for %s', async (_label, subject) => {
+      const port = await createAdapter(subject)
+      expect(port.project(undefined)).toEqual(port.project({}))
+    })
+
     // `null` is a value and stays one. The whole point of reading `undefined` as
     // absent is that the two stop being interchangeable, which is the same
     // distinction #124 and #127 are about at their own sites.

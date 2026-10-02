@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { ProjectionBoundary, SchemaEvaluationPort, SchemaProjection } from '@texaryn/core'
+import type { JsonPointer, ProjectionBoundary, SchemaEvaluationPort, SchemaProjection } from '@texaryn/core'
 
 type AdapterFactory = (schema: Record<string, unknown>) => Promise<SchemaEvaluationPort>
 
@@ -107,6 +107,7 @@ const chain = (step: (target: string) => Record<string, unknown>) => () => ({
 
 const fixtures: readonly Fixture[] = [
   { id: 'tree-no-id', schema: tree, data: treeData },
+  { id: 'typeless-tree', schema: () => ({ properties: { name: S, child: { $ref: '#' } } }), data: treeData },
   { id: 'tree-with-id', schema: () => ({ $id: 'https://example.com/tree', ...tree() }), data: treeData },
   {
     id: 'defs-node',
@@ -496,6 +497,7 @@ const exact: Readonly<Record<string, readonly Expected[]>> = {
   ...Object.fromEntries(deadForms.map(([id]) => [id, [deadLevel, deadLevel, deadLevel]])),
   ...Object.fromEntries(liveForms.map(([id]) => [id, [liveLevel, liveLevel, liveLevel]])),
   'tree-no-id': treeLevels,
+  'typeless-tree': treeLevels,
   'tree-with-id': treeLevels,
   'defs-node': treeLevels,
   'defs-node-one-site-object': treeLevels,
@@ -593,6 +595,9 @@ const BOUNDARY_ORDER: readonly ProjectionBoundary[] = ['recursion', 'budget']
 function violations(projection: SchemaProjection, data: unknown): string[] {
   const found: string[] = []
   for (const [pointer, node] of projection.nodes) {
+    if (pointer !== '' && !projection.nodes.has(pointer.slice(0, pointer.lastIndexOf('/')) as JsonPointer)) {
+      found.push(`${pointer} has no parent node`)
+    }
     for (const child of node.children ?? []) {
       if (!projection.nodes.has(child.pointer)) found.push(`${pointer} lists ${child.pointer} without a node`)
     }
