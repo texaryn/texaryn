@@ -75,6 +75,10 @@ export function undefinedInstanceSuite(name: string, createAdapter: AdapterFacto
       ['a required property', requiredSchema],
       ['a typeless root', { properties: { age: { type: 'number' } } }],
       ['a conditional', { ...schema, if: { required: ['age'] }, then: { required: ['name'] } }],
+      [
+        'a typeless root with an if and then',
+        { properties: { age: { type: 'number' } }, if: { required: ['age'] }, then: { required: ['age'] } },
+      ],
     ])('projects an undefined root as an empty object for %s', async (_label, subject) => {
       const port = await createAdapter(subject)
       expect(port.project(undefined)).toEqual(port.project({}))

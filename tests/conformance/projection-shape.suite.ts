@@ -195,6 +195,28 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
       })
     })
 
+    describe.each(Object.keys(DIALECTS) as Dialect[])('a typeless container with an applicator in %s', (dialect) => {
+      const applicators: Record<string, Record<string, unknown>> = {
+        'an if and then': { if: { required: ['b'] }, then: { required: ['b'] } },
+        'an anyOf': { anyOf: [{ required: ['b'] }, { required: ['c'] }] },
+        'a dependent schema': {
+          [dialect === 'draft-07' ? 'dependencies' : 'dependentSchemas']: { b: { required: ['c'] } },
+        },
+      }
+      const activeFlags = async (container: Record<string, unknown>) => {
+        const port = await createAdapter({ $schema: DIALECTS[dialect], ...obj({ a: container }) })
+        return Object.fromEntries([...port.project({}).nodes].map(([pointer, node]) => [pointer, node.active]))
+      }
+
+      it.each(Object.entries(applicators))('is active as its typed twin is, with %s and no data', async (_label, applicator) => {
+        const container = { properties: { b: S }, ...applicator }
+        const typeless = await activeFlags(container)
+        const typed = await activeFlags({ type: 'object', ...container })
+        expect(typeless['/a']).toBe(true)
+        expect(typeless).toEqual(typed)
+      })
+    })
+
     it.each(Object.keys(DIALECTS) as Dialect[])('words each diagnostic the same way in %s', async (dialect) => {
       const schema = obj({ a: { properties: { b: S }, minItems: 1 }, c: { enum: [1] }, d: {} })
       const projection = (await createAdapter({ $schema: DIALECTS[dialect], ...schema })).project({})
