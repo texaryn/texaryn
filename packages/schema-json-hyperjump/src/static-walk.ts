@@ -512,13 +512,13 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
  * pass is authoritative, and within the static walk the active-first traversal order
  * guarantees the selected branch writes before any inactive sibling.
  */
-function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>, exposed: boolean): void {
+function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>, exposed: boolean, conditional: boolean): void {
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) {
     if (exposed) node.type = type
     else (node.inactiveTypes ??= new Set()).add(type)
   }
-  if (node.type === undefined && type === undefined) {
+  if (node.type === undefined && type === undefined && !conditional) {
     const families = (node.families ??= new Set())
     for (const family of projectionTypeFamilies(schema)) families.add(family)
   }
@@ -623,6 +623,7 @@ export function staticWalk(
   /** This location and its past-the-data ancestors, nearest first; undefined unless it is past the data. */
   lineage: Lineage | undefined,
   path: readonly number[],
+  conditional = false,
 ): void {
   if (!isRecord(schema)) return
   let step = 0
@@ -648,6 +649,7 @@ export function staticWalk(
       declaring,
       lineage,
       path,
+      conditional,
     )
     visited.delete(cycleKey)
     return
@@ -667,7 +669,7 @@ export function staticWalk(
   // contaminating what it wrote.
   const exposed = active || provisional
   if (exposed || !existed) {
-    applyStaticStructure(node, schema, exposed)
+    applyStaticStructure(node, schema, exposed, conditional)
   } else if (node.type === undefined) {
     const type = resolveType(schema)
     if (type !== undefined) (node.inactiveTypes ??= new Set()).add(type)
@@ -756,6 +758,7 @@ export function staticWalk(
         declaring,
         lineage,
         nextPath(),
+        conditional,
       )
     })
   }
@@ -776,6 +779,7 @@ export function staticWalk(
       declaring,
       lineage,
       nextPath(),
+      true,
     )
   }
 
@@ -835,6 +839,7 @@ export function staticWalk(
     active: boolean
     provisional: boolean
     composition?: boolean
+    conditional: boolean
   }> = []
 
   if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
@@ -850,6 +855,7 @@ export function staticWalk(
         schemaPointer: `${schemaPointer}/then`,
         active: active && thenLocal,
         provisional: !active && provisional && thenLocal,
+        conditional: true,
       })
     }
     if (isRecord(schema.else)) {
@@ -858,6 +864,7 @@ export function staticWalk(
         schemaPointer: `${schemaPointer}/else`,
         active: active && elseLocal,
         provisional: !active && provisional && elseLocal,
+        conditional: true,
       })
     }
   }
@@ -881,6 +888,7 @@ export function staticWalk(
         schema: branch,
         schemaPointer: `${schemaPointer}/oneOf/${i}`,
         composition: true,
+        conditional,
         active: branchActive,
         // Selection is local. An exposed ancestor lets a branch be shown; it
         // does not choose it, or every nested branch would be exposed at once,
@@ -901,6 +909,7 @@ export function staticWalk(
         schema: branch,
         schemaPointer: `${schemaPointer}/anyOf/${i}`,
         composition: true,
+        conditional,
         active: active && branchLocal,
         provisional: !active && provisional && branchLocal,
       })
@@ -915,6 +924,7 @@ export function staticWalk(
         schemaPointer: `${schemaPointer}/dependentSchemas/${escapeSegment(key)}`,
         active: active && keyPresent,
         provisional: !(active && keyPresent) && provisional && keyPresent,
+        conditional: true,
       })
     }
   }
@@ -931,6 +941,7 @@ export function staticWalk(
         schemaPointer: `${schemaPointer}/dependencies/${escapeSegment(key)}`,
         active: active && keyPresent,
         provisional: !(active && keyPresent) && provisional && keyPresent,
+        conditional: true,
       })
     }
   }
@@ -964,6 +975,7 @@ export function staticWalk(
       declaring,
       lineage,
       nextPath(),
+      db.conditional,
     )
   }
 
