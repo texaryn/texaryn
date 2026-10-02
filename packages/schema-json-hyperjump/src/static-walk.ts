@@ -897,13 +897,15 @@ export function staticWalk(
     )
   }
 
-  // A typeless wrapper (no base-level `type` keyword) whose only type comes from
-  // dynamic branches (oneOf/anyOf) is inactive when no branch resolves and no data
-  // is present. Typed objects with conditionals (if/then, dependentSchemas) stay
-  // active: they are declared optional fields, and the Texaryn contract keeps
-  // unfilled-but-reachable optional fields active.
+  // A location whose own keywords imply a shape is not a wrapper, and a oneOf stays
+  // demoted, as in schema-json.
+  const derivedShape =
+    node.families !== undefined &&
+    shapeOfFamilies(node.families).kind === 'resolved' &&
+    !Array.isArray(schema.oneOf)
   if (
     resolveType(schema) === undefined &&
+    !derivedShape &&
     dynamicBranches.length > 0 &&
     (data === undefined || data === null) &&
     !dynamicBranches.some((db) => db.active || db.provisional)
