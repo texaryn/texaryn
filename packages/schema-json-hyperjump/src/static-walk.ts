@@ -880,6 +880,7 @@ export function staticWalk(
   }
 
   if (
+    (exposed || !existed) &&
     !node.composed &&
     hasRenderableAlternative(schema, rootSchema) &&
     !dynamicBranches.some((db) => db.composition && (db.active || db.provisional))
