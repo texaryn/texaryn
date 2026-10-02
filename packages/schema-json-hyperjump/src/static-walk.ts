@@ -34,6 +34,7 @@ const VALID_TYPES = new Set<JsonSchemaType>([
 export interface DraftNode {
   type?: JsonSchemaType
   families?: Set<KeywordFamily>
+  inactiveTypes?: Set<JsonSchemaType>
   composed?: boolean
   format?: string
   constraints: FieldConstraints
@@ -412,11 +413,22 @@ export function addChild(
 
 export function resolveShapes(nodes: Map<string, DraftNode>): void {
   for (const node of nodes.values()) {
-    if (node.type !== undefined || node.families === undefined) continue
-    const shape = shapeOfFamilies(node.families)
-    if (shape.kind === 'resolved') node.type = shape.type
+    if (node.type !== undefined) continue
+    const shape = node.families && shapeOfFamilies(node.families)
+    node.type = shape?.kind === 'resolved' ? shape.type : inactiveType(node)
   }
 }
+
+function inactiveType(node: DraftNode): JsonSchemaType | undefined {
+  const candidates = [...(node.inactiveTypes ?? [])]
+  if (candidates.length === 1) return candidates[0]
+  if (!node.children?.length) return undefined
+  if (candidates.includes('object')) return 'object'
+  const containers = candidates.filter(isContainerType)
+  return containers.length === 1 ? containers[0] : undefined
+}
+
+const isContainerType = (type: JsonSchemaType | undefined): boolean => type === 'object' || type === 'array'
 
 const parentOf = (pointer: string): string => pointer.slice(0, pointer.lastIndexOf('/'))
 
@@ -425,10 +437,12 @@ export function finalizeNodes(
   cycles: ReadonlySet<string>,
 ): { projected: Map<JsonPointer, NodeProjection>; diagnostics: ProjectionDiagnostic[] } {
   const omitted = new Map<string, boolean>()
+  const reachable = (pointer: string): boolean =>
+    pointer === '' || (!isOmitted(parentOf(pointer)) && isContainerType(nodes.get(parentOf(pointer))?.type))
   const isOmitted = (pointer: string): boolean => {
     let result = omitted.get(pointer)
     if (result === undefined) {
-      result = nodes.get(pointer)?.type === undefined || (pointer !== '' && isOmitted(parentOf(pointer)))
+      result = nodes.get(pointer)?.type === undefined || !reachable(pointer)
       omitted.set(pointer, result)
     }
     return result
@@ -437,10 +451,9 @@ export function finalizeNodes(
   const diagnostics: ProjectionDiagnostic[] = []
   for (const [pointer, node] of nodes) {
     if (isOmitted(pointer)) {
-      const topmost = pointer === '' || !isOmitted(parentOf(pointer))
       const shape = node.families && shapeOfFamilies(node.families)
       const unselectedComposition = node.composed && node.families?.size === 0
-      if (topmost && shape && shape.kind !== 'resolved' && !cycles.has(pointer) && !unselectedComposition) {
+      if (reachable(pointer) && shape && shape.kind !== 'resolved' && !cycles.has(pointer) && !unselectedComposition) {
         diagnostics.push(shapeDiagnostic(pointer as JsonPointer, shape, node.enumValues !== undefined))
       }
       continue
@@ -499,10 +512,13 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
  * pass is authoritative, and within the static walk the active-first traversal order
  * guarantees the selected branch writes before any inactive sibling.
  */
-function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>): void {
+function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>, exposed: boolean): void {
   const type = resolveType(schema)
-  if (type !== undefined && node.type === undefined) node.type = type
-  if (node.type === undefined) {
+  if (type !== undefined && node.type === undefined) {
+    if (exposed) node.type = type
+    else (node.inactiveTypes ??= new Set()).add(type)
+  }
+  if (node.type === undefined && type === undefined) {
     const families = (node.families ??= new Set())
     for (const family of projectionTypeFamilies(schema)) families.add(family)
   }
@@ -651,14 +667,10 @@ export function staticWalk(
   // contaminating what it wrote.
   const exposed = active || provisional
   if (exposed || !existed) {
-    applyStaticStructure(node, schema)
+    applyStaticStructure(node, schema, exposed)
   } else if (node.type === undefined) {
-    // Inactive branch on an existing node that lacks a type: fill only the
-    // type gap so finalizeNodes keeps the node alive. Other structural fields
-    // (constraints, format, enum) stay suppressed to prevent inactive-branch
-    // metadata from contaminating an active node's structure.
     const type = resolveType(schema)
-    if (type !== undefined) node.type = type
+    if (type !== undefined) (node.inactiveTypes ??= new Set()).add(type)
   }
   if (active) {
     node.active = true
