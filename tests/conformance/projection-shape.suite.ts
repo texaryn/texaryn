@@ -191,6 +191,19 @@ const rows: readonly Row[] = [
     data: { y: 1 },
     expected: { nodes: { '': 'object' }, unlisted: ['/c'], diagnostics: [unresolved('/c')] },
   },
+  {
+    id: 'a oneOf wrapper holding an anyOf whose branches carry no keyword of any shape',
+    schema: obj({ a: { oneOf: [{ anyOf: [{ minLength: 1 }] }] } }),
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
+  },
+  {
+    id: 'a oneOf wrapper whose allOf branch mixes keywords of two types',
+    schema: obj({ a: { oneOf: [{ allOf: [{ properties: { b: S } }, { minItems: 1 }] }] } }),
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
+    differs: {
+      '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
+    },
+  },
 ]
 
 const messages = {
@@ -258,6 +271,31 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         expect(port.project(structuredClone(data)).diagnostics ?? []).toEqual([])
       }
     })
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'reports nothing for a wrapper nested in a wrapper whatever the data selects in %s',
+      async (dialect) => {
+        const wrappers: Record<string, Record<string, unknown>> = {
+          'a oneOf holding an anyOf': { oneOf: [{ anyOf: [{ minItems: 1 }] }] },
+          'a oneOf holding an allOf of an anyOf': { oneOf: [{ allOf: [{ anyOf: [{ minItems: 1 }] }] }] },
+          'a oneOf holding an allOf': { oneOf: [{ allOf: [{ minItems: 1 }] }] },
+          'a oneOf holding a reference to an anyOf': { oneOf: [ref] },
+        }
+        for (const [label, wrapper] of Object.entries(wrappers)) {
+          const port = await createAdapter({
+            $schema: DIALECTS[dialect],
+            ...obj({ a: wrapper }),
+            definitions: { n: { anyOf: [{ minItems: 1 }] } },
+          })
+          for (const data of [{}, { a: [1] }]) {
+            expect(
+              port.project(structuredClone(data)).diagnostics ?? [],
+              `${label} with ${JSON.stringify(data)}`,
+            ).toEqual([])
+          }
+        }
+      },
+    )
 
     it.each(Object.keys(DIALECTS) as Dialect[])('words each diagnostic the same way in %s', async (dialect) => {
       const schema = obj({ a: { properties: { b: S }, minItems: 1 }, c: { enum: [1] }, d: {} })
