@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { JsonSchemaType, SchemaEvaluationPort } from '@texaryn/core'
+import type { JsonPointer, JsonSchemaType, SchemaEvaluationPort } from '@texaryn/core'
 
 type AdapterFactory = (schema: Record<string, unknown>) => Promise<SchemaEvaluationPort>
 type AdapterName = 'json-schema-library' | '@hyperjump/json-schema'
@@ -103,6 +103,18 @@ const rows: readonly Row[] = [
     schema: { type: 'array', items: { properties: { b: S } } },
     data: [{}],
     expected: { nodes: { '': 'array', '/0': 'object', '/0/b': 'string' } },
+  },
+  {
+    id: 'a typeless row beside a oneOf branch that does not apply and declares keywords of another family',
+    schema: obj({
+      a: {
+        type: 'array',
+        items: { properties: { x: S } },
+        oneOf: [{ type: 'string', items: { minItems: 1 } }, { type: 'number' }],
+      },
+    }),
+    data: { a: [{}] },
+    expected: { nodes: { '': 'object', '/a': 'array', '/a/0': 'object', '/a/0/x': 'string' } },
   },
   {
     id: 'typeless rows of an array inside an object',
@@ -261,6 +273,22 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         expect(typeless).toEqual(typed)
       })
     })
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps a typed row active beside a branch that does not apply and declares the row as a oneOf wrapper in %s',
+      async (dialect) => {
+        const wrapper = { oneOf: [obj({ x: S }), S] }
+        const schema = obj({
+          a: {
+            type: 'array',
+            items: { type: ['object', 'null'], properties: { x: S } },
+            oneOf: [{ minItems: 1, items: wrapper }, { maxItems: 0 }],
+          },
+        })
+        const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
+        expect(port.project({ a: [null] }).nodes.get('/a/0' as JsonPointer)?.active).toBe(true)
+      },
+    )
 
     it.each(Object.keys(DIALECTS) as Dialect[])('reports nothing for a oneOf wrapper whatever the data selects in %s', async (dialect) => {
       const schema = obj({
