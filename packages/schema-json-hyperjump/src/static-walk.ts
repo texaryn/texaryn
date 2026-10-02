@@ -767,6 +767,50 @@ export function staticWalk(
     )
   }
 
+  // `items` is a single subschema in 2019-09+ (paired with `prefixItems` for the tuple
+  // positions) but a positional tuple array in its own right in draft-07; both forms are
+  // supported so a filled array's existing elements get the same optional-field backfill
+  // an object's properties get.
+  const prefixItems = Array.isArray(schema.prefixItems) ? schema.prefixItems : undefined
+  const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
+  const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
+  const walkRows = (createOnly: boolean): void => {
+    if (!((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data))) return
+    data.forEach((item: unknown, index: number) => {
+      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+      const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
+      const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
+      if (itemSchema !== undefined) {
+        const rowDeclaring = tuple !== undefined
+          ? [`#${itemSchemaPointer}`]
+          : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
+        const decision = decideRow(recursion, `${pointer}/${index}`, rowDeclaring, rootSchema)
+        if (decision.kind === 'skip') return
+        if (createOnly) {
+          if (isRecord(itemSchema)) ensureNode(nodes, `${pointer}/${index}`)
+          return
+        }
+        staticWalk(
+          itemSchema,
+          item,
+          `${pointer}/${index}`,
+          itemSchemaPointer,
+          active,
+          provisional,
+          isBranchActive,
+          nodes,
+          visited,
+          rootSchema,
+          recursion,
+          rowDeclaring,
+          undefined,
+          nextPath(),
+        )
+      }
+    })
+  }
+  if (exposed) walkRows(true)
+
   // Dynamic branches (if/then/else, oneOf, anyOf, dependentSchemas, dependencies)
   // are collected across all constructs at this schema level and sorted active
   // first, then provisional, then inactive. That order guarantees a branch that
@@ -927,43 +971,7 @@ export function staticWalk(
     node.active = false
   }
 
-  // `items` is a single subschema in 2019-09+ (paired with `prefixItems` for the tuple
-  // positions) but a positional tuple array in its own right in draft-07; both forms are
-  // supported so a filled array's existing elements get the same optional-field backfill
-  // an object's properties get.
-  const prefixItems = Array.isArray(schema.prefixItems) ? schema.prefixItems : undefined
-  const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
-  const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
-  if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data)) {
-    data.forEach((item: unknown, index: number) => {
-      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
-      const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
-      const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
-      if (itemSchema !== undefined) {
-        const rowDeclaring = tuple !== undefined
-          ? [`#${itemSchemaPointer}`]
-          : itemDeclaring(locationInfo(declaring, rootSchema, recursion), rootSchema)
-        const decision = decideRow(recursion, `${pointer}/${index}`, rowDeclaring, rootSchema)
-        if (decision.kind === 'skip') return
-        staticWalk(
-          itemSchema,
-          item,
-          `${pointer}/${index}`,
-          itemSchemaPointer,
-          active,
-          provisional,
-          isBranchActive,
-          nodes,
-          visited,
-          rootSchema,
-          recursion,
-          rowDeclaring,
-          undefined,
-          nextPath(),
-        )
-      }
-    })
-  }
+  walkRows(false)
 }
 
 /**
