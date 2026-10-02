@@ -14,6 +14,7 @@ import {
   ensureNode,
   addChild,
   finalizeNodes,
+  resolveShapes,
   resolveTypeValue,
   newRecursionState,
   locationInfo,
@@ -128,7 +129,7 @@ export function buildProjection(
   limits: ProjectionLimits = DEFAULT_LIMITS,
 ): SchemaProjection {
   const plugin = new ProjectionPlugin()
-  interpret(compiled, Instance.fromJs(data as Parameters<typeof Instance.fromJs>[0]), {
+  interpret(compiled, Instance.fromJs((data === undefined ? {} : data) as Parameters<typeof Instance.fromJs>[0]), {
     outputFormat: BASIC,
     plugins: [plugin],
   })
@@ -197,6 +198,7 @@ export function buildProjection(
   if (rootInfo.cycle) recursion.cycles.add('')
   else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
   for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
+  resolveShapes(nodes)
   for (const pointer of recursion.flagged) {
     const node = nodes.get(pointer)
     if (node) node.recursiveExpansion = true
@@ -235,7 +237,7 @@ export function buildProjection(
     if ('default' in node.annotations && recursion.onCycle.has(pointer)) node.defaultSources = sources.get(pointer) ?? []
   }
 
-  const projected = finalizeNodes(nodes)
+  const { projected, diagnostics: shapeDiagnostics } = finalizeNodes(nodes, recursion.cycles)
 
   for (const [pointer, sources] of applicableConflicts) {
     const node = projected.get(pointer as JsonPointer)
@@ -252,6 +254,7 @@ export function buildProjection(
         `shape to render.`,
     })
   }
+  diagnostics.push(...shapeDiagnostics)
   for (const [pointer, sources] of schemaConflicts) {
     // A pointer that projects no node has nothing to omit an annotation from,
     // which is the only reason a conflict goes unreported here.

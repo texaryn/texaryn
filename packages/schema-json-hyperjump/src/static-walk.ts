@@ -7,8 +7,10 @@ import type {
   FieldConstraints,
   EnumOption,
   ProjectionBoundary,
+  ProjectionDiagnostic,
 } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
+import { projectionTypeFamilies, shapeDiagnostic, shapeOfFamilies, type KeywordFamily } from './projection-shape.js'
 import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
@@ -25,12 +27,13 @@ const VALID_TYPES = new Set<JsonSchemaType>([
 /**
  * Working node used while a projection is under construction. `type` starts
  * unresolved and is filled in by either the data-driven pass or this module's
- * static walk; a pointer whose type never resolves (no schema position ever
- * declares a `type` keyword) is dropped when the projection is finalized,
+ * static walk; a pointer whose type never resolves (no keyword of any position
+ * implies one) is dropped, with everything beneath it, when it is finalized,
  * since the port's NodeProjection.type is not optional.
  */
 export interface DraftNode {
   type?: JsonSchemaType
+  families?: Set<KeywordFamily>
   format?: string
   constraints: FieldConstraints
   children?: ChildProjection[]
@@ -406,12 +409,42 @@ export function addChild(
   }
 }
 
-export function finalizeNodes(nodes: Map<string, DraftNode>): Map<JsonPointer, NodeProjection> {
-  const result = new Map<JsonPointer, NodeProjection>()
+export function resolveShapes(nodes: Map<string, DraftNode>): void {
+  for (const node of nodes.values()) {
+    if (node.type !== undefined || node.families === undefined) continue
+    const shape = shapeOfFamilies(node.families)
+    if (shape.kind === 'resolved') node.type = shape.type
+  }
+}
+
+const parentOf = (pointer: string): string => pointer.slice(0, pointer.lastIndexOf('/'))
+
+export function finalizeNodes(
+  nodes: Map<string, DraftNode>,
+  cycles: ReadonlySet<string>,
+): { projected: Map<JsonPointer, NodeProjection>; diagnostics: ProjectionDiagnostic[] } {
+  const omitted = new Map<string, boolean>()
+  const isOmitted = (pointer: string): boolean => {
+    let result = omitted.get(pointer)
+    if (result === undefined) {
+      result = nodes.get(pointer)?.type === undefined || (pointer !== '' && isOmitted(parentOf(pointer)))
+      omitted.set(pointer, result)
+    }
+    return result
+  }
+  const projected = new Map<JsonPointer, NodeProjection>()
+  const diagnostics: ProjectionDiagnostic[] = []
   for (const [pointer, node] of nodes) {
-    if (node.type === undefined) continue
-    result.set(pointer as JsonPointer, {
-      type: node.type,
+    if (isOmitted(pointer)) {
+      const topmost = pointer === '' || !isOmitted(parentOf(pointer))
+      const shape = node.families && shapeOfFamilies(node.families)
+      if (topmost && shape && shape.kind !== 'resolved' && !cycles.has(pointer)) {
+        diagnostics.push(shapeDiagnostic(pointer as JsonPointer, shape, node.enumValues !== undefined))
+      }
+      continue
+    }
+    projected.set(pointer as JsonPointer, {
+      type: node.type!,
       format: node.format,
       constraints: node.constraints,
       children: node.children,
@@ -427,7 +460,7 @@ export function finalizeNodes(nodes: Map<string, DraftNode>): Map<JsonPointer, N
       ...(node.defaultSources !== undefined ? { defaultSources: node.defaultSources } : {}),
     })
   }
-  return result
+  return { projected, diagnostics }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -465,6 +498,8 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
  * guarantees the selected branch writes before any inactive sibling.
  */
 function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>): void {
+  const families = (node.families ??= new Set())
+  for (const family of projectionTypeFamilies(schema)) families.add(family)
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) node.type = type
   if (typeof schema.format === 'string' && node.format === undefined) node.format = schema.format
