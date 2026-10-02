@@ -141,6 +141,12 @@ const rows: readonly Row[] = [
     differs: { 'json-schema-library': { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } } },
   },
   {
+    id: 'a typeless location whose live then adds keywords of another type',
+    schema: obj({ a: { properties: { b: S }, if: true, then: { minItems: 1 } } }),
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
+    differs: { 'json-schema-library': { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } } },
+  },
+  {
     id: 'a reference as the only branch of a oneOf wrapper the data selects',
     schema: { ...obj({ a: { oneOf: [ref] } }), definitions: { n: { properties: { b: S } } } },
     data: { a: {} },
