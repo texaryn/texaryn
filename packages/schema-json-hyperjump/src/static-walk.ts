@@ -1012,14 +1012,34 @@ export function selectProvisionalBranch(
 }
 
 function hasRenderableAlternative(schema: Record<string, unknown>, rootSchema: unknown): boolean {
-  const branches = [schema.oneOf, schema.anyOf].flatMap((list) => (Array.isArray(list) ? list : []))
-  return branches.some((branch) => {
-    const target = resolveBranch(branch, rootSchema)
-    return (
-      target !== undefined &&
-      (resolveType(target) !== undefined || shapeOfFamilies(projectionTypeFamilies(target)).kind === 'resolved')
-    )
-  })
+  return branchesOf(schema).some((branch) => canRender(branch, rootSchema, new Set()))
+}
+
+const branchesOf = (schema: Record<string, unknown>): unknown[] =>
+  [schema.oneOf, schema.anyOf].flatMap((list) => (Array.isArray(list) ? list : []))
+
+function canRender(branch: unknown, rootSchema: unknown, path: ReadonlySet<Record<string, unknown>>): boolean {
+  const members = allOfClosure(branch, rootSchema, path)
+  if (members.some((member) => resolveType(member) !== undefined)) return true
+  const families = new Set(members.flatMap((member) => [...projectionTypeFamilies(member)]))
+  if (shapeOfFamilies(families).kind === 'resolved') return true
+  const inPath = new Set([...path, ...members])
+  return (
+    families.size === 0 &&
+    members.some((member) => branchesOf(member).some((inner) => canRender(inner, rootSchema, inPath)))
+  )
+}
+
+function allOfClosure(
+  branch: unknown,
+  rootSchema: unknown,
+  path: ReadonlySet<Record<string, unknown>>,
+): Record<string, unknown>[] {
+  const target = resolveBranch(branch, rootSchema)
+  if (target === undefined || path.has(target)) return []
+  const inPath = new Set(path).add(target)
+  const members = Array.isArray(target.allOf) ? target.allOf : []
+  return [target, ...members.flatMap((member) => allOfClosure(member, rootSchema, inPath))]
 }
 
 function resolveBranch(branch: unknown, rootSchema: unknown): Record<string, unknown> | undefined {
