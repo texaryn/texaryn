@@ -170,6 +170,27 @@ const rows: readonly Row[] = [
     schema: obj({ a: { anyOf: [{ minLength: 1 }, { pattern: '^a' }] } }),
     expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
   },
+  {
+    id: 'a shape-less location that an inactive then wraps in a oneOf',
+    schema: {
+      ...obj({ c: { title: 'C' } }),
+      if: { required: ['x'] },
+      then: { properties: { c: { oneOf: [{ minItems: 1 }, { minLength: 1 }] } } },
+    },
+    expected: { nodes: { '': 'object' }, unlisted: ['/c'], diagnostics: [unresolved('/c')] },
+  },
+  {
+    id: 'a shape-less location that an unselected oneOf branch wraps in a oneOf',
+    schema: {
+      ...obj({ c: { title: 'C' } }),
+      oneOf: [
+        { required: ['x'], properties: { c: { oneOf: [{ minItems: 1 }, { minLength: 1 }] } } },
+        { required: ['y'] },
+      ],
+    },
+    data: { y: 1 },
+    expected: { nodes: { '': 'object' }, unlisted: ['/c'], diagnostics: [unresolved('/c')] },
+  },
 ]
 
 const messages = {
