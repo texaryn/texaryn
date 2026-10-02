@@ -498,10 +498,12 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
  * guarantees the selected branch writes before any inactive sibling.
  */
 function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>): void {
-  const families = (node.families ??= new Set())
-  for (const family of projectionTypeFamilies(schema)) families.add(family)
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) node.type = type
+  if (node.type === undefined) {
+    const families = (node.families ??= new Set())
+    for (const family of projectionTypeFamilies(schema)) families.add(family)
+  }
   if (typeof schema.format === 'string' && node.format === undefined) node.format = schema.format
   for (const key of CONSTRAINT_KEYS) {
     const value = schema[key]
