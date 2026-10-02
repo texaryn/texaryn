@@ -34,6 +34,7 @@ const VALID_TYPES = new Set<JsonSchemaType>([
 export interface DraftNode {
   type?: JsonSchemaType
   families?: Set<KeywordFamily>
+  composed?: boolean
   format?: string
   constraints: FieldConstraints
   children?: ChildProjection[]
@@ -438,7 +439,8 @@ export function finalizeNodes(
     if (isOmitted(pointer)) {
       const topmost = pointer === '' || !isOmitted(parentOf(pointer))
       const shape = node.families && shapeOfFamilies(node.families)
-      if (topmost && shape && shape.kind !== 'resolved' && !cycles.has(pointer)) {
+      const unselectedComposition = node.composed && node.families?.size === 0
+      if (topmost && shape && shape.kind !== 'resolved' && !cycles.has(pointer) && !unselectedComposition) {
         diagnostics.push(shapeDiagnostic(pointer as JsonPointer, shape, node.enumValues !== undefined))
       }
       continue
@@ -776,6 +778,7 @@ export function staticWalk(
     schemaPointer: string
     active: boolean
     provisional: boolean
+    composition?: boolean
   }> = []
 
   if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
@@ -821,6 +824,7 @@ export function staticWalk(
       dynamicBranches.push({
         schema: branch,
         schemaPointer: `${schemaPointer}/oneOf/${i}`,
+        composition: true,
         active: branchActive,
         // Selection is local. An exposed ancestor lets a branch be shown; it
         // does not choose it, or every nested branch would be exposed at once,
@@ -840,6 +844,7 @@ export function staticWalk(
       dynamicBranches.push({
         schema: branch,
         schemaPointer: `${schemaPointer}/anyOf/${i}`,
+        composition: true,
         active: active && branchLocal,
         provisional: !active && provisional && branchLocal,
       })
@@ -872,6 +877,14 @@ export function staticWalk(
         provisional: !(active && keyPresent) && provisional && keyPresent,
       })
     }
+  }
+
+  if (
+    !node.composed &&
+    hasRenderableAlternative(schema, rootSchema) &&
+    !dynamicBranches.some((db) => db.composition && (db.active || db.provisional))
+  ) {
+    node.composed = true
   }
 
   dynamicBranches.sort(
@@ -995,6 +1008,17 @@ export function selectProvisionalBranch(
     }
   })
   return accepted.length === 1 ? accepted[0] : undefined
+}
+
+function hasRenderableAlternative(schema: Record<string, unknown>, rootSchema: unknown): boolean {
+  const branches = [schema.oneOf, schema.anyOf].flatMap((list) => (Array.isArray(list) ? list : []))
+  return branches.some((branch) => {
+    const target = resolveBranch(branch, rootSchema)
+    return (
+      target !== undefined &&
+      (resolveType(target) !== undefined || shapeOfFamilies(projectionTypeFamilies(target)).kind === 'resolved')
+    )
+  })
 }
 
 function resolveBranch(branch: unknown, rootSchema: unknown): Record<string, unknown> | undefined {

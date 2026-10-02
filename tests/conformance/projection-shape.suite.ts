@@ -151,13 +151,24 @@ const rows: readonly Row[] = [
     schema: { ...obj({ a: { oneOf: [ref] } }), definitions: { n: { properties: { b: S } } } },
     data: { a: {} },
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
-    differs: { '@hyperjump/json-schema draft-07': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] } },
+    differs: { '@hyperjump/json-schema draft-07': { nodes: { '': 'object' }, unlisted: ['/a'] } },
   },
   {
     id: 'typeless branches of a oneOf wrapper no data selects',
     schema: obj({ a: { oneOf: [{ properties: { b: S } }, { properties: { c: S } }] } }),
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string', '/a/c': 'string' } },
-    differs: { '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] } },
+    differs: { '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'] } },
+  },
+  {
+    id: 'a oneOf wrapper whose branches carry no keyword of any shape',
+    schema: obj({ a: { oneOf: [{ minLength: 1 }, { pattern: '^a' }] } }),
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
+    differs: { 'json-schema-library': { nodes: { '': 'object', '/a': 'object' } } },
+  },
+  {
+    id: 'an anyOf wrapper whose branches carry no keyword of any shape',
+    schema: obj({ a: { anyOf: [{ minLength: 1 }, { pattern: '^a' }] } }),
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
   },
 ]
 
@@ -215,6 +226,16 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         expect(typeless['/a']).toBe(true)
         expect(typeless).toEqual(typed)
       })
+    })
+
+    it.each(Object.keys(DIALECTS) as Dialect[])('reports nothing for a oneOf wrapper whatever the data selects in %s', async (dialect) => {
+      const schema = obj({
+        a: { oneOf: [{ properties: { b: S }, required: ['b'] }, { properties: { c: S }, required: ['c'] }] },
+      })
+      const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
+      for (const data of [{}, { a: {} }, { a: { b: 'x' } }]) {
+        expect(port.project(structuredClone(data)).diagnostics ?? []).toEqual([])
+      }
     })
 
     it.each(Object.keys(DIALECTS) as Dialect[])('words each diagnostic the same way in %s', async (dialect) => {
