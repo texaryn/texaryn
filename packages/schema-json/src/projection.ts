@@ -21,6 +21,7 @@ import {
   type LocationInfo,
   type ProjectionCache,
 } from './identity.js'
+import { inferProjectionShape, shapeDiagnostic } from './projection-shape.js'
 import { POSITION } from './schema-graph.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
@@ -54,92 +55,6 @@ function resolveExplicitType(schema: Record<string, unknown>): JsonSchemaType | 
 }
 
 /**
- * Keywords that apply to exactly one JSON type, grouped by that type.
- *
- * Two different jobs are done with these, and only one of them infers
- * anything. Every family takes part in detecting a conflict, because a schema
- * drawing keywords from two families implies no single shape. Only `object`
- * and `array` are shapes a form can be given, so those are the only two ever
- * inferred: `string` and `number` are here to be noticed, not chosen.
- *
- * Inferring a scalar would need a rule that is right rather than symmetrical,
- * and there is not one. `minimum` cannot tell `number` from `integer`, and a
- * wrong scalar guess selects the wrong widget, which is harder to notice than
- * a field that never appeared at all.
- *
- * `format` is deliberately absent: it annotates a string's contents rather
- * than describing structure, and schemas apply it to non-strings in practice.
- */
-const KEYWORD_FAMILIES = {
-  object: [
-    'properties',
-    'patternProperties',
-    'additionalProperties',
-    'propertyNames',
-    'required',
-    'minProperties',
-    'maxProperties',
-    'dependentSchemas',
-    'dependentRequired',
-    // json-schema-library normalises draft-07 `dependencies` into the two
-    // above at parse time. Listed anyway, so the rule does not rely on that.
-    'dependencies',
-    'unevaluatedProperties',
-  ],
-  array: [
-    'items',
-    'prefixItems',
-    'additionalItems',
-    'contains',
-    'minItems',
-    'maxItems',
-    'uniqueItems',
-    'minContains',
-    'maxContains',
-    'unevaluatedItems',
-  ],
-  string: ['minLength', 'maxLength', 'pattern'],
-  number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
-} as const satisfies Record<string, readonly string[]>
-
-type KeywordFamily = keyof typeof KEYWORD_FAMILIES
-
-/** Which families a schema draws keywords from, computed over all of them at once. */
-function projectionTypeFamilies(schema: Record<string, unknown>): Set<KeywordFamily> {
-  const families = new Set<KeywordFamily>()
-  for (const [family, keywords] of Object.entries(KEYWORD_FAMILIES)) {
-    if (keywords.some((keyword) => schema[keyword] !== undefined)) {
-      families.add(family as KeywordFamily)
-    }
-  }
-  return families
-}
-
-/**
- * The shape a renderer should present for a schema that declares no `type`,
- * which is a different question from what that schema asserts about an
- * instance.
- *
- * A schema is not obliged to declare `type`, and one declaring `properties`
- * without it is both valid and widespread: not one parameter step in a
- * Backstage Software Template declares `type: object`, and every such step used
- * to project nothing at all.
- *
- * Deriving a shape here changes nothing about validation. No `type` is written
- * into the schema and the schema is never mutated, so `{ properties: { … } }`
- * goes on accepting a string, a number and null, because its object keywords
- * are inapplicable to those. The shape exists so a form can be drawn, and it
- * is not an assertion that the instance is an object.
- *
- * The family count decides, never keyword order: exactly one family is a
- * shape, more than one is ambiguous, none is nothing to go on.
- */
-type ProjectionShape =
-  | { kind: 'resolved'; type: JsonSchemaType }
-  | { kind: 'ambiguous'; families: KeywordFamily[] }
-  | { kind: 'none' }
-
-/**
  * Whether any branch of this node's `oneOf`/`anyOf` could be given a shape at
  * all, for some value.
  *
@@ -157,18 +72,6 @@ function compositionHasRenderableAlternative(node: SchemaNode): boolean {
     if (resolveExplicitType(schema)) return true
     return inferProjectionShape(schema).kind === 'resolved'
   })
-}
-
-function inferProjectionShape(schema: Record<string, unknown>): ProjectionShape {
-  const families = projectionTypeFamilies(schema)
-
-  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort() }
-
-  if (families.size === 1) {
-    const [family] = families
-    if (family === 'object' || family === 'array') return { kind: 'resolved', type: family }
-  }
-  return { kind: 'none' }
 }
 
 function extractConstraints(schema: Record<string, unknown>): FieldConstraints {
@@ -1082,30 +985,7 @@ function walk(
       // without a shape, so the caller is told which pointer was skipped and
       // why, instead of finding out from a form that never collected the
       // value.
-      diagnostics.push(
-        shape.kind === 'ambiguous'
-          ? {
-              pointer: toPointer(pointer),
-              code: 'ambiguous-projection-shape',
-              message:
-                `No explicit "type", and keywords from more than one type apply ` +
-                `(${shape.families.join(', ')}), so the shape to render is undecidable. ` +
-                `Declare "type" on this schema to resolve it.`,
-            }
-          : {
-              pointer: toPointer(pointer),
-              code: 'unresolved-projection-shape',
-              message:
-                `No explicit "type", and no keyword that implies one, so there is no ` +
-                `shape to render. Declare "type" on this schema.` +
-                // Said only where it applies, because inferring `string` from
-                // an enum is the tempting wrong rule and the reason deserves
-                // to travel with the case rather than every message.
-                (schema.enum !== undefined
-                  ? ` An "enum" alone does not imply a type, because its members may be of different types.`
-                  : ''),
-            },
-      )
+      diagnostics.push(shapeDiagnostic(toPointer(pointer), shape, schema.enum !== undefined))
     }
   }
 
