@@ -595,9 +595,10 @@ const BOUNDARY_ORDER: readonly ProjectionBoundary[] = ['recursion', 'budget']
 function violations(projection: SchemaProjection, data: unknown): string[] {
   const found: string[] = []
   for (const [pointer, node] of projection.nodes) {
-    if (pointer !== '' && !projection.nodes.has(pointer.slice(0, pointer.lastIndexOf('/')) as JsonPointer)) {
-      found.push(`${pointer} has no parent node`)
-    }
+    const parent = pointer === '' ? undefined : projection.nodes.get(pointer.slice(0, pointer.lastIndexOf('/')) as JsonPointer)
+    if (pointer !== '' && !parent) found.push(`${pointer} has no parent node`)
+    if (parent && parent.type !== 'object' && parent.type !== 'array') found.push(`${pointer} is beneath a ${parent.type}`)
+    // A cut drops the parent's entry, where a shape omission keeps it (projection-shape.suite.ts).
     for (const child of node.children ?? []) {
       if (!projection.nodes.has(child.pointer)) found.push(`${pointer} lists ${child.pointer} without a node`)
     }

@@ -14,6 +14,7 @@ interface Expected {
   nodes: Readonly<Record<string, JsonSchemaType>>
   unlisted?: readonly string[]
   diagnostics?: readonly string[]
+  reason?: string
 }
 
 interface Row {
@@ -29,6 +30,115 @@ const obj = (properties: Record<string, unknown>) => ({ type: 'object', properti
 const ref = { $ref: '#/definitions/n' }
 const ambiguous = (pointer: string) => `ambiguous-projection-shape@${pointer}`
 const unresolved = (pointer: string) => `unresolved-projection-shape@${pointer}`
+
+const twoScalars = { oneOf: [S, { type: 'number' }] }
+const inactiveTypeRows: readonly Row[] = [
+  {
+    id: 'a typeless object beside a oneOf of two scalar types no data selects',
+    schema: obj({ c: { properties: { d: S }, ...twoScalars } }),
+    expected: { nodes: { '': 'object', '/c': 'object', '/c/d': 'string' } },
+  },
+  {
+    id: 'a typeless object beside a oneOf of two scalar types in the other order',
+    schema: obj({ c: { properties: { d: S }, oneOf: [...twoScalars.oneOf].reverse() } }),
+    expected: { nodes: { '': 'object', '/c': 'object', '/c/d': 'string' } },
+  },
+  {
+    id: 'a oneOf wrapper of two scalar types no data selects',
+    schema: obj({ c: twoScalars }),
+    expected: { nodes: { '': 'object', '/c': 'object' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object' },
+        unlisted: ['/c'],
+        reason: 'a branch that does not apply decides no type when the branches disagree',
+      },
+    },
+  },
+  {
+    id: 'a oneOf wrapper whose branches declare one scalar type and no data selects',
+    schema: obj({ c: { oneOf: [{ type: 'string', minLength: 1 }, { type: 'string', maxLength: 3 }] } }),
+    expected: { nodes: { '': 'object', '/c': 'object' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object', '/c': 'string' },
+        reason: 'every branch that could apply declares the same type',
+      },
+    },
+  },
+  {
+    id: 'a oneOf wrapper of a scalar and an object no data selects',
+    schema: obj({ c: { oneOf: [S, obj({ y: S })] } }),
+    expected: { nodes: { '': 'object', '/c': 'object', '/c/y': 'string' } },
+  },
+  {
+    id: 'a oneOf wrapper of two objects no data selects',
+    schema: obj({ c: { oneOf: [obj({ x: S }), obj({ y: S })] } }),
+    expected: { nodes: { '': 'object', '/c': 'object', '/c/x': 'string', '/c/y': 'string' } },
+  },
+  {
+    id: 'an anyOf wrapper of an object with properties and an array no data selects',
+    schema: obj({ c: { anyOf: [obj({ y: S }), { type: 'array' }] } }),
+    expected: { nodes: { '': 'object', '/c': 'array' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object', '/c': 'object', '/c/y': 'string' },
+        reason: 'only an object holds the children a branch lists',
+      },
+    },
+  },
+  {
+    id: 'an anyOf wrapper of an object and an array no data selects',
+    schema: obj({ c: { anyOf: [{ type: 'object' }, { type: 'array' }] } }),
+    expected: { nodes: { '': 'object', '/c': 'array' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object' },
+        unlisted: ['/c'],
+        reason: 'a branch that does not apply decides no type when the branches disagree',
+      },
+    },
+  },
+  {
+    id: 'an explicit type that applies beside a type a branch that does not apply declares',
+    schema: { ...obj({ c: { oneOf: [S, { type: 'boolean' }] } }), allOf: [{ properties: { c: { type: 'number' } } }] },
+    expected: { nodes: { '': 'object', '/c': 'number' } },
+  },
+  {
+    id: 'an explicit string type with properties beneath it',
+    schema: obj({ c: { type: 'string', properties: { x: S } } }),
+    expected: { nodes: { '': 'object', '/c': 'string' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object', '/c': 'string' },
+        unlisted: ['/c/x'],
+        reason: 'the location beneath a scalar is left out and its entry kept',
+      },
+    },
+  },
+]
+
+const flagged = { a: { flag: true } }
+const conditionals: Record<string, Record<string, unknown>> = {
+  'a then': obj({ a: { properties: { b: S }, if: { required: ['flag'] }, then: { minItems: 1 } } }),
+  'an else': obj({ a: { properties: { b: S }, if: { required: ['flag'] }, else: { minItems: 1 } } }),
+  'a dependent schema': obj({ a: { properties: { b: S }, dependentSchemas: { flag: { minItems: 1 } } } }),
+  'a schema dependency': obj({ a: { properties: { b: S }, dependencies: { flag: { minItems: 1 } } } }),
+}
+const conditionalRows: readonly Row[] = [
+  ...[{ a: {} }, flagged].map((data): Row => ({
+    id: `a typeless location whose then adds keywords of another type with ${JSON.stringify(data)}`,
+    schema: conditionals['a then']!,
+    data,
+    expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
+  })),
+  ...(['a dependent schema', 'a schema dependency'] as const).map((label): Row => ({
+    id: `a typeless location whose present ${label.slice(2)} adds keywords of another type`,
+    schema: conditionals[label]!,
+    data: flagged,
+    expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
+  })),
+]
 
 const rows: readonly Row[] = [
   { id: 'a typeless root with properties', schema: { properties: { a: S } }, expected: { nodes: { '': 'object', '/a': 'string' } } },
@@ -157,6 +267,7 @@ const rows: readonly Row[] = [
     schema: obj({ a: { properties: { b: S }, if: true, then: { minItems: 1 } } }),
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
   },
+  ...conditionalRows,
   {
     id: 'a reference as the only branch of a oneOf wrapper the data selects',
     schema: { ...obj({ a: { oneOf: [ref] } }), definitions: { n: { properties: { b: S } } } },
@@ -215,6 +326,7 @@ const rows: readonly Row[] = [
       '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
     },
   },
+  ...inactiveTypeRows,
 ]
 
 const messages = {
@@ -223,11 +335,15 @@ const messages = {
   '/d': 'No explicit "type", and no keyword that implies one, so there is no shape to render. Declare "type" on this schema.',
 }
 
-const orphans = (nodes: ReadonlyMap<string, unknown>) =>
-  [...nodes.keys()].filter((pointer) => pointer !== '' && !nodes.has(pointer.slice(0, pointer.lastIndexOf('/'))))
+const unreachable = (nodes: ReadonlyMap<string, { type: JsonSchemaType }>) =>
+  [...nodes.keys()].filter((pointer) => {
+    const parent = pointer === '' ? undefined : nodes.get(pointer.slice(0, pointer.lastIndexOf('/')))
+    return pointer !== '' && parent?.type !== 'object' && parent?.type !== 'array'
+  })
 
 // A typeless location takes the shape its keywords imply; one that cannot be given a shape is left out with
-// everything beneath it, reported, and still listed by its parent. `differs` pins where an adapter departs.
+// everything beneath it, reported, and still listed by its parent, where a recursion cut drops the entry
+// (recursive-ref.suite.ts). Every node's parent is an object or array. `differs` pins where an adapter departs.
 export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFactory): void {
   describe(`${name}: a location without a type`, () => {
     describe.each(Object.keys(DIALECTS) as Dialect[])('%s', (dialect) => {
@@ -235,10 +351,10 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         const want = differs?.[`${name} ${dialect}`] ?? differs?.[name] ?? expected
         const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
         const projection = port.project(structuredClone(data))
-        const nodes = new Map<string, unknown>(projection.nodes)
+        const nodes = new Map<string, { type: JsonSchemaType }>(projection.nodes)
 
-        expect(Object.fromEntries([...projection.nodes].map(([pointer, node]) => [pointer, node.type]))).toEqual(want.nodes)
-        expect(orphans(nodes)).toEqual([])
+        expect(Object.fromEntries([...projection.nodes].map(([pointer, node]) => [pointer, node.type])), want.reason).toEqual(want.nodes)
+        expect(unreachable(nodes)).toEqual([])
         expect(
           [...projection.nodes.values()]
             .flatMap((node) => (node.children ?? []).map((child) => child.pointer as string))
@@ -323,6 +439,21 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         }
       },
     )
+
+    describe.each(Object.keys(DIALECTS) as Dialect[])('a conditional branch in %s', (dialect) => {
+      it.each(Object.entries(conditionals))('projects the same shape whether or not %s applies', async (_label, schema) => {
+        const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
+        const [absent, present] = [{ a: {} }, flagged].map((data) => {
+          const projection = port.project(structuredClone(data))
+          return {
+            nodes: Object.fromEntries([...projection.nodes].map(([pointer, node]) => [pointer, node.type])),
+            diagnostics: projection.diagnostics ?? [],
+          }
+        })
+        expect(present).toEqual(absent)
+        expect(present.diagnostics).toEqual([])
+      })
+    })
 
     it.each(Object.keys(DIALECTS) as Dialect[])('words each diagnostic the same way in %s', async (dialect) => {
       const schema = obj({ a: { properties: { b: S }, minItems: 1 }, c: { enum: [1] }, d: {} })
