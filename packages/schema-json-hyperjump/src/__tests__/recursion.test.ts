@@ -15,6 +15,12 @@ describe('the schema graph', () => {
   })
 })
 
+describe('the projection shape rule', () => {
+  it('is the same file in both adapters', () => {
+    expect(read('../projection-shape.ts')).toBe(read('../../../schema-json/src/projection-shape.ts'))
+  })
+})
+
 describe('the draft-07 metaschema copy', () => {
   it('holds the document schema-json bundles', () => {
     const source = read('../../../schema-json/src/metaschemas/draft-07.ts')
