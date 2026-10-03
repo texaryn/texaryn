@@ -1193,6 +1193,7 @@ function walk(
     return
   }
 
+  const itemSchema = type === 'array' && resolved.items ? dereference(resolved.items).schema : undefined
   nodes.set(toPointer(pointer), {
     type,
     format: typeof schema.format === 'string' ? schema.format : undefined,
@@ -1211,8 +1212,8 @@ function walk(
     // is also the only annotation set nothing reads a `default` from, and the
     // only one the other adapter does not produce at all.
     itemAnnotations:
-      type === 'array' && resolved.items
-        ? extractAnnotations(dereference(resolved.items).schema as Record<string, unknown>)
+      typeof itemSchema === 'object' && itemSchema !== null
+        ? extractAnnotations(itemSchema as Record<string, unknown>)
         : undefined,
   })
 

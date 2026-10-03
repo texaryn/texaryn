@@ -55,3 +55,35 @@ describe('validation', () => {
     expect((await adapter.validateAt!({ 'a/b': 'y' }, '/a' as any)).errors.map((error) => error.instancePointer)).toEqual(['/a'])
   })
 })
+
+describe('boolean item schemas', () => {
+  const dialects = {
+    'draft-07': 'http://json-schema.org/draft-07/schema#',
+    '2019-09': 'https://json-schema.org/draft/2019-09/schema',
+    '2020-12': 'https://json-schema.org/draft/2020-12/schema',
+  }
+  const shapes: [string, Record<string, unknown>, unknown[]][] = [
+    ['items false', { type: 'array', items: false }, []],
+    ['items false with an element', { type: 'array', items: false }, [1]],
+    ['items true', { type: 'array', items: true }, [1]],
+  ]
+
+  for (const [dialect, $schema] of Object.entries(dialects)) {
+    it.each(shapes)(`projects %s in ${dialect} as an array without element nodes`, async (_name, schema, data) => {
+      const adapter = await createJsonSchemaAdapter({ $schema, properties: { k: schema } })
+      const nodes = adapter.project({ k: data }).nodes
+      expect(nodes.get('/k' as never)?.type).toBe('array')
+      expect(nodes.get('/k' as never)?.itemAnnotations).toBeUndefined()
+      expect([...nodes.keys()].filter((pointer) => pointer.startsWith('/k/'))).toEqual([])
+    })
+  }
+
+  it('projects a 2020-12 tuple closed with items false', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: dialects['2020-12'],
+      properties: { k: { type: 'array', prefixItems: [{ type: 'string' }], items: false } },
+    })
+    expect(adapter.project({ k: ['a'] }).nodes.get('/k' as never)?.type).toBe('array')
+    expect(adapter.project({}).nodes.get('/k' as never)?.type).toBe('array')
+  })
+})
