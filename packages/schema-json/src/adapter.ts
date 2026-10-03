@@ -19,6 +19,7 @@ import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projec
 import { withoutUnreachableBranches } from './normalize.js'
 import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions } from './schema-graph.js'
+import { pointerResolver, type PointerResolver } from './instance-pointer.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
 export async function createJsonSchemaAdapter(
@@ -93,12 +94,6 @@ async function prepareSchema(
   return root
 }
 
-// json-schema-library reports data pointers as "#"-prefixed URI fragments (e.g. "#/age");
-// ValidationError.instancePointer expects an RFC 6901 JSON Pointer (e.g. "/age").
-function toInstancePointer(jslPointer: string): string {
-  return jslPointer === '#' ? '' : jslPointer.replace(/^#/, '')
-}
-
 // jsl error codes are kebab-case ("min-length-error"); ValidationError.keyword is expected
 // to be the JSON Schema keyword itself ("minLength"). Unrecognized codes fall back to a
 // best-effort camelCase conversion of the code with any trailing "-error"/"-warning" removed.
@@ -160,16 +155,22 @@ function toKeyword(code: string): string {
   return withoutSuffix.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase())
 }
 
-function mapValidationError(error: JsonError): ValidationError {
+function mapValidationError(error: JsonError, resolve: PointerResolver): ValidationError {
   const code = typeof error.code === 'string' ? error.code : String(error.code)
-  const basePointer = typeof error.data?.pointer === 'string' ? error.data.pointer : '#'
+  const data = (error.data ?? {}) as Record<string, unknown>
+  const basePointer = typeof data.pointer === 'string' ? data.pointer : '#'
   // required-property-error reports the *parent* object's pointer with the missing property
   // name in data.key; consumers expect the error located at the missing property itself.
-  const key = (error.data as Record<string, unknown> | undefined)?.key
-  const missingKey = code === 'required-property-error' && typeof key === 'string' ? key : undefined
-  const pointer = missingKey ? `${basePointer}/${missingKey}` : basePointer
+  const missingKey = code === 'required-property-error' && typeof data.key === 'string' ? data.key : undefined
+  // These two report the parent as data.value; the child's own key says which child failed.
+  const lastKey =
+    code === 'no-additional-properties-error' && typeof data.property === 'string'
+      ? data.property
+      : code === 'additional-items-error' && data.key !== undefined
+        ? String(data.key)
+        : undefined
   return {
-    instancePointer: toInstancePointer(pointer),
+    instancePointer: resolve(basePointer, { code, value: data.value, missingKey, lastKey }),
     keyword: toKeyword(code),
     message: error.message,
     params: (error.data ?? {}) as Record<string, unknown>,
@@ -178,9 +179,10 @@ function mapValidationError(error: JsonError): ValidationError {
 
 function runValidation(prepared: SchemaNode, data: unknown): ValidationResult {
   const result = prepared.validate(data)
+  const resolve = pointerResolver(data)
   return {
     valid: result.valid,
-    errors: result.errors.map(mapValidationError),
+    errors: result.errors.map((error) => mapValidationError(error, resolve)),
   }
 }
 

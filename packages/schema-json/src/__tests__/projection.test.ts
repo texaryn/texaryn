@@ -42,4 +42,16 @@ describe('validation', () => {
       expect(result.valid).toBe(false)
     }
   })
+
+  it('validateAt scopes by the escaped pointer of a field whose key contains a slash', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: { 'a/b': { type: 'string' }, a: { type: 'string' } },
+      required: ['a/b', 'a'],
+    })
+    const missing = await adapter.validateAt!({ a: 'x' }, '/a~1b' as any)
+    expect(missing.errors.map((error) => error.instancePointer)).toEqual(['/a~1b'])
+    expect((await adapter.validateAt!({ 'a/b': 'y', a: 'x' }, '/a~1b' as any)).valid).toBe(true)
+    expect((await adapter.validateAt!({ 'a/b': 'y' }, '/a' as any)).errors.map((error) => error.instancePointer)).toEqual(['/a'])
+  })
 })
