@@ -107,7 +107,7 @@ The [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-sc
 
 ## json-schema-library version
 
-The dependency range is `~11.6.2`. In Draft 7, json-schema-library 11.6.2 overwrites the registry entry that `"$ref": "#"` resolves through, so without a fix the reference reaches another node and validation is wrong. The adapter pins that entry to the document root, and every other entry the library files for its own location to the node compiled there, so a reduction during projection cannot replace a definition with a reduced copy. Because the fix depends on the library's internal registry, adapter creation throws an error naming json-schema-library 11.6.2 when the registry is shaped differently, or when a self-test on two probe schemas shows the fix no longer repairs validation. A new json-schema-library minor needs a Texaryn release that verifies the internal again.
+The dependency is pinned to exactly `11.6.2`. In Draft 7, json-schema-library 11.6.2 overwrites the registry entry that `"$ref": "#"` resolves through, so without a fix the reference reaches another node and validation is wrong. The adapter pins that entry to the document root, and every other entry the library files for its own location to the node compiled there, so a reduction during projection cannot replace a definition with a reduced copy. Because the fix depends on the library's internal registry, adapter creation throws an error naming json-schema-library 11.6.2 when the registry is shaped differently, or when a self-test on two probe schemas shows the fix no longer repairs validation. A newer json-schema-library release is not installed until a Texaryn release raises the pin after the registry fix and its self-test pass against it.
 
 ## Validation
 
