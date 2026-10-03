@@ -283,7 +283,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       json-schema-library:
-        specifier: ~11.6.2
+        specifier: 11.6.2
         version: 11.6.2
     devDependencies:
       tsx:
