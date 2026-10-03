@@ -14,6 +14,8 @@ takes explicit positions. Where the evidence supports a decision, the decision i
 stated. Where it does not, the question is listed as open with the information
 needed to close it.
 
+The current state and the remaining work are in [Status, 2026-10-03](#status-2026-10-03).
+
 ## Table of Contents
 
 1. [Problem Statement and Market Gap](#1-problem-statement-and-market-gap)
@@ -1846,6 +1848,36 @@ depend on the changed field are re-evaluated. This is a performance improvement,
 requirement for v1, but the compiler should be structured to allow it.
 
 ## 19. Milestones and First PRs
+
+### Status, 2026-10-03
+
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
+
+The post-release list, ordered after the Backstage adoption exercise: 9 of 11 items are resolved and 2 remain.
+
+| # | Item | State |
+|---|------|-------|
+| 1 | Implicit structural type inference | Done (#115) |
+| 2 | Conditional projection | Done (#117, #118) |
+| 3 | `oneOf` inside `dependencies` crash | Upstream (#121), no local workaround |
+| 4 | `default` semantics | Done, ADR-003 accepted |
+| 5 | Material UI v4 support for Backstage | Declined |
+| 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
+| 7 | Renderer reorder parity | Open |
+| 8 | External schema resources | Open, demand-driven: conformance failures stay visible, no API |
+| 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
+| 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
+| 11 | Hyperjump suite deviations (#108) | Reported upstream; one closed as deliberate, one open |
+
+Priorities for what remains:
+
+1. Item 8. It closes the list's standards item and needs no new API.
+2. Item 7. It is the last parity gap between the bindings and unblocks `moveItemDown`. It needs a design first.
+3. Hardening found by the #119 reviews: #183 (projection and validation coherence, dialect isolation, marker collision), #176, #177, #178 and #179.
+4. #126, optional submission projection, a design question.
+
+#121 and #108 wait on upstream releases and are not counted as remaining work. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
+
 
 ### Phase 0: Foundation (PRs 1-5)
 
