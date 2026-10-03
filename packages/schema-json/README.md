@@ -136,6 +136,8 @@ Required-property errors are located at the missing property pointer rather than
 
 `instancePointer` is an RFC 6901 pointer: a property named `a/b` is `/a~1b`, and `a~b` is `/a~0b`. json-schema-library joins property names into its own error pointers without escaping, so the adapter recovers the real keys from the validated data. Two locations whose keys read the same once joined, such as `a/b` holding `c` next to `a` holding `b/c`, are told apart by the value the error reports. When both hold equal values and only one fails, the error is located at the first of them in key order, until json-schema-library escapes at the source (sagold/json-schema-library#130). `params` is json-schema-library's raw error data, and its pointers are not escaped.
 
+A data key named like an `Object.prototype` member (`__proto__`, `constructor`, `toString`) validates and projects like any other key. The one exception is a schema that combines `patternProperties` with `additionalProperties: false`: json-schema-library reads that schema's plain `properties` object, so it treats such an undeclared key as declared.
+
 ## Scoped validation
 
 This adapter also implements the optional `validateAt()` port method:

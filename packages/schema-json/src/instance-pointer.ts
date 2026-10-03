@@ -42,24 +42,30 @@ function hasSlashKey(data: unknown): boolean {
 function indexOf(data: unknown): Map<string, Entry[]> | undefined {
   if (!hasSlashKey(data)) return undefined
   const index = new Map<string, Entry[]>()
-  const stack: { node: unknown; joined: string; pointer: string }[] = [{ node: data, joined: '', pointer: '' }]
+  const stack: { entry: Entry; path: string }[] = []
   let chars = 0
   let id = 0
-  while (stack.length > 0) {
-    const { node, joined, pointer } = stack.pop()!
-    if (typeof node !== 'object' || node === null) continue
-    const frames: { node: unknown; joined: string; pointer: string }[] = []
+  const open = (node: unknown, joined: string, pointer: string): boolean => {
+    if (typeof node !== 'object' || node === null) return true
+    const frames: { entry: Entry; path: string }[] = []
     for (const [key, value] of childrenOf(node)) {
-      const entry = { id: id++, pointer: `${pointer}/${escapeSegment(key)}`, key, value, parent: node }
       const path = `${joined}/${key}`
+      const entry = { id: 0, pointer: `${pointer}/${escapeSegment(key)}`, key, value, parent: node }
       chars += path.length + entry.pointer.length
-      if (chars > MAX_CHARS) return undefined
-      const known = index.get(path)
-      if (known) known.push(entry)
-      else index.set(path, [entry])
-      frames.push({ node: value, joined: path, pointer: entry.pointer })
+      if (chars > MAX_CHARS) return false
+      frames.push({ entry, path })
     }
     for (let i = frames.length - 1; i >= 0; i -= 1) stack.push(frames[i]!)
+    return true
+  }
+  if (!open(data, '', '')) return undefined
+  while (stack.length > 0) {
+    const { entry, path } = stack.pop()!
+    entry.id = id++
+    const known = index.get(path)
+    if (known) known.push(entry)
+    else index.set(path, [entry])
+    if (!open(entry.value, path, entry.pointer)) return undefined
   }
   return index
 }

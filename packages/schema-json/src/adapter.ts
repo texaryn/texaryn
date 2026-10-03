@@ -17,6 +17,7 @@ import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
 import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
 import { withoutUnreachableBranches } from './normalize.js'
+import { DRAFTS } from './bare-maps.js'
 import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions } from './schema-graph.js'
 import { pointerResolver, type PointerResolver } from './instance-pointer.js'
@@ -86,6 +87,7 @@ async function prepareSchema(
   // is a deviation rather than a stricter setting.
   const formatAssertion = dialect === 'draft-07' ? undefined : false
   const root = compileSchema(schema as JsonSchema | BooleanSchema, {
+    drafts: DRAFTS,
     draft: toDraftOption(dialect),
     formatAssertion,
     remotes,
