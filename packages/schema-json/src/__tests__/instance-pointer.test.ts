@@ -81,6 +81,11 @@ describe('pointerResolver', () => {
       ])
     })
 
+    it('lists readings in document order, depth first', () => {
+      const data = { 'a/b': { c: 1 }, 'a/b/c': 1 }
+      expect(resolve(data, '#/a/b/c', plain('type-error', 1))).toBe('/a~1b/c')
+    })
+
     it('takes the first reading when nothing tells them apart', () => {
       expect(resolve(data, '#/a/b/c', plain('type-error', 'z'))).toBe('/a~1b/c')
     })
