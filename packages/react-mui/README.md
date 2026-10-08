@@ -67,7 +67,7 @@ function App() {
 | `MuiSelect` | field with enum values | `TextField` with `select`, `MenuItem` per option |
 | `MuiCheckbox` | boolean field | `FormControl`, `FormControlLabel`, `Checkbox`, `FormHelperText` |
 | `MuiObjectLayout` | object container | `Stack`; a nested object is a `fieldset` named by its `legend` |
-| `MuiArrayControl` | array container | `Stack`, `Box` per item, `Button` to add or remove |
+| `MuiArrayControl` | array container | `Stack`, `Box` per item, `Button` to add or remove, and move up or down when `canReorder` is true |
 
 Enum outranks the primitive type, so a string field with an `enum` renders as a select, and the `textarea` hint outranks both.
 

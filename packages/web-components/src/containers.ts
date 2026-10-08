@@ -138,6 +138,7 @@ interface Row {
   slot: HTMLElement
   binding: NodeBinding | null
   up: HTMLButtonElement
+  down: HTMLButtonElement
   remove: HTMLButtonElement
 }
 
@@ -170,19 +171,39 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     const element = document.createElement('div')
     element.className = 'texaryn-array-item'
     element.dataset.itemId = itemId
+    element.dataset.arrayRow = ''
     const slot = document.createElement('div')
+    let row: Row
     const up = button('', () => {
       const index = indexOf(itemId)
       if (index > 0) {
+        const wasFocused = document.activeElement === up
         ctx.runtime.dispatch({ type: 'MoveItem', containerId: node.id, from: index, to: index - 1 })
+        if (wasFocused && index === 1) {
+          queueMicrotask(() => { if (!row.down.hidden) row.down.focus() })
+        }
       }
     })
+    up.dataset.reorderDirection = 'up'
+    const down = button('', () => {
+      const index = indexOf(itemId)
+      const length = node.arrayMeta?.itemIds.length ?? 0
+      if (index >= 0 && index < length - 1) {
+        const wasFocused = document.activeElement === down
+        ctx.runtime.dispatch({ type: 'MoveItem', containerId: node.id, from: index, to: index + 1 })
+        if (wasFocused && index === length - 2) {
+          queueMicrotask(() => { if (!row.up.hidden) row.up.focus() })
+        }
+      }
+    })
+    down.dataset.reorderDirection = 'down'
     const remove = button('', () => {
       const index = indexOf(itemId)
       if (index >= 0) ctx.runtime.dispatch({ type: 'RemoveItem', containerId: node.id, index })
     })
-    element.append(slot, up, remove)
-    return { element, slot, binding: null, up, remove }
+    element.append(slot, up, down, remove)
+    row = { element, slot, binding: null, up, down, remove }
+    return row
   }
 
   function reconcile(next: ContainerNode): void {
@@ -214,6 +235,7 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       }
       row.remove.hidden = !(meta?.canRemove ?? false)
       row.up.hidden = !(meta?.canReorder ?? false) || index === 0
+      row.down.hidden = !(meta?.canReorder ?? false) || index === itemIds.length - 1
       // Named here rather than in createRow: a row survives a move, so the
       // position in its name is only correct if it is rewritten every pass,
       // the same reason the click handlers resolve their index at click time.
@@ -228,6 +250,9 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       const up = ctx.messages.moveItemUp(context)
       row.up.textContent = up.label
       row.up.setAttribute('aria-label', up.accessibleName)
+      const down = ctx.messages.moveItemDown(context)
+      row.down.textContent = down.label
+      row.down.setAttribute('aria-label', down.accessibleName)
       elements.push(row.element)
     })
     for (const [itemId, row] of rows) {

@@ -160,6 +160,7 @@ describe('the array control issues the commands it offers', () => {
   it('offers no reorder control when the document does not allow it', async () => {
     const { wrapper } = await mountExample('runtime-array-interactions')
     expect(buttons(wrapper, 'Up')).toHaveLength(0)
+    expect(buttons(wrapper, 'Down')).toHaveLength(0)
   })
 
   it('moves a row up from its own button when reordering is allowed', async () => {
@@ -179,8 +180,7 @@ describe('the array control issues the commands it offers', () => {
     })
   })
 
-  // The shared contract names Remove and Add on every binding; only Vue and
-  // Web Components expose a reorder control, so its name is pinned here.
+  // The shared contract names each direction from the current row.
   it('names the reorder control by the row it moves', async () => {
     const { wrapper } = await mountExample('ui-hint-array')
     const up = buttons(wrapper, 'Up')

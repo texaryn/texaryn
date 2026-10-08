@@ -23,6 +23,10 @@ export const englishMessages: FormMessages = {
     label: 'Up',
     accessibleName: withContainer(`Move up ${itemTitle ?? 'item'} ${position}`, 'in', containerTitle),
   }),
+  moveItemDown: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Down',
+    accessibleName: withContainer(`Move down ${itemTitle ?? 'item'} ${position}`, 'in', containerTitle),
+  }),
   requiredIndicator: () => ({ text: '(required)', placement: 'after' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),
   errorSummaryDetail: ({ messages }) => `: ${messages.join(', ')}`,

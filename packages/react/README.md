@@ -241,6 +241,10 @@ const registry = createDefaultRegistry()
 
 The default registry is intentionally small. Applications can supply their own registry and widget components for a product or design system.
 
+`ArrayControl` renders `Add` and `Remove` when the array hints allow them. With
+`canReorder: true`, each row also gets `Up` and `Down` controls when a move in
+that direction is available. Moving a row preserves its mounted fields.
+
 ## Custom rendering
 
 The renderer boundary is registry-based. React components are selected from semantic node information rather than from JSON Schema keywords directly.

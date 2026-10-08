@@ -21,6 +21,7 @@ const french: FormMessages = {
   addItem: () => ({ label: 'Ajouter', accessibleName: 'Ajouter un élément' }),
   removeItem: ({ position }) => ({ label: 'Retirer', accessibleName: `Retirer élément ${position}` }),
   moveItemUp: ({ position }) => ({ label: 'Monter', accessibleName: `Monter élément ${position}` }),
+  moveItemDown: ({ position }) => ({ label: 'Descendre', accessibleName: `Descendre élément ${position}` }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
@@ -55,6 +56,10 @@ describe('messages through mountForm', () => {
     const up = container.querySelector<HTMLButtonElement>('button[aria-label="Monter élément 2"]')
     expect(up).not.toBeNull()
     expect(up!.textContent).toBe('Monter')
+
+    const down = container.querySelector<HTMLButtonElement>('button[aria-label="Descendre élément 1"]')
+    expect(down).not.toBeNull()
+    expect(down!.textContent).toBe('Descendre')
 
     const add = container.querySelector<HTMLButtonElement>('button[aria-label="Ajouter un élément"]')
     expect(add).not.toBeNull()

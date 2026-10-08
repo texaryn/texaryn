@@ -19,6 +19,7 @@ const french: FormMessages = {
   addItem: () => ({ label: 'Ajouter', accessibleName: 'Ajouter un élément' }),
   removeItem: ({ position }) => ({ label: 'Retirer', accessibleName: `Retirer élément ${position}` }),
   moveItemUp: ({ position }) => ({ label: 'Monter', accessibleName: `Monter élément ${position}` }),
+  moveItemDown: ({ position }) => ({ label: 'Descendre', accessibleName: `Descendre élément ${position}` }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
@@ -65,7 +66,8 @@ describe('useFormMessages', () => {
       required: ['name'],
     }
     const runtime = createFormRuntime(await createJsonSchemaAdapter(listSchema), {
-      initialData: { tags: ['a'], name: '' },
+      initialData: { tags: ['a', 'b'], name: '' },
+      hints: { '/tags': { canReorder: true } },
     })
     const registry = createDefaultRegistry()
     const view = render(
@@ -77,6 +79,10 @@ describe('useFormMessages', () => {
 
     const remove = q.getByRole('button', { name: 'Retirer élément 1' })
     expect(remove.textContent).toBe('Retirer')
+    const moveUp = q.getByRole('button', { name: 'Monter élément 2' })
+    expect(moveUp.textContent).toBe('Monter')
+    const moveDown = q.getByRole('button', { name: 'Descendre élément 1' })
+    expect(moveDown.textContent).toBe('Descendre')
     const add = q.getByRole('button', { name: 'Ajouter un élément' })
     expect(add.textContent).toBe('Ajouter')
 
@@ -90,6 +96,8 @@ describe('useFormMessages', () => {
       </FormProvider>,
     )
     expect(q.getByRole('button', { name: 'Remove Tag 1 from Tags' }).textContent).toBe('Remove')
+    expect(q.getByRole('button', { name: 'Move up Tag 2 in Tags' }).textContent).toBe('Up')
+    expect(q.getByRole('button', { name: 'Move down Tag 1 in Tags' }).textContent).toBe('Down')
     expect(label.textContent).toBe('Name (required)')
     runtime.destroy()
   })

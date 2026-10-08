@@ -1863,7 +1863,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
-| 7 | Renderer reorder parity | Open |
+| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all five renderer families |
 | 8 | External schema resources | Deferred until an adopter needs it; remote reference failures stay visible in the conformance suite, no resolver API |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
@@ -1873,9 +1873,10 @@ The published adapter defects in #176 and #178 are implemented in the current wo
 
 Priorities for what remains:
 
-1. Item 7, renderer reorder parity. It is the last parity gap between the bindings and unblocks `moveItemDown`. It needs a design first.
-2. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
+1. The #119 review hardening in #183: projection and validation coherence, dialect isolation, and marker collision.
+2. #177, hyperjump parity, after measuring which gaps remain following the schema-json fixes.
 3. #126, optional submission projection, a design question.
+4. #179 remains deferred until an adopter needs one of its follow-ups.
 
 #121 waits on an upstream fix. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. Neither is counted as local work. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
 
