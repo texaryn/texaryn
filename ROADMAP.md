@@ -14,7 +14,7 @@ takes explicit positions. Where the evidence supports a decision, the decision i
 stated. Where it does not, the question is listed as open with the information
 needed to close it.
 
-The current state and the remaining work are in [Status, 2026-10-03](#status-2026-10-03).
+The current state and the remaining work are in [Status, 2026-10-09](#status-2026-10-09).
 
 ## Table of Contents
 
@@ -1849,7 +1849,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ## 19. Milestones and First PRs
 
-### Status, 2026-10-03
+### Status, 2026-10-09
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
@@ -1869,12 +1869,13 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
 | 11 | Hyperjump suite deviations (#108) | Waits on upstream: hyperjump-io/json-schema#127 closed as deliberate, #128 unanswered |
 
+The published adapter defects in #176 and #178 are implemented in the current worktree. Both adapter suites pass, with 733 tests, and the workspace type check passes. The package release remains pending.
+
 Priorities for what remains:
 
-1. Correctness defects in the published `@texaryn/schema-json` adapter: #176 (nodes dropped under typeless `allOf` with `$ref`, array keywords inside `allOf`, inline conditional branches) and #178 (a `default` beside `$ref`).
-2. Item 7, renderer reorder parity. It is the last parity gap between the bindings and unblocks `moveItemDown`. It needs a design first.
-3. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
-4. #126, optional submission projection, a design question.
+1. Item 7, renderer reorder parity. It is the last parity gap between the bindings and unblocks `moveItemDown`. It needs a design first.
+2. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
+3. #126, optional submission projection, a design question.
 
 #121 waits on an upstream fix. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. Neither is counted as local work. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
 

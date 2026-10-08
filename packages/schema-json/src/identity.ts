@@ -156,7 +156,7 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
 
 // Read from the document rather than the node: a node reached through `$ref`
 // carries the referring site's merged annotations.
-function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknown {
+export function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknown {
   const marker = markerOf(node)
   return (marker === undefined ? undefined : cache.schemaAt(marker)) ?? node.schema
 }

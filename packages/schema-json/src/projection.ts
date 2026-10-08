@@ -12,6 +12,7 @@ import type {
   ProjectionBoundary,
 } from '@texaryn/core'
 import {
+  authoredSchema,
   childDeclaring,
   followRef,
   itemDeclaring,
@@ -103,8 +104,9 @@ function extractAnnotations(
    * Set where two declarations apply to this location whatever the instance is
    * and disagree. The merged schema still carries one of them, and which one is
    * the merge's traversal order rather than an answer.
-   */
+  */
   omitDefault = false,
+  defaultOverride?: { readonly present: boolean; readonly value?: unknown },
 ): AnnotationSet {
   const annotations: AnnotationSet = {}
   if (typeof schema.title === 'string') annotations.title = schema.title
@@ -113,7 +115,13 @@ function extractAnnotations(
   if (typeof schema.writeOnly === 'boolean') annotations.writeOnly = schema.writeOnly
   if (typeof schema.deprecated === 'boolean') annotations.deprecated = schema.deprecated
   if (Array.isArray(schema.examples)) annotations.examples = schema.examples
-  if (!omitDefault && 'default' in schema) annotations.default = schema.default
+  if (!omitDefault) {
+    if (defaultOverride) {
+      if (defaultOverride.present) annotations.default = defaultOverride.value
+    } else if ('default' in schema) {
+      annotations.default = schema.default
+    }
+  }
   return annotations
 }
 
@@ -122,27 +130,172 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
   return schema.enum.map((value) => ({ value }))
 }
 
-function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean } {
+function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
   let current = node
   const seen = new Set<string>()
   while (typeof current.$ref === 'string') {
     const position = positionOf(current)
-    if (seen.has(position)) return { node: current, cycle: true }
+    if (seen.has(position)) return { node: current, cycle: true, unresolved: false }
     seen.add(position)
     const next = followRef(current)
     if (!next) {
       const raw = current.resolveRef()
-      return { node: (raw ?? current) as SchemaNode, cycle: false }
+      return isSchemaNode(raw)
+        ? { node: raw, cycle: false, unresolved: false }
+        : { node: current, cycle: false, unresolved: true }
     }
     current = next
     if (!onlyPoints(current)) break
   }
-  return { node: current, cycle: false }
+  return { node: current, cycle: false, unresolved: false }
 }
 
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
 function dereference(node: SchemaNode): SchemaNode {
   return dereferenceChecked(node).node
+}
+
+function visitReferenceDefaultSites(
+  node: SchemaNode,
+  cache: ProjectionCache,
+  visitor: (node: SchemaNode) => void,
+): void {
+  if (cache.dialect === 'draft-07' || typeof node.$ref !== 'string') return
+  let current = node
+  const visited = new Set<string>()
+  while (true) {
+    const position = positionOf(current)
+    if (visited.has(position)) return
+    visited.add(position)
+
+    const authored = authoredSchema(current, cache)
+    if (
+      authored !== null &&
+      typeof authored === 'object' &&
+      'default' in authored
+    ) {
+      visitor(current)
+    }
+
+    if (typeof current.$ref !== 'string') return
+    const target = followRef(current)
+    if (!target) return
+    current = target
+  }
+}
+
+function traversalKey(node: SchemaNode): string {
+  const parent = node.parent
+  const isInPlaceBranch =
+    parent !== undefined &&
+    (['if', 'then', 'else', 'contains'] as const).some(
+      (keyword) =>
+        parent[keyword] === node || node.evaluationPath === `${parent.evaluationPath}/${keyword}`,
+    )
+  if (isInPlaceBranch) {
+    return positionOf(node)
+  }
+  const location = (node as { schemaLocation?: unknown }).schemaLocation
+  return typeof location === 'string' ? location : positionOf(node)
+}
+
+function allOfExplicitType(node: SchemaNode, visited = new Set<string>()): JsonSchemaType | undefined {
+  const position = positionOf(node)
+  if (visited.has(position)) return undefined
+  visited.add(position)
+  for (const branch of node.allOf ?? []) {
+    const reference = typeof branch.$ref === 'string' ? dereferenceChecked(branch) : undefined
+    if (reference?.unresolved || (reference && !isSchemaNode(reference.node))) continue
+    const target = reference?.node ?? branch
+    const schema = target.schema as Record<string, unknown> | undefined
+    if (schema && typeof schema === 'object') {
+      const type = resolveExplicitType(schema)
+      if (type) return type
+    }
+    const nested = allOfExplicitType(target, visited)
+    if (nested) return nested
+  }
+  return undefined
+}
+
+function declaresObject(node: SchemaNode, visited = new Set<string>()): boolean {
+  const resolved = dereference(node)
+  if (!isSchemaNode(resolved)) return false
+  const position = positionOf(resolved)
+  if (visited.has(position)) return false
+  visited.add(position)
+  const schema = resolved.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return false
+  const explicitType = resolveExplicitType(schema)
+  if (explicitType) return explicitType === 'object'
+  const allOfType = allOfExplicitType(resolved)
+  if (allOfType) return allOfType === 'object'
+  const shape = inferProjectionShape(schema)
+  if (shape.kind === 'resolved') return shape.type === 'object'
+  return (resolved.allOf ?? []).some((branch) => declaresObject(branch, visited))
+}
+
+function hasReferencedAllOf(node: SchemaNode, visited = new Set<string>()): boolean {
+  const position = positionOf(node)
+  if (visited.has(position)) return false
+  visited.add(position)
+  for (const branch of node.allOf ?? []) {
+    if (typeof branch.$ref === 'string') return true
+    if (hasReferencedAllOf(branch, visited)) return true
+  }
+  return false
+}
+
+function hasUnresolvedAllOfReference(node: SchemaNode, visited = new Set<string>()): boolean {
+  const position = positionOf(node)
+  if (visited.has(position)) return false
+  visited.add(position)
+
+  for (const branch of node.allOf ?? []) {
+    const source = typeof branch.$ref === 'string' ? dereferenceChecked(branch) : undefined
+    if (source?.unresolved || (source && !isSchemaNode(source.node))) return true
+    const target = source?.node ?? branch
+    if (hasUnresolvedAllOfReference(target, visited)) return true
+  }
+  return false
+}
+
+function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): SchemaNode | undefined {
+  const position = positionOf(node)
+  if (stack.has(position)) return node
+  const nextStack = new Set(stack).add(position)
+  const branches: SchemaNode[] = []
+  let changed = false
+
+  for (const branch of node.allOf ?? []) {
+    if (typeof branch.$ref === 'string') {
+      const { node: target, unresolved } = dereferenceChecked(branch)
+      if (unresolved || !isSchemaNode(target)) return undefined
+      if (nextStack.has(positionOf(target))) {
+        branches.push(branch)
+        continue
+      }
+      const expanded = expandAllOfReferences(target, nextStack)
+      if (!expanded) return undefined
+      branches.push(expanded)
+      changed = true
+      continue
+    }
+
+    const expanded = expandAllOfReferences(branch, nextStack)
+    if (!expanded) return undefined
+    branches.push(expanded)
+    changed ||= expanded !== branch
+  }
+
+  return changed ? { ...node, allOf: branches } : node
+}
+
+function reduceAllOfForProjection(node: SchemaNode, data: unknown): SchemaNode | undefined {
+  if (hasUnresolvedAllOfReference(node)) return undefined
+  if (node.getDraftVersion() !== 'draft-07') return node.reduceNode(data).node
+  const expanded = expandAllOfReferences(node)
+  return expanded?.reduceNode(data).node
 }
 
 // A dialect whose reducer leaves $ref unresolved reduces a selected `{ $ref }` branch to `{}`.
@@ -220,17 +373,14 @@ function isLeafSchema(schema: unknown): boolean {
 }
 
 /**
- * The position of a schema within the document it was authored in, as a JSON
- * Pointer with the root as the empty string.
- *
- * `schemaLocation` is already that, prefixed with the `#` of a URI fragment,
- * and it names what a `$ref` resolves to rather than the reference. Both
- * adapters report sources in this form so a diagnostic means the same thing
- * whichever one produced it.
+ * The authored schema position as a JSON Pointer with the root as the empty
+ * string. Reference sites and targets keep separate positions, and encoded
+ * reference segments use their document spelling. Both adapters report
+ * sources in this form so diagnostics mean the same thing whichever produced
+ * them.
  */
 function documentPointer(node: SchemaNode): string {
-  const location = (node as { schemaLocation?: unknown }).schemaLocation
-  return typeof location === 'string' ? location.replace(/^#/, '') : ''
+  return positionOf(node).replace(/^#/, '')
 }
 
 /** One `default` declaration, and the schema position that makes it. */
@@ -263,17 +413,15 @@ interface DefaultDeclaration {
 function eachUnconditional(
   roots: readonly SchemaNode[],
   visitor: (node: SchemaNode) => void,
+  referenceVisitor?: (node: SchemaNode) => void,
+  cache?: ProjectionCache,
 ): void {
   const visited = new Set<string | SchemaNode>()
 
   const visit = (current: SchemaNode): void => {
+    if (referenceVisitor && cache) visitReferenceDefaultSites(current, cache, referenceVisitor)
     const resolved = dereference(current)
-    // The same guard, and for the same measured reason, as
-    // `collectCandidateProperties`: `resolveRef()` returns a fresh node every
-    // call, so identity alone never closes a cycle, and an inline branch has no
-    // location of its own to key on.
-    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
-    const key = typeof location === 'string' ? location : resolved
+    const key = traversalKey(resolved)
     if (visited.has(key)) return
     visited.add(key)
 
@@ -321,13 +469,15 @@ function eachApplicable(
   roots: readonly SchemaNode[],
   data: unknown,
   visitor: (node: SchemaNode) => void,
+  referenceVisitor?: (node: SchemaNode) => void,
+  cache?: ProjectionCache,
 ): void {
   const visited = new Set<string | SchemaNode>()
 
   const visit = (current: SchemaNode): void => {
+    if (referenceVisitor && cache) visitReferenceDefaultSites(current, cache, referenceVisitor)
     const resolved = dereference(current)
-    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
-    const key = typeof location === 'string' ? location : resolved
+    const key = traversalKey(resolved)
     if (visited.has(key)) return
     visited.add(key)
 
@@ -397,27 +547,47 @@ interface DeclarationPositions {
 }
 
 function declarationsFrom(
-  walkRoots: (visitor: (node: SchemaNode) => void) => void,
+  walkRoots: (
+    visitor: (node: SchemaNode) => void,
+    referenceVisitor: (node: SchemaNode) => void,
+  ) => void,
+  cache: ProjectionCache,
 ): DefaultDeclaration[] {
   const declarations: DefaultDeclaration[] = []
-  walkRoots((node) => {
-    const schema = node.schema as Record<string, unknown>
-    if (schema !== null && typeof schema === 'object' && 'default' in schema) {
-      declarations.push({ value: schema.default, source: documentPointer(node) })
-    }
-  })
+  const seen = new Set<string>()
+  const add = (node: SchemaNode): void => {
+    const schema = authoredSchema(node, cache)
+    if (schema === null || typeof schema !== 'object' || !('default' in schema)) return
+    const record = schema as Record<string, unknown>
+    if (typeof record.$ref === 'string' && cache.dialect === 'draft-07') return
+    const source = documentPointer(node)
+    if (seen.has(source)) return
+    seen.add(source)
+    declarations.push({ value: record.default, source })
+  }
+  walkRoots(add, add)
   return declarations
 }
 
-function collectUnconditionalDefaults(roots: readonly SchemaNode[]): DefaultDeclaration[] {
-  return declarationsFrom((visitor) => eachUnconditional(roots, visitor))
+function collectUnconditionalDefaults(
+  roots: readonly SchemaNode[],
+  cache: ProjectionCache,
+): DefaultDeclaration[] {
+  return declarationsFrom(
+    (visitor, referenceVisitor) => eachUnconditional(roots, visitor, referenceVisitor, cache),
+    cache,
+  )
 }
 
 function collectApplicableDefaults(
   roots: readonly SchemaNode[],
   data: unknown,
+  cache: ProjectionCache,
 ): DefaultDeclaration[] {
-  return declarationsFrom((visitor) => eachApplicable(roots, data, visitor))
+  return declarationsFrom(
+    (visitor, referenceVisitor) => eachApplicable(roots, data, visitor, referenceVisitor, cache),
+    cache,
+  )
 }
 
 /** The positions that declare one property of `roots`, by both reachability rules. */
@@ -521,20 +691,14 @@ interface CandidateProperty {
  * - **`items` and `prefixItems`**, for the same reason: an array's items are
  *   their own locations.
  *
- * The cycle guard keys on `schemaLocation` rather than on node identity, which
- * was measured rather than assumed and is the opposite of what it looks like it
- * should be: `resolveRef()` returns a fresh `SchemaNode` on every call, and the
- * raw `schema` object it wraps is fresh too, so an identity `Set` never matches
- * and a recursive `$ref` would not terminate. `schemaLocation` is stable, is
- * distinct for each inline branch position, and repeats when a reference closes
- * a cycle, which is precisely the three properties needed. The set is per call,
- * because deduplicating a schema location is only sound while collecting names
- * for one instance location; the same schema legitimately recurs at a deeper
- * pointer, and `walk` visits it again there.
+ * Inline conditional branches use `positionOf` because the library can assign
+ * `if`, `then` and `else` the same `schemaLocation` after resolving a
+ * reference. Other nodes keep their location key, so references still close
+ * at the same point in the traversal as before.
  */
 function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
   const candidates = new Map<string, CandidateProperty>()
-  const visited = new Set<string | SchemaNode>()
+  const visited = new Set<string>()
 
   const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
     const entry = candidates.get(key) ?? { alternatives: [] }
@@ -546,23 +710,7 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
   const visit = (current: SchemaNode, own: boolean): void => {
     const resolved = dereference(current)
 
-    // Keyed on `schemaLocation` where there is one, and on the node itself
-    // where there is not, which together cover every way the traversal can
-    // come back to where it started.
-    //
-    // Neither alone is sufficient and each covers what the other cannot. A
-    // cycle requires a `$ref`, because an inline schema cannot nest into
-    // itself, and `resolveRef()` returns a fresh `SchemaNode` on every call
-    // whose raw `schema` object is fresh too, so identity never matches across
-    // one; those nodes do carry a location. An inline branch is never resolved
-    // through a ref, so its identity is stable within one traversal.
-    //
-    // This deliberately replaced a depth cap. A cap terminates, but it does so
-    // by dropping candidates a valid schema declared, which is the silent
-    // disappearance the whole projection-diagnostic design exists to prevent:
-    // a field nested under 70 applicators is still a field.
-    const location = (resolved as { schemaLocation?: unknown }).schemaLocation
-    const key = typeof location === 'string' ? location : resolved
+    const key = traversalKey(resolved)
     if (visited.has(key)) return
     visited.add(key)
 
@@ -825,7 +973,7 @@ function walk(
   path: readonly number[],
 ): void {
   const info = locationInfo(declaredAt.declaring, ctx.cache)
-  const { node: original, cycle: referenceCycle } = dereferenceChecked(node)
+  const { node: original, cycle: referenceCycle, unresolved: unresolvedReference } = dereferenceChecked(node)
   if (info.cycle || referenceCycle) {
     diagnostics.push({
       pointer: toPointer(pointer),
@@ -837,7 +985,8 @@ function walk(
     return
   }
   const pastData = member && (data === undefined || data === null)
-  const recursive = pastData && ((lineage?.recursive ?? false) || budgeted(info))
+  const recursive =
+    pastData && !unresolvedReference && ((lineage?.recursive ?? false) || budgeted(info))
   for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
     if (info.key !== '' && ancestor.key === info.key) {
       addBoundary(ctx, ancestor.pointer, 'recursion')
@@ -876,6 +1025,30 @@ function walk(
   let resolved = original
   let schema = originalSchema
   let type = resolveExplicitType(schema)
+  const localShape = inferProjectionShape(schema)
+  const allOfType = original.allOf ? allOfExplicitType(original) : undefined
+  const hasReferencedAllOfBranch = original.allOf ? hasReferencedAllOf(original) : false
+  if (
+    original.allOf &&
+    !original.oneOf &&
+    !original.anyOf &&
+    !type &&
+    (localShape.kind !== 'resolved' || allOfType !== undefined) &&
+    (hasReferencedAllOfBranch || allOfType !== undefined)
+  ) {
+    const reductionData =
+      (allOfType === 'object' || declaresObject(original)) &&
+      (data === undefined || data === null)
+        ? {}
+        : data
+    const reduced = reduceAllOfForProjection(original, reductionData)
+    const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
+    if (reduced && reducedSchema && typeof reducedSchema === 'object') {
+      resolved = reduced
+      schema = reducedSchema
+      if (!type) type = resolveExplicitType(schema)
+    }
+  }
   // Whether this node's own active branch could be determined. Stays true for every
   // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
   // (see below), where the node's own presence in the projection is the thing in
@@ -989,6 +1162,16 @@ function walk(
     }
   }
 
+  // Arrays do not pass through the object path that reduces the active schema.
+  if (type === 'array' && resolved === original && original.allOf) {
+    const reduced = reduceAllOfForProjection(original, data)
+    const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
+    if (reduced && reducedSchema && typeof reducedSchema === 'object') {
+      resolved = reduced
+      schema = reducedSchema
+    }
+  }
+
   if (!type) return
   const selfLineage: Lineage | undefined = pastData
     ? { key: info.key, pointer, recursive, depth: (lineage?.depth ?? 0) + 1, parent: lineage }
@@ -999,7 +1182,7 @@ function walk(
   // that its `default` is undecidable on top of saying it cannot be drawn at
   // all would be the same schema reported twice.
   const ambiguousDefault = disagreeingDefaults(
-    collectUnconditionalDefaults(declaredAt.unconditional),
+    collectUnconditionalDefaults(declaredAt.unconditional, ctx.cache),
   )
   if (ambiguousDefault) {
     diagnostics.push({
@@ -1017,16 +1200,26 @@ function walk(
   // selects. A superset of the diagnostic's: every unconditional disagreement
   // is also an applicable one, so the node carries both kinds and a consumer
   // reads one place.
-  const applicableDeclarations = collectApplicableDefaults(declaredAt.applicable, data)
+  const applicableData =
+    type === 'object' && !(typeof data === 'object' && data !== null) ? {} : data
+  const applicableDeclarations = collectApplicableDefaults(
+    declaredAt.applicable,
+    applicableData,
+    ctx.cache,
+  )
   const applicableConflict = disagreeingDefaults(applicableDeclarations)
   const conflictedDefault = applicableConflict !== undefined || ambiguousDefault !== undefined
   const defaultConflict = (applicableConflict ?? ambiguousDefault)?.map(
     (declaration) => declaration.source,
   )
   const defaultSources =
-    !conflictedDefault && 'default' in schema && info.cyclic
+    !conflictedDefault && applicableDeclarations.length > 0 && info.cyclic
       ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort()
       : undefined
+  const defaultOverride = {
+    present: applicableDeclarations.length > 0,
+    value: applicableDeclarations[0]?.value,
+  }
 
   const nodeActive = active && branchResolved
   // A node the schema applies is never also provisional; the two report
@@ -1056,7 +1249,11 @@ function walk(
     // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
     let reducedNode =
-      resolved === original ? resolved.reduceNode(dataRecord ?? {}).node : resolved
+      resolved === original
+        ? original.allOf && hasReferencedAllOf(original)
+          ? reduceAllOfForProjection(resolved, dataRecord ?? {})
+          : resolved.reduceNode(dataRecord ?? {}).node
+        : resolved
     if (
       reducedNode &&
       resolved === original &&
@@ -1131,7 +1328,7 @@ function walk(
       active: nodeActive,
       provisional: nodeProvisional ? true : undefined,
       defaultConflict,
-      annotations: extractAnnotations(schema, conflictedDefault),
+      annotations: extractAnnotations(schema, conflictedDefault, defaultOverride),
       ...(defaultSources !== undefined ? { defaultSources } : {}),
     })
 
@@ -1166,8 +1363,9 @@ function walk(
         // This node's own data, not the child's: the branches being entered
         // are this location's, so they are decided by the instance here. The
         // child's own conditional edges are entered by the child's walk, with
-        // the child's data.
-        data,
+        // the child's data. `applicableData` is the reducer's object stand-in
+        // when this location has no object value yet.
+        applicableData,
         childDeclaring(info, key),
       )
       const enter = (): void =>
@@ -1203,7 +1401,7 @@ function walk(
     active: nodeActive,
     provisional: nodeProvisional ? true : undefined,
     defaultConflict,
-    annotations: extractAnnotations(schema, conflictedDefault),
+    annotations: extractAnnotations(schema, conflictedDefault, defaultOverride),
     ...(defaultSources !== undefined ? { defaultSources } : {}),
     // Deliberately not given the flag above. A conflict under `items` belongs
     // to the element locations, and each of those reports its own; this field

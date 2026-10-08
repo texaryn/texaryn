@@ -652,7 +652,7 @@ export function staticWalk(
       conditional,
     )
     visited.delete(cycleKey)
-    return
+    if (recursion.cache.dialect === 'draft-07') return
   }
 
   // When an inactive branch encounters a node the base or active branch already
