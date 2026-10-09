@@ -29,12 +29,93 @@ const dialectIds: Record<Dialect, string> = {
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
 }
 
+const SCHEMA_SINGLE = new Set([
+  'additionalItems',
+  'additionalProperties',
+  'contains',
+  'contentSchema',
+  'else',
+  'if',
+  'items',
+  'not',
+  'propertyNames',
+  'then',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+])
+const SCHEMA_LIST = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+const SCHEMA_MAP = new Set([
+  '$defs',
+  'definitions',
+  'dependencies',
+  'dependentSchemas',
+  'patternProperties',
+  'properties',
+])
+
+function decodeLocalReference(reference: string): string {
+  if (!reference.startsWith('#') || !reference.includes('%')) return reference
+  return reference.replace(/(?:%[0-9a-f]{2})+/gi, (encoded) => {
+    const escapes = encoded.match(/%[0-9a-f]{2}/gi) ?? []
+    let decoded = ''
+    for (let index = 0; index < escapes.length; ) {
+      const first = Number.parseInt(escapes[index]!.slice(1), 16)
+      const length = first >= 0xc2 && first <= 0xdf ? 2 : first >= 0xe0 && first <= 0xef ? 3 : first >= 0xf0 && first <= 0xf4 ? 4 : 0
+      const sequence = escapes.slice(index, index + length)
+      const validContinuation = length > 0 && sequence.length === length && sequence.slice(1).every((escape) => {
+        const byte = Number.parseInt(escape.slice(1), 16)
+        return byte >= 0x80 && byte <= 0xbf
+      })
+      if (!validContinuation) {
+        decoded += escapes[index]
+        index += 1
+        continue
+      }
+      try {
+        decoded += decodeURIComponent(sequence.join(''))
+        index += length
+      } catch {
+        decoded += escapes[index]
+        index += 1
+      }
+    }
+    return decoded
+  })
+}
+
+function cloneData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(cloneData)
+  if (typeof value !== 'object' || value === null) return value
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return value
+  return Object.fromEntries(Object.entries(value).map(([key, member]) => [key, cloneData(member)]))
+}
+
 function unshared(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(unshared)
   if (typeof value !== 'object' || value === null) return value
   const prototype = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return value
-  return Object.fromEntries(Object.entries(value).map(([key, member]) => [key, unshared(member)]))
+  const result: Record<string, unknown> = {}
+  for (const [key, member] of Object.entries(value)) {
+    if ((key === '$ref' || key === '$dynamicRef' || key === '$recursiveRef') && typeof member === 'string') {
+      result[key] = decodeLocalReference(member)
+    } else if (SCHEMA_SINGLE.has(key) && (typeof member === 'boolean' || (typeof member === 'object' && member !== null))) {
+      result[key] = unshared(member)
+    } else if (SCHEMA_LIST.has(key) && Array.isArray(member)) {
+      result[key] = member.map(unshared)
+    } else if (SCHEMA_MAP.has(key) && typeof member === 'object' && member !== null && !Array.isArray(member)) {
+      result[key] = Object.fromEntries(
+        Object.entries(member).map(([name, child]) => [
+          name,
+          key === 'dependencies' && Array.isArray(child) ? cloneData(child) : unshared(child),
+        ]),
+      )
+    } else {
+      result[key] = cloneData(member)
+    }
+  }
+  return result
 }
 
 export async function createHyperjumpAdapter(

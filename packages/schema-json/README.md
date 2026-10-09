@@ -105,6 +105,10 @@ A schema that applies itself at one instance location without crossing into a pr
 
 The [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/#recursive-references) has the details, and ADR-007 records the decision.
 
+Adapter creation also rejects a retained static `$ref` when json-schema-library resolves it to different declarations with different validation assertions in the validation tree and the normalised projection tree. The check covers the dialect's supported assertions, including boolean subschemas. The error is `ProjectionValidationDivergenceError`.
+
+The adapter exposes `projectSubmission(data)` for supported schemas. It removes values declared only by inactive branches, keeps provisional fields, and preserves undeclared data so validation can still reject it. This opt-in treats an inactive declaration as form data to omit even when an enclosing object allows additional properties. `createFormRuntime` selects the mode with `submission: 'projected'`; it validates and submits the same independent snapshot, while the form's live data stays unchanged. Schemas with dynamic references or `unevaluatedProperties` or `unevaluatedItems` do not expose this capability yet. The private Hyperjump adapter also does not expose it. Runtime creation fails if projected submission is requested without the capability.
+
 ## json-schema-library version
 
 The dependency is pinned to exactly `11.6.2`. In Draft 7, json-schema-library 11.6.2 overwrites the registry entry that `"$ref": "#"` resolves through, so without a fix the reference reaches another node and validation is wrong. The adapter pins that entry to the document root, and every other entry the library files for its own location to the node compiled there, so a reduction during projection cannot replace a definition with a reduced copy. Because the fix depends on the library's internal registry, adapter creation throws an error naming json-schema-library 11.6.2 when the registry is shaped differently, or when a self-test on two probe schemas shows the fix no longer repairs validation. A newer json-schema-library release is not installed until a Texaryn release raises the pin after the registry fix and its self-test pass against it.
@@ -153,6 +157,7 @@ The result contains validation errors at that pointer or below it.
 ```ts
 import {
   createJsonSchemaAdapter,
+  ProjectionValidationDivergenceError,
   SameLocationCycleError,
   type AdapterConfig,
   type Dialect,
@@ -197,6 +202,10 @@ try {
   else throw error
 }
 ```
+
+### `ProjectionValidationDivergenceError`
+
+Thrown by `createJsonSchemaAdapter` when one retained static `$ref` resolves to different declarations with different validation assertions for validation and projection. Its `reference` and `sourcePosition` identify the reference site. `validationPosition` and `projectionPosition` identify the two resolved schema positions.
 
 ## Architecture
 

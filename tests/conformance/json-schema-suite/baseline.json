@@ -1615,7 +1615,7 @@
       "draft-07": {
         "mandatory": {
           "total": 929,
-          "passed": 898
+          "passed": 900
         },
         "optional": {
           "total": 898,
@@ -2100,24 +2100,6 @@
               "actual": false
             },
             "note": "draft-07 $ref ignores its siblings, so the sibling $id must not change the base URI. Hyperjump resolves against the sibling $id and reaches definitions/foo (string) rather than definitions/base_foo (number), which inverts both expectations.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: naive replacement of $ref with its destination is not correct :: do not evaluate the $ref inside the enum, definition exact match": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": true
-            },
-            "note": "enum entries are literal JSON, never schemas. Hyperjump resolves the $ref inside the entry, so it behaves as {\"type\":\"string\"}.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: naive replacement of $ref with its destination is not correct :: match the enum exactly": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "enum entries are literal JSON, never schemas. Hyperjump resolves the $ref inside the entry, so it behaves as {\"type\":\"string\"}.",
             "issue": "https://github.com/texaryn/texaryn/issues/108"
           },
           "refRemote.json :: $ref to $ref finds location-independent $id :: non-number is invalid": {

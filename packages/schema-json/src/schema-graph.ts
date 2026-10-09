@@ -10,14 +10,7 @@ export interface SchemaGraph {
 const ANONYMOUS_BASE = 'https://texaryn.invalid/root'
 
 const IN_PLACE_LIST = ['allOf', 'anyOf', 'oneOf'] as const
-const INSTANCE_SINGLE = [
-  'additionalProperties',
-  'additionalItems',
-  'contains',
-  'propertyNames',
-  'unevaluatedItems',
-  'unevaluatedProperties',
-] as const
+const INSTANCE_SINGLE = ['additionalProperties', 'contains', 'propertyNames'] as const
 const INSTANCE_MAP = ['properties', 'patternProperties'] as const
 const CONTAINERS = ['$defs', 'definitions'] as const
 // The index keeps the last node per $id; json-schema-library compiles $defs first and keeps the first from 2019-09.
@@ -118,11 +111,22 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
   for (const keyword of INSTANCE_SINGLE) {
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
+  if (dialect !== '2020-12' && Array.isArray(schema.items) && isRecord(schema.additionalItems)) {
+    found.push({ position: `${position}/additionalItems`, via: 'additionalItems', inPlace: false })
+  }
+  if (dialect !== 'draft-07') {
+    for (const keyword of ['unevaluatedItems', 'unevaluatedProperties'] as const) {
+      if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
+    }
+  }
   for (const keyword of INSTANCE_MAP) addMap(keyword, false)
-  for (const keyword of ['items', 'prefixItems'] as const) {
-    const value = schema[keyword]
-    if (isRecord(value)) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
-    else if (Array.isArray(value)) value.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: false }))
+  const items = schema.items
+  if (isRecord(items)) found.push({ position: `${position}/items`, via: 'items', inPlace: false })
+  else if (Array.isArray(items) && dialect !== '2020-12') {
+    items.forEach((_, index) => found.push({ position: `${position}/items/${index}`, via: `items/${index}`, inPlace: false }))
+  }
+  if (dialect === '2020-12' && Array.isArray(schema.prefixItems)) {
+    schema.prefixItems.forEach((_, index) => found.push({ position: `${position}/prefixItems/${index}`, via: `prefixItems/${index}`, inPlace: false }))
   }
   if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
   return found
@@ -245,6 +249,16 @@ export interface MarkedDocuments {
   readonly at: (position: string) => unknown
 }
 
+export class ProjectionMarkerCollisionError extends Error {
+  readonly position: string
+
+  constructor(position: string) {
+    super(`Schema position "${position}" declares the reserved key "${POSITION}" and cannot be projected.`)
+    this.name = 'ProjectionMarkerCollisionError'
+    this.position = position
+  }
+}
+
 /** Copies of the documents in which every reachable schema object names its own graph position under `POSITION`. */
 export function markPositions(graph: SchemaGraph, document: unknown, remotes: readonly unknown[] = []): MarkedDocuments {
   const copies = remotes.map(copy)
@@ -263,6 +277,9 @@ export function markPositions(graph: SchemaGraph, document: unknown, remotes: re
   for (const [, schema] of schemas) {
     for (const keyword of INSTANCE_DATA) hold(schema[keyword])
     for (const keyword of MAPS) if (isRecord(schema[keyword])) held.add(schema[keyword])
+  }
+  for (const [position, schema] of schemas) {
+    if (!held.has(schema) && Object.hasOwn(schema, POSITION)) throw new ProjectionMarkerCollisionError(position)
   }
   for (const [position, schema] of schemas) if (!held.has(schema)) schema[POSITION] = position
   return { document: documents.local, remotes: copies, at: (position) => at(documents, position) }

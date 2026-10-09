@@ -845,9 +845,6 @@ export function recursiveRefSuite(
  * spec's out-of-scope item, and on conditional declarations without recursion.
  */
 const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
-  'allOf-typed draft-07 0': ['/child/name'],
-  'allOf-typed draft-07 1': ['/child/child', '/child/child/name', '/child/name'],
-  'allOf-typed draft-07 2': ['/child/child', '/child/child/child', '/child/child/child/name', '/child/child/name', '/child/name'],
   'if-then draft-07 1': ['/child/child', '/child/name'],
   'if-then draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
   'if-then 2020-12 0': ['/child/name'],
@@ -861,9 +858,6 @@ const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
   'both-branches-recursive 2020-12 1': ['/child/child/name'],
   'both-branches-recursive 2020-12 2': ['/child/child/child/name'],
   'eq-two-oneOf-wrappers draft-07 2': ['/a/b/leaf'],
-  'allOf-closure draft-07 0': ['/a/next', '/a/next/v', '/a/v'],
-  'allOf-closure draft-07 1': ['/a/next', '/a/next/v', '/a/v'],
-  'allOf-closure draft-07 2': ['/a/next', '/a/next/next', '/a/next/next/v', '/a/next/v', '/a/v'],
   'chain-if-then-acyclic draft-07 1': ['/child/child', '/child/name'],
   'chain-if-then-acyclic draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
   'chain-if-then-acyclic 2020-12 0': [
@@ -955,4 +949,3 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
     })
   })
 }
-

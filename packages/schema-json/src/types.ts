@@ -6,6 +6,5 @@ export interface AdapterConfig {
 }
 
 export interface JsonSchemaAdapter extends SchemaEvaluationPort {
-  // No additional public methods beyond the port contract.
-  // The adapter IS the port implementation.
+  projectSubmission?: (data: unknown) => unknown
 }

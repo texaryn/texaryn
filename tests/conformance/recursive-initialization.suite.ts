@@ -216,7 +216,6 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
         data: { title, x: { name: 'n' } },
         refusals: [repeat('/x/next'), expansion('/x/next/name')],
       }))
-      const hyperjump = name === '@hyperjump/json-schema'
       expectRun('a definition shared without recursion fills both of its sites, as on main', entity, {}, {
         data: { person: { employer: {} } },
         refusals: [],
@@ -226,23 +225,19 @@ export function recursiveInitializationSuite(name: string, createAdapter: Adapte
         refusals: [],
       })
       expectRun(
-        'a container default shared without recursion is written whole at both sites, as on main (json-schema-library merges no allOf default onto the object, pre-existing)',
+        'a container default shared without recursion is written whole at both sites',
         box,
         {},
         {
-          data: hyperjump
-            ? { person: { tag: 'd', inner: { tag: 'd' } } }
-            : { person: { inner: { tag: 'd' }, ...(dialect === 'draft-07' ? {} : { tag: 't' }) } },
+          data: { person: { tag: 'd', inner: { tag: 'd' } } },
           refusals: [],
         },
       )
       expectRun(
-        'a default repeated through a definition on no cycle stops at a recursive node (json-schema-library merges no allOf default onto the object, pre-existing)',
+        'a default repeated through a definition on no cycle stops at a recursive node',
         nonCyclicSource,
         {},
-        hyperjump
-          ? { data: { x: { name: 'n' } }, refusals: [repeat('/x/next'), expansion('/x/next/name')] }
-          : { data: {}, refusals: [expansion('/x/name')] },
+        { data: { x: { name: 'n' } }, refusals: [repeat('/x/next'), expansion('/x/next/name')] },
       )
       expectRun('E10 a recursion boundary with its own defaults', bothReasons, {}, {
         data: { x: Object.fromEntries(range(140).map((i) => [`p${i}`, 'd'])) },

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { compileSchema, type JsonSchema, type SchemaNode } from 'json-schema-library'
 import type { NodeProjection, SchemaProjection } from '@texaryn/core'
 import { createFormRuntime } from '@texaryn/core'
-import { createJsonSchemaAdapter } from '../index.js'
+import { createJsonSchemaAdapter, ProjectionValidationDivergenceError } from '../index.js'
 import { createAdapter } from '../adapter.js'
 import { followRef, positionOf } from '../identity.js'
 import { buildSchemaGraph, markPositions } from '../schema-graph.js'
@@ -320,10 +320,24 @@ describe('branches the specification never evaluates', () => {
     ['a then the library alone resolves into', { type: 'object', then: { properties: { q: S } }, properties: { r: { $ref: '#/properties/q' } } }],
   ] as const
   const stringOn = (dialect: string, label: string) => dialect !== 'draft-07' || label === 'a then the library alone resolves into'
+  const diverges = (dialect: string, label: string) =>
+    dialect === 'draft-07'
+      ? label === 'a then below a property beside a root then' || label === 'a then the library alone resolves into'
+      : label === 'a then declared before the live property' ||
+        label === 'a then declared after the live property' ||
+        label === 'a then in $defs before the live one' ||
+        label === 'a then in $defs after the live one' ||
+        label === 'a then the library alone resolves into'
   it.each(Object.entries(uris).flatMap(([dialect, $schema]) => collisions.map(([label, schema]) => [label, dialect, $schema, schema] as const)))(
-    'validates a reference beside %s as main does before any projection, in %s',
+    'validates a reference beside %s as main does before any projection when its targets agree, in %s',
     async (label, dialect, $schema, schema) => {
-      const adapter = await createJsonSchemaAdapter({ $schema, ...schema })
+      const result = await createJsonSchemaAdapter({ $schema, ...schema }).then((adapter) => adapter, (error: unknown) => error)
+      if (diverges(dialect, label)) {
+        expect(result).toBeInstanceOf(ProjectionValidationDivergenceError)
+        return
+      }
+      expect(result).not.toBeInstanceOf(Error)
+      const adapter = result as Awaited<ReturnType<typeof createJsonSchemaAdapter>>
       const [valid, invalid] = stringOn(dialect, label) ? [{ r: 'x' }, { r: 5 }] : [{ r: 5 }, { r: 'x' }]
       adapter.project(invalid)
       expect(await adapter.validate(valid)).toEqual(expect.objectContaining({ valid: true, errors: [] }))

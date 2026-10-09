@@ -16,6 +16,8 @@ import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { newProjectionCache } from './identity.js'
 import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
+import { assertProjectionValidationCoherence } from './projection-validation-coherence.js'
+import { projectSubmissionData, supportsSubmissionProjection } from './submission-projection.js'
 import { withoutUnreachableBranches } from './normalize.js'
 import { DRAFTS } from './bare-maps.js'
 import { fixRootReference } from './root-reference.js'
@@ -49,12 +51,20 @@ export async function createAdapter(
   const marked = markPositions(graph, document, remotes ?? [])
   const validated = await prepareSchema(schema, dialect, remotes)
   const projected = await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+  assertProjectionValidationCoherence(validated, projected, dialect)
+  const submissionSchema = supportsSubmissionProjection([schema, ...(remotes ?? [])], dialect)
+    ? await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+    : undefined
   const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at)
 
   return {
     project(data: unknown): SchemaProjection {
       return buildProjection(projected, data, cache, limits)
     },
+
+    ...(submissionSchema
+      ? { projectSubmission: (data: unknown): unknown => projectSubmissionData(validated, submissionSchema, data, dialect) }
+      : {}),
 
     validate(data: unknown): MaybePromise<ValidationResult> {
       return runValidation(validated, data)

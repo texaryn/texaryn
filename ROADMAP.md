@@ -1853,7 +1853,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
-The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are complete or declined, 1 is deferred until an adopter needs it, 2 wait on upstream, and 1 remains as local work.
+The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are done, 1 is declined, 1 is deferred until an adopter needs it, and 2 wait on upstream work.
 
 | # | Item | State |
 |---|------|-------|
@@ -1867,18 +1867,15 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 | 8 | External schema resources | Deferred until an adopter needs it; remote reference failures stay visible in the conformance suite, no resolver API |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
-| 11 | Hyperjump suite deviations (#108) | Waits on upstream: hyperjump-io/json-schema#127 closed as deliberate, #128 unanswered |
+| 11 | Hyperjump suite deviations (#108) | Recorded: Hyperjump 1.18.0 fixes #128; #127 is deliberate upstream behavior; `file:` identifiers remain refused by upstream policy |
 
-The published adapter defects in #176 and #178 are implemented in the current worktree. Both adapter suites pass, with 733 tests, and the workspace type check passes. The package release remains pending.
+The published adapter defects in #176 and #178, review hardening in #183, and optional projected submission in #126 are implemented in the current worktree. Targeted #177 work fixes Unicode local references and the `propertyNames` and `prefixItems` with `items: false` error pointers. The Hyperjump official suite baseline now records two additional passing cases after the upgrade to 1.18.0.
 
-Priorities for what remains:
+The remaining #177 parity differences are pinned in conformance: 47 active flags across 17 recursion fixtures, plus the typeless shape differences described in ADR-007. Since the Hyperjump adapter is private and has no adopter, broader parity work is deferred. External schema resources remain deferred under item 8.
 
-1. The #119 review hardening in #183: projection and validation coherence, dialect isolation, and marker collision.
-2. #177, hyperjump parity, after measuring which gaps remain following the schema-json fixes.
-3. #126, optional submission projection, a design question.
-4. #179 remains deferred until an adopter needs one of its follow-ups.
+Local implementation work for #183, #126, and the targeted #177 fixes is complete in this branch. ChatGPT peer review found and cleared pointer-decoding and schema-position edge cases. Final verification passes: `pnpm test` reports 141 files and 5058 tests, and `pnpm typecheck` passes. Package release remains pending merge and the repository release workflow.
 
-#121 waits on an upstream fix. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. Neither is counted as local work. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
+#121 still waits on an upstream fix, and no local workaround is recorded. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy. #179 remains deferred until an adopter needs one of its follow-ups.
 
 
 ### Phase 0: Foundation (PRs 1-5)

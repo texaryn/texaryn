@@ -21,7 +21,7 @@
   "files": ["dist"],
   "dependencies": {
     "@texaryn/core": "workspace:*",
-    "@hyperjump/json-schema": "^1.17.8"
+    "@hyperjump/json-schema": "^1.18.0"
   },
   "scripts": {
     "build": "tsc --build",

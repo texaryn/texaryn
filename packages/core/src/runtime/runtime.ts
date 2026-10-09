@@ -171,6 +171,10 @@ export function createFormRuntime(
   port: SchemaEvaluationPort,
   options: FormRuntimeOptions = {},
 ): FormRuntime {
+  if (options.submission === 'projected' && typeof port.projectSubmission !== 'function') {
+    throw new Error('Projected submission requires a SchemaEvaluationPort with projectSubmission().')
+  }
+
   // Not `?? {}`, which treated `null` as "not supplied" while `false`, `0` and
   // `''` survived, so a caller could not say the instance is `null` and which
   // falsy values lived was arbitrary. `null` is a legal instance.
@@ -597,9 +601,23 @@ export function createFormRuntime(
     const isAcceptedSubmit = effects.some(
       (e) => e.type === 'validate' && e.trigger === 'submit',
     )
+    let submissionProjectionFailed = false
     if (isAcceptedSubmit) {
-      currentAttempt = { generation: ++submissionGeneration, data: state.data }
       scheduler.cancelScheduled()
+      const generation = ++submissionGeneration
+      try {
+        const data = options.submission === 'projected'
+          ? port.projectSubmission!(state.data)
+          : state.data
+        currentAttempt = { generation, data }
+      } catch (error) {
+        submissionProjectionFailed = true
+        currentAttempt = null
+        state = {
+          ...state,
+          submission: { status: 'idle', error, attempts: state.submission.attempts },
+        }
+      }
     }
 
     if (mutatesData && state.submission.status === 'validating') {
@@ -621,6 +639,7 @@ export function createFormRuntime(
       publishSubmission()
       syncNodeStores()
       for (const effect of effects) {
+        if (submissionProjectionFailed && effect.type === 'validate' && effect.trigger === 'submit') continue
         handleEffect(effect)
       }
       // After the recompile, which builds the node the seeded location now has.

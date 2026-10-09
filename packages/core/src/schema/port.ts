@@ -4,6 +4,9 @@ import type { FieldConstraints, EnumOption } from '../ir/types.js'
 export interface SchemaEvaluationPort {
   project(data: unknown): SchemaProjection
 
+  /** Returns an independent snapshot with data from inactive schema declarations removed. */
+  projectSubmission?(data: unknown): unknown
+
   validate(data: unknown): MaybePromise<ValidationResult>
 
   validateAt?(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult>
