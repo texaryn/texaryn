@@ -325,6 +325,26 @@ function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: 
   return merged
 }
 
+/** Fills properties a selected Draft 7 conditional `$ref` loses during reduction. */
+function resolveSelectedConditionalReference(
+  original: SchemaNode,
+  reduced: SchemaNode,
+  data: unknown,
+): SchemaNode {
+  if (original.getDraftVersion() !== 'draft-07' || !original.if) return reduced
+  const selected = branchApplies(original.if, data) ? original.then : original.else
+  if (!selected || typeof selected.$ref !== 'string') return reduced
+
+  const target = dereference(selected)
+  if (!isSchemaNode(target)) return reduced
+  const targetReduced = reduceAllOfForProjection(target, data) ?? target
+  const reducedProperties = reduced.properties ?? {}
+  const hasUnprojectedProperty = Object.keys(targetReduced.properties ?? {}).some(
+    (key) => !Object.hasOwn(reducedProperties, key),
+  )
+  return hasUnprojectedProperty ? mergeNode(reduced, targetReduced) ?? reduced : reduced
+}
+
 export interface ProjectionLimits {
   readonly objects: number
   readonly nodes: number
@@ -1254,6 +1274,10 @@ function walk(
           ? reduceAllOfForProjection(resolved, dataRecord ?? {})
           : resolved.reduceNode(dataRecord ?? {}).node
         : resolved
+    if (reducedNode && resolved === original && (!member || data !== undefined)) {
+      // Missing child data has no evaluated conditional branch to recover.
+      reducedNode = resolveSelectedConditionalReference(original, reducedNode, dataRecord ?? {})
+    }
     if (
       reducedNode &&
       resolved === original &&

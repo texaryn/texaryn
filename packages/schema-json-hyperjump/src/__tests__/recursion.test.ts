@@ -369,7 +369,7 @@ describe('a branch under a boolean if', () => {
       },
     }
     const outline = (p: SchemaProjection) => pointers(p).map((key) => `${key}${p.nodes.get(key)!.active ? '' : '(i)'}`)
-    expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
+    expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y'])
     expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
     expect(outline(await project(schema, { b: { a: {} } }))).toEqual(['', '/b', '/b/a', '/b/a/y'])
   })

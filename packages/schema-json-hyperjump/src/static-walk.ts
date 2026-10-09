@@ -35,6 +35,7 @@ export interface DraftNode {
   type?: JsonSchemaType
   families?: Set<KeywordFamily>
   inactiveTypes?: Set<JsonSchemaType>
+  hasIndependentActiveShape?: true
   composed?: boolean
   format?: string
   constraints: FieldConstraints
@@ -462,7 +463,7 @@ export function finalizeNodes(
       type: node.type!,
       format: node.format,
       constraints: node.constraints,
-      children: node.children,
+      children: node.type === 'object' ? node.children : undefined,
       enumValues: node.enumValues,
       active: node.active,
       // Belt and braces: `provisional` is only ever set on the branch that runs
@@ -670,6 +671,13 @@ export function staticWalk(
   const exposed = active || provisional
   if (exposed || !existed) {
     applyStaticStructure(node, schema, exposed, conditional)
+    if (
+      exposed &&
+      !Array.isArray(schema.oneOf) &&
+      shapeOfFamilies(projectionTypeFamilies(schema)).kind === 'resolved'
+    ) {
+      node.hasIndependentActiveShape = true
+    }
   } else if (node.type === undefined) {
     const type = resolveType(schema)
     if (type !== undefined) (node.inactiveTypes ??= new Set()).add(type)
@@ -826,6 +834,9 @@ export function staticWalk(
     })
   }
   if (exposed) walkRows(true)
+  // Complete declared rows before dynamic siblings so an inactive branch cannot
+  // supply the first shape family for a typeless property already in that row.
+  walkRows(false)
 
   // Dynamic branches (if/then/else, oneOf, anyOf, dependentSchemas, dependencies)
   // are collected across all constructs at this schema level and sorted active
@@ -979,23 +990,19 @@ export function staticWalk(
     )
   }
 
-  // A location whose own keywords imply a shape is not a wrapper, and a oneOf stays
-  // demoted, as in schema-json.
-  const derivedShape =
-    node.families !== undefined &&
-    shapeOfFamilies(node.families).kind === 'resolved' &&
-    !Array.isArray(schema.oneOf)
+  // A resolved shape from another applicable declaration keeps a container active
+  // when an unselected oneOf wrapper appears at the same instance location.
+  const derivedShape = node.hasIndependentActiveShape === true
   if (
+    node.type === undefined &&
     resolveType(schema) === undefined &&
     !derivedShape &&
     dynamicBranches.length > 0 &&
-    (data === undefined || data === null) &&
     !dynamicBranches.some((db) => db.active || db.provisional)
   ) {
     node.active = false
   }
 
-  walkRows(false)
 }
 
 /**
