@@ -124,6 +124,57 @@ for (const [name, createAdapter] of adapters) {
       expect(adapter.project({}).nodes.get('/profile' as JsonPointer)?.type).toBe('string')
     })
 
+    it('reuses a local pointer alias when several properties target one custom container schema', async () => {
+      const adapter = await createAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: rootUri,
+        properties: {
+          primary: { $ref: '#/x-defs/Profile' },
+          secondary: { $ref: '#/x-defs/Profile' },
+        },
+        'x-defs': {
+          Profile: {
+            type: 'object',
+            properties: { name: { type: 'string' } },
+          },
+        },
+      })
+
+      expect((await adapter.validate({
+        primary: { name: 'Ada' },
+        secondary: { name: 'Grace' },
+      })).valid).toBe(true)
+      expect((await adapter.validate({
+        primary: { name: 'Ada' },
+        secondary: { name: 7 },
+      })).valid).toBe(false)
+      expect(adapter.project({}).nodes.get('/primary/name' as JsonPointer)?.type).toBe('string')
+      expect(adapter.project({}).nodes.get('/secondary/name' as JsonPointer)?.type).toBe('string')
+    })
+
+    it('indexes custom container descendants inside a copied embedded resource', async () => {
+      const adapter = await createAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: rootUri,
+        properties: { profile: { $ref: '#/x-defs/inner/x-defs/Profile' } },
+        'x-defs': {
+          inner: {
+            $id: 'sub/',
+            'x-defs': {
+              Profile: {
+                type: 'object',
+                properties: { name: { type: 'string' } },
+              },
+            },
+          },
+        },
+      })
+
+      expect((await adapter.validate({ profile: { name: 'Ada' } })).valid).toBe(true)
+      expect((await adapter.validate({ profile: { name: 7 } })).valid).toBe(false)
+      expect(adapter.project({}).nodes.get('/profile/name' as JsonPointer)?.type).toBe('string')
+    })
+
     it('ignores a Draft 7 $id sibling while materializing a custom-container pointer', async () => {
       const calls: string[] = []
       const adapter = await createAdapter(

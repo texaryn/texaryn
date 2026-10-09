@@ -188,9 +188,42 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
   const visited = new WeakMap<object, Set<string>>()
   const recognizedPositions = new Set<string>()
   const scopesByPosition = new Map<string, ResourceScope>()
+  const keyword = dialect === 'draft-07' ? 'definitions' : '$defs'
   const newScope = (schema: Record<string, unknown>, position: string, base: string | undefined): ResourceScope => {
     const scope = { schema, position, base, knownPositions: new Set<string>([position]), aliases: new Map<string, string>(), nextAlias: 0 }
     return scope
+  }
+
+  const createAlias = (
+    scope: ResourceScope,
+    position: string,
+    target: unknown,
+    resourceBase?: string,
+  ): string => {
+    const existing = scope.aliases.get(position)
+    if (existing !== undefined) return existing
+
+    const aliasTarget = clone(target)
+    if (dialect === 'draft-07' && isRecord(aliasTarget) && typeof aliasTarget.$ref === 'string') {
+      Reflect.deleteProperty(aliasTarget, '$id')
+    }
+    if (resourceBase !== undefined && isRecord(aliasTarget)) setOwn(aliasTarget, '$id', resourceBase)
+
+    let definitions = scope.schema[keyword]
+    if (!isRecord(definitions)) {
+      const created: Record<string, unknown> = {}
+      setOwn(scope.schema, keyword, created)
+      definitions = created
+    }
+    const definitionMap = definitions as Record<string, unknown>
+    let alias: string
+    do {
+      alias = `__texaryn_local_${scope.nextAlias++}`
+    } while (Object.hasOwn(definitionMap, alias))
+    scope.aliases.set(position, alias)
+    setOwn(definitionMap, alias, aliasTarget)
+    walk(aliasTarget, position, scope, true)
+    return alias
   }
 
   const walk = (schema: unknown, position: string, inherited: ResourceScope, recognized: boolean): void => {
@@ -236,52 +269,56 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
     const fragment = referenceFragment(schema.$ref, scope.base)
     if (fragment === undefined || !fragment.startsWith('/')) continue
     const targetPosition = pointerPosition(scope.position, fragment)
-    if (scope.knownPositions.has(targetPosition) || recognizedPositions.has(targetPosition)) continue
+    const localAlias = scope.aliases.get(targetPosition)
+    if (localAlias !== undefined) {
+      setOwn(schema, '$ref', `#/${keyword}/${localAlias}`)
+      continue
+    }
+    if (scope.knownPositions.has(targetPosition)) continue
     const located = pointerTargetWithBase(scope.schema, fragment, scope.base, scope.position, dialect)
     const target = located?.schema
     if (!isRecord(target) && typeof target !== 'boolean') continue
 
-    const nestedResource = located !== undefined &&
-      located.resourceRootPosition !== scope.position && located.base !== scope.base
-    const aliasesResource = nestedResource && !recognizedPositions.has(located!.resourceRootPosition)
-    const aliasesInsideResource = nestedResource && !aliasesResource
-    const aliasScope = aliasesInsideResource
-      ? scopesByPosition.get(located!.resourceRootPosition) ?? newScope(located!.resourceRoot, located!.resourceRootPosition, located!.base)
-      : scope
-    const aliasContainer = aliasScope.schema
-    const aliasPosition = aliasesResource ? located!.resourceRootPosition : targetPosition
-    let alias = aliasScope.aliases.get(aliasPosition)
-    const keyword = dialect === 'draft-07' ? 'definitions' : '$defs'
-    let definitions = aliasContainer[keyword]
-    if (!isRecord(definitions)) {
-      const created: Record<string, unknown> = {}
-      setOwn(aliasContainer, keyword, created)
-      definitions = created
-    }
-    const definitionMap = definitions as Record<string, unknown>
-    if (alias === undefined) {
-      const aliasTarget = clone(aliasesResource ? located!.resourceRoot : target)
-      if (dialect === 'draft-07' && isRecord(aliasTarget) && typeof aliasTarget.$ref === 'string') {
-        Reflect.deleteProperty(aliasTarget, '$id')
+    let targetScope = scope
+    let copiedResource = false
+    const resourcePosition = located!.resourceRootPosition
+    if (resourcePosition !== scope.position) {
+      targetScope = scopesByPosition.get(resourcePosition) ?? scope
+      if (targetScope === scope) {
+        createAlias(scope, resourcePosition, located!.resourceRoot, located!.base)
+        targetScope = scopesByPosition.get(resourcePosition) ?? scope
       }
-      if (aliasesResource && isRecord(aliasTarget) && located!.base !== undefined) {
-        setOwn(aliasTarget, '$id', located!.base)
+      copiedResource = scope.aliases.has(resourcePosition)
+    }
+
+    if (copiedResource && targetPosition === resourcePosition) {
+      const resourceAlias = scope.aliases.get(resourcePosition)
+      if (resourceAlias !== undefined) setOwn(schema, '$ref', `#/${keyword}/${resourceAlias}`)
+      continue
+    }
+
+    const targetAlias = targetScope.aliases.get(targetPosition)
+    if (targetAlias !== undefined) {
+      const reference = targetScope === scope
+        ? `#/${keyword}/${targetAlias}`
+        : `${targetScope.base ?? ''}#/${keyword}/${targetAlias}`
+      setOwn(schema, '$ref', reference)
+      continue
+    }
+
+    if (targetScope.knownPositions.has(targetPosition) || recognizedPositions.has(targetPosition)) {
+      if (copiedResource) {
+        const suffix = located!.position.slice(resourcePosition.length)
+        setOwn(schema, '$ref', `${targetScope.base ?? ''}#${suffix}`)
       }
-      do {
-        alias = `__texaryn_local_${scope.nextAlias++}`
-      } while (Object.hasOwn(definitionMap, alias))
-      aliasScope.aliases.set(aliasPosition, alias)
-      setOwn(definitionMap, alias, aliasTarget)
-      walk(aliasTarget, aliasPosition, aliasScope, true)
+      continue
     }
-    if (aliasesResource && located?.base !== undefined) {
-      const suffix = located.position.slice(located.resourceRootPosition.length)
-      setOwn(schema, '$ref', `${located.base}#${suffix}`)
-    } else if (aliasesInsideResource && located?.base !== undefined) {
-      setOwn(schema, '$ref', `${located.base}#/${keyword}/${alias}`)
-    } else {
-      setOwn(schema, '$ref', `#/${keyword}/${alias}`)
-    }
+
+    const alias = createAlias(targetScope, targetPosition, target)
+    const reference = targetScope === scope
+      ? `#/${keyword}/${alias}`
+      : `${targetScope.base ?? ''}#/${keyword}/${alias}`
+    setOwn(schema, '$ref', reference)
   }
 
   return document
