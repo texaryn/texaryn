@@ -127,7 +127,9 @@ interface ResourceScope {
   readonly position: string
   readonly base: string | undefined
   readonly knownPositions: Set<string>
+  readonly copiedPositions: Set<string>
   readonly aliases: Map<string, string>
+  readonly materialized: boolean
   nextAlias: number
 }
 
@@ -179,6 +181,19 @@ function referenceFragment(reference: string, base: string | undefined): string 
   }
 }
 
+function ancestorAlias(
+  aliases: Map<string, string>,
+  position: string,
+): { position: string; name: string } | undefined {
+  let match: { position: string; name: string } | undefined
+  for (const [aliasPosition, name] of aliases) {
+    if (position.startsWith(`${aliasPosition}/`) && (match === undefined || aliasPosition.length > match.position.length)) {
+      match = { position: aliasPosition, name }
+    }
+  }
+  return match
+}
+
 /** Gives the validator an indexed schema location for a pointer into non-schema JSON. */
 export function materializeLocalPointerAliases(input: unknown, dialect: Dialect): unknown {
   const document = clone(input)
@@ -189,8 +204,22 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
   const recognizedPositions = new Set<string>()
   const scopesByPosition = new Map<string, ResourceScope>()
   const keyword = dialect === 'draft-07' ? 'definitions' : '$defs'
-  const newScope = (schema: Record<string, unknown>, position: string, base: string | undefined): ResourceScope => {
-    const scope = { schema, position, base, knownPositions: new Set<string>([position]), aliases: new Map<string, string>(), nextAlias: 0 }
+  const newScope = (
+    schema: Record<string, unknown>,
+    position: string,
+    base: string | undefined,
+    materialized: boolean,
+  ): ResourceScope => {
+    const scope = {
+      schema,
+      position,
+      base,
+      knownPositions: new Set<string>(materialized ? [] : [position]),
+      copiedPositions: new Set<string>(),
+      aliases: new Map<string, string>(),
+      materialized,
+      nextAlias: 0,
+    }
     return scope
   }
 
@@ -222,11 +251,17 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
     } while (Object.hasOwn(definitionMap, alias))
     scope.aliases.set(position, alias)
     setOwn(definitionMap, alias, aliasTarget)
-    walk(aliasTarget, position, scope, true)
+    walk(aliasTarget, position, scope, true, true)
     return alias
   }
 
-  const walk = (schema: unknown, position: string, inherited: ResourceScope, recognized: boolean): void => {
+  const walk = (
+    schema: unknown,
+    position: string,
+    inherited: ResourceScope,
+    recognized: boolean,
+    materialized = false,
+  ): void => {
     if (!isRecord(schema)) return
     const visitedPositions = visited.get(schema) ?? new Set<string>()
     const visitKey = `${inherited.position}\u0000${position}`
@@ -244,15 +279,21 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
       } catch {
         base = inherited.base
       }
-      scope = newScope(schema, position, base === undefined ? undefined : withoutFragment(base))
+      scope = newScope(schema, position, base === undefined ? undefined : withoutFragment(base), materialized)
     }
     if (recognized) {
-      scope.knownPositions.add(position)
-      recognizedPositions.add(position)
+      if (materialized) {
+        scope.copiedPositions.add(position)
+      } else {
+        scope.knownPositions.add(position)
+        recognizedPositions.add(position)
+      }
     }
     scopesByPosition.set(position, scope)
     pending.push({ schema, position, scope })
-    for (const child of children(schema, position, dialect)) walk(child.schema, child.position, scope, recognized)
+    for (const child of children(schema, position, dialect)) {
+      walk(child.schema, child.position, scope, recognized, materialized)
+    }
   }
 
   const initialBase = typeof document.$id === 'string'
@@ -260,7 +301,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
         try { return withoutFragment(new URL(document.$id).href) } catch { return undefined }
       })()
     : undefined
-  const rootScope = newScope(document, '#', initialBase)
+  const rootScope = newScope(document, '#', initialBase, false)
   walk(document, '#', rootScope, true)
 
   for (let cursor = 0; cursor < pending.length; cursor += 1) {
@@ -272,6 +313,12 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
     const localAlias = scope.aliases.get(targetPosition)
     if (localAlias !== undefined) {
       setOwn(schema, '$ref', `#/${keyword}/${localAlias}`)
+      continue
+    }
+    const localAncestorAlias = ancestorAlias(scope.aliases, targetPosition)
+    if (localAncestorAlias !== undefined && scope.copiedPositions.has(targetPosition)) {
+      const suffix = targetPosition.slice(localAncestorAlias.position.length)
+      setOwn(schema, '$ref', `#/${keyword}/${localAncestorAlias.name}${suffix}`)
       continue
     }
     if (scope.knownPositions.has(targetPosition)) continue
@@ -303,6 +350,20 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
         ? `#/${keyword}/${targetAlias}`
         : `${targetScope.base ?? ''}#/${keyword}/${targetAlias}`
       setOwn(schema, '$ref', reference)
+      continue
+    }
+
+    const targetAncestorAlias = ancestorAlias(targetScope.aliases, targetPosition)
+    if (targetAncestorAlias !== undefined && targetScope.copiedPositions.has(targetPosition)) {
+      const suffix = targetPosition.slice(targetAncestorAlias.position.length)
+      const prefix = targetScope === scope ? '' : targetScope.base ?? ''
+      setOwn(schema, '$ref', `${prefix}#/${keyword}/${targetAncestorAlias.name}${suffix}`)
+      continue
+    }
+
+    if (targetScope !== scope && targetScope.materialized && targetScope.copiedPositions.has(targetPosition)) {
+      const suffix = located!.position.slice(resourcePosition.length)
+      setOwn(schema, '$ref', `${targetScope.base ?? ''}#${suffix}`)
       continue
     }
 

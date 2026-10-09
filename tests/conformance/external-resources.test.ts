@@ -152,6 +152,34 @@ for (const [name, createAdapter] of adapters) {
       expect(adapter.project({}).nodes.get('/secondary/name' as JsonPointer)?.type).toBe('string')
     })
 
+    it('rewrites pointers to descendants through an existing custom container alias', async () => {
+      const adapter = await createAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: rootUri,
+        properties: {
+          profile: { $ref: '#/x-defs/Profile' },
+          name: { $ref: '#/x-defs/Profile/properties/name' },
+        },
+        'x-defs': {
+          Profile: {
+            type: 'object',
+            properties: { name: { type: 'string' } },
+          },
+        },
+      })
+
+      expect((await adapter.validate({
+        profile: { name: 'Ada' },
+        name: 'Grace',
+      })).valid).toBe(true)
+      expect((await adapter.validate({
+        profile: { name: 'Ada' },
+        name: 7,
+      })).valid).toBe(false)
+      expect(adapter.project({}).nodes.get('/profile/name' as JsonPointer)?.type).toBe('string')
+      expect(adapter.project({}).nodes.get('/name' as JsonPointer)?.type).toBe('string')
+    })
+
     it('indexes custom container descendants inside a copied embedded resource', async () => {
       const adapter = await createAdapter({
         $schema: 'https://json-schema.org/draft/2020-12/schema',
