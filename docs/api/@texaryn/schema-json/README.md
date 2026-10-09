@@ -8,6 +8,8 @@
 
 ## Classes
 
+- [ProjectionMarkerCollisionError](classes/ProjectionMarkerCollisionError.md)
+- [ProjectionValidationDivergenceError](classes/ProjectionValidationDivergenceError.md)
 - [SameLocationCycleError](classes/SameLocationCycleError.md)
 
 ## Interfaces
