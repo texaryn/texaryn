@@ -88,8 +88,9 @@ const unreachable = (schema: Json, keyword: string): boolean =>
 const startsWith = (a: readonly string[], b: readonly string[]) => b.length <= a.length && b.every((s, i) => a[i] === s)
 
 /** Keeps a branch the specification never evaluates when a reference or an identifier could reach it. */
-export function withoutUnreachableBranches(document: unknown): unknown {
+export function withoutUnreachableBranches(document: unknown, referencedPositions: readonly string[] = []): unknown {
   const references = referencePointers(document, [])
+  for (const pointer of referencedPositions) references.push(...referencePointers({ $ref: pointer }, []))
   const reached = (at: Position, bases: readonly Position[]): boolean =>
     bases.some((base) => {
       const relative = [at.escaped.slice(base.escaped.length), at.raw.slice(base.raw.length), at.registry.slice(base.registry.length)].map(aliased)

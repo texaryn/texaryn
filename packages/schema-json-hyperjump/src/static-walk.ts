@@ -11,7 +11,14 @@ import type {
 } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
 import { projectionTypeFamilies, shapeDiagnostic, shapeOfFamilies, type KeywordFamily } from './projection-shape.js'
-import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
+import {
+  schemaAtPosition,
+  schemaFragment,
+  schemaParentPosition,
+  schemaReferenceTarget,
+  schemaPositionSegments,
+  escapeSegment,
+} from './pointer-utils.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
@@ -100,14 +107,16 @@ export interface LocationInfo {
   items?: readonly string[]
 }
 
-function isLeafSchema(schema: unknown, rootSchema: unknown): boolean {
+function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string): boolean {
   let current = schema
+  let currentPosition = position
   const seen = new Set<string>()
   while (isRecord(current)) {
-    const target = refTarget(current)
+    const target = refTarget(current, rootSchema, currentPosition)
     if (target === undefined || seen.has(target)) break
     seen.add(target)
-    current = resolveJsonPointer(rootSchema, target.slice(1))
+    current = schemaAtPosition(rootSchema, target)
+    currentPosition = target
   }
   if (!isRecord(current)) return true
   const type = Array.isArray(current.type) ? current.type.find((t) => VALID_TYPES.has(t as JsonSchemaType)) : current.type
@@ -152,7 +161,11 @@ const NON_APPLYING = new Set([
   'definitions',
 ])
 
-const refTarget = (schema: Record<string, unknown>): string | undefined => {
+const refTarget = (schema: Record<string, unknown>, rootSchema: unknown, position?: string): string | undefined => {
+  if (position !== undefined) {
+    const resolved = schemaReferenceTarget(rootSchema, position)
+    if (resolved !== undefined) return resolved
+  }
   const ref = schema.$ref
   if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
   return `#${schemaFragment(ref)}`
@@ -166,7 +179,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
   if (stack.has(position)) return []
   stack.add(position)
   const out = new Set<string>()
-  const schema = resolveJsonPointer(rootSchema, position.slice(1))
+  const schema = schemaAtPosition(rootSchema, position)
   const addAllOf = (record: Record<string, unknown>): void => {
     if (!Array.isArray(record.allOf)) return
     record.allOf.forEach((_: unknown, index: number) => {
@@ -174,7 +187,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
     })
   }
   if (isRecord(schema)) {
-    const target = refTarget(schema)
+    const target = refTarget(schema, rootSchema, position)
     if (target === undefined) {
       out.add(position)
       addAllOf(schema)
@@ -201,7 +214,7 @@ export function locationInfo(
   const memoKey = [...declaring].sort().join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
-  const at = (position: string): unknown => resolveJsonPointer(rootSchema, position.slice(1))
+  const at = (position: string): unknown => schemaAtPosition(rootSchema, position)
   const identity = new Set<string>()
   for (const position of declaring) for (const p of closureOf(position, rootSchema, cache, new Set())) identity.add(p)
 
@@ -219,7 +232,7 @@ export function locationInfo(
     if (!isRecord(schema)) return
     expanded.push(position)
     stack.add(position)
-    const target = refTarget(schema)
+    const target = refTarget(schema, rootSchema, position)
     if (target !== undefined) visitAll(target, stack)
     if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
       stack.delete(position)
@@ -262,7 +275,7 @@ function childDeclaring(info: LocationInfo, key: string, rootSchema: unknown): r
   if (cached) return cached
   const found: string[] = []
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (!isRecord(schema)) continue
     if (isRecord(schema.properties) && Object.hasOwn(schema.properties, key)) {
       const child = `${position}/properties/${escapeSegment(key)}`
@@ -281,7 +294,7 @@ function itemDeclaring(info: LocationInfo, rootSchema: unknown): readonly string
   if (info.items) return info.items
   const found: string[] = []
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (isRecord(schema) && schema.items !== undefined && !Array.isArray(schema.items)) {
       found.push(`${position}/items`)
     }
@@ -356,7 +369,7 @@ function leafMembers(info: LocationInfo, rootSchema: unknown): number {
   const keys = new Set<string>()
   const requiredKeys = requiredAtLocation(info, rootSchema)
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (!isRecord(schema)) continue
     if (isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
     for (const key of additionalPropertyKeys(schema, undefined, requiredKeys)) keys.add(key)
@@ -364,7 +377,7 @@ function leafMembers(info: LocationInfo, rootSchema: unknown): number {
   let count = 0
   for (const key of keys) {
     const first = childDeclaring(info, key, rootSchema)[0]
-    if (first !== undefined && isLeafSchema(resolveJsonPointer(rootSchema, first.slice(1)), rootSchema)) count += 1
+    if (first !== undefined && isLeafSchema(schemaAtPosition(rootSchema, first), rootSchema, first)) count += 1
   }
   return count
 }
@@ -516,7 +529,7 @@ function additionalPropertyKeys(
 function requiredAtLocation(info: LocationInfo, rootSchema: unknown): Set<string> {
   const keys = new Set<string>()
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (!isRecord(schema) || !Array.isArray(schema.required)) continue
     for (const key of schema.required) if (typeof key === 'string') keys.add(key)
   }
@@ -532,13 +545,12 @@ function applicableRequiredAtLocation(
 ): Set<string> {
   const keys = new Set<string>()
   for (const position of info.expanded) {
-    const segments = position === '#' ? [] : position.slice(2).split('/')
+    const segments = schemaPositionSegments(position)
     let applicable = true
     for (let index = 0; index < segments.length; index += 1) {
       const segment = segments[index]!
       const previous = segments[index - 1]
-      const parentSchemaPointer = (end: number): string =>
-        end === 0 ? '' : `/${segments.slice(0, end).join('/')}`
+      const parentSchemaPointer = (end: number): string => schemaParentPosition(position, end)
       if (segment === 'if') {
         applicable = false
         break
@@ -566,7 +578,7 @@ function applicableRequiredAtLocation(
       }
     }
     if (!applicable) continue
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (!isRecord(schema) || !Array.isArray(schema.required)) continue
     for (const key of schema.required) if (typeof key === 'string') keys.add(key)
   }
@@ -645,11 +657,14 @@ function applyStaticAnnotations(node: DraftNode, schema: Record<string, unknown>
 function resolveRef(
   schema: Record<string, unknown>,
   rootSchema: unknown,
+  schemaPointer?: string,
 ): { pointer: string; schema: Record<string, unknown> } | undefined {
   const ref = schema.$ref
-  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
-  const pointer = schemaFragment(ref)
-  const target = resolveJsonPointer(rootSchema, pointer)
+  const pointer = schemaPointer === undefined
+    ? typeof ref === 'string' && ref.startsWith('#') ? `#${schemaFragment(ref)}` : undefined
+    : schemaReferenceTarget(rootSchema, schemaPointer)
+  if (pointer === undefined) return undefined
+  const target = schemaAtPosition(rootSchema, pointer)
   if (!isRecord(target)) return undefined
   return { pointer, schema: target }
 }
@@ -720,7 +735,7 @@ export function staticWalk(
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
-  const ref = resolveRef(schema, rootSchema)
+  const ref = resolveRef(schema, rootSchema, schemaPointer)
   if (ref) {
     const cycleKey = `${ref.pointer}@${pointer}`
     if (visited.has(cycleKey)) return
@@ -844,7 +859,7 @@ export function staticWalk(
       ;(recursion.queue[lineage!.depth] ??= []).push({
         path: childPath,
         enter: () => {
-          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
+          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema, memberDeclaring[0]))
           if (settled !== 'defer') enter(settled)
         },
       })

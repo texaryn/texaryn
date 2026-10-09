@@ -1,6 +1,14 @@
 import type { Output, OutputUnit } from '@hyperjump/json-schema'
 import type { ValidationResult, ValidationError, JsonPointer } from '@texaryn/core'
-import { instancePointerFromUri, keywordNameFromId, schemaFragment, resolveJsonPointer, escapeSegment } from './pointer-utils.js'
+import {
+  instancePointerFromUri,
+  keywordNameFromId,
+  schemaAtPosition,
+  schemaFragment,
+  schemaPosition,
+  resolveJsonPointer,
+  escapeSegment,
+} from './pointer-utils.js'
 
 const SCHEMA_SINGLE = new Set([
   'additionalItems',
@@ -115,9 +123,17 @@ function propertyNamesParentPointer(instanceLocation: string): string | undefine
   return separator < 0 ? '' : decodePointerFragment(pointer.slice(0, separator))
 }
 
-function mapError(error: OutputUnit, rawSchema: unknown): ValidationError {
-  const schemaPointer = schemaFragment(error.absoluteKeywordLocation)
-  const propertyNamesPointer = hasSchemaKeyword(rawSchema, schemaPointer, 'propertyNames')
+function documentForPointer(rawSchema: unknown, pointer: string, rootUri?: string): { schema: unknown; fragment: string } {
+  const position = schemaPosition(pointer, rootUri)
+  const hashIndex = position.indexOf('#')
+  const resource = hashIndex > 0 ? position.slice(0, hashIndex) : ''
+  const schema = resource === '' ? rawSchema : schemaAtPosition(rawSchema, `${resource}#`)
+  return { schema, fragment: schemaFragment(pointer) }
+}
+
+function mapError(error: OutputUnit, rawSchema: unknown, rootUri?: string): ValidationError {
+  const { schema: schemaDocument, fragment: schemaPointer } = documentForPointer(rawSchema, error.absoluteKeywordLocation, rootUri)
+  const propertyNamesPointer = hasSchemaKeyword(schemaDocument, schemaPointer, 'propertyNames')
     ? propertyNamesParentPointer(error.instanceLocation)
     : undefined
   if (propertyNamesPointer !== undefined) {
@@ -129,15 +145,15 @@ function mapError(error: OutputUnit, rawSchema: unknown): ValidationError {
   }
 
   const keyword = keywordNameFromId(error.keyword)
-  const schema = resolveJsonPointer(rawSchema, schemaPointer)
+  const schema = resolveJsonPointer(schemaDocument, schemaPointer)
   const schemaParentPointer = schemaPointer.slice(0, schemaPointer.lastIndexOf('/'))
-  const parentSchema = resolveJsonPointer(rawSchema, schemaParentPointer)
+  const parentSchema = resolveJsonPointer(schemaDocument, schemaParentPointer)
   const instancePointer = instancePointerFromUri(error.instanceLocation)
   if (
     keyword === 'validate' &&
     schema === false &&
     schemaPointer.endsWith('/items') &&
-    isSchemaPosition(rawSchema, schemaParentPointer) &&
+    isSchemaPosition(schemaDocument, schemaParentPointer) &&
     isRecord(parentSchema) &&
     parentSchema.items === false &&
     'prefixItems' in parentSchema
@@ -163,10 +179,11 @@ function normalizeRequiredError(
   unit: OutputUnit,
   rawSchema: unknown,
   data: unknown,
+  rootUri?: string,
 ): ValidationError[] {
   const parentPointer = error.instancePointer as string
-  const schemaPointer = schemaFragment(unit.absoluteKeywordLocation)
-  const requiredArray = resolveJsonPointer(rawSchema, schemaPointer)
+  const { schema: schemaDocument, fragment: schemaPointer } = documentForPointer(rawSchema, unit.absoluteKeywordLocation, rootUri)
+  const requiredArray = resolveJsonPointer(schemaDocument, schemaPointer)
   if (!Array.isArray(requiredArray)) return [error]
 
   const obj = parentPointer === ''
@@ -191,14 +208,15 @@ export function mapErrors(
   output: Output,
   rawSchema: unknown,
   data: unknown,
+  rootUri?: string,
 ): ValidationResult {
   const errors = 'errors' in output ? (output.errors ?? []) : []
   return {
     valid: output.valid,
     errors: errors.flatMap((unit) => {
-      const mapped = mapError(unit, rawSchema)
+      const mapped = mapError(unit, rawSchema, rootUri)
       if (mapped.keyword === 'required') {
-        return normalizeRequiredError(mapped, unit, rawSchema, data)
+        return normalizeRequiredError(mapped, unit, rawSchema, data, rootUri)
       }
       return [mapped]
     }),

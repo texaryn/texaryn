@@ -14,6 +14,8 @@ import type {
 } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
+import { loadExternalResources } from './resources.js'
+import { materializeLocalPointerAliases } from './local-pointer-aliases.js'
 import { newProjectionCache } from './identity.js'
 import { buildProjection, DEFAULT_LIMITS, type ProjectionLimits } from './projection.js'
 import { assertProjectionValidationCoherence } from './projection-validation-coherence.js'
@@ -42,18 +44,37 @@ export async function createAdapter(
   })
 
   // json-schema-library carries no metaschema documents, so a schema referencing its own fails closed.
-  const referenced = referencedDialects(schema)
-  const remotes = referenced.length > 0 ? await loadMetaschemas(referenced) : undefined
+  const externalRemotes = await loadExternalResources(schema, dialect, config)
+  const referenced = referencedDialects([schema, ...externalRemotes])
+  const metaschemas = referenced.length > 0 ? await loadMetaschemas(referenced) : []
+  const remotes = [...metaschemas, ...externalRemotes] as JsonSchema[]
+  const graph = buildSchemaGraph(schema, dialect, remotes)
+  const referencesByDocument = new Map<string, string[]>()
+  for (const target of graph.references.values()) {
+    const hash = target.indexOf('#')
+    if (hash < 0) continue
+    const prefix = target.slice(0, hash)
+    const pointers = referencesByDocument.get(prefix) ?? []
+    pointers.push(target.slice(hash))
+    referencesByDocument.set(prefix, pointers)
+  }
   // json-schema-library evaluates some branches the specification never does, so only the projection drops them.
-  const document = withoutUnreachableBranches(schema)
-  const graph = buildSchemaGraph(document, dialect, remotes ?? [])
+  const document = withoutUnreachableBranches(schema, referencesByDocument.get('') ?? [])
+  const projectionRemotes = [
+    ...metaschemas,
+    ...externalRemotes.map((remote) => {
+      const id = (remote as Record<string, unknown>).$id
+      const base = typeof id === 'string' ? id.split('#', 1)[0]! : ''
+      return withoutUnreachableBranches(remote, referencesByDocument.get(base) ?? [])
+    }),
+  ] as JsonSchema[]
   rejectSameLocationCycles(graph)
-  const marked = markPositions(graph, document, remotes ?? [])
+  const marked = markPositions(graph, document, projectionRemotes)
   const validated = await prepareSchema(schema, dialect, remotes)
-  const projected = await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+  const projected = await prepareSchema(marked.document, dialect, marked.remotes as JsonSchema[])
   assertProjectionValidationCoherence(validated, projected, dialect)
-  const submissionSchema = supportsSubmissionProjection([schema, ...(remotes ?? [])], dialect)
-    ? await prepareSchema(marked.document, dialect, remotes && (marked.remotes as JsonSchema[]))
+  const submissionSchema = supportsSubmissionProjection([schema, ...remotes], dialect)
+    ? await prepareSchema(marked.document, dialect, marked.remotes as JsonSchema[])
     : undefined
   const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at)
 
@@ -96,11 +117,11 @@ async function prepareSchema(
   // annotation unless the format-assertion vocabulary is declared, so asserting it
   // is a deviation rather than a stricter setting.
   const formatAssertion = dialect === 'draft-07' ? undefined : false
-  const root = compileSchema(schema as JsonSchema | BooleanSchema, {
+  const root = compileSchema(materializeLocalPointerAliases(schema, dialect) as JsonSchema | BooleanSchema, {
     drafts: DRAFTS,
     draft: toDraftOption(dialect),
     formatAssertion,
-    remotes,
+    remotes: remotes?.map((remote) => materializeLocalPointerAliases(remote, dialect) as JsonSchema),
   })
   fixRootReference(root, dialect)
   return root

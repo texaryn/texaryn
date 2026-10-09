@@ -1853,7 +1853,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
-The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are done, 1 is declined, 1 is deferred until an adopter needs it, and 2 wait on upstream work.
+The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are done, 1 is declined, 1 is in progress, and 2 wait on upstream work.
 
 | # | Item | State |
 |---|------|-------|
@@ -1864,22 +1864,22 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
 | 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all five renderer families |
-| 8 | External schema resources | Deferred until an adopter needs it; remote reference failures stay visible in the conformance suite, no resolver API |
+| 8 | External schema resources | Implementation is in PR #192 under ADR-009. Static references validate and project. External dynamic references validate, while dynamic form projection remains in #179. Merge and release are pending. |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
 | 11 | Hyperjump suite deviations (#108) | Recorded: Hyperjump 1.18.0 fixes #128; #127 is deliberate upstream behavior; `file:` identifiers remain refused by upstream policy |
 
-The published adapter defects in #176 and #178, review hardening in #183, and optional projected submission in #126 are implemented in the current worktree. Targeted #177 work fixes Unicode local references and the `propertyNames` and `prefixItems` with `items: false` error pointers. The Hyperjump official suite baseline now records two additional passing cases after the upgrade to 1.18.0.
+The published adapter defects in #176 and #178, review hardening in #183, and optional projected submission in #126 are implemented in PR #192. Targeted #177 work fixes Unicode local references and the `propertyNames` and `prefixItems` with `items: false` error pointers. The Hyperjump official suite baseline records two additional passing cases after the upgrade to 1.18.0.
 
-The current #177 work fixes the typeless array-row shape gap, removes scalar child entries from Hyperjump projections, and aligns selected draft-07 reference branches. The recursive parity suite records zero active-flag differences across its fixture matrix. For a missing instance location with no recorded `if` result, Hyperjump evaluates the compiled local `if` schema against `{}`; it preserves recorded results and ancestor branch choices, and declines fallback across nested `$id` resources or dynamic and external references. External schema resources remain deferred under item 8.
+The current #177 work fixes the typeless array-row shape gap, removes scalar child entries from Hyperjump projections, and aligns selected draft-07 reference branches. The recursive parity suite records zero active-flag differences across its fixture matrix. For a missing instance location with no recorded `if` result, Hyperjump evaluates the compiled local `if` schema against `{}`; it preserves recorded results and ancestor branch choices, and declines fallback across nested `$id` resources or dynamic and external references. ADR-009 adds a host supplied resource resolver to both adapters. The resolver performs no network access, defaults to 128 unique retrieval URIs, and supports external resource validation. Static external `$ref` resources also project. External dynamic form projection remains in #179.
 
-Local implementation work for #183, #126, and the targeted #177 pointer fixes is complete. The current branch adds Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, plus selected draft-07 conditional reference recovery in the primary adapter. The full workspace coverage run passes 5,128 tests across 141 files, and typecheck plus generated API documentation checks pass. Package release remains pending merge and the repository release workflow.
+Local implementation work for #183, #126, and the targeted #177 pointer fixes is complete. PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The full workspace suite passes 5,212 tests across 144 files. Typecheck and package verification pass. Generated API documentation covers the public resolver options and error type. Package release remains pending merge and the repository release workflow.
 
 This branch also adds a weekly and manually dispatched compatibility workflow for the latest `json-schema-library`, while keeping the committed exact pin at 11.6.2. The isolated run resolved 11.6.4 and failed during module loading because it imports `resolve` from CommonJS `fast-uri` 4.2.1. This records an upstream compatibility failure for follow-up; it does not change the released dependency pin.
 
-The current worktree projects members governed by schema-valued `additionalProperties` in both adapters, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape. The schema-json and conformance projects pass 3,226 tests across 37 files, and `pnpm typecheck` passes.
+Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 still waits on an upstream fix, and no local workaround is recorded. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy. #179 remains deferred until an adopter needs one of its follow-ups.
+#121 still waits on upstream issue [sagold/json-schema-library#124](https://github.com/sagold/json-schema-library/issues/124), and no local workaround is recorded. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy. #179 remains open for dynamic form projection and its other deferred follow-ups.
 
 
 ### Phase 0: Foundation (PRs 1-5)
@@ -1924,10 +1924,12 @@ schema library.
 7. **Concrete `SchemaEvaluationPort` adapter.** Implement the port with the
    library chosen in PR6. The adapter delegates `project()` and `validate()`
    to the library. Covers draft-07 and 2020-12 via dialect-aware evaluation
-   (section 9). Local `$ref` works through the library's resolver. Remote
-   `$ref` and `$dynamicRef` are deferred: networking, caching, and trust
-   policy make them more than library support. Tests: the fixture harness
-   from PR6, expanded to core vocabulary.
+   (section 9). Local `$ref` works through the library's resolver. ADR-009 adds
+   optional host supplied resource resolution for external `$ref`,
+   `$dynamicRef`, and `$recursiveRef` documents without adding network access
+   to Texaryn. The host owns fetching and trust policy, and the adapters cap
+   resource loading. Dynamic form projection remains in #179. Tests: the
+   fixture harness from PR6, expanded to core vocabulary.
 
 8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
    primitives (string, number, integer, boolean), objects, and arrays into IR

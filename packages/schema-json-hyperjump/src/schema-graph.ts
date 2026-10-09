@@ -5,6 +5,8 @@ type Edge = { readonly to: string; readonly via: string; readonly inPlace: boole
 export interface SchemaGraph {
   readonly edges: ReadonlyMap<string, readonly Edge[]>
   readonly reachable: ReadonlySet<string>
+  readonly references: ReadonlyMap<string, string>
+  readonly resources: ReadonlyMap<string, string>
 }
 
 const ANONYMOUS_BASE = 'https://texaryn.invalid/root'
@@ -199,20 +201,47 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
   const documents = documentsOf(document, remotes)
   const index = indexResources(documents, dialect)
   const edges = new Map<string, Edge[]>()
+  const references = new Map<string, string>()
   const reachable = new Set<string>()
-  const visit = (position: string): void => {
+  const visit = (position: string, inheritedBase = ANONYMOUS_BASE): void => {
     if (reachable.has(position)) return
     reachable.add(position)
     const schema = at(documents, position)
     const list: Edge[] = []
     edges.set(position, list)
     if (!isRecord(schema)) return
-    const base = index.baseAt.get(position) ?? ANONYMOUS_BASE
+    let base = index.baseAt.get(position) ?? inheritedBase
+    if (!index.baseAt.has(position)) {
+      const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
+      if (!ignoresSiblings && typeof schema.$id === 'string') {
+        if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
+          index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
+        } else {
+          const resolved = resolveUri(schema.$id, base)
+          if (resolved) {
+            base = withoutFragment(resolved)
+            index.resources.set(base, position)
+          }
+        }
+      }
+      if (!ignoresSiblings) {
+        if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') index.anchors.set(`${base}#${schema.$anchor}`, position)
+        if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+          index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
+          const anchors = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
+          anchors.push(position)
+          index.dynamicAnchors.set(schema.$dynamicAnchor, anchors)
+        }
+        if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
+      }
+      index.baseAt.set(position, base)
+    }
     for (const keyword of REFERENCES[dialect]) {
       const reference = schema[keyword]
       if (typeof reference !== 'string') continue
       const target = resolveReference(reference, base, index, documents)
       if (target === undefined) continue
+      references.set(`${position}\u0000${keyword}`, target)
       const targetSchema = at(documents, target)
       const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
       if (keyword === '$dynamicRef' && isRecord(targetSchema) && fragment !== '' && targetSchema.$dynamicAnchor === fragment) {
@@ -226,10 +255,10 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
       }
     }
     for (const child of childSchemas(schema, position, dialect, false)) list.push({ to: child.position, via: child.via, inPlace: child.inPlace })
-    for (const edge of list) visit(edge.to)
+    for (const edge of list) visit(edge.to, base)
   }
   visit('#')
-  return { edges, reachable }
+  return { edges, reachable, references, resources: index.resources }
 }
 
 export const POSITION = 'x-texaryn-position'

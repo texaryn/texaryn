@@ -1,3 +1,5 @@
 export { createHyperjumpAdapter } from './adapter.js'
 export type { HyperjumpAdapterConfig } from './types.js'
+export type { SchemaResourceResolver } from './resources.js'
+export { SchemaResourceResolutionError } from './resources.js'
 export { SameLocationCycleError } from './schema-graph.js'

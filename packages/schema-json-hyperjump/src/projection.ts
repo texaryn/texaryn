@@ -7,7 +7,14 @@ import type {
   ProjectionDiagnostic,
 } from '@texaryn/core'
 import { ProjectionPlugin, type KeywordRecord } from './plugin.js'
-import { schemaFragment, resolveJsonPointer, escapeSegment } from './pointer-utils.js'
+import {
+  schemaAtPosition,
+  schemaParentPosition,
+  schemaPosition,
+  schemaPositionSegments,
+  schemaReferenceTarget,
+  escapeSegment,
+} from './pointer-utils.js'
 import { collectDefaultConflicts } from './default-conflicts.js'
 import {
   staticWalk,
@@ -70,10 +77,12 @@ function makeBranchChecker(
   ])
 
   const hasNestedIdBoundary = (pointer: string): boolean => {
-    const parts = pointer === '' ? [] : pointer.split('/').slice(1)
+    const hashIndex = pointer.indexOf('#')
+    if (hashIndex > 0) return true
+    const parts = schemaPositionSegments(pointer)
     return parts.some((_, index) => {
-      const ancestorPointer = `/${parts.slice(0, index + 1).join('/')}`
-      const ancestor = resolveJsonPointer(rawSchema, ancestorPointer)
+      const ancestorPointer = schemaParentPosition(pointer, index + 1)
+      const ancestor = schemaAtPosition(rawSchema, ancestorPointer)
       return isRecord(ancestor) && typeof ancestor.$id === 'string'
     })
   }
@@ -93,7 +102,7 @@ function makeBranchChecker(
         return
       }
 
-      const schema = resolveJsonPointer(rawSchema, schemaPointer)
+      const schema = schemaAtPosition(rawSchema, schemaPointer)
       if (!isRecord(schema)) return
       if ('$dynamicRef' in schema || '$recursiveRef' in schema) {
         result.containsReference = true
@@ -107,8 +116,14 @@ function makeBranchChecker(
           result.unsafeScope = true
           return
         }
-        const target = schemaFragment(schema.$ref)
-        if (target !== '' && !target.startsWith('/')) {
+        const fragment = schemaReferenceTarget(rawSchema, schemaPointer)
+        const rawFragment = schema.$ref.slice(1)
+        if (rawFragment !== '' && !rawFragment.startsWith('/')) {
+          result.unsafeScope = true
+          return
+        }
+        const target = fragment
+        if (target === undefined) {
           result.unsafeScope = true
           return
         }
@@ -164,7 +179,7 @@ function makeBranchChecker(
   const rootUri = compiled.schemaUri.split('#')[0]!
   const compiledUrisByFragment = new Map<string, string>()
   for (const uri of Object.keys(compiled.ast)) {
-    if (uri.startsWith(`${rootUri}#`)) compiledUrisByFragment.set(schemaFragment(uri), uri)
+    if (uri.startsWith(`${rootUri}#`)) compiledUrisByFragment.set(schemaPosition(uri, rootUri), uri)
   }
   const missingIfValidity = new Map<string, boolean | undefined>()
   const missingIfResult = (schemaPointer: string, instancePointer: string): boolean | undefined => {
@@ -193,14 +208,14 @@ function makeBranchChecker(
     return result
   }
 
-  const referencedValidity = (branch: unknown, instancePointer: string): boolean | undefined => {
+  const referencedValidity = (branch: unknown, instancePointer: string, branchPosition: string): boolean | undefined => {
     if (!isRecord(branch) || typeof branch.$ref !== 'string') return undefined
     if (Object.keys(branch).some((key) => key !== '$ref' && !annotationKeys.has(key))) {
       return undefined
     }
 
-    let pointer = schemaFragment(branch.$ref)
-    if (!branch.$ref.startsWith('#')) return undefined
+    let pointer = schemaReferenceTarget(rawSchema, branchPosition)
+    if (pointer === undefined) return undefined
     const visited = new Set<string>()
     while (!visited.has(pointer)) {
       visited.add(pointer)
@@ -208,14 +223,14 @@ function makeBranchChecker(
       const key = `${pointer}@${instancePointer}`
       if (scopeValidity.has(key)) return scopeValidity.get(key)
 
-      const target = resolveJsonPointer(rawSchema, pointer)
-      if (!isRecord(target) || typeof target.$ref !== 'string' || !target.$ref.startsWith('#')) {
+      const target = schemaAtPosition(rawSchema, pointer)
+      if (!isRecord(target) || typeof target.$ref !== 'string') {
         return undefined
       }
       if (Object.keys(target).some((name) => name !== '$ref' && !annotationKeys.has(name))) {
         return undefined
       }
-      pointer = schemaFragment(target.$ref)
+      pointer = schemaReferenceTarget(rawSchema, pointer) ?? ''
     }
     return undefined
   }
@@ -228,11 +243,11 @@ function makeBranchChecker(
   ): boolean | undefined => {
     const key = `${schemaPointer}/${keyword}/${index}@${instancePointer}`
     if (scopeValidity.has(key)) return scopeValidity.get(key)
-    const construct = resolveJsonPointer(rawSchema, schemaPointer)
+    const construct = schemaAtPosition(rawSchema, schemaPointer)
     const branches = isRecord(construct) ? construct[keyword] : undefined
     const branch = Array.isArray(branches) ? branches[index] : undefined
     if (hasNestedIdBoundary(schemaPointer)) return undefined
-    return referencedValidity(branch, instancePointer)
+    return referencedValidity(branch, instancePointer, `${schemaPointer}/${keyword}/${index}`)
   }
 
   return (schemaPointer: string, instancePointer: string, suffix: string): boolean => {
@@ -254,7 +269,7 @@ function makeBranchChecker(
 
     const [, keyword, indexStr] = match
     const branchIndex = parseInt(indexStr, 10)
-    const construct = resolveJsonPointer(rawSchema, schemaPointer)
+    const construct = schemaAtPosition(rawSchema, schemaPointer)
     const branches = isRecord(construct) && Array.isArray(construct[keyword])
       ? construct[keyword] as unknown[]
       : []
@@ -313,7 +328,8 @@ export function buildProjection(
   cache: ProjectionCache,
   limits: ProjectionLimits = DEFAULT_LIMITS,
 ): SchemaProjection {
-  const plugin = new ProjectionPlugin()
+  const rootUri = compiled.schemaUri.split('#')[0]!
+  const plugin = new ProjectionPlugin(rootUri)
   interpret(compiled, Instance.fromJs((data === undefined ? {} : data) as Parameters<typeof Instance.fromJs>[0]), {
     outputFormat: BASIC,
     plugins: [plugin],
@@ -334,7 +350,7 @@ export function buildProjection(
 
     const resolvedByKeyword = new Map<string, unknown[]>()
     for (const record of records) {
-      const value = resolveJsonPointer(rawSchema, schemaFragment(record.schemaUri))
+      const value = schemaAtPosition(rawSchema, schemaPosition(record.schemaUri, rootUri))
       const list = resolvedByKeyword.get(record.keywordName) ?? []
       list.push(value)
       resolvedByKeyword.set(record.keywordName, list)
@@ -381,7 +397,7 @@ export function buildProjection(
   const recursion = newRecursionState(cache, limits)
   const rootInfo = locationInfo(['#'], rawSchema, recursion)
   if (rootInfo.cycle) recursion.cycles.add('')
-  else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
+  else staticWalk(rawSchema, data, '', '#', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
   for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   resolveShapes(nodes)
   for (const pointer of recursion.flagged) {
@@ -413,7 +429,9 @@ export function buildProjection(
   // omitted wherever either found a disagreement.
   const sources = new Map<string, readonly string[]>()
   const schemaConflicts = collectDefaultConflicts(rawSchema, data, undefined, nodes, cache.dialect)
-  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker, nodes, cache.dialect, sources)
+  const conflictBranchChecker: BranchChecker = (schemaPointer, instancePointer, suffix) =>
+    branchChecker(schemaPointer.startsWith('#') ? schemaPointer : `#${schemaPointer}`, instancePointer, suffix)
+  const applicableConflicts = collectDefaultConflicts(rawSchema, data, conflictBranchChecker, nodes, cache.dialect, sources)
   for (const pointer of applicableConflicts.keys()) {
     const node = nodes.get(pointer)
     if (node) delete node.annotations.default
