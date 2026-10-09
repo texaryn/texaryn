@@ -619,13 +619,13 @@ function childPositions(
 ): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
-    const child = node.properties?.[key] as SchemaNode | undefined
+    const child = memberSchema(node, key)
     if (child) unconditional.push(child)
   })
 
   const applicable: SchemaNode[] = []
   eachApplicable(roots.applicable, data, (node) => {
-    const child = node.properties?.[key] as SchemaNode | undefined
+    const child = memberSchema(node, key)
     if (child) applicable.push(child)
   })
 
@@ -682,16 +682,72 @@ interface CandidateProperty {
   alternatives: SchemaNode[]
 }
 
+function additionalPropertyKeys(
+  node: SchemaNode | undefined,
+  data: Record<string, unknown> | undefined,
+): string[] {
+  if (!node?.additionalProperties) return []
+  const keys = new Set([...Object.keys(data ?? {}), ...(node.required ?? [])])
+  return [...keys].filter(
+    (key) =>
+      !Object.hasOwn(node.properties ?? {}, key) &&
+      !node.patternProperties?.some(({ pattern }) => pattern.test(key)),
+  )
+}
+
+function additionalPropertySchema(node: SchemaNode | undefined, key: string): SchemaNode | undefined {
+  if (!node || Object.hasOwn(node.properties ?? {}, key)) return undefined
+  if (node.patternProperties?.some(({ pattern }) => pattern.test(key))) return undefined
+  return node.additionalProperties
+}
+
+function memberSchema(node: SchemaNode | undefined, key: string): SchemaNode | undefined {
+  if (!node) return undefined
+  if (Object.hasOwn(node.properties ?? {}, key)) return node.properties?.[key]
+  return additionalPropertySchema(node, key)
+}
+
+function applicableAdditionalPropertySchemas(
+  roots: readonly SchemaNode[],
+  key: string,
+  data: unknown,
+): SchemaNode[] {
+  const schemas: SchemaNode[] = []
+  const seen = new Set<string>()
+  eachApplicable(roots, data, (node) => {
+    const schema = additionalPropertySchema(node, key)
+    if (!schema) return
+    const position = positionOf(schema)
+    if (seen.has(position)) return
+    seen.add(position)
+    schemas.push(schema)
+  })
+  return schemas
+}
+
+function applicableRequiredKeys(roots: readonly SchemaNode[], data: unknown): Set<string> {
+  const keys = new Set<string>()
+  eachApplicable(roots, data, (node) => {
+    for (const key of node.required ?? []) keys.add(key)
+  })
+  return keys
+}
+
+function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown): SchemaNode {
+  if (source.getDraftVersion() !== 'draft-07') return source.reduceNode(data).node ?? source
+  const { node, unresolved } = dereferenceChecked(source)
+  if (unresolved || !isSchemaNode(node)) return source
+  return reduceAllOfForProjection(node, data) ?? node
+}
+
 /**
- * Every property key that could appear at this node's own instance location,
- * across every branch that might apply to it.
+ * Property keys that might need to appear at this instance location.
  *
- * This is the static half of the inactive-node contract: a branch the data does
- * not currently select still contributes its property pointers, which then
- * project with `active: false`. The dynamic half is `reduceNode`, which decides
- * which of them apply now, and the two must stay separate. Making the candidate
- * set data-driven would delete a pointer the moment its branch stopped
- * matching, which is exactly the flicker the contract exists to prevent.
+ * Declared keys remain static candidates across all branches. Keys governed
+ * only by `additionalProperties` come from the current data, since the schema
+ * has no finite set of names to enumerate; required names are candidates too.
+ * `reduceNode` decides which candidates apply now, so an inactive branch keeps
+ * its declared pointers with `active: false`.
  *
  * **Recursion is through applicators only, and only those acting on this same
  * instance location**: `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf`,
@@ -716,9 +772,13 @@ interface CandidateProperty {
  * reference. Other nodes keep their location key, so references still close
  * at the same point in the traversal as before.
  */
-function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProperty> {
+function collectCandidateProperties(
+  node: SchemaNode,
+  data: Record<string, unknown> | undefined,
+): Map<string, CandidateProperty> {
   const candidates = new Map<string, CandidateProperty>()
   const visited = new Set<string>()
+  const scopes: { node: SchemaNode; own: boolean }[] = []
 
   const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
     const entry = candidates.get(key) ?? { alternatives: [] }
@@ -733,6 +793,7 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
     const key = traversalKey(resolved)
     if (visited.has(key)) return
     visited.add(key)
+    scopes.push({ node: resolved, own })
 
     for (const [key, propNode] of Object.entries(resolved.properties ?? {})) {
       record(key, propNode, own)
@@ -752,6 +813,14 @@ function collectCandidateProperties(node: SchemaNode): Map<string, CandidateProp
   }
 
   visit(node, true)
+  const memberKeys = new Set(Object.keys(data ?? {}))
+  for (const scope of scopes) for (const key of scope.node.required ?? []) memberKeys.add(key)
+  for (const { node: scope, own } of scopes) {
+    for (const key of memberKeys) {
+      const propNode = additionalPropertySchema(scope, key)
+      if (propNode) record(key, propNode, own)
+    }
+  }
   return candidates
 }
 
@@ -1023,7 +1092,7 @@ function walk(
       admit = covered || ctx.nodesUsed < ctx.limits.nodes
       if (admit && !covered) ctx.nodesUsed += 1
     } else {
-      const leaves = [...collectCandidateProperties(original).values()].filter((candidate) =>
+      const leaves = [...collectCandidateProperties(original, undefined).values()].filter((candidate) =>
         isLeafSchema(dereference(candidatePrototype(candidate)).schema),
       ).length
       admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
@@ -1291,7 +1360,10 @@ function walk(
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
       (schema.properties as Record<string, unknown> | undefined) ??
       {}
-    const activeKeys = new Set(Object.keys(reducedProperties))
+    const activeKeys = new Set([
+      ...Object.keys(reducedProperties),
+      ...additionalPropertyKeys(reducedNode, dataRecord),
+    ])
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
 
     // Two conditions, and they are not the same kind of condition.
@@ -1316,6 +1388,7 @@ function walk(
     const provisionalKeys = new Set(
       Object.keys((provisionalSchema?.properties as Record<string, unknown> | undefined) ?? {}),
     )
+    for (const key of additionalPropertyKeys(provisionalBranch, dataRecord)) provisionalKeys.add(key)
     const provisionalRequired = new Set(
       Array.isArray(provisionalSchema?.required) ? (provisionalSchema.required as string[]) : [],
     )
@@ -1323,7 +1396,31 @@ function walk(
     // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
-    const candidateProps = collectCandidateProperties(original)
+    const candidateProps = collectCandidateProperties(original, dataRecord)
+    const applicableRequired = applicableRequiredKeys(declaredAt.applicable, applicableData)
+    const provisionalRequiredKeys = provisionalBranch
+      ? applicableRequiredKeys([provisionalBranch], applicableData)
+      : new Set<string>()
+    for (const key of candidateProps.keys()) {
+      const present = dataRecord !== undefined && Object.hasOwn(dataRecord, key)
+      if (
+        (present || applicableRequired.has(key)) &&
+        applicableAdditionalPropertySchemas(declaredAt.applicable, key, applicableData).length > 0
+      ) {
+        activeKeys.add(key)
+      }
+    }
+    if (provisionalBranch) {
+      for (const key of candidateProps.keys()) {
+        if (
+          provisionalRequiredKeys.has(key) &&
+          (applicableAdditionalPropertySchemas(declaredAt.applicable, key, applicableData).length > 0 ||
+            applicableAdditionalPropertySchemas([provisionalBranch], key, applicableData).length > 0)
+        ) {
+          provisionalKeys.add(key)
+        }
+      }
+    }
     const propKeys = [...candidateProps.keys()]
 
     const children: ChildProjection[] | undefined =
@@ -1364,21 +1461,35 @@ function walk(
       // provisional too, while a locally inactive one stays inactive.
       const childProvisional =
         !childActive && nodeExposed && (activeKeys.has(key) || provisionalKeys.has(key))
-      const reducedChildNode = reducedNode?.properties?.[key] as SchemaNode | undefined
+      const reducedChildNode = memberSchema(reducedNode, key)
       // Precedence matters as much as the selection does. Marking the right
       // branch provisional while taking its shape from `candidatePrototype`,
       // which is first-wins across branches, would render another branch's
       // widget and annotations under the selected branch's name, and would hand
       // ADR-003's pass another branch's `default`.
-      const provisionalChildNode = provisionalBranch?.properties?.[key] as SchemaNode | undefined
+      const provisionalChildNode = memberSchema(provisionalBranch, key)
       const candidate = candidateProps.get(key)!
-      // Three states, in order of authority. What the evaluator reduced against
-      // the data is the schema as it actually applies. Failing that, the node's
-      // own declaration composed with the selected branch, which is what the
-      // reduction would have produced had the branch been complete. Failing
-      // both, a stated placeholder for a location no branch has claimed.
+      const childData = dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined
+      let applicableChildNode = reducedChildNode
+      for (const source of applicableAdditionalPropertySchemas(
+        declaredAt.applicable,
+        key,
+        applicableData,
+      )) {
+        if (applicableChildNode && positionOf(applicableChildNode) === positionOf(source)) continue
+        const reduced = reduceAdditionalPropertySchema(source, childData)
+        applicableChildNode =
+          applicableChildNode === undefined
+            ? reduced
+            : mergeNode(applicableChildNode, reduced) ?? applicableChildNode
+      }
+      // Applicable declarations retain their authored scope here. The parent
+      // reducer merges `properties` across `allOf`, which can make an
+      // `additionalProperties` schema in a separate branch appear inapplicable.
+      // Failing that, use the reducer's child, then the selected branch, then a
+      // stable placeholder from the candidate set.
       const childNode =
-        reducedChildNode ??
+        applicableChildNode ??
         composeChild(candidate.direct, provisionalChildNode) ??
         candidatePrototype(candidate)
       const positions = childPositions(
@@ -1396,7 +1507,7 @@ function walk(
         walk(
           childNode,
           childPointer,
-          dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined,
+          childData,
           childActive,
           childProvisional,
           nodes,

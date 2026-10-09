@@ -263,10 +263,15 @@ function childDeclaring(info: LocationInfo, key: string, rootSchema: unknown): r
   const found: string[] = []
   for (const position of info.expanded) {
     const schema = resolveJsonPointer(rootSchema, position.slice(1))
-    if (isRecord(schema) && isRecord(schema.properties) && key in schema.properties) {
+    if (!isRecord(schema)) continue
+    if (isRecord(schema.properties) && Object.hasOwn(schema.properties, key)) {
       const child = `${position}/properties/${escapeSegment(key)}`
       if (!found.includes(child)) found.push(child)
+      continue
     }
+    if (matchesPatternProperty(schema, key) || !isRecord(schema.additionalProperties)) continue
+    const child = `${position}/additionalProperties`
+    if (!found.includes(child)) found.push(child)
   }
   info.children.set(key, found)
   return found
@@ -349,9 +354,12 @@ function decideMember(
 
 function leafMembers(info: LocationInfo, rootSchema: unknown): number {
   const keys = new Set<string>()
+  const requiredKeys = requiredAtLocation(info, rootSchema)
   for (const position of info.expanded) {
     const schema = resolveJsonPointer(rootSchema, position.slice(1))
-    if (isRecord(schema) && isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
+    if (!isRecord(schema)) continue
+    if (isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
+    for (const key of additionalPropertyKeys(schema, undefined, requiredKeys)) keys.add(key)
   }
   let count = 0
   for (const key of keys) {
@@ -481,6 +489,88 @@ export function finalizeNodes(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function matchesPatternProperty(schema: Record<string, unknown>, key: string): boolean {
+  if (!isRecord(schema.patternProperties)) return false
+  return Object.keys(schema.patternProperties).some((pattern) => new RegExp(pattern, 'u').test(key))
+}
+
+function additionalPropertyKeys(
+  schema: Record<string, unknown>,
+  data: unknown,
+  requiredAtLocation: ReadonlySet<string> = new Set(),
+): string[] {
+  if (!isRecord(schema.additionalProperties)) return []
+  const keys = new Set<string>(isRecord(data) ? Object.keys(data) : [])
+  if (Array.isArray(schema.required)) {
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  for (const key of requiredAtLocation) keys.add(key)
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+  return [...keys].filter(
+    (key) => !Object.hasOwn(properties, key) && !matchesPatternProperty(schema, key),
+  )
+}
+
+function requiredAtLocation(info: LocationInfo, rootSchema: unknown): Set<string> {
+  const keys = new Set<string>()
+  for (const position of info.expanded) {
+    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    if (!isRecord(schema) || !Array.isArray(schema.required)) continue
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  return keys
+}
+
+function applicableRequiredAtLocation(
+  info: LocationInfo,
+  rootSchema: unknown,
+  data: unknown,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): Set<string> {
+  const keys = new Set<string>()
+  for (const position of info.expanded) {
+    const segments = position === '#' ? [] : position.slice(2).split('/')
+    let applicable = true
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index]!
+      const previous = segments[index - 1]
+      const parentSchemaPointer = (end: number): string =>
+        end === 0 ? '' : `/${segments.slice(0, end).join('/')}`
+      if (segment === 'if') {
+        applicable = false
+        break
+      }
+      if (
+        (segment === 'then' || segment === 'else') &&
+        !isBranchActive(parentSchemaPointer(index), instancePointer, `/${segment}`)
+      ) {
+        applicable = false
+        break
+      }
+      if (previous === 'oneOf' || previous === 'anyOf') {
+        const parent = parentSchemaPointer(index - 1)
+        if (!isBranchActive(parent, instancePointer, `/${previous}/${segment}`)) {
+          applicable = false
+          break
+        }
+      }
+      if (previous === 'dependentSchemas' || previous === 'dependencies') {
+        const dependency = segment.replace(/~1/g, '/').replace(/~0/g, '~')
+        if (!isRecord(data) || !Object.hasOwn(data, dependency)) {
+          applicable = false
+          break
+        }
+      }
+    }
+    if (!applicable) continue
+    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    if (!isRecord(schema) || !Array.isArray(schema.required)) continue
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  return keys
 }
 
 /**
@@ -690,60 +780,75 @@ export function staticWalk(
     applyStaticAnnotations(node, schema)
   }
 
-  if (isRecord(schema.properties)) {
-    const required = new Set<string>(
-      Array.isArray(schema.required) ? (schema.required as string[]) : [],
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+  const location = locationInfo(declaring, rootSchema, recursion)
+  const required = new Set<string>(
+    Array.isArray(schema.required) ? (schema.required as string[]) : [],
+  )
+  const applicableRequired = applicableRequiredAtLocation(
+    location,
+    rootSchema,
+    data,
+    pointer,
+    isBranchActive,
+  )
+  const propertyKeys = new Set(Object.keys(properties))
+  for (const key of additionalPropertyKeys(schema, data, requiredAtLocation(location, rootSchema))) propertyKeys.add(key)
+  for (const key of propertyKeys) {
+    const declared = Object.hasOwn(properties, key)
+    const sub = declared ? properties[key] : schema.additionalProperties
+    const keyPresent = isRecord(data) && Object.hasOwn(data, key)
+    const childActive = active && (declared || keyPresent || applicableRequired.has(key))
+    const escaped = escapeSegment(key)
+    const childData = isRecord(data) ? data[key] : undefined
+    const childPointer = `${pointer}/${escaped}`
+    const childSchemaPointer = declared
+      ? `${schemaPointer}/properties/${escaped}`
+      : `${schemaPointer}/additionalProperties`
+    const memberDeclaring = childDeclaring(location, key, rootSchema)
+    const decision = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'enqueue')
+    if (decision !== 'defer' && decision.kind === 'skip') continue
+    // Gated on the branch applying. A branch that does not apply demands
+    // nothing, so a provisionally selected one demands it of the user
+    // without the validator asking yet.
+    addChild(
+      nodes,
+      pointer,
+      key,
+      active && applicableRequired.has(key),
+      escaped,
+      active,
+      provisional && required.has(key),
     )
-    for (const [key, sub] of Object.entries(schema.properties)) {
-      const escaped = escapeSegment(key)
-      const childData = isRecord(data) ? data[key] : undefined
-      const childPointer = `${pointer}/${escaped}`
-      const childSchemaPointer = `${schemaPointer}/properties/${escaped}`
-      const memberDeclaring = childDeclaring(locationInfo(declaring, rootSchema, recursion), key, rootSchema)
-      const decision = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'enqueue')
-      if (decision !== 'defer' && decision.kind === 'skip') continue
-      // Gated on the branch applying. A branch that does not apply demands
-      // nothing, and a provisionally selected one demands it of the user
-      // without the validator asking yet.
-      addChild(
+    const childPath = nextPath()
+    const enter = (settled: Decision): void => {
+      if (settled.kind === 'skip') return
+      staticWalk(
+        sub,
+        childData,
+        childPointer,
+        childSchemaPointer,
+        childActive,
+        provisional,
+        isBranchActive,
         nodes,
-        pointer,
-        key,
-        active && required.has(key),
-        escaped,
-        active,
-        provisional && required.has(key),
+        decision === 'defer' ? new Set() : visited,
+        rootSchema,
+        recursion,
+        memberDeclaring,
+        settled.lineage,
+        childPath,
       )
-      const childPath = nextPath()
-      const enter = (settled: Decision): void => {
-        if (settled.kind === 'skip') return
-        staticWalk(
-          sub,
-          childData,
-          childPointer,
-          childSchemaPointer,
-          active,
-          provisional,
-          isBranchActive,
-          nodes,
-          decision === 'defer' ? new Set() : visited,
-          rootSchema,
-          recursion,
-          memberDeclaring,
-          settled.lineage,
-          childPath,
-        )
-      }
-      if (decision === 'defer') {
-        ;(recursion.queue[lineage!.depth] ??= []).push({
-          path: childPath,
-          enter: () => {
-            const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
-            if (settled !== 'defer') enter(settled)
-          },
-        })
-      } else enter(decision)
     }
+    if (decision === 'defer') {
+      ;(recursion.queue[lineage!.depth] ??= []).push({
+        path: childPath,
+        enter: () => {
+          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
+          if (settled !== 'defer') enter(settled)
+        },
+      })
+    } else enter(decision)
   }
 
   // allOf branches always inherit the parent's active flag (they are

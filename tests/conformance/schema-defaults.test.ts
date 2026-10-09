@@ -61,6 +61,57 @@ describe.each([
     })
   })
 
+  it('fills a required member whose default comes from additionalProperties', async () => {
+    const runtime = await runtimeFor(
+      {
+        type: 'object',
+        required: ['name'],
+        additionalProperties: { type: 'string', default: 'Ada' },
+      },
+      { initialization: 'schema-defaults' },
+    )
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Ada' })
+    runtime.destroy()
+  })
+
+  it('fills a required member declared separately from its additionalProperties default', async () => {
+    const runtime = await runtimeFor(
+      {
+        type: 'object',
+        allOf: [
+          { required: ['name'] },
+          { additionalProperties: { type: 'string', default: 'Ada' } },
+        ],
+      },
+      { initialization: 'schema-defaults' },
+    )
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Ada' })
+    runtime.destroy()
+  })
+
+  it('does not initialize a member required only by an inactive conditional', async () => {
+    const schema = {
+      type: 'object',
+      properties: { flag: { type: 'boolean' } },
+      additionalProperties: { type: 'string', default: 'Ada' },
+      if: { properties: { flag: { const: true } }, required: ['flag'] },
+      then: { required: ['secret'] },
+    }
+    const inactive = await runtimeFor(schema, {
+      initialization: 'schema-defaults',
+      initialData: { flag: false },
+    })
+    expect(inactive.data.getSnapshot()).toEqual({ flag: false })
+    inactive.destroy()
+
+    const active = await runtimeFor(schema, {
+      initialization: 'schema-defaults',
+      initialData: { flag: true },
+    })
+    expect(active.data.getSnapshot()).toEqual({ flag: true, secret: 'Ada' })
+    active.destroy()
+  })
+
   it('leaves a value the caller supplied', async () => {
     const runtime = await runtimeFor(frictionSchema, {
       initialization: 'schema-defaults',

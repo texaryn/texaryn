@@ -136,6 +136,34 @@ const conditionalRows: readonly Row[] = [
 const rows: readonly Row[] = [
   { id: 'a typeless root with properties', schema: { properties: { a: S } }, expected: { nodes: { '': 'object', '/a': 'string' } } },
   {
+    id: 'a data member governed by additionalProperties',
+    schema: {
+      patternProperties: { '^matched': { type: 'number' } },
+      additionalProperties: { type: 'string' },
+    },
+    data: { matched: 1, note: 'hello' },
+    expected: { nodes: { '': 'object', '/note': 'string' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object', '/matched': 'number', '/note': 'string' },
+        reason: 'the adapter also projects members matched by patternProperties',
+      },
+    },
+  },
+  {
+    id: 'a nested data member governed by additionalProperties',
+    schema: {
+      additionalProperties: { type: 'object', properties: { label: S } },
+    },
+    data: { extra: { label: 'value' } },
+    expected: { nodes: { '': 'object', '/extra': 'object', '/extra/label': 'string' } },
+  },
+  {
+    id: 'a required member governed by additionalProperties before data exists',
+    schema: { required: ['name'], additionalProperties: S },
+    expected: { nodes: { '': 'object', '/name': 'string' } },
+  },
+  {
     id: 'a typeless root with required and properties',
     schema: { required: ['a'], properties: { a: S } },
     expected: { nodes: { '': 'object', '/a': 'string' } },

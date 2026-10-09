@@ -284,7 +284,11 @@ function declaredBelow(info: LocationInfo, member: (node: SchemaNode) => SchemaN
 export function childDeclaring(info: LocationInfo, key: string): readonly SchemaNode[] {
   const cached = info.children.get(key)
   if (cached) return cached
-  const found = declaredBelow(info, (node) => node.properties?.[key] as SchemaNode | undefined)
+  const found = declaredBelow(info, (node) => {
+    if (Object.hasOwn(node.properties ?? {}, key)) return node.properties?.[key]
+    if (node.patternProperties?.some(({ pattern }) => pattern.test(key))) return undefined
+    return node.additionalProperties
+  })
   info.children.set(key, found)
   return found
 }
