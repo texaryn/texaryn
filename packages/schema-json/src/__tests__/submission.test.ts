@@ -198,6 +198,108 @@ describe('projected submission data', () => {
     expect((await adapter.validate(submission)).valid).toBe(true)
   })
 
+  it('applies each prefix and tail item schema while projecting selected fields', async () => {
+    const prefixRow = {
+      type: 'object',
+      properties: { enabled: { type: 'boolean' } },
+      if: { properties: { enabled: { const: true } }, required: ['enabled'] },
+      then: { properties: { prefixActive: { type: 'string' } } },
+      else: { properties: { prefixInactive: { type: 'string' } } },
+    }
+    const tailRow = {
+      type: 'object',
+      properties: { enabled: { type: 'boolean' } },
+      if: { properties: { enabled: { const: true } }, required: ['enabled'] },
+      then: { properties: { tailActive: { type: 'string' } } },
+      else: { properties: { tailInactive: { type: 'string' } } },
+    }
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'array',
+      prefixItems: [prefixRow],
+      items: tailRow,
+    })
+    const data = [
+      { enabled: true, prefixActive: 'first', prefixInactive: 'stale', tailActive: 'stale', tailInactive: 'stale' },
+      { enabled: false, prefixActive: 'stale', prefixInactive: 'stale', tailActive: 'stale', tailInactive: 'second' },
+    ]
+
+    expect(adapter.projectSubmission!(data)).toEqual([
+      { enabled: true, prefixActive: 'first', tailActive: 'stale', tailInactive: 'stale' },
+      { enabled: false, prefixActive: 'stale', prefixInactive: 'stale', tailInactive: 'second' },
+    ])
+  })
+
+  it('ignores draft-07 reference siblings while retaining undeclared data', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: {
+        row: {
+          $ref: '#/definitions/row',
+          properties: { siblingOnly: { type: 'string' } },
+        },
+      },
+      definitions: { row: { type: 'object', properties: { kept: { type: 'string' } } } },
+    })
+    const data = { row: { kept: 'value', siblingOnly: 'unvalidated' } }
+
+    expect(adapter.projectSubmission!(data)).toEqual(data)
+  })
+
+  it('includes schema dependencies when projecting a selected draft-07 field', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: { enabled: { type: 'boolean' }, item: { type: 'object' } },
+      dependencies: {
+        enabled: {
+          properties: {
+            item: {
+              if: false,
+              then: { properties: { stale: { type: 'string' } } },
+            },
+          },
+        },
+      },
+    })
+    const data = { enabled: true, item: { stale: 'discard' } }
+
+    expect(adapter.projectSubmission!(data)).toEqual({ enabled: true, item: {} })
+  })
+
+  it('projects pattern-matched fields through their selected conditional schema', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      patternProperties: {
+        '^item': {
+          properties: { enabled: { type: 'boolean' } },
+          if: { properties: { enabled: { const: true } }, required: ['enabled'] },
+          then: { properties: { active: { type: 'string' } } },
+          else: { properties: { inactive: { type: 'string' } } },
+        },
+      },
+    })
+    const data = { itemRow: { enabled: false, active: 'stale', inactive: 'kept' } }
+
+    expect(adapter.projectSubmission!(data)).toEqual({ itemRow: { enabled: false, inactive: 'kept' } })
+  })
+
+  it('deep clones array rows rejected by an items schema', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'array',
+      items: false,
+    })
+    const row = { nested: { value: 'kept' } }
+    const submission = adapter.projectSubmission!([row]) as typeof row[]
+
+    expect(submission).toEqual([row])
+    expect(submission[0]).not.toBe(row)
+    expect(submission[0]?.nested).not.toBe(row.nested)
+  })
+
   it('terminates when an unreachable recursive branch is inspected for declarations', async () => {
     const adapter = await createJsonSchemaAdapter({
       $schema: 'https://json-schema.org/draft/2020-12/schema',

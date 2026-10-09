@@ -91,4 +91,31 @@ describe('projection and validation reference targets', () => {
       projectionPosition: '#/properties/value',
     })
   })
+
+  it('accepts equivalent targets under escaped keys and prefix items', async () => {
+    const target = {
+      type: 'array',
+      prefixItems: [{ type: 'object', properties: { 'a/b~c': { type: 'string', minLength: 2 } } }],
+    }
+    const schema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      then: { properties: { value: target } },
+      properties: { value: target, result: { $ref: '#/properties/value' } },
+    }
+
+    await expect(createJsonSchemaAdapter(schema)).resolves.toBeDefined()
+  })
+
+  it('reports a missing local reference as an unresolved shape', async () => {
+    const schema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: { result: { $ref: '#/$defs/missing' } },
+      $defs: {},
+    }
+
+    const adapter = await createJsonSchemaAdapter(schema)
+    expect(adapter.project({}).diagnostics?.map(({ code }) => code)).toContain('unresolved-projection-shape')
+  })
 })

@@ -108,6 +108,14 @@ const rows: Row[] = [
     keywords: ['type'],
   },
   {
+    name: 'items false under allOf points to the array',
+    dialects: ['2020-12'],
+    schema: { allOf: [{ properties: { k: { type: 'array', prefixItems: [{}], items: false } } }] },
+    data: { k: [1, 2] },
+    pointers: ['/k'],
+    keywords: ['type'],
+  },
+  {
     name: 'items and prefixItems property names stay ordinary properties',
     dialects: ['2020-12'],
     schema: { properties: { items: false, prefixItems: { type: 'string' } } },

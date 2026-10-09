@@ -5,6 +5,7 @@ import type { NodeProjection, SchemaProjection } from '@texaryn/core'
 import { createFormRuntime } from '@texaryn/core'
 import { createHyperjumpAdapter } from '../index.js'
 import { createAdapter } from '../adapter.js'
+import { buildSchemaGraph, markPositions, ProjectionMarkerCollisionError } from '../schema-graph.js'
 import { metaschemas } from './draft-07-metaschema.js'
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
@@ -372,6 +373,118 @@ describe('a branch under a boolean if', () => {
     expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y'])
     expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
     expect(outline(await project(schema, { b: { a: {} } }))).toEqual(['', '/b', '/b/a', '/b/a/y'])
+  })
+})
+
+describe('missing conditional scope reference guards', () => {
+  it.each([
+    ['a dynamic reference', { $dynamicRef: '#target' }],
+    ['an anchor reference', { $ref: '#target' }],
+    ['a resource identifier reference', { $ref: 'https://example.com/remote' }],
+  ] as const)('does not infer a branch through %s', async (_label, reference) => {
+    const schema = on2020({
+      $id: 'https://example.com/root',
+      $defs: {
+        target: { $anchor: 'target', $dynamicAnchor: 'target', type: 'object' },
+        remote: { $id: 'https://example.com/remote', type: 'object' },
+      },
+      type: 'object',
+      properties: {
+        child: {
+          type: 'object',
+          if: { $defs: { unused: reference }, properties: { enabled: { const: true } } },
+          then: { properties: { selected: S } },
+          else: { properties: { rejected: S } },
+        },
+      },
+    })
+
+    const projection = await project(schema, {})
+    expect(projection.nodes.get('/child/selected' as never)?.active ?? false).toBe(false)
+    expect(projection.nodes.get('/child/rejected' as never)?.active ?? false).toBe(false)
+  })
+
+  it('analyzes tuple item references in a draft-07 condition', async () => {
+    const projection = await project({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: { target: { type: 'string' } },
+      properties: {
+        child: {
+          type: 'object',
+          if: { items: [{ $ref: '#/definitions/target' }] },
+          then: { properties: { selected: S } },
+          else: { properties: { rejected: S } },
+        },
+      },
+    }, {})
+
+    expect(projection.nodes.get('/child/selected' as never)?.active).toBe(true)
+    expect(projection.nodes.get('/child/rejected' as never)?.active).toBe(false)
+  })
+
+  it('declines a draft-07 condition with an external reference in tuple items', async () => {
+    const projection = await project({
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      $id: 'https://example.com/root',
+      type: 'object',
+      definitions: { remote: { $id: 'https://example.com/remote', type: 'object' } },
+      properties: {
+        child: {
+          type: 'object',
+          if: { items: [{ $ref: 'https://example.com/remote' }] },
+          then: { properties: { selected: S } },
+          else: { properties: { rejected: S } },
+        },
+      },
+    }, {})
+
+    expect(projection.nodes.get('/child/selected' as never)?.active ?? false).toBe(false)
+    expect(projection.nodes.get('/child/rejected' as never)?.active ?? false).toBe(false)
+  })
+
+  it('checks missing locations below existing array items', async () => {
+    const projection = await project(on2020({
+      type: 'object',
+      properties: {
+        rows: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              child: {
+                type: 'object',
+                if: { required: ['enabled'] },
+                then: { properties: { selected: S } },
+                else: { properties: { rejected: S } },
+              },
+            },
+          },
+        },
+      },
+    }), { rows: [{}] })
+
+    expect(projection.nodes.get('/rows/0/child/selected' as never)?.active).toBe(false)
+    expect(projection.nodes.get('/rows/0/child/rejected' as never)?.active).toBe(true)
+  })
+})
+
+describe('projection marker collisions', () => {
+  it('rejects a reachable schema that declares the reserved position key', async () => {
+    const schema = { type: 'object', properties: { value: { type: 'string', 'x-texaryn-position': 'user-data' } } }
+    const graph = buildSchemaGraph(schema, '2020-12')
+    const error = (() => {
+      try {
+        markPositions(graph, schema)
+      } catch (caught) {
+        return caught
+      }
+      return undefined
+    })()
+
+    expect(error).toBeInstanceOf(ProjectionMarkerCollisionError)
+    expect(error).toMatchObject({ position: '#/properties/value' })
+    expect(schema.properties.value['x-texaryn-position']).toBe('user-data')
   })
 })
 
