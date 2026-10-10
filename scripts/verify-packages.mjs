@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { publishedPackages } from './packages.mjs'
 
 const packages = publishedPackages
@@ -22,6 +23,7 @@ for (const pkg of packages) {
   console.log(`\n=== ${pkg.name} ===\n`)
 
   const tmp = mkdtempSync(join(process.cwd(), pkg.dir, '.verify-'))
+  let isolatedConsumerDir
   try {
     execSync(`pnpm pack --pack-destination ${tmp}`, {
       cwd: pkg.dir,
@@ -51,6 +53,35 @@ for (const pkg of packages) {
     // Every package versions independently, so an internal dependency has to
     // publish as a caret range. An exact pin silently restores lockstep.
     const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
+    if (pkg.name === '@texaryn/schema-json') {
+      const vendoredFiles = [
+        'package/dist/vendor/json-schema-library/index.mjs',
+        'package/dist/vendor/json-schema-library/index.mjs.map',
+        'package/dist/vendor/json-schema-library/LICENSE.md',
+      ]
+      for (const file of vendoredFiles) {
+        if (!files.includes(file)) {
+          console.error(`MISSING: ${file}`)
+          failed = true
+        }
+      }
+
+      const adapter = execSync(`tar xzf ${tarball} -O package/dist/adapter.js`, { encoding: 'utf8' })
+      if (!adapter.includes('./vendor/json-schema-library/index.mjs')) {
+        console.error('schema-json runtime does not use its vendored json-schema-library')
+        failed = true
+      }
+
+      const vendoredRuntime = execSync(
+        `tar xzf ${tarball} -O package/dist/vendor/json-schema-library/index.mjs`,
+        { encoding: 'utf8' },
+      )
+      if (!vendoredRuntime.includes('if(error)return;') || !vendoredRuntime.includes('if(d.error){error=d.error;return}')) {
+        console.error('schema-json vendor is missing the dependent schema reduction fix')
+        failed = true
+      }
+    }
+
     for (const field of ['dependencies', 'peerDependencies']) {
       for (const [dep, range] of Object.entries(manifest[field] ?? {})) {
         if (!dep.startsWith('@texaryn/')) continue
@@ -87,8 +118,39 @@ for (const pkg of packages) {
     }
 
     console.log(`\n  import smoke test:`)
-    const extractDir = join(tmp, 'extracted')
+    const extractDir =
+      pkg.name === '@texaryn/schema-json'
+        ? (isolatedConsumerDir = mkdtempSync(join(tmpdir(), 'texaryn-schema-json-consumer-')))
+        : join(tmp, 'extracted')
     execSync(`mkdir -p ${extractDir} && tar xzf ${tarball} -C ${extractDir}`)
+    if (pkg.name === '@texaryn/schema-json') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const runtimeDependencies = [
+        '@sagold/json-pointer',
+        'fast-copy',
+        'fast-deep-equal',
+        'uri-js',
+        'valid-url',
+      ]
+      for (const dependency of runtimeDependencies) {
+        const source = join(process.cwd(), pkg.dir, 'node_modules', dependency)
+        const target = join(isolatedNodeModules, dependency)
+        if (!existsSync(source)) {
+          console.error(`MISSING workspace runtime dependency: ${dependency}`)
+          failed = true
+          continue
+        }
+        mkdirSync(dirname(target), { recursive: true })
+        symlinkSync(source, target, 'dir')
+      }
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+      if (existsSync(join(isolatedNodeModules, 'json-schema-library'))) {
+        console.error('schema-json packed consumer smoke must not resolve json-schema-library from the workspace')
+        failed = true
+      }
+    }
     try {
       const mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
       if (!(pkg.expectedExport in mod)) {
@@ -97,12 +159,36 @@ for (const pkg of packages) {
       } else {
         console.log(`  ok: ${pkg.expectedExport} exported`)
       }
+      if (pkg.name === '@texaryn/schema-json') {
+        const schema = {
+          type: 'object',
+          properties: { flag: { type: 'boolean' } },
+          dependencies: {
+            flag: {
+              oneOf: [
+                { properties: { flag: { const: false } } },
+                { properties: { flag: { const: true }, extra: { type: 'string' } }, required: ['extra'] },
+              ],
+            },
+          },
+        }
+        const adapter = await mod.createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
+        const projection = adapter.project({ flag: true })
+        const validation = await adapter.validate({ flag: true })
+        if (!projection.nodes.has('/flag') || validation.valid) {
+          console.error('Packed schema-json consumer regression failed')
+          failed = true
+        } else {
+          console.log('  ok: packed consumer projects and rejects invalid oneOf dependencies')
+        }
+      }
     } catch (err) {
       console.error(`Import failed for ${pkg.name}: ${err.message}`)
       failed = true
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true })
+    if (isolatedConsumerDir) rmSync(isolatedConsumerDir, { recursive: true, force: true })
   }
 }
 
