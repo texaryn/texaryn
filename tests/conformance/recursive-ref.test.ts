@@ -6,5 +6,5 @@ const jsonSchemaLibrary = (schema: Record<string, unknown>) => createJsonSchemaA
 const hyperjump = (schema: Record<string, unknown>) => createHyperjumpAdapter(schema)
 
 recursiveRefSuite('json-schema-library', jsonSchemaLibrary)
-recursiveRefSuite('@hyperjump/json-schema', hyperjump, { localReferencesOnly: true })
+recursiveRefSuite('@hyperjump/json-schema', hyperjump)
 recursiveRefParity(jsonSchemaLibrary, hyperjump)

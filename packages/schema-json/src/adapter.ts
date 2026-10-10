@@ -109,6 +109,7 @@ export async function createAdapter(
     marked.at,
     dynamicReferenceProjection,
     !dynamicReferenceProjection && !hasOneOf([marked.document, marked.remotes]),
+    graph.retainedPositions,
   )
 
   return {

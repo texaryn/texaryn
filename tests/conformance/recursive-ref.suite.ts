@@ -20,8 +20,6 @@ interface Fixture {
   id: string
   schema: () => Record<string, unknown>
   data: readonly unknown[]
-  /** Reaches a schema through an `$id` resource rather than a `#` fragment. */
-  nonLocal?: true
 }
 
 const S = { type: 'string' }
@@ -224,7 +222,6 @@ const fixtures: readonly Fixture[] = [
   },
   {
     id: 'eq-id-resources',
-    nonLocal: true,
     schema: () => ({
       ...obj({ start: { $ref: 'http://x.test/a/root.json' } }),
       $defs: {
@@ -257,7 +254,6 @@ const fixtures: readonly Fixture[] = [
   },
   {
     id: 'id-boundary-in-defs',
-    nonLocal: true,
     schema: () => ({
       ...obj({ n: { $ref: 'https://example.com/node' } }),
       $defs: { node: { $id: 'https://example.com/node', ...obj({ v: S, next: { $ref: '#' } }) } },
@@ -782,17 +778,14 @@ const expectCycle = async (created: Promise<unknown>, positions: readonly (reado
 export function recursiveRefSuite(
   name: string,
   createAdapter: AdapterFactory,
-  options: { localReferencesOnly?: boolean } = {},
 ): void {
-  const own = fixtures.filter((fixture) => !(options.localReferencesOnly && fixture.nonLocal))
-
   describe(`${name}: recursive projection`, () => {
-    it.each(cases(own))('$fixture.id in $dialect at $data keeps the projection whole', async ({ fixture, dialect, data }) => {
+    it.each(cases(fixtures))('$fixture.id in $dialect at $data keeps the projection whole', async ({ fixture, dialect, data }) => {
       const port = await createAdapter(inDialect(dialect, fixture.schema()))
       expect(violations(port.project(structuredClone(data)), data)).toEqual([])
     })
 
-    it.each(cases(own).filter(({ fixture, dialect }) => expectedFor(fixture.id, dialect)))(
+    it.each(cases(fixtures).filter(({ fixture, dialect }) => expectedFor(fixture.id, dialect)))(
       '$fixture.id in $dialect at $data projects once past the data',
       async ({ fixture, dialect, data, depth }) => {
         const port = await createAdapter(inDialect(dialect, fixture.schema()))
@@ -842,30 +835,6 @@ export function recursiveRefSuite(
 /** Active-flag exceptions are not allowed; all fixtures must match across adapters. */
 const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {}
 
-/**
- * Pre-existing pointer differences, by case: `a` lists what only the first adapter projects, `b`
- * what only the second does. Main's schema-json projects no field of an inactive branch below a
- * location another declaration already declares, where hyperjump projects it inactive.
- */
-const KNOWN_POINTER_DIFFERENCES: Readonly<Record<string, { a?: readonly string[]; b?: readonly string[] }>> = Object.fromEntries(
-  PROJECTED.flatMap((dialect) =>
-    (
-      [
-        ['dead-else-in-a-merged-branch', 0, { b: ['/b/a/y'] }],
-        ['dead-else-in-a-merged-branch', 1, { b: ['/b/a/y'] }],
-        ['dead-else-in-a-merged-branch', 2, { b: ['/b/a/y'] }],
-        ['live-else-if-false-in-a-conditional-branch', 1, { b: ['/b/a/y'] }],
-      ] as const
-    ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
-  ),
-)
-
-const without = (summary: ReturnType<typeof summarize>, pointers: readonly string[]) => ({
-  pointers: summary.pointers.filter((pointer) => !pointers.includes(pointer)),
-  boundaries: Object.fromEntries(Object.entries(summary.boundaries).filter(([pointer]) => !pointers.includes(pointer))),
-  expansion: summary.expansion.filter((pointer) => !pointers.includes(pointer)),
-})
-
 /** Adapter choice must not change what a recursive form shows. */
 export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFactory): void {
   describe('recursive projection parity between the adapters', () => {
@@ -873,15 +842,8 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
       const schema = inDialect(dialect, fixture.schema())
       const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
       const [pa, pb] = [a.project(structuredClone(data)), b.project(structuredClone(data))]
-      // Pointer parity is checked for fragment-local fixtures; non-local cases are excluded here.
-      if (!fixture.nonLocal) {
-        const [sa, sb] = [summarize(pa), summarize(pb)]
-        const known = KNOWN_POINTER_DIFFERENCES[`${fixture.id} ${dialect} ${depth}`] ?? {}
-        expect(sa.pointers.filter((pointer) => !sb.pointers.includes(pointer))).toEqual(known.a ?? [])
-        expect(sb.pointers.filter((pointer) => !sa.pointers.includes(pointer))).toEqual(known.b ?? [])
-        const differing = [...(known.a ?? []), ...(known.b ?? [])]
-        expect(without(sb, differing)).toEqual(without(sa, differing))
-      }
+      const [sa, sb] = [summarize(pa), summarize(pb)]
+      expect(sb).toEqual(sa)
       const differing = [...pa.nodes]
         .filter(([pointer, node]) => pb.nodes.has(pointer) && pb.nodes.get(pointer)!.active !== node.active)
         .map(([pointer]) => pointer)
@@ -889,6 +851,64 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
       expect(differing).toEqual(KNOWN_ACTIVE_DIFFERENCES[`${fixture.id} ${dialect} ${depth}`] ?? [])
       const [va, vb] = await Promise.all([a.validate(structuredClone(data)), b.validate(structuredClone(data))])
       expect(vb.valid).toBe(va.valid)
+    })
+
+    const retainedCases = [
+      [
+        'identifier',
+        () => ({
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { $id: 'https://example.com/retained', properties: { y: S } } },
+            },
+          },
+        }),
+        true,
+      ],
+      [
+        'reference',
+        () => ({
+          ...obj({ a: { type: 'object' }, reach: { $ref: '#/then/properties/a/else' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { properties: { y: S } } },
+            },
+          },
+        }),
+        true,
+      ],
+      [
+        'annotation data',
+        () => ({
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { default: { $id: 'ordinary-data' }, properties: { y: S } } },
+            },
+          },
+        }),
+        false,
+      ],
+    ] as const
+
+    it.each(retainedCases)('projects a nested inactive branch according to its %s status', async (_reason, schemaFactory, retained) => {
+      for (const dialect of PROJECTED) {
+        const schema = inDialect(dialect, schemaFactory())
+        const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
+        const [pa, pb] = [a.project({}), b.project({})]
+        for (const [adapter, projection] of [['schema-json', pa], ['hyperjump', pb]] as const) {
+          const node = projection.nodes.get('/a/y' as JsonPointer)
+          if (retained) {
+            expect(node, `${_reason} ${dialect} ${adapter}`).toBeDefined()
+            expect(node?.active, `${_reason} ${dialect} ${adapter}`).toBe(false)
+          } else expect(node, `${_reason} ${dialect} ${adapter}`).toBeUndefined()
+        }
+        expect(summarize(pb)).toEqual(summarize(pa))
+      }
     })
   })
 }
