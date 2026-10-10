@@ -1851,7 +1851,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.0, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
 The post-release list, ordered after the Backstage adoption exercise, has 11 items: 8 are complete, 1 is declined, and 2 retain upstream dependencies.
 
@@ -1859,7 +1859,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash | Merged PR #193 packages the local workaround; upstream #124 remains open |
+| 3 | `oneOf` inside `dependencies` crash | Merged PR #193 packages the local workaround. Upstream issue #124 remains open, with the reviewed fix proposed in [PR #139](https://github.com/sagold/json-schema-library/pull/139). Its upstream CI awaits repository admin approval; the local full suite passed 8,531 tests, with 12 pending. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1877,7 +1877,7 @@ Shared conformance coverage now includes an inactive `anyOf` branch inside an ar
 
 Projection shape inference now includes unconditional `allOf` members in the schema-json adapter. Shared conformance covers typeless object shapes supplied only by `allOf` and mixed object plus array families across `allOf`; both adapters now produce matching projections and diagnostics.
 
-The Draft 7 registry overwrite report is filed upstream as json-schema-library issue #138. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
+The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) proposes a fix and remains open without checks. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
 Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alternatives imply objects, and marks missing object-only `anyOf` branches active when they accept `{}`. It retains ambiguous families when an alternative's `allOf` members conflict. Shared conformance covers these cases and no longer records these adapter differences.
 
@@ -1897,7 +1897,7 @@ The ChatGPT design review recommends keeping finalized-subtree caching deferred.
 
 The Draft 7 reference registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Issue #179 is closed after the bounded dynamic projection merged. Cross-projection subtree caching remains deferred.
 
-Version PR #195 published `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.0, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0, and `@texaryn/web-components` 0.5.0. The release workflow created one immutable `@texaryn/package@version` tag and matching GitHub release for each package.
+Version PR #195 published `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.0, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0, and `@texaryn/web-components` 0.5.0. Release PR #204 published `@texaryn/schema-json` 0.8.1; main CI run [38095274387](https://github.com/texaryn/texaryn/actions/runs/38095274387) passed and created the immutable `@texaryn/schema-json@0.8.1` tag and matching GitHub release. The release workflow creates one immutable `@texaryn/package@version` tag and matching GitHub release for each package.
 
 
 ### Phase 0: Foundation (PRs 1-5)
