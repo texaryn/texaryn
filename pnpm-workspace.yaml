@@ -4,3 +4,5 @@ packages:
   - 'tests'
 allowBuilds:
   esbuild: true
+patchedDependencies:
+  json-schema-library@11.6.2: patches/json-schema-library@11.6.2.patch

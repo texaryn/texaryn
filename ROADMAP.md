@@ -14,7 +14,7 @@ takes explicit positions. Where the evidence supports a decision, the decision i
 stated. Where it does not, the question is listed as open with the information
 needed to close it.
 
-The current state and the remaining work are in [Status, 2026-10-03](#status-2026-10-03).
+The current state and the remaining work are in [Status, 2026-10-10](#status-2026-10-10).
 
 ## Table of Contents
 
@@ -1849,17 +1849,17 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ## 19. Milestones and First PRs
 
-### Status, 2026-10-03
+### Status, 2026-10-10
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
-The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are complete or declined, 1 is deferred until an adopter needs it, 2 wait on upstream, and 1 remains as local work.
+The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are complete or declined, 1 is deferred until an adopter needs it, 2 have upstream follow-up, and 1 remains as local work.
 
 | # | Item | State |
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash | Waits on an upstream fix (#121), no local workaround |
+| 3 | `oneOf` inside `dependencies` crash | Locally patched in pnpm; upstream fix remains open (#121, #124) |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1876,7 +1876,7 @@ Priorities for what remains:
 3. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
 4. #126, optional submission projection, a design question.
 
-#121 waits on an upstream fix. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. Neither is counted as local work. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
+#121 is patched locally against `json-schema-library@11.6.2`. Keep the regression in place until upstream issue #124 is fixed and a published upstream version passes it, then remove the local patch. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
 
 
 ### Phase 0: Foundation (PRs 1-5)

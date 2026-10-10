@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  json-schema-library@11.6.2: 965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc
+
 importers:
 
   .:
@@ -284,7 +287,7 @@ importers:
         version: link:../core
       json-schema-library:
         specifier: 11.6.2
-        version: 11.6.2
+        version: 11.6.2(patch_hash=965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc)
     devDependencies:
       tsx:
         specifier: ^4.23.12
@@ -6926,7 +6929,7 @@ snapshots:
     dependencies:
       lodash: 4.18.1
 
-  json-schema-library@11.6.2:
+  json-schema-library@11.6.2(patch_hash=965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc):
     dependencies:
       '@hyperjump/json-schema-formats': 1.0.5
       '@sagold/json-pointer': 7.2.1
