@@ -16,6 +16,7 @@ export interface ProjectionCache {
   readonly dialect: Dialect
   readonly schemaAt: (position: string) => unknown
   readonly dynamicReferenceProjection: boolean
+  readonly memoizeUndefinedBranchResults: boolean
   readonly closure: Map<string, readonly string[]>
   readonly info: Map<string, LocationInfo>
   readonly cyclic: ReadonlySet<string>
@@ -26,8 +27,17 @@ export function newProjectionCache(
   cyclic: ReadonlySet<string>,
   schemaAt: (position: string) => unknown,
   dynamicReferenceProjection = false,
+  memoizeUndefinedBranchResults = false,
 ): ProjectionCache {
-  return { dialect, schemaAt, dynamicReferenceProjection, closure: new Map(), info: new Map(), cyclic }
+  return {
+    dialect,
+    schemaAt,
+    dynamicReferenceProjection,
+    memoizeUndefinedBranchResults,
+    closure: new Map(),
+    info: new Map(),
+    cyclic,
+  }
 }
 
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const

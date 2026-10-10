@@ -1880,7 +1880,15 @@ This branch also adds a weekly and manually dispatched compatibility workflow fo
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed locally in PR #193 while upstream issue [sagold/json-schema-library#124](https://github.com/sagold/json-schema-library/issues/124) remains open. Keep the package workaround until an upstream release passes the regression. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy. #179 remains open for integration of the bounded local dynamic form projection and its other deferred follow-ups.
+#121 is fixed locally in PR #193 while upstream issue [sagold/json-schema-library#124](https://github.com/sagold/json-schema-library/issues/124) remains open. Keep the package workaround until an upstream release passes the regression. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+
+The local `feat/projection-roadmap-followups` branch combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and missing-value branch validation memoization. The boundary and performance changes were reviewed separately by ChatGPT. The combined branch still needs integration verification and review.
+
+The isolated performance branch passed 563 schema-json tests, the package build, and typecheck. The missing-value memo reduced median projection time from 33.322 ms to 16.457 ms on the Draft 7 metaschema, and from 51.770 ms to 26.651 ms on a nested schema, with identical output digests. A separate static cache and reduction guard measured 1.5% to 4.1% median gains on its measured workloads. These measurements are local and have not been rerun on the combined branch.
+
+The ChatGPT design review recommends keeping finalized-subtree caching deferred. Shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission, so a cached subtree cannot safely bypass the current traversal queue.
+
+The Draft 7 reference registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). #179 remains open until the combined implementation is reviewed, verified, and integrated. Cross-projection subtree caching remains deferred.
 
 
 ### Phase 0: Foundation (PRs 1-5)

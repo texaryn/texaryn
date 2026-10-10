@@ -102,7 +102,13 @@ export async function createAdapter(
     )
     enableLocalDynamicReferenceScopes(submissionSchema, dialect, externalResourceIds)
   }
-  const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at, dynamicReferenceProjection)
+  const cache = newProjectionCache(
+    dialect,
+    cyclicPositions(graph),
+    marked.at,
+    dynamicReferenceProjection,
+    !hasOneOf([marked.document, marked.remotes]),
+  )
 
   return {
     project(data: unknown, options?: ProjectionOptions): SchemaProjection {
@@ -536,6 +542,25 @@ async function prepareSchema(
   })
   fixRootReference(root, dialect)
   return root
+}
+
+function hasOneOf(value: unknown, visited = new WeakSet<object>()): boolean {
+  if (typeof value !== 'object' || value === null || visited.has(value)) return false
+  visited.add(value)
+
+  let descriptors: PropertyDescriptorMap
+  try {
+    descriptors = Object.getOwnPropertyDescriptors(value)
+  } catch {
+    return true
+  }
+  const properties = Object.values(descriptors)
+  if (properties.some((descriptor) => !('value' in descriptor))) return true
+  const oneOf = descriptors.oneOf
+  if (oneOf && Array.isArray(oneOf.value) && oneOf.value.length > 0) {
+    return true
+  }
+  return properties.some((descriptor) => hasOneOf(descriptor.value, visited))
 }
 
 // jsl error codes are kebab-case ("min-length-error"); ValidationError.keyword is expected
