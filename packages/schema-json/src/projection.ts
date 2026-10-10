@@ -973,7 +973,8 @@ function collectCandidateProperties(
     for (const branch of [resolved.if, resolved.then, resolved.else]) {
       if (branch) visit(branch, false)
     }
-    for (const branches of [resolved.allOf, resolved.anyOf, resolved.oneOf]) {
+    for (const branch of resolved.allOf ?? []) visit(branch, own)
+    for (const branches of [resolved.anyOf, resolved.oneOf]) {
       for (const branch of branches ?? []) visit(branch, false)
     }
     for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
@@ -1531,10 +1532,16 @@ function walk(
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
       (schema.properties as Record<string, unknown> | undefined) ??
       {}
+    const candidateProps = collectCandidateProperties(original, dataRecord)
     const activeKeys = new Set([
       ...Object.keys(reducedProperties),
       ...additionalPropertyKeys(reducedNode, dataRecord),
     ])
+    if (!reducedNode) {
+      for (const [key, candidate] of candidateProps) {
+        if (candidate.direct) activeKeys.add(key)
+      }
+    }
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
 
     // Two conditions, and they are not the same kind of condition.
@@ -1567,7 +1574,6 @@ function walk(
     // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
-    const candidateProps = collectCandidateProperties(original, dataRecord)
     const applicableRequired = applicableRequiredKeys(declaredAt.applicable, applicableData)
     const provisionalRequiredKeys = provisionalBranch
       ? applicableRequiredKeys([provisionalBranch], applicableData)

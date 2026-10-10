@@ -335,13 +335,20 @@ describe('static reference projection composition', () => {
         },
       },
       type: 'object',
-      properties: { field: { $ref: '#/$defs/target', title: 'Selected object' } },
+      properties: {
+        field: {
+          $ref: '#/$defs/target',
+          title: 'Selected object',
+          properties: { note: { type: 'string' } },
+        },
+      },
     })
 
     const projection = adapter.project({ field: { kind: 'a' } })
 
     expect(projection.nodes.get('/field' as JsonPointer)?.provisional).toBe(true)
     expect(projection.nodes.get('/field/value' as JsonPointer)?.provisional).toBe(true)
+    expect(projection.nodes.get('/field/note' as JsonPointer)?.active).toBe(true)
   })
 
   it('preserves each reference component resource scope', async () => {
