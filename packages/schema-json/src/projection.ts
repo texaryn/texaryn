@@ -17,6 +17,7 @@ import {
   followRef,
   itemDeclaring,
   locationInfo,
+  onlyPoints,
   positionOf,
   referenceKeywords,
   referenceOf,
@@ -151,7 +152,7 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   let cycle = false
   let unresolved = false
 
-  const visit = (current: SchemaNode): void => {
+  const visit = (current: SchemaNode, referringSite = false): void => {
     const position = positionOf(current)
     if (active.has(position)) {
       cycle = true
@@ -160,6 +161,11 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     if (completed.has(position)) return
     const references = referenceKeywords(current)
     if (references.length === 0) {
+      parts.push(current)
+      completed.add(position)
+      return
+    }
+    if (!referringSite && current.getDraftVersion() !== 'draft-07' && !onlyPoints(current)) {
       parts.push(current)
       completed.add(position)
       return
@@ -188,13 +194,42 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     completed.add(position)
   }
 
-  visit(node)
+  visit(node, true)
   if (cycle) return { node, cycle: true, unresolved: false }
   if (unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
   if (parts.length === 1) return { node: parts[0]!, cycle: false, unresolved: false }
   const position = JSON.stringify(parts.map(positionOf))
   const type = referenceCompositionType(parts)
+  const projectionFields: Record<string, unknown> = {}
+  const projectionKeys = [
+    'format',
+    'minLength',
+    'maxLength',
+    'minimum',
+    'maximum',
+    'exclusiveMinimum',
+    'exclusiveMaximum',
+    'multipleOf',
+    'minItems',
+    'maxItems',
+    'uniqueItems',
+    'enum',
+    'title',
+    'description',
+    'readOnly',
+    'writeOnly',
+    'deprecated',
+    'examples',
+  ] as const
+  for (const part of parts) {
+    const record = part.schema as Record<string, unknown> | undefined
+    if (!record || typeof record !== 'object') continue
+    for (const keyword of projectionKeys) {
+      if (keyword in record) projectionFields[keyword] = record[keyword]
+    }
+  }
   const schema = {
+    ...projectionFields,
     [POSITION]: `reference-composition:${position}`,
     ...(type === undefined ? {} : { type }),
     // Compile a harmless branch so json-schema-library installs the allOf

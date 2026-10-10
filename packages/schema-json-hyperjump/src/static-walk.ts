@@ -31,6 +31,17 @@ const VALID_TYPES = new Set<JsonSchemaType>([
   'null',
 ])
 
+const DRAFT07_OBJECT_SHAPE_KEYS = [
+  'properties',
+  'patternProperties',
+  'additionalProperties',
+  'propertyNames',
+  'required',
+  'minProperties',
+  'maxProperties',
+  'dependencies',
+] as const
+
 /**
  * Working node used while a projection is under construction. `type` starts
  * unresolved and is filled in by either the data-driven pass or this module's
@@ -134,7 +145,10 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
       continue
     }
     const types = Array.isArray(record.type) ? record.type : [record.type]
-    if (types.includes('object') || projectionTypeFamilies(record).has('object')) return false
+    const hasObjectShape = dialect === 'draft-07'
+      ? DRAFT07_OBJECT_SHAPE_KEYS.some((keyword) => record[keyword] !== undefined)
+      : projectionTypeFamilies(record).has('object')
+    if (types.includes('object') || hasObjectShape) return false
     for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
     for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
       const branches = record[keyword]
