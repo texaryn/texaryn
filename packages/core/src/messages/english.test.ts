@@ -3,6 +3,28 @@ import { englishMessages } from './english.js'
 import type { FormMessages } from './types.js'
 
 describe('englishMessages', () => {
+  it('names recursion and budget expansion controls by boundary and position', () => {
+    expect(englishMessages.expandBoundary!({
+      boundary: 'recursion',
+      containerTitle: 'Nodes',
+      position: 2,
+      count: 2,
+    })).toEqual({ label: 'Expand', accessibleName: 'Expand recursive fields 2 in Nodes' })
+
+    expect(englishMessages.expandBoundary!({
+      boundary: 'budget',
+      position: 1,
+      count: 1,
+    })).toEqual({ label: 'Show more fields', accessibleName: 'Show more fields' })
+
+    expect(englishMessages.expandBoundary!({
+      boundary: 'budget',
+      containerTitle: 'Rows',
+      position: 3,
+      count: 2,
+    })).toEqual({ label: 'Show more fields', accessibleName: 'Show more fields 3 in Rows' })
+  })
+
   it('names the add control from the container, else the item template, else nothing', () => {
     expect(englishMessages.addItem({ itemTemplateTitle: 'Tag', containerTitle: 'Tags' })).toEqual({
       label: 'Add',

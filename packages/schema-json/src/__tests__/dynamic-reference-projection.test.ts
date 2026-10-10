@@ -534,6 +534,23 @@ describe('local dynamic reference projection', () => {
     expect(projection.nodes.has(toPointer('/nested/next/nested/next'))).toBe(false)
   })
 
+  it('resolves a typeless allOf shape from its active dynamic scope', async () => {
+    const adapter = await adapterFor(on2020({
+      $id: 'https://example.test/root',
+      $dynamicAnchor: 'node',
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        child: { allOf: [{ $dynamicRef: '#node' }] },
+      },
+    }))
+
+    const projection = adapter.project({ name: 'root', child: { name: 'child' } })
+
+    expect(childKeys(projection, '/child')).toContain('name')
+    expect((await adapter.validate({ name: 'root', child: { name: 'child' } })).valid).toBe(true)
+  })
+
   it('rejects unsupported dialects, reference siblings, and applicator paths', async () => {
     await expect(createJsonSchemaAdapter({
       properties: { next: { $dynamicRef: '#node' } },

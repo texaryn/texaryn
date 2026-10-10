@@ -89,6 +89,21 @@ describe('boolean item schemas', () => {
 })
 
 describe('data-dependent additional properties', () => {
+  it('projects an additional-property schema declared in a separate allOf scope', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      allOf: [
+        { properties: { declared: { type: 'object', properties: { name: { type: 'string' } } } } },
+        { additionalProperties: { type: 'object', properties: { extra: { type: 'string' } } } },
+      ],
+    })
+
+    const projection = adapter.project({ declared: { name: 'known' }, other: { extra: 'unknown' } })
+
+    expect(projection.nodes.has('/declared/name' as never)).toBe(true)
+    expect(projection.nodes.has('/other/extra' as never)).toBe(true)
+  })
+
   it('recomputes candidate names for each projection of the same schema', async () => {
     const adapter = await createJsonSchemaAdapter({
       type: 'object',
