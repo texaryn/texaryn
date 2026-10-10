@@ -900,10 +900,12 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
         const schema = inDialect(dialect, schemaFactory())
         const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
         const [pa, pb] = [a.project({}), b.project({})]
-        for (const projection of [pa, pb]) {
+        for (const [adapter, projection] of [['schema-json', pa], ['hyperjump', pb]] as const) {
           const node = projection.nodes.get('/a/y' as JsonPointer)
-          if (retained) expect(node?.active).toBe(false)
-          else expect(node).toBeUndefined()
+          if (retained) {
+            expect(node, `${_reason} ${dialect} ${adapter}`).toBeDefined()
+            expect(node?.active, `${_reason} ${dialect} ${adapter}`).toBe(false)
+          } else expect(node, `${_reason} ${dialect} ${adapter}`).toBeUndefined()
         }
         expect(summarize(pb)).toEqual(summarize(pa))
       }

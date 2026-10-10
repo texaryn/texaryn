@@ -271,7 +271,10 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
   }
   visit('#')
   const retainedPositions = new Set(index.identifiers)
-  for (const target of references.values()) retainedPositions.add(target)
+  for (const [source, target] of references) {
+    retainedPositions.add(source.slice(0, source.indexOf('\u0000')))
+    retainedPositions.add(target)
+  }
   return { edges, reachable, references, resources: index.resources, retainedPositions }
 }
 

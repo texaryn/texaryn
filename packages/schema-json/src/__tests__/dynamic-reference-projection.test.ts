@@ -22,6 +22,24 @@ const childKeys = (projection: Awaited<ReturnType<Awaited<ReturnType<typeof adap
   projection.nodes.get(toPointer(pointer))?.children?.map(({ key }) => key)
 
 describe('local dynamic reference projection', () => {
+  it('retains static inactive branches without leaking dynamic targets', async () => {
+    const adapter = await adapterFor(on2020({
+      type: 'object',
+      properties: { a: { type: 'object' } },
+      if: { required: ['flag'] },
+      then: {
+        properties: {
+          a: { if: false, else: { $id: 'https://example.test/retained', properties: { y: { type: 'string' } } } },
+        },
+      },
+    }))
+
+    const projection = adapter.project({})
+
+    expect(childKeys(projection, '/a')).toContain('y')
+    expect(projection.nodes.get(toPointer('/a/y'))?.active).toBe(false)
+  })
+
   it('keeps missing-value branch defaults local to each dynamic scope', async () => {
     const firstUri = 'https://example.test/first.json'
     const secondUri = 'https://example.test/second.json'

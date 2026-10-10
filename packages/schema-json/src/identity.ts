@@ -15,6 +15,7 @@ export interface LocationInfo {
 export interface ProjectionCache {
   readonly dialect: Dialect
   readonly schemaAt: (position: string) => unknown
+  readonly retainedPositions: ReadonlySet<string>
   readonly dynamicReferenceProjection: boolean
   readonly memoizeUndefinedBranchResults: boolean
   readonly closure: Map<string, readonly string[]>
@@ -28,10 +29,12 @@ export function newProjectionCache(
   schemaAt: (position: string) => unknown,
   dynamicReferenceProjection = false,
   memoizeUndefinedBranchResults = false,
+  retainedPositions: ReadonlySet<string> = new Set<string>(),
 ): ProjectionCache {
   return {
     dialect,
     schemaAt,
+    retainedPositions,
     dynamicReferenceProjection,
     memoizeUndefinedBranchResults,
     closure: new Map(),
