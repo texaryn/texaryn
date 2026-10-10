@@ -1,5 +1,11 @@
 # @texaryn/schema-json
 
+## 0.8.1
+
+### Patch Changes
+
+- 8582351: Include unconditional `allOf` member keywords when deriving projection shapes, so conflicting shape families are reported as ambiguous.
+
 ## 0.8.0
 
 ### Minor Changes
