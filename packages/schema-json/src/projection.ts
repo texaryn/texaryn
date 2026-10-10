@@ -1278,6 +1278,24 @@ function computeRequiredSet(
   return required
 }
 
+function requiresReduction(node: SchemaNode): boolean {
+  const schema = node.schema as Record<string, unknown>
+  return (
+    '$ref' in schema ||
+    '$dynamicRef' in schema ||
+    '$recursiveRef' in schema ||
+    schema.if !== undefined ||
+    schema.then !== undefined ||
+    schema.else !== undefined ||
+    schema.dependencies !== undefined ||
+    schema.dependentSchemas !== undefined ||
+    (node.allOf?.length ?? 0) > 0 ||
+    (node.anyOf?.length ?? 0) > 0 ||
+    (node.oneOf?.length ?? 0) > 0 ||
+    Object.keys(node.dependentSchemas ?? {}).length > 0
+  )
+}
+
 // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
 const budgeted = (info: LocationInfo): boolean => info.cyclic || info.key === ''
 
@@ -1621,9 +1639,11 @@ function walk(
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
     let reducedNode =
       resolved === original
-        ? original.allOf && hasReferencedAllOf(original)
-          ? reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
-          : resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
+        ? requiresReduction(resolved)
+          ? original.allOf && hasReferencedAllOf(original)
+            ? reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
+            : resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
+          : resolved
         : resolved
     if (reducedNode && resolved === original && (!member || data !== undefined)) {
       // Missing child data has no evaluated conditional branch to recover.
