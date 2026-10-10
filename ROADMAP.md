@@ -1879,7 +1879,7 @@ Projection shape inference now includes unconditional `allOf` members in the sch
 
 The Draft 7 registry overwrite report is filed upstream as json-schema-library issue #138. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
-Hyperjump now retains ambiguous shape families when an unselected `oneOf` alternative contains an `allOf` composition with conflicting families. Shared conformance covers the case and no longer records this adapter difference.
+Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alternatives imply objects, and marks missing object-only `anyOf` branches active when they accept `{}`. It retains ambiguous families when an alternative's `allOf` members conflict. Shared conformance covers these cases and no longer records these adapter differences.
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
 

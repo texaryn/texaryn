@@ -12,7 +12,13 @@ import type {
   ProjectionDiagnostic,
 } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
-import { projectionTypeFamilies, shapeDiagnostic, shapeOfFamilies, type KeywordFamily } from './projection-shape.js'
+import {
+  projectionTypeFamilies,
+  shapeDiagnostic,
+  shapeOfFamilies,
+  type KeywordFamily,
+  type ProjectionShape,
+} from './projection-shape.js'
 import {
   schemaAtPosition,
   schemaFragment,
@@ -1275,11 +1281,12 @@ export function staticWalk(
     const hasRenderableComposition = hasRenderableAlternative(schema, rootSchema)
     if (hasRenderableComposition) {
       node.composed = true
-    } else if (!dynamicBranches.some((db) => db.active || db.provisional) && node.type === undefined) {
-      const ambiguousFamilies = ambiguousAlternativeFamilies(schema, rootSchema)
-      if (ambiguousFamilies.size > 0) {
+    }
+    if (!dynamicBranches.some((db) => db.active || db.provisional) && node.type === undefined) {
+      const inferredFamilies = unselectedAlternativeFamilies(schema, rootSchema)
+      if (inferredFamilies.size > 0) {
         const families = (node.families ??= new Set())
-        for (const family of ambiguousFamilies) families.add(family)
+        for (const family of inferredFamilies) families.add(family)
       }
     }
   }
@@ -1378,20 +1385,34 @@ function hasRenderableAlternative(schema: Record<string, unknown>, rootSchema: u
   return branchesOf(schema).some((branch) => canRender(branch, rootSchema, new Set()))
 }
 
-function ambiguousAlternativeFamilies(
+export function unselectedAlternativeFamilies(
   schema: Record<string, unknown>,
   rootSchema: unknown,
+  keyword?: 'oneOf' | 'anyOf',
 ): Set<KeywordFamily> {
-  const ambiguous = new Set<KeywordFamily>()
-  for (const branch of branchesOf(schema)) {
+  const branches = keyword
+    ? (Array.isArray(schema[keyword]) ? schema[keyword] as unknown[] : [])
+    : branchesOf(schema)
+  if (branches.length === 0) return new Set()
+  const shapes: ProjectionShape[] = []
+  const branchFamilies: Set<KeywordFamily>[] = []
+  for (const branch of branches) {
     const members = allOfClosure(branch, rootSchema, new Set())
     if (members.some((member) => resolveType(member) !== undefined)) continue
     const families = new Set(members.flatMap((member) => [...projectionTypeFamilies(member)]))
-    if (shapeOfFamilies(families).kind === 'ambiguous') {
-      for (const family of families) ambiguous.add(family)
-    }
+    const shape = shapeOfFamilies(families)
+    if (shape.kind === 'none') return new Set()
+    shapes.push(shape)
+    branchFamilies.push(families)
   }
-  return ambiguous
+  if (shapes.length !== branches.length) return new Set()
+  if (shapes.every((shape) => shape.kind === 'ambiguous')) {
+    return new Set(branchFamilies.flatMap((families) => [...families]))
+  }
+  if (shapes.every((shape) => shape.kind === 'resolved' && shape.type === 'object')) {
+    return new Set<KeywordFamily>(['object'])
+  }
+  return new Set()
 }
 
 const branchesOf = (schema: Record<string, unknown>): unknown[] =>
