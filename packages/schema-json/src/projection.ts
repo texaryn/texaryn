@@ -988,6 +988,8 @@ function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown, scope
   return reduceAllOfForProjection(node, data) ?? node
 }
 
+const candidatePropertyCache = new WeakMap<SchemaNode, ReadonlyMap<string, CandidateProperty> | null>()
+
 /**
  * Property keys that might need to appear at this instance location.
  *
@@ -1023,7 +1025,11 @@ function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown, scope
 function collectCandidateProperties(
   node: SchemaNode,
   data: Record<string, unknown> | undefined,
-): Map<string, CandidateProperty> {
+): ReadonlyMap<string, CandidateProperty> {
+  if (candidatePropertyCache.has(node)) {
+    const cached = candidatePropertyCache.get(node)
+    if (cached) return cached
+  }
   const candidates = new Map<string, CandidateProperty>()
   const visited = new Set<string>()
   const scopes: { node: SchemaNode; own: boolean }[] = []
@@ -1070,6 +1076,8 @@ function collectCandidateProperties(
       if (propNode) record(key, propNode, own)
     }
   }
+  const hasDataDependentAdditionalProperties = scopes.some(({ node: scope }) => Boolean(scope.additionalProperties))
+  candidatePropertyCache.set(node, hasDataDependentAdditionalProperties ? null : candidates)
   return candidates
 }
 
