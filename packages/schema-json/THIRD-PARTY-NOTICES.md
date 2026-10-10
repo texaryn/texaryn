@@ -1,5 +1,12 @@
 # Third-party notices
 
+## json-schema-library
+
+The ESM runtime at `dist/vendor/json-schema-library/` is adapted from
+`json-schema-library` 11.6.2 by Sascha Goldhofer and is distributed under the
+MIT License. Its full license is included at
+`dist/vendor/json-schema-library/LICENSE.md`.
+
 ## JSON Schema metaschemas
 
 `src/metaschemas/` contains the published JSON Schema metaschema documents for
