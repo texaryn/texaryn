@@ -107,12 +107,12 @@ export interface LocationInfo {
   items?: readonly string[]
 }
 
-function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string): boolean {
+function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
   let current = schema
   let currentPosition = position
   const seen = new Set<string>()
   while (isRecord(current)) {
-    const target = refTarget(current, rootSchema, currentPosition)
+    const target = refTarget(current, rootSchema, currentPosition, dialect)
     if (target === undefined || seen.has(target)) break
     seen.add(target)
     current = schemaAtPosition(rootSchema, target)
@@ -150,6 +150,8 @@ function addBoundary(state: RecursionState, pointer: string, reason: ProjectionB
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
 const NON_APPLYING = new Set([
   '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
   '$schema',
   '$id',
   '$anchor',
@@ -161,10 +163,23 @@ const NON_APPLYING = new Set([
   'definitions',
 ])
 
-const refTarget = (schema: Record<string, unknown>, rootSchema: unknown, position?: string): string | undefined => {
+const refTarget = (
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  position?: string,
+  dialect: Dialect = 'draft-07',
+): string | undefined => {
   if (position !== undefined) {
-    const resolved = schemaReferenceTarget(rootSchema, position)
-    if (resolved !== undefined) return resolved
+    const keywords = dialect === '2020-12'
+      ? ['$ref', '$dynamicRef'] as const
+      : dialect === '2019-09'
+        ? ['$ref', '$recursiveRef'] as const
+        : ['$ref'] as const
+    for (const keyword of keywords) {
+      const resolved = schemaReferenceTarget(rootSchema, position, keyword)
+      if (resolved !== undefined) return resolved
+    }
+    return undefined
   }
   const ref = schema.$ref
   if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
@@ -187,7 +202,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
     })
   }
   if (isRecord(schema)) {
-    const target = refTarget(schema, rootSchema, position)
+    const target = refTarget(schema, rootSchema, position, cache.dialect)
     if (target === undefined) {
       out.add(position)
       addAllOf(schema)
@@ -232,7 +247,7 @@ export function locationInfo(
     if (!isRecord(schema)) return
     expanded.push(position)
     stack.add(position)
-    const target = refTarget(schema, rootSchema, position)
+    const target = refTarget(schema, rootSchema, position, cache.dialect)
     if (target !== undefined) visitAll(target, stack)
     if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
       stack.delete(position)
@@ -348,7 +363,7 @@ function decideMember(
     admit = covered || state.nodesUsed < state.limits.nodes
     if (admit && !covered) state.nodesUsed += 1
   } else {
-    const leaves = leafMembers(info, rootSchema)
+    const leaves = leafMembers(info, rootSchema, state.cache.dialect)
     admit = state.objectsUsed < state.limits.objects && state.nodesUsed + 1 + leaves <= state.limits.nodes
     if (admit) {
       state.objectsUsed += 1
@@ -365,7 +380,7 @@ function decideMember(
   return settle({ kind: 'walk', lineage })
 }
 
-function leafMembers(info: LocationInfo, rootSchema: unknown): number {
+function leafMembers(info: LocationInfo, rootSchema: unknown, dialect: Dialect): number {
   const keys = new Set<string>()
   const requiredKeys = requiredAtLocation(info, rootSchema)
   for (const position of info.expanded) {
@@ -377,7 +392,7 @@ function leafMembers(info: LocationInfo, rootSchema: unknown): number {
   let count = 0
   for (const key of keys) {
     const first = childDeclaring(info, key, rootSchema)[0]
-    if (first !== undefined && isLeafSchema(schemaAtPosition(rootSchema, first), rootSchema, first)) count += 1
+    if (first !== undefined && isLeafSchema(schemaAtPosition(rootSchema, first), rootSchema, first, dialect)) count += 1
   }
   return count
 }
@@ -658,11 +673,12 @@ function resolveRef(
   schema: Record<string, unknown>,
   rootSchema: unknown,
   schemaPointer?: string,
+  dialect: Dialect = 'draft-07',
 ): { pointer: string; schema: Record<string, unknown> } | undefined {
   const ref = schema.$ref
   const pointer = schemaPointer === undefined
     ? typeof ref === 'string' && ref.startsWith('#') ? `#${schemaFragment(ref)}` : undefined
-    : schemaReferenceTarget(rootSchema, schemaPointer)
+    : refTarget(schema, rootSchema, schemaPointer, dialect)
   if (pointer === undefined) return undefined
   const target = schemaAtPosition(rootSchema, pointer)
   if (!isRecord(target)) return undefined
@@ -735,7 +751,7 @@ export function staticWalk(
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
-  const ref = resolveRef(schema, rootSchema, schemaPointer)
+  const ref = resolveRef(schema, rootSchema, schemaPointer, recursion.cache.dialect)
   if (ref) {
     const cycleKey = `${ref.pointer}@${pointer}`
     if (visited.has(cycleKey)) return
@@ -859,7 +875,7 @@ export function staticWalk(
       ;(recursion.queue[lineage!.depth] ??= []).push({
         path: childPath,
         enter: () => {
-          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema, memberDeclaring[0]))
+          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema, memberDeclaring[0], recursion.cache.dialect))
           if (settled !== 'defer') enter(settled)
         },
       })

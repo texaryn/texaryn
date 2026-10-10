@@ -32,6 +32,8 @@ const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
 const UNLOCATED_CHILDREN = [...IN_PLACE_BRANCHES, 'contains'] as const
 const NON_APPLYING = new Set([
   '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
   '$schema',
   '$id',
   '$anchor',
@@ -124,13 +126,14 @@ function resolveFresh(node: SchemaNode): SchemaNode | undefined {
 }
 
 export function followRef(node: SchemaNode): SchemaNode | undefined {
-  if (node.$ref === '') {
+  const reference = referenceOf(node)
+  if (reference === '') {
     const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
     if (root) return root
   }
   const context = (node as { context?: object }).context
   const raw = node.schema as Record<string, unknown> | undefined
-  const dynamic = typeof raw === 'object' && raw !== null && ('$dynamicRef' in raw || '$recursiveRef' in raw)
+  const dynamic = reference !== undefined && reference !== node.$ref
   if (!context || dynamic) return resolveFresh(node)
   let cache = resolvedReferences.get(context)
   if (!cache) {
@@ -147,11 +150,24 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
     ),
   )
   // A copy keeps the referring site's library location, which default sources read.
-  const key = `${positionOf(node)}|${String(node.schemaLocation)}|${node.$ref}|${copied}`
+  const key = `${positionOf(node)}|${String(node.schemaLocation)}|${reference}|${copied}`
   if (cache.has(key)) return cache.get(key)
   const resolved = resolveFresh(node)
   cache.set(key, resolved)
   return resolved
+}
+
+export function referenceOf(node: SchemaNode): string | undefined {
+  if (typeof node.$ref === 'string') return node.$ref
+  const schema = node.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return undefined
+  if (node.getDraftVersion() === 'draft-2020-12' && typeof schema.$dynamicRef === 'string') {
+    return schema.$dynamicRef
+  }
+  if (node.getDraftVersion() === 'draft-2019-09' && typeof schema.$recursiveRef === 'string') {
+    return schema.$recursiveRef
+  }
+  return undefined
 }
 
 // Read from the document rather than the node: a node reached through `$ref`
@@ -171,7 +187,7 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   const addAllOf = (): void => {
     for (const branch of node.allOf ?? []) for (const p of closureOf(branch, cache, stack)) out.add(p)
   }
-  if (typeof node.$ref === 'string') {
+  if (referenceOf(node) !== undefined) {
     if (cache.dialect !== 'draft-07') {
       const raw = authoredSchema(node, cache)
       if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
@@ -225,10 +241,10 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       if (dead) deadNodes.add(node)
     }
     stack.add(position)
-    if (typeof node.$ref === 'string') {
+    if (referenceOf(node) !== undefined) {
       const target = followRef(node)
       if (target) visitAll(target, stack, dead)
-      if (cache.dialect === 'draft-07') {
+      if (cache.dialect === 'draft-07' && typeof node.$ref === 'string') {
         stack.delete(position)
         return
       }

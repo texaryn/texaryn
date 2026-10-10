@@ -64,14 +64,18 @@ export function schemaAtPosition(root: unknown, position: string): unknown {
   return resolveJsonPointer(root, hashIndex === -1 ? position : position.slice(hashIndex + 1))
 }
 
-export function schemaReferenceTarget(root: unknown, position: string): string | undefined {
+export function schemaReferenceTarget(
+  root: unknown,
+  position: string,
+  keyword: '$ref' | '$dynamicRef' | '$recursiveRef' = '$ref',
+): string | undefined {
   if (typeof root === 'object' && root !== null) {
-    const target = referenceTargets.get(root)?.get(`${position}\u0000$ref`)
+    const target = referenceTargets.get(root)?.get(`${position}\u0000${keyword}`)
     if (target !== undefined) return target
   }
   const schema = schemaAtPosition(root, position)
-  if (!schema || typeof schema !== 'object' || typeof (schema as Record<string, unknown>).$ref !== 'string') return undefined
-  const reference = (schema as Record<string, string>).$ref
+  if (!schema || typeof schema !== 'object' || typeof (schema as Record<string, unknown>)[keyword] !== 'string') return undefined
+  const reference = (schema as Record<string, string>)[keyword]!
   if (!reference.startsWith('#')) return undefined
   const hashIndex = position.indexOf('#')
   const resource = hashIndex > 0 ? position.slice(0, hashIndex) : ''

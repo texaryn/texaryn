@@ -19,6 +19,7 @@ import {
   locationInfo,
   onlyPoints,
   positionOf,
+  referenceOf,
   type LocationInfo,
   type ProjectionCache,
 } from './identity.js'
@@ -133,7 +134,7 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
 function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
   let current = node
   const seen = new Set<string>()
-  while (typeof current.$ref === 'string') {
+  while (referenceOf(current) !== undefined) {
     const position = positionOf(current)
     if (seen.has(position)) return { node: current, cycle: true, unresolved: false }
     seen.add(position)
@@ -160,7 +161,7 @@ function visitReferenceDefaultSites(
   cache: ProjectionCache,
   visitor: (node: SchemaNode) => void,
 ): void {
-  if (cache.dialect === 'draft-07' || typeof node.$ref !== 'string') return
+  if (cache.dialect === 'draft-07' || referenceOf(node) === undefined) return
   let current = node
   const visited = new Set<string>()
   while (true) {
@@ -177,7 +178,7 @@ function visitReferenceDefaultSites(
       visitor(current)
     }
 
-    if (typeof current.$ref !== 'string') return
+    if (referenceOf(current) === undefined) return
     const target = followRef(current)
     if (!target) return
     current = target
@@ -204,7 +205,7 @@ function allOfExplicitType(node: SchemaNode, visited = new Set<string>()): JsonS
   if (visited.has(position)) return undefined
   visited.add(position)
   for (const branch of node.allOf ?? []) {
-    const reference = typeof branch.$ref === 'string' ? dereferenceChecked(branch) : undefined
+    const reference = referenceOf(branch) !== undefined ? dereferenceChecked(branch) : undefined
     if (reference?.unresolved || (reference && !isSchemaNode(reference.node))) continue
     const target = reference?.node ?? branch
     const schema = target.schema as Record<string, unknown> | undefined
@@ -240,7 +241,7 @@ function hasReferencedAllOf(node: SchemaNode, visited = new Set<string>()): bool
   if (visited.has(position)) return false
   visited.add(position)
   for (const branch of node.allOf ?? []) {
-    if (typeof branch.$ref === 'string') return true
+    if (referenceOf(branch) !== undefined) return true
     if (hasReferencedAllOf(branch, visited)) return true
   }
   return false
@@ -252,7 +253,7 @@ function hasUnresolvedAllOfReference(node: SchemaNode, visited = new Set<string>
   visited.add(position)
 
   for (const branch of node.allOf ?? []) {
-    const source = typeof branch.$ref === 'string' ? dereferenceChecked(branch) : undefined
+    const source = referenceOf(branch) !== undefined ? dereferenceChecked(branch) : undefined
     if (source?.unresolved || (source && !isSchemaNode(source.node))) return true
     const target = source?.node ?? branch
     if (hasUnresolvedAllOfReference(target, visited)) return true
@@ -268,7 +269,7 @@ function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): Sch
   let changed = false
 
   for (const branch of node.allOf ?? []) {
-    if (typeof branch.$ref === 'string') {
+    if (referenceOf(branch) !== undefined) {
       const { node: target, unresolved } = dereferenceChecked(branch)
       if (unresolved || !isSchemaNode(target)) return undefined
       if (nextStack.has(positionOf(target))) {
@@ -314,7 +315,7 @@ function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: 
   for (const branch of original.anyOf ?? []) {
     if (branchApplies(branch, data)) selected.push(branch)
   }
-  if (!selected.some((branch) => typeof branch.$ref === 'string')) return reduced
+  if (!selected.some((branch) => referenceOf(branch) !== undefined)) return reduced
   let merged: SchemaNode = reduced
   for (const branch of selected) {
     const target = dereference(branch)
