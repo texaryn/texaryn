@@ -402,13 +402,41 @@ const rows: readonly Row[] = [
     id: 'a typeless root that only allOf makes an object',
     schema: { allOf: [{ properties: { a: S } }] },
     expected: { nodes: { '': 'object', '/a': 'string' } },
-    differs: { 'json-schema-library': { nodes: {}, diagnostics: [unresolved('')] } },
   },
   {
     id: 'a typeless location whose allOf adds keywords of another type',
     schema: obj({ a: { properties: { b: S }, allOf: [{ minItems: 1 }] } }),
     expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
-    differs: { 'json-schema-library': { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } } },
+  },
+  {
+    id: 'a Draft 7 allOf reference ignores its shape sibling',
+    dialects: ['draft-07'],
+    schema: {
+      properties: {
+        a: {
+          properties: { b: S },
+          allOf: [{ $ref: '#/definitions/neutral', minItems: 1 }],
+        },
+      },
+      definitions: { neutral: {} },
+    },
+    data: { a: {} },
+    expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
+  },
+  {
+    id: 'a modern allOf reference includes its shape sibling',
+    dialects: ['2020-12'],
+    schema: {
+      properties: {
+        a: {
+          properties: { b: S },
+          allOf: [{ $ref: '#/$defs/neutral', minItems: 1 }],
+        },
+      },
+      $defs: { neutral: {} },
+    },
+    data: { a: {} },
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
   },
   {
     id: 'a typeless location whose live then adds keywords of another type',

@@ -5,10 +5,10 @@ import type { JsonPointer } from '@texaryn/core'
 /**
  * Composition wrappers that carry no `type` of their own.
  *
- * `allOf`, `anyOf` and `oneOf` are applicators rather than type-specific
- * keywords, so none of them decides a shape. What changed is that a wrapper
- * which cannot be given one is now reported instead of vanishing, and these
- * pin which of those cases produce a node and which produce a diagnostic.
+ * Composition keywords do not decide a shape on their own. Unconditional
+ * `allOf` members contribute their shape keywords, while `oneOf` and `anyOf`
+ * still depend on branch selection. These tests pin which wrappers render and
+ * which produce a diagnostic.
  */
 async function projectWith(schema: unknown, data: unknown) {
   const adapter = await createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
@@ -34,18 +34,16 @@ describe('typeless composition wrappers', () => {
   })
 
   /**
-   * `allOf` never selects: it applies every branch at once, and a branch's
-   * `properties` do not make the wrapper an object any more than they would
-   * inside `not`. Unchanged behaviour, now with a diagnostic naming it, which
-   * is the point: an author who wrote this got no form and no explanation.
+   * `allOf` applies every branch at once, so object keywords in its members
+   * contribute to the wrapper's inferred shape.
    */
-  it('reports an allOf wrapper carrying only branch properties', async () => {
+  it('infers an allOf wrapper from branch properties', async () => {
     const { pointers, codes } = await projectWith(
       { allOf: [{ properties: { a: { type: 'string' } } }] },
       { a: 'x' },
     )
-    expect(pointers).toEqual([])
-    expect(codes).toEqual([':unresolved-projection-shape'])
+    expect(pointers).toEqual(['', '/a'])
+    expect(codes).toEqual([])
   })
 
   /**
@@ -81,15 +79,15 @@ describe('typeless composition wrappers', () => {
 
   /**
    * The contrast that shows the rule is about the schema and not the data: an
-   * `allOf` wrapper has no branch to select, so it is unprojectable whatever
-   * the value is, and it reports in every data state.
+   * The same `allOf` shape is available whatever the current value is.
    */
-  it('reports an unprojectable wrapper in every data state', async () => {
+  it('projects an allOf object wrapper in every data state', async () => {
     const schema = { allOf: [{ properties: { a: { type: 'string' } } }] }
     for (const data of [undefined, {}, { a: 'x' }, 42, null]) {
-      expect((await projectWith(schema, data)).codes, JSON.stringify(data)).toEqual([
-        ':unresolved-projection-shape',
-      ])
+      expect(await projectWith(schema, data), JSON.stringify(data)).toEqual({
+        pointers: ['', '/a'],
+        codes: [],
+      })
     }
   })
 
