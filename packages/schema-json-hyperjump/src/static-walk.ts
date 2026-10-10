@@ -164,7 +164,7 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
         enqueue(record[keyword], current.position === undefined ? undefined : `${current.position}/${keyword}`)
       }
     }
-    for (const keyword of dialect === 'draft-07' ? (['dependencies'] as const) : (['dependentSchemas', 'dependencies'] as const)) {
+    for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
       const map = record[keyword]
       if (!isRecord(map)) continue
       for (const [key, branch] of Object.entries(map)) {
