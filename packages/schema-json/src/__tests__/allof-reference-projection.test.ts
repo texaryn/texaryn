@@ -346,7 +346,7 @@ describe('static reference projection composition', () => {
 
     const projection = adapter.project({ field: { kind: 'a' } })
 
-    expect(projection.nodes.get('/field' as JsonPointer)?.provisional).toBe(true)
+    expect(projection.nodes.get('/field' as JsonPointer)?.active).toBe(true)
     expect(projection.nodes.get('/field/value' as JsonPointer)?.provisional).toBe(true)
     expect(projection.nodes.get('/field/note' as JsonPointer)?.active).toBe(true)
   })
