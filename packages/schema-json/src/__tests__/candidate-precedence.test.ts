@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { compileSchema } from 'json-schema-library'
 import { createJsonSchemaAdapter, SameLocationCycleError } from '../index.js'
 import type { JsonPointer } from '@texaryn/core'
 
@@ -146,15 +147,7 @@ describe('recursive references', () => {
   })
 })
 
-/**
- * The regression condition for keeping this change separate from the
- * `oneOf`-inside-`dependencies` crash. That defect is downstream of the
- * candidate collector: `walk` reduces the node before it collects candidates,
- * so recursive collection cannot repair or mask it. If this test starts
- * passing, the two concerns were conflated and the crash's own fix needs
- * rewriting rather than deleting this.
- */
-describe('the oneOf-inside-dependencies crash is untouched', () => {
+describe('oneOf inside dependencies with no matching branch', () => {
   const crashing = {
     type: 'object',
     properties: { flag: { type: 'boolean' } },
@@ -162,16 +155,46 @@ describe('the oneOf-inside-dependencies crash is untouched', () => {
       flag: {
         oneOf: [
           { properties: { flag: { const: false } } },
-          { properties: { flag: { const: true } }, required: ['extra'] },
+          { properties: { flag: { const: true }, extra: { type: 'string' } }, required: ['extra'] },
         ],
       },
     },
   }
 
-  it('still throws while the data satisfies no branch', async () => {
+  it('propagates the nested reduction error and keeps projection available', async () => {
+    const result = compileSchema(crashing, { draft: 'draft-07' }).reduceNode({ flag: true })
+    expect(result.node).toBeUndefined()
+    expect(result.error).toBeDefined()
+
     const adapter = await createJsonSchemaAdapter(crashing, { defaultDialect: 'draft-07' })
     expect((await adapter.validate({ flag: true })).valid).toBe(false)
-    expect(() => adapter.project({ flag: true })).toThrow(TypeError)
+    const projection = adapter.project({ flag: true })
+    expect(projection.nodes.has('/flag' as JsonPointer)).toBe(true)
+  })
+
+  it('returns the first nested reduction error without processing later dependencies', () => {
+    const schema = {
+      type: 'object',
+      properties: { first: { type: 'boolean' }, second: { type: 'boolean' } },
+      dependencies: {
+        first: {
+          oneOf: [
+            { properties: { first: { const: false } } },
+            { properties: { first: { const: true } }, required: ['missingFirst'] },
+          ],
+        },
+        second: {
+          oneOf: [
+            { properties: { second: { const: false } } },
+            { properties: { second: { const: true } }, required: ['missingSecond'] },
+          ],
+        },
+      },
+    }
+    const result = compileSchema(schema, { draft: 'draft-07' }).reduceNode({ first: true, second: true })
+
+    expect(result.node).toBeUndefined()
+    expect(result.error?.data.pointer).toBe('#/dependencies/first')
   })
 
   it('still projects once a branch is satisfied', async () => {
