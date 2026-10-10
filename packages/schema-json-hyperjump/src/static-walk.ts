@@ -65,10 +65,15 @@ export interface ProjectionCache {
   readonly closure: Map<string, readonly string[]>
   readonly info: Map<string, LocationInfo>
   readonly cyclic: ReadonlySet<string>
+  readonly retainedPositions: ReadonlySet<string>
 }
 
-export function newProjectionCache(dialect: Dialect, cyclic: ReadonlySet<string>): ProjectionCache {
-  return { dialect, closure: new Map(), info: new Map(), cyclic }
+export function newProjectionCache(
+  dialect: Dialect,
+  cyclic: ReadonlySet<string>,
+  retainedPositions: ReadonlySet<string> = new Set<string>(),
+): ProjectionCache {
+  return { dialect, closure: new Map(), info: new Map(), cyclic, retainedPositions }
 }
 
 export interface ProjectionLimits {
@@ -111,6 +116,15 @@ export interface LocationInfo {
   readonly expanded: readonly string[]
   readonly children: Map<string, readonly string[]>
   items?: readonly string[]
+}
+
+function positionContains(ancestor: string, candidate: string): boolean {
+  return candidate === ancestor || candidate.startsWith(`${ancestor}/`)
+}
+
+function retainedConditionalBranch(position: string, cache: ProjectionCache): boolean {
+  for (const target of cache.retainedPositions) if (positionContains(position, target)) return true
+  return false
 }
 
 function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
@@ -860,6 +874,7 @@ export function staticWalk(
   conditional = false,
   /** Instance pointer where the nearest unselected conditional branch begins. */
   inactiveConditionalPointer: string | undefined = undefined,
+  inactiveConditionalRetained = false,
 ): void {
   if (!isRecord(schema)) return
   let step = 0
@@ -886,6 +901,7 @@ export function staticWalk(
       path,
       conditional,
       inactiveConditionalPointer,
+      inactiveConditionalRetained,
     )
     visited.delete(cycleKey)
     if (recursion.cache.dialect === 'draft-07') return
@@ -930,6 +946,7 @@ export function staticWalk(
   const suppressNestedInactiveBranches =
     inactiveConditionalPointer !== undefined &&
     pointer !== inactiveConditionalPointer &&
+    !inactiveConditionalRetained &&
     !active &&
     !provisional &&
     existed &&
@@ -994,6 +1011,7 @@ export function staticWalk(
         childPath,
         false,
         inactiveConditionalPointer,
+        inactiveConditionalRetained,
       )
     }
     if (decision === 'defer') {
@@ -1029,6 +1047,7 @@ export function staticWalk(
         nextPath(),
         conditional,
         inactiveConditionalPointer,
+        inactiveConditionalRetained,
       )
     })
   }
@@ -1051,6 +1070,7 @@ export function staticWalk(
       nextPath(),
       true,
       inactiveConditionalPointer,
+      inactiveConditionalRetained,
     )
   }
 
@@ -1094,6 +1114,7 @@ export function staticWalk(
           nextPath(),
           false,
           inactiveConditionalPointer,
+          inactiveConditionalRetained,
         )
       }
     })
@@ -1237,6 +1258,8 @@ export function staticWalk(
   )
   if (!suppressNestedInactiveBranches) {
     for (const db of dynamicBranches) {
+      const inactiveConditional = db.conditional && !db.active && !db.provisional
+      const retained = inactiveConditional && retainedConditionalBranch(db.schemaPointer, recursion.cache)
       staticWalk(
         db.schema,
         data,
@@ -1253,7 +1276,8 @@ export function staticWalk(
         lineage,
         nextPath(),
         db.conditional,
-        db.conditional && !db.active && !db.provisional ? pointer : inactiveConditionalPointer,
+        inactiveConditional ? pointer : inactiveConditionalPointer,
+        inactiveConditionalRetained || retained,
       )
     }
   }

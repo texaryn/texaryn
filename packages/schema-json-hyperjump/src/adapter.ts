@@ -146,10 +146,10 @@ export async function createAdapter(
   const adapterRemotes = externalRemotes.map((remote) => materializeLocalPointerAliases(remote, dialect, true))
   const graph = buildSchemaGraph(adapterSchema, dialect, adapterRemotes)
   rejectSameLocationCycles(graph)
-  const cache = newProjectionCache(dialect, cyclicPositions(graph))
   if (typeof adapterSchema === 'object' && adapterSchema !== null) {
     setSchemaDocumentContext(adapterSchema, adapterRemotes, graph.references, graph.resources)
   }
+  const cache = newProjectionCache(dialect, cyclicPositions(graph), graph.retainedPositions)
   const documents: Record<string, unknown> = {}
   for (const remote of adapterRemotes) {
     const uri = (remote as Record<string, unknown>).$id as string

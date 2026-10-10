@@ -7,6 +7,7 @@ export interface SchemaGraph {
   readonly reachable: ReadonlySet<string>
   readonly references: ReadonlyMap<string, string>
   readonly resources: ReadonlyMap<string, string>
+  readonly retainedPositions: ReadonlySet<string>
 }
 
 const ANONYMOUS_BASE = 'https://texaryn.invalid/root'
@@ -78,6 +79,7 @@ function resolveUri(reference: string, base: string): string | undefined {
 interface ResourceIndex {
   readonly resources: Map<string, string>
   readonly anchors: Map<string, string>
+  readonly identifiers: Set<string>
   readonly dynamicAnchors: Map<string, string[]>
   readonly recursiveAnchors: string[]
   readonly baseAt: Map<string, string>
@@ -135,13 +137,14 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
 }
 
 function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
-  const index: ResourceIndex = { resources: new Map(), anchors: new Map(), dynamicAnchors: new Map(), recursiveAnchors: [], baseAt: new Map() }
+  const index: ResourceIndex = { resources: new Map(), anchors: new Map(), identifiers: new Set(), dynamicAnchors: new Map(), recursiveAnchors: [], baseAt: new Map() }
   const visit = (position: string, parentBase: string): void => {
     const schema = at(documents, position)
     if (!isRecord(schema)) return
     let base = parentBase
     const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
     if (!ignoresSiblings && typeof schema.$id === 'string') {
+      index.identifiers.add(position)
       if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
         index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
       } else {
@@ -153,8 +156,12 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
       }
     }
     if (!ignoresSiblings) {
-      if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') index.anchors.set(`${base}#${schema.$anchor}`, position)
+      if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') {
+        index.identifiers.add(position)
+        index.anchors.set(`${base}#${schema.$anchor}`, position)
+      }
       if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+        index.identifiers.add(position)
         index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
         const list = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
         list.push(position)
@@ -214,6 +221,7 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
     if (!index.baseAt.has(position)) {
       const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
       if (!ignoresSiblings && typeof schema.$id === 'string') {
+        index.identifiers.add(position)
         if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
           index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
         } else {
@@ -225,8 +233,12 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
         }
       }
       if (!ignoresSiblings) {
-        if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') index.anchors.set(`${base}#${schema.$anchor}`, position)
+        if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') {
+          index.identifiers.add(position)
+          index.anchors.set(`${base}#${schema.$anchor}`, position)
+        }
         if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+          index.identifiers.add(position)
           index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
           const anchors = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
           anchors.push(position)
@@ -258,7 +270,9 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
     for (const edge of list) visit(edge.to, base)
   }
   visit('#')
-  return { edges, reachable, references, resources: index.resources }
+  const retainedPositions = new Set(index.identifiers)
+  for (const target of references.values()) retainedPositions.add(target)
+  return { edges, reachable, references, resources: index.resources, retainedPositions }
 }
 
 export const POSITION = 'x-texaryn-position'

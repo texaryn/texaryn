@@ -852,5 +852,61 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
       const [va, vb] = await Promise.all([a.validate(structuredClone(data)), b.validate(structuredClone(data))])
       expect(vb.valid).toBe(va.valid)
     })
+
+    const retainedCases = [
+      [
+        'identifier',
+        () => ({
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { $id: 'https://example.com/retained', properties: { y: S } } },
+            },
+          },
+        }),
+        true,
+      ],
+      [
+        'reference',
+        () => ({
+          ...obj({ a: { type: 'object' }, reach: { $ref: '#/then/properties/a/else' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { properties: { y: S } } },
+            },
+          },
+        }),
+        true,
+      ],
+      [
+        'annotation data',
+        () => ({
+          ...obj({ a: { type: 'object' } }),
+          if: { required: ['flag'] },
+          then: {
+            properties: {
+              a: { if: false, else: { default: { $id: 'ordinary-data' }, properties: { y: S } } },
+            },
+          },
+        }),
+        false,
+      ],
+    ] as const
+
+    it.each(retainedCases)('projects a nested inactive branch according to its %s status', async (_reason, schemaFactory, retained) => {
+      for (const dialect of PROJECTED) {
+        const schema = inDialect(dialect, schemaFactory())
+        const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
+        const [pa, pb] = [a.project({}), b.project({})]
+        for (const projection of [pa, pb]) {
+          const node = projection.nodes.get('/a/y' as JsonPointer)
+          if (retained) expect(node?.active).toBe(false)
+          else expect(node).toBeUndefined()
+        }
+        expect(summarize(pb)).toEqual(summarize(pa))
+      }
+    })
   })
 }
