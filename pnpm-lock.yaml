@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  json-schema-library@11.6.2: 965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc
+  json-schema-library@11.6.2: cc071b49f4f2662c006b1d69ff7b88597b3075e4adc233c5a634419cebe9a1b3
 
 importers:
 
@@ -287,7 +287,7 @@ importers:
         version: link:../core
       json-schema-library:
         specifier: 11.6.2
-        version: 11.6.2(patch_hash=965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc)
+        version: 11.6.2(patch_hash=cc071b49f4f2662c006b1d69ff7b88597b3075e4adc233c5a634419cebe9a1b3)
     devDependencies:
       tsx:
         specifier: ^4.23.12
@@ -6929,7 +6929,7 @@ snapshots:
     dependencies:
       lodash: 4.18.1
 
-  json-schema-library@11.6.2(patch_hash=965f75a3c8759393c6e0c36afb35334b6a7ff7d7761fc8caf8271487ddf2e1bc):
+  json-schema-library@11.6.2(patch_hash=cc071b49f4f2662c006b1d69ff7b88597b3075e4adc233c5a634419cebe9a1b3):
     dependencies:
       '@hyperjump/json-schema-formats': 1.0.5
       '@sagold/json-pointer': 7.2.1

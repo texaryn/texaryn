@@ -172,6 +172,31 @@ describe('oneOf inside dependencies with no matching branch', () => {
     expect(projection.nodes.has('/flag' as JsonPointer)).toBe(true)
   })
 
+  it('returns the first nested reduction error without processing later dependencies', () => {
+    const schema = {
+      type: 'object',
+      properties: { first: { type: 'boolean' }, second: { type: 'boolean' } },
+      dependencies: {
+        first: {
+          oneOf: [
+            { properties: { first: { const: false } } },
+            { properties: { first: { const: true } }, required: ['missingFirst'] },
+          ],
+        },
+        second: {
+          oneOf: [
+            { properties: { second: { const: false } } },
+            { properties: { second: { const: true } }, required: ['missingSecond'] },
+          ],
+        },
+      },
+    }
+    const result = compileSchema(schema, { draft: 'draft-07' }).reduceNode({ first: true, second: true })
+
+    expect(result.node).toBeUndefined()
+    expect(result.error?.data.pointer).toBe('#/dependencies/first')
+  })
+
   it('still projects once a branch is satisfied', async () => {
     const adapter = await createJsonSchemaAdapter(crashing, { defaultDialect: 'draft-07' })
     expect(() => adapter.project({ flag: true, extra: 'x' })).not.toThrow()
