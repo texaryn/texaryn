@@ -14,7 +14,7 @@ takes explicit positions. Where the evidence supports a decision, the decision i
 stated. Where it does not, the question is listed as open with the information
 needed to close it.
 
-The current state and the remaining work are in [Status, 2026-10-10](#status-2026-10-10).
+The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
 ## Table of Contents
 
@@ -1849,7 +1849,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ## 19. Milestones and First PRs
 
-### Status, 2026-10-10
+### Status, 2026-10-11
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.0, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
@@ -1881,7 +1881,7 @@ The Draft 7 registry overwrite report is filed upstream as json-schema-library i
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
 
-This branch also adds a weekly and manually dispatched compatibility workflow for the latest `json-schema-library`, while keeping the committed exact pin at 11.6.2. The isolated run resolved 11.6.4 and failed during module loading because it imports `resolve` from CommonJS `fast-uri` 4.2.1. This records an upstream compatibility failure for follow-up; it does not change the released dependency pin.
+The weekly and manually dispatched compatibility workflow keeps the committed `json-schema-library` pin at 11.6.2. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Keep the 11.6.2 pin and patch until the upstream fix is released and passes this regression. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 

@@ -14,6 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Allow the pinned patch to be unused during the latest check
+        run: pnpm config set --location=project allowUnusedPatches true
       - name: Resolve the latest library without changing the package declaration
         run: pnpm --filter @texaryn/schema-json update --latest --no-save json-schema-library
       - name: Run schema adapter and conformance suites
