@@ -1,11 +1,13 @@
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
+import type { SchemaResourceOptions, SchemaResourceResolver } from './resources.js'
 
-export interface AdapterConfig {
+export interface AdapterConfig extends SchemaResourceOptions {
   defaultDialect?: Dialect
 }
 
+export type { SchemaResourceResolver }
+
 export interface JsonSchemaAdapter extends SchemaEvaluationPort {
-  // No additional public methods beyond the port contract.
-  // The adapter IS the port implementation.
+  projectSubmission?: (data: unknown) => unknown
 }

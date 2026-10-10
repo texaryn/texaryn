@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createJsonSchemaAdapter, SameLocationCycleError } from '../index.js'
+import { createJsonSchemaAdapter, ProjectionMarkerCollisionError, SameLocationCycleError } from '../index.js'
 import { buildSchemaGraph, cyclicPositions, rejectSameLocationCycles } from '../schema-graph.js'
 import type { Dialect } from '../dialect.js'
 
@@ -71,6 +71,56 @@ describe('reference keywords by dialect', () => {
   })
 })
 
+describe('instance edges follow validator dialect support', () => {
+  const cases = [
+    {
+      keyword: 'additionalItems',
+      graphPointer: '#/additionalItems',
+      supported: ['draft-07', '2019-09'],
+      validationSchema: { type: 'array', items: [{}], additionalItems: false },
+      data: [null, 1],
+      recursiveSchema: { type: 'array', items: [{}], additionalItems: { properties: { x: { $ref: '#' } } } },
+    },
+    {
+      keyword: 'prefixItems',
+      graphPointer: '#/prefixItems/0',
+      supported: ['2020-12'],
+      validationSchema: { type: 'array', prefixItems: [{ type: 'string' }] },
+      data: [1],
+      recursiveSchema: { type: 'array', prefixItems: [{ properties: { x: { $ref: '#' } } }] },
+    },
+    {
+      keyword: 'unevaluatedProperties',
+      graphPointer: '#/unevaluatedProperties',
+      supported: ['2019-09', '2020-12'],
+      validationSchema: { type: 'object', unevaluatedProperties: false },
+      data: { x: 1 },
+      recursiveSchema: { type: 'object', unevaluatedProperties: { properties: { x: { $ref: '#' } } } },
+    },
+    {
+      keyword: 'unevaluatedItems',
+      graphPointer: '#/unevaluatedItems',
+      supported: ['2019-09', '2020-12'],
+      validationSchema: { type: 'array', unevaluatedItems: false },
+      data: [1],
+      recursiveSchema: { type: 'array', unevaluatedItems: { properties: { x: { $ref: '#' } } } },
+    },
+  ] as const
+  const dialects = ['draft-07', '2019-09', '2020-12'] as const
+
+  it.each(cases.flatMap((testCase) => dialects.map((dialect) => [`${testCase.keyword} in ${dialect}`, testCase, dialect] as const)))(
+    '%s follows the keyword only when the validator uses it',
+    async (_label, testCase, dialect) => {
+      const supported = (testCase.supported as readonly string[]).includes(dialect)
+      const adapter = await createJsonSchemaAdapter(inDialect(dialect, testCase.validationSchema))
+      expect((await adapter.validate(testCase.data)).valid).toBe(!supported)
+
+      const graph = buildSchemaGraph(testCase.recursiveSchema, dialect)
+      expect([...graph.reachable].some((position) => position === testCase.graphPointer || position.startsWith(`${testCase.graphPointer}/`))).toBe(supported)
+    },
+  )
+})
+
 describe('an identifier inside a branch the specification never evaluates', () => {
   const anchors = [
     ['draft-07', { $id: '#x' }],
@@ -108,6 +158,16 @@ describe('the error', () => {
     expect(error).toBeInstanceOf(SameLocationCycleError)
     expect((error as SameLocationCycleError).name).toBe('SameLocationCycleError')
     expect((error as SameLocationCycleError).positions).toEqual([['#', '#/allOf/0']])
+  })
+
+  it('rejects a reachable schema that declares the projection marker key', async () => {
+    const schema = { type: 'object', properties: { value: { type: 'string', 'x-texaryn-position': 'user-data' } } }
+    const error = await createJsonSchemaAdapter(schema).catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(ProjectionMarkerCollisionError)
+    expect(error).toMatchObject({ name: 'ProjectionMarkerCollisionError', position: '#/properties/value' })
+    expect((error as Error).message).toContain('x-texaryn-position')
+    expect(schema.properties.value['x-texaryn-position']).toBe('user-data')
   })
 })
 

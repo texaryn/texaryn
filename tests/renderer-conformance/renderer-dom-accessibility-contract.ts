@@ -18,7 +18,7 @@
 // is how a binding represents runtime state in the DOM, not its event
 // plumbing, which each binding tests on its own.
 import { describe, it, expect, afterEach } from 'vitest'
-import { within } from '@testing-library/dom'
+import { waitFor, within } from '@testing-library/dom'
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { createFormRuntime, englishMessages, visibleErrorMessages } from '@texaryn/core'
@@ -197,6 +197,10 @@ const otherMessages: FormMessages = {
   moveItemUp: ({ position, itemTitle, containerTitle }) => ({
     label: 'Monter',
     accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
+  }),
+  moveItemDown: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Descendre',
+    accessibleName: `Descendre ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
   }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
@@ -561,6 +565,39 @@ export function rendererDomAccessibilityContract({
       expect(after).toEqual(before)
     })
 
+    it('moves in both directions and keeps focus on the moved row at both boundaries', async () => {
+      const { surface, runtime, q } = await mount(
+        listSchema,
+        { tags: ['a', 'b', 'c'] },
+        { '/tags': { canReorder: true } },
+      )
+      const up = q.getByRole('button', { name: 'Move up Tag 2 in Tags' }) as HTMLButtonElement
+      const row = up.closest<HTMLElement>('[data-array-row]')!
+      expect(Array.from(row.querySelectorAll('button')).map((button) => computeAccessibleName(button))).toEqual([
+        'Move up Tag 2 in Tags',
+        'Move down Tag 2 in Tags',
+        'Remove Tag 2 from Tags',
+      ])
+      up.focus()
+
+      await surface.act(() => up.click())
+      const firstDown = q.getByRole('button', { name: 'Move down Tag 1 in Tags' })
+      await waitFor(() => expect(document.activeElement).toBe(firstDown))
+      expect(row.contains(firstDown)).toBe(true)
+      expect((runtime.data.getSnapshot() as { tags: string[] }).tags).toEqual(['b', 'a', 'c'])
+
+      await surface.act(() => (document.activeElement as HTMLButtonElement).click())
+      const middleDown = q.getByRole('button', { name: 'Move down Tag 2 in Tags' })
+      expect(document.activeElement).toBe(middleDown)
+      expect(row.contains(middleDown)).toBe(true)
+
+      await surface.act(() => middleDown.click())
+      const lastUp = q.getByRole('button', { name: 'Move up Tag 3 in Tags' })
+      await waitFor(() => expect(document.activeElement).toBe(lastUp))
+      expect(row.contains(lastUp)).toBe(true)
+      expect((runtime.data.getSnapshot() as { tags: string[] }).tags).toEqual(['a', 'c', 'b'])
+    })
+
     it('names the add control from the item type when the array is empty', async () => {
       const { q } = await mount(emptyListSchema, { tags: [] })
       expect(computeAccessibleName(q.getByRole('button', { name: /^Add/ }))).toBe('Add Tag')
@@ -716,7 +753,10 @@ export function rendererDomAccessibilityContract({
         for (const b of q.queryAllByRole('button', { name: /^Monter/ })) {
           expect(b.textContent?.trim()).toBe('Monter')
         }
-        expect(q.queryAllByRole('button', { name: /^(Remove|Add|Move up)\b/ })).toEqual([])
+        for (const b of q.queryAllByRole('button', { name: /^Descendre/ })) {
+          expect(b.textContent?.trim()).toBe('Descendre')
+        }
+        expect(q.queryAllByRole('button', { name: /^(Remove|Add|Move up|Move down)\b/ })).toEqual([])
       })
 
       it('places the required marker where the message says, outside the accessible name', async () => {
@@ -757,6 +797,7 @@ export function rendererDomAccessibilityContract({
         const remove = q.getByRole('button', { name: 'Remove Tag 1 from Tags' })
         const add = q.getByRole('button', { name: /^Add\b/ })
         const ups = q.queryAllByRole('button', { name: /^Move up\b/ })
+        const downs = q.queryAllByRole('button', { name: /^Move down\b/ })
         const required = q.getByRole('textbox', { name: 'Full Name' })
         expect(labelOf(required)).toBe('Full Name (required)')
 
@@ -766,7 +807,9 @@ export function rendererDomAccessibilityContract({
         expect(q.getByRole('button', { name: /^Ajouter\b/ })).toBe(add)
         expect(add.textContent?.trim()).toBe('Ajouter')
         expect(q.queryAllByRole('button', { name: /^Monter\b/ })).toEqual(ups)
+        expect(q.queryAllByRole('button', { name: /^Descendre\b/ })).toEqual(downs)
         for (const up of ups) expect(up.textContent?.trim()).toBe('Monter')
+        for (const down of downs) expect(down.textContent?.trim()).toBe('Descendre')
         expect(q.getAllByRole('textbox')[0]).toBe(input)
         expect(document.activeElement).toBe(input)
         expect(labelOf(required)).toBe('(obligatoire) Full Name')
@@ -776,6 +819,7 @@ export function rendererDomAccessibilityContract({
         expect(computeAccessibleName(remove)).toBe('Remove Tag 1 from Tags')
         expect(computeAccessibleName(add)).toMatch(/^Add\b/)
         expect(q.queryAllByRole('button', { name: /^Move up\b/ })).toEqual(ups)
+        expect(q.queryAllByRole('button', { name: /^Move down\b/ })).toEqual(downs)
         expect(labelOf(required)).toBe('Full Name (required)')
       })
     })

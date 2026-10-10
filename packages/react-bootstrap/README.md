@@ -52,7 +52,7 @@ The CSS import above assumes a bundler that resolves stylesheet imports. A page 
 | `BootstrapSelect` | field with enum values | `form-label`, `form-select` |
 | `BootstrapCheckbox` | boolean field | `form-check`, `form-check-input`, `form-check-label` |
 | `BootstrapObjectLayout` | object container | a nested object is a `fieldset` named by its `legend`; the root is a plain `div` |
-| `BootstrapArrayControl` | array container | `btn btn-primary` to add, `btn btn-outline-danger btn-sm` to remove |
+| `BootstrapArrayControl` | array container | `btn btn-primary` to add, `btn btn-outline-secondary btn-sm` to move up or down when `canReorder` is true, `btn btn-outline-danger btn-sm` to remove |
 
 Enum outranks the primitive type, so a string field with an `enum` renders as a select, and the `textarea` hint outranks both.
 

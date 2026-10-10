@@ -34,6 +34,14 @@ export interface FormRuntimeOptions {
   onSubmit?: (data: unknown) => MaybePromise<void>
   validationDebounceMs?: number
   /**
+   * `'retain'`, the default, validates and submits all current form data.
+   * `'projected'` asks the adapter for a submission snapshot with locations
+   * outside its currently applicable schema removed. The runtime validates
+   * that same snapshot and leaves live form data untouched. Creation fails if
+   * the adapter does not implement `projectSubmission`.
+   */
+  submission?: 'retain' | 'projected'
+  /**
    * ADR-003. `'none'`, the default, materialises nothing: given `{}` the
    * runtime's data stays `{}`.
    *

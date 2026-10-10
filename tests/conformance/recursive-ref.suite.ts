@@ -839,71 +839,8 @@ export function recursiveRefSuite(
   })
 }
 
-/**
- * Pre-existing `active` differences, by case, with the pointers that differ, which main
- * shares: beneath wrapped recursion (`allOf`, `if`/`then`/`else`, draft-07 `oneOf`), the design
- * spec's out-of-scope item, and on conditional declarations without recursion.
- */
-const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {
-  'allOf-typed draft-07 0': ['/child/name'],
-  'allOf-typed draft-07 1': ['/child/child', '/child/child/name', '/child/name'],
-  'allOf-typed draft-07 2': ['/child/child', '/child/child/child', '/child/child/child/name', '/child/child/name', '/child/name'],
-  'if-then draft-07 1': ['/child/child', '/child/name'],
-  'if-then draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
-  'if-then 2020-12 0': ['/child/name'],
-  'if-then 2020-12 1': ['/child/child/name'],
-  'if-then 2020-12 2': ['/child/child/child/name'],
-  'oneOf-null draft-07 1': ['/child/name'],
-  'oneOf-null draft-07 2': ['/child/child/name', '/child/name'],
-  'both-branches-recursive draft-07 1': ['/child/child', '/child/name'],
-  'both-branches-recursive draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
-  'both-branches-recursive 2020-12 0': ['/child/name'],
-  'both-branches-recursive 2020-12 1': ['/child/child/name'],
-  'both-branches-recursive 2020-12 2': ['/child/child/child/name'],
-  'eq-two-oneOf-wrappers draft-07 2': ['/a/b/leaf'],
-  'allOf-closure draft-07 0': ['/a/next', '/a/next/v', '/a/v'],
-  'allOf-closure draft-07 1': ['/a/next', '/a/next/v', '/a/v'],
-  'allOf-closure draft-07 2': ['/a/next', '/a/next/next', '/a/next/next/v', '/a/next/v', '/a/v'],
-  'chain-if-then-acyclic draft-07 1': ['/child/child', '/child/name'],
-  'chain-if-then-acyclic draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
-  'chain-if-then-acyclic 2020-12 0': [
-    '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
-    '/child/child/child/name', '/child/child/name', '/child/name',
-  ],
-  'chain-if-then-acyclic 2020-12 1': [
-    '/child/child/child', '/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name',
-    '/child/child/name',
-  ],
-  'chain-if-then-acyclic 2020-12 2': ['/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name'],
-  'chain-if-then-else-acyclic draft-07 1': ['/child/child', '/child/name'],
-  'chain-if-then-else-acyclic draft-07 2': ['/child/child', '/child/child/child', '/child/child/name', '/child/name'],
-  'chain-if-then-else-acyclic 2020-12 0': [
-    '/child/child', '/child/child/child', '/child/child/child/child', '/child/child/child/child/name',
-    '/child/child/child/name', '/child/child/name', '/child/name',
-  ],
-  'chain-if-then-else-acyclic 2020-12 1': [
-    '/child/child/child', '/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name',
-    '/child/child/name',
-  ],
-  'chain-if-then-else-acyclic 2020-12 2': ['/child/child/child/child', '/child/child/child/child/name', '/child/child/child/name'],
-  ...Object.fromEntries(
-    PROJECTED.flatMap((dialect) =>
-      (
-        [
-          ['live-if-under-then-beside-then-no-if', 0, ['/child']],
-          ['live-if-under-then-20-objects', 0, ['/child']],
-          ['own-else-redeclared-if-true', 0, ['/a/b/t']],
-          ['else-no-if-beside-an-if-then', 0, ['/a/b']],
-          ['dead-then-wider-than-a-live-then', 0, ['/a/b']],
-          ['dead-else-wider-than-a-live-else', 0, ['/a/b', '/a/b/t']],
-          ['dead-then-narrower-than-a-live-then', 0, ['/a/b']],
-          ['dead-if-false-then-wider-than-a-live-then', 0, ['/a/b']],
-          ['live-else-if-false-in-a-conditional-branch', 0, ['/b/a/y']],
-        ] as const
-      ).map(([id, depth, pointers]) => [`${id} ${dialect} ${depth}`, pointers]),
-    ),
-  ),
-}
+/** Active-flag exceptions are not allowed; all fixtures must match across adapters. */
+const KNOWN_ACTIVE_DIFFERENCES: Readonly<Record<string, readonly string[]>> = {}
 
 /**
  * Pre-existing pointer differences, by case: `a` lists what only the first adapter projects, `b`
@@ -955,4 +892,3 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
     })
   })
 }
-

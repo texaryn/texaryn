@@ -1,4 +1,4 @@
-import { computed, defineComponent, h } from 'vue'
+import { computed, defineComponent, h, nextTick } from 'vue'
 import type { PropType } from 'vue'
 import { objectChildKey } from '@texaryn/core'
 import type { ContainerNode, UINode } from '@texaryn/core'
@@ -76,9 +76,61 @@ export const ArrayControl = defineComponent({
             // is what makes a move preserve the row's component instance and
             // its DOM, and it is also what hands the surviving instance a
             // different node than the one it mounted with.
-            { key: item.id },
+            { key: item.id, 'data-array-row': '' },
             [
               child ? h(NodeRenderer, { node: child }) : null,
+              array.canReorder.value && index > 0
+                ? (() => {
+                    const up = messages.value.moveItemUp({
+                      position: index + 1,
+                      itemTitle,
+                      containerTitle: arrayTitle.value,
+                    })
+                    return h(
+                      'button',
+                      {
+                        type: 'button',
+                        'aria-label': up.accessibleName,
+                        'data-reorder-direction': 'up',
+                        onClick: (event: MouseEvent) => {
+                          const wasFocused = globalThis.document.activeElement === event.currentTarget
+                          const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
+                          array.move(index, index - 1)
+                          if (wasFocused && index === 1) {
+                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]')?.focus())
+                          }
+                        },
+                      },
+                      up.label,
+                    )
+                  })()
+                : null,
+              array.canReorder.value && index < array.items.value.length - 1
+                ? (() => {
+                    const down = messages.value.moveItemDown({
+                      position: index + 1,
+                      itemTitle,
+                      containerTitle: arrayTitle.value,
+                    })
+                    return h(
+                      'button',
+                      {
+                        type: 'button',
+                        'aria-label': down.accessibleName,
+                        'data-reorder-direction': 'down',
+                        onClick: (event: MouseEvent) => {
+                          const wasFocused = globalThis.document.activeElement === event.currentTarget
+                          const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
+                          array.move(index, index + 1)
+                          if (wasFocused && index === array.items.value.length - 2) {
+                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="up"]')?.focus())
+                          }
+                        },
+                      },
+                      down.label,
+                    )
+                  })()
+                : null,
               // The visible word stays short; the distinguishing name goes in
               // aria-label, which contains it so speech input still works.
               array.canRemove.value
@@ -92,20 +144,6 @@ export const ArrayControl = defineComponent({
                       'button',
                       { type: 'button', 'aria-label': remove.accessibleName, onClick: () => array.remove(index) },
                       remove.label,
-                    )
-                  })()
-                : null,
-              array.canReorder.value && index > 0
-                ? (() => {
-                    const up = messages.value.moveItemUp({
-                      position: index + 1,
-                      itemTitle,
-                      containerTitle: arrayTitle.value,
-                    })
-                    return h(
-                      'button',
-                      { type: 'button', 'aria-label': up.accessibleName, onClick: () => array.move(index, index - 1) },
-                      up.label,
                     )
                   })()
                 : null,

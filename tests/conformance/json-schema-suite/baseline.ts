@@ -15,8 +15,8 @@ import { suiteDialects, type SuiteDialect } from './runner.js'
 // a reason that describes a limitation nobody has any more is somewhere a
 // future regression could be filed instead of fixed.
 export const deviationReasons = [
-  // A document the suite expects to be retrieved from http://localhost:1234.
-  'external-schema-resolution-not-exposed',
+  // The suite runner omits the host supplied resolver for external documents.
+  'external-resource-resolver-not-configured',
   'texaryn-adapter-deviation',
   'upstream-validator-deviation',
   'suite-known-issue',
@@ -25,13 +25,13 @@ export const deviationReasons = [
 export type DeviationReason = (typeof deviationReasons)[number]
 
 /**
- * Reasons a reader can confirm from the failing test alone, because the test
- * asks for something no adapter exposes. Every other reason asserts something
- * about code (ours or someone else's) that could be fixed instead, so it has
- * to cite the record of that decision rather than a sentence someone typed.
+ * Reasons a reader can confirm from the test harness alone. Every other reason
+ * asserts something about code (ours or someone else's) that could be fixed
+ * instead, so it has to cite the record of that decision rather than a
+ * sentence someone typed.
  */
 export const issueExemptReasons: readonly DeviationReason[] = [
-  'external-schema-resolution-not-exposed',
+  'external-resource-resolver-not-configured',
 ]
 
 /**

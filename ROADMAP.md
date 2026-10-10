@@ -1853,30 +1853,42 @@ requirement for v1, but the compiler should be structured to allow it.
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.13.0, `@texaryn/schema-json` 0.7.1, `@texaryn/react` 0.5.3, `@texaryn/react-bootstrap` 0.4.2, `@texaryn/react-mui` 0.4.2, `@texaryn/vue` 0.4.3 and `@texaryn/web-components` 0.4.2. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
-The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are complete or declined, 1 is deferred until an adopter needs it, 2 have upstream follow-up, and 1 remains as local work.
+The post-release list, ordered after the Backstage adoption exercise, has 11 items: 7 are done, 1 is declined, 1 is in progress, and 2 wait on upstream work.
 
 | # | Item | State |
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash | PR #193 includes the package build fix; upstream #124 remains open |
+| 3 | `oneOf` inside `dependencies` crash | Merged PR #193 packages the local workaround; upstream #124 remains open |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
-| 7 | Renderer reorder parity | Open |
-| 8 | External schema resources | Deferred until an adopter needs it; remote reference failures stay visible in the conformance suite, no resolver API |
+| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all five renderer families |
+| 8 | External schema resources | PR #192 implements the resolver under ADR-009. Static external references validate and project; external dynamic references validate. ADR-010 documents bounded opt-in dynamic projection. Stacked PR #194 adds dynamic and recursive projection, view-only expansion for recursion and budget boundaries, property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. The schema-json build and 683 tests across 23 files pass; resolver conformance passes 89 tests with Hyperjump 1.18.0. ChatGPT peer review found no remaining actionable issues. At remote head `bf89d5a`, PR #192 tests, typecheck, build, changeset, dependency review, CI gate, and Codecov pass. Patch coverage is 90.50%, above the 90% target. Local full coverage, typecheck, build, and docs check pass; 94.95% of changed executable source lines are covered in the local LCOV comparison. Merge and release are pending. |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
-| 11 | Hyperjump suite deviations (#108) | Waits on upstream: hyperjump-io/json-schema#127 closed as deliberate, #128 unanswered |
+| 11 | Hyperjump suite deviations (#108) | Recorded: Hyperjump 1.18.0 fixes #128; #127 is deliberate upstream behavior; `file:` identifiers remain refused by upstream policy |
 
-Priorities for what remains:
+The published adapter defects in #176 and #178, review hardening in #183, and optional projected submission in #126 are implemented in PR #192. Targeted #177 work fixes Unicode local references and the `propertyNames` and `prefixItems` with `items: false` error pointers. The Hyperjump official suite baseline records two additional passing cases after the upgrade to 1.18.0.
 
-1. Correctness defects in the published `@texaryn/schema-json` adapter: #176 (nodes dropped under typeless `allOf` with `$ref`, array keywords inside `allOf`, inline conditional branches) and #178 (a `default` beside `$ref`).
-2. Item 7, renderer reorder parity. It is the last parity gap between the bindings and unblocks `moveItemDown`. It needs a design first.
-3. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
-4. #126, optional submission projection, a design question.
+The current #177 work fixes the typeless array-row shape gap, removes scalar child entries from Hyperjump projections, and aligns selected draft-07 reference branches. The recursive parity suite records zero active-flag differences across its fixture matrix. For a missing instance location with no recorded `if` result, Hyperjump evaluates the compiled local `if` schema against `{}`; it preserves recorded results and ancestor branch choices, and declines fallback across nested `$id` resources or dynamic and external references. ADR-009 adds a host supplied resource resolver to both adapters. The resolver performs no network access, defaults to 128 unique retrieval URIs, and supports external resource validation. Static external `$ref` resources also project. ADR-010 documents the bounded opt-in dynamic projection, with 29 focused cases; ChatGPT peer review found no remaining actionable issues.
+The Draft 7 registry overwrite report is filed upstream as json-schema-library issue #138. Cross-projection subtree caching stays deferred after design review because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
-#121 is fixed locally against `json-schema-library@11.6.2`. PR #193 includes the patched ESM runtime in the `@texaryn/schema-json` package build. Keep the vendored runtime, workspace patch and regression until upstream issue #124 is fixed and a published upstream version passes it, then remove the local workaround. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
+Local implementation work for #183, #126, and the targeted #177 pointer fixes is complete. PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. At remote head `bf89d5a`, PR #192 tests, typecheck, build, changeset, dependency review, CI gate, and Codecov pass; patch coverage is 90.50% against the 90% target. The local follow-up adds coverage for external resource behavior and preserves the inherited dialect when a retrieved schema omits `$schema`. Local full coverage, typecheck, build, and docs check pass; 94.95% of changed executable source lines are covered in the local LCOV comparison. ChatGPT peer review of the three follow-up commits found no actionable findings. Generated API documentation covers the public resolver options and error type. Package release remains pending merge and the repository release workflow.
+
+This branch also adds a weekly and manually dispatched compatibility workflow for the latest `json-schema-library`, while keeping the committed exact pin at 11.6.2. The isolated run resolved 11.6.4 and failed during module loading because it imports `resolve` from CommonJS `fast-uri` 4.2.1. This records an upstream compatibility failure for follow-up; it does not change the released dependency pin.
+
+Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
+
+#121 is fixed locally in main by merged PR #193, which packages the patched ESM runtime from `json-schema-library@11.6.2`. Keep the package workaround until upstream issue [sagold/json-schema-library#124](https://github.com/sagold/json-schema-library/issues/124) is fixed and a published upstream version passes the regression. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+
+Stacked PR #194 on `fix/schema-json-projection-gaps` combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. Combined ChatGPT review found that the memo key omitted dynamic scope. The adapter now disables this memo during dynamic projection, and ChatGPT confirmed the fix with no remaining actionable findings. Local verification passes the non-browser monorepo suite with 5,288 tests across 144 files, typecheck, and build. V8 coverage is 96.62% across configured files and 95.46% in schema-json. The GitHub Actions run on the PR head also passes build, documentation, package, site, typecheck, and `pnpm test:coverage`. It was dispatched manually because automatic pull request checks target `main`. PR #194 is open against PR #192; issue #179 remains open pending integration.
+
+The isolated performance branch passed 563 schema-json tests, the package build, and typecheck. The missing-value memo reduced median projection time from 33.322 ms to 16.457 ms on the Draft 7 metaschema, and from 51.770 ms to 26.651 ms on a nested schema, with identical output digests. A separate static cache and reduction guard measured 1.5% to 4.1% median gains on its measured workloads. These measurements are local and have not been rerun on the combined branch.
+
+The ChatGPT design review recommends keeping finalized-subtree caching deferred. Shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission, so a cached subtree cannot safely bypass the current traversal queue.
+
+The Draft 7 reference registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). #179 remains open until the combined implementation is reviewed, verified, and integrated. Cross-projection subtree caching remains deferred.
 
 
 ### Phase 0: Foundation (PRs 1-5)
@@ -1921,10 +1933,13 @@ schema library.
 7. **Concrete `SchemaEvaluationPort` adapter.** Implement the port with the
    library chosen in PR6. The adapter delegates `project()` and `validate()`
    to the library. Covers draft-07 and 2020-12 via dialect-aware evaluation
-   (section 9). Local `$ref` works through the library's resolver. Remote
-   `$ref` and `$dynamicRef` are deferred: networking, caching, and trust
-   policy make them more than library support. Tests: the fixture harness
-   from PR6, expanded to core vocabulary.
+   (section 9). Local `$ref` works through the library's resolver. ADR-009 adds
+   optional host supplied resource resolution for external `$ref`,
+   `$dynamicRef`, and `$recursiveRef` documents without adding network access
+   to Texaryn. The host owns fetching and trust policy, and the adapters cap
+   resource loading. ADR-010 adds bounded opt-in dynamic form projection for
+   supported paths; #179 tracks integration and remaining deferred cases. Tests: the
+   fixture harness from PR6, expanded to core vocabulary.
 
 8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
    primitives (string, number, integer, boolean), objects, and arrays into IR

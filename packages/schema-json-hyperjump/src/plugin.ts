@@ -1,7 +1,7 @@
 import type { EvaluationPlugin, ValidationContext } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { JsonNode } from '@hyperjump/json-schema/instance/experimental'
-import { keywordNameFromId, instancePointerFromUri, schemaFragment } from './pointer-utils.js'
+import { keywordNameFromId, instancePointerFromUri, schemaPosition } from './pointer-utils.js'
 
 export interface KeywordRecord {
   keywordName: string
@@ -43,6 +43,8 @@ export class ProjectionPlugin implements EvaluationPlugin<ProjectionContext> {
   readonly scopeValidity = new Map<string, boolean>()
   private stack: KeywordRecord[][] = []
 
+  constructor(private readonly rootUri: string) {}
+
   beforeSchema(_url: string, _instance: JsonNode, context: ProjectionContext): void {
     context.scopeRecords = []
     this.stack.push(context.scopeRecords)
@@ -66,7 +68,7 @@ export class ProjectionPlugin implements EvaluationPlugin<ProjectionContext> {
 
   afterSchema(url: string, instance: JsonNode, _context: ProjectionContext, valid: boolean): void {
     const instancePointer = instancePointerFromUri(Instance.uri(instance))
-    this.scopeValidity.set(`${schemaFragment(url)}@${instancePointer}`, valid)
+    this.scopeValidity.set(`${schemaPosition(url, this.rootUri)}@${instancePointer}`, valid)
 
     const mine = this.stack.pop()!
     if (valid) {

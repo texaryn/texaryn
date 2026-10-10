@@ -154,6 +154,38 @@ describe('createHyperjumpAdapter', () => {
       expect(projection.nodes.get('/work/street' as JsonPointer)).toBeDefined()
     })
 
+    it('resolves a percent-escaped UTF-8 local reference', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $defs: { 'é': { type: 'string' } },
+        properties: { cafe: { $ref: '#/$defs/%C3%A9' } },
+      })
+
+      expect(adapter.project({ cafe: 1 }).nodes.get('/cafe' as JsonPointer)?.type).toBe('string')
+      expect(adapter.validate({ cafe: 1 })).toMatchObject({
+        valid: false,
+        errors: [{ instancePointer: '/cafe', keyword: 'type' }],
+      })
+    })
+
+    it('preserves ASCII percent escapes beside a UTF-8 local reference', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $defs: {
+          '%20é': { type: 'string' },
+          ' é': { type: 'number' },
+        },
+        properties: { cafe: { $ref: '#/$defs/%2520%C3%A9' } },
+      })
+
+      expect(adapter.project({ cafe: 'coffee' }).nodes.get('/cafe' as JsonPointer)?.type).toBe('string')
+      expect(adapter.validate({ cafe: 'coffee' })).toMatchObject({ valid: true, errors: [] })
+      expect(adapter.validate({ cafe: 1 })).toMatchObject({
+        valid: false,
+        errors: [{ instancePointer: '/cafe', keyword: 'type' }],
+      })
+    })
+
     it('follows a recursive $ref to the depth of the instance data', async () => {
       const adapter = await createHyperjumpAdapter(recursiveRefSchema)
       const data = {

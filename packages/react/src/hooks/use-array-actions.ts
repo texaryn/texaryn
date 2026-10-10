@@ -7,6 +7,10 @@ export interface ArrayActions {
   add: ActionMessage
   /** Both surfaces of the control that removes the row at this position. */
   remove(position: number, item: UINode | undefined): ActionMessage
+  /** Both surfaces of the control that moves this row one position up. */
+  moveUp(position: number, item: UINode | undefined): ActionMessage
+  /** Both surfaces of the control that moves this row one position down. */
+  moveDown(position: number, item: UINode | undefined): ActionMessage
 }
 
 /**
@@ -23,6 +27,10 @@ export function useArrayActions(node: UINode): ArrayActions {
   return {
     remove: (position, item) =>
       messages.removeItem({ position, itemTitle: item?.annotations.title, containerTitle }),
+    moveUp: (position, item) =>
+      messages.moveItemUp({ position, itemTitle: item?.annotations.title, containerTitle }),
+    moveDown: (position, item) =>
+      messages.moveItemDown({ position, itemTitle: item?.annotations.title, containerTitle }),
     // The item template's title, not the first row's. A row may not exist yet,
     // which is exactly when naming the add control matters most, and a row's
     // annotations can in principle depend on its data.

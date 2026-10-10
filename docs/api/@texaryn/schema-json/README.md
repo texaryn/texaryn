@@ -8,7 +8,10 @@
 
 ## Classes
 
+- [ProjectionMarkerCollisionError](classes/ProjectionMarkerCollisionError.md)
+- [ProjectionValidationDivergenceError](classes/ProjectionValidationDivergenceError.md)
 - [SameLocationCycleError](classes/SameLocationCycleError.md)
+- [SchemaResourceResolutionError](classes/SchemaResourceResolutionError.md)
 
 ## Interfaces
 
@@ -17,6 +20,7 @@
 ## Type Aliases
 
 - [Dialect](type-aliases/Dialect.md)
+- [SchemaResourceResolver](type-aliases/SchemaResourceResolver.md)
 
 ## Functions
 

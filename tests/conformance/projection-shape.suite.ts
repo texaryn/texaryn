@@ -108,13 +108,6 @@ const inactiveTypeRows: readonly Row[] = [
     id: 'an explicit string type with properties beneath it',
     schema: obj({ c: { type: 'string', properties: { x: S } } }),
     expected: { nodes: { '': 'object', '/c': 'string' } },
-    differs: {
-      '@hyperjump/json-schema': {
-        nodes: { '': 'object', '/c': 'string' },
-        unlisted: ['/c/x'],
-        reason: 'the location beneath a scalar is left out and its entry kept',
-      },
-    },
   },
 ]
 
@@ -142,6 +135,34 @@ const conditionalRows: readonly Row[] = [
 
 const rows: readonly Row[] = [
   { id: 'a typeless root with properties', schema: { properties: { a: S } }, expected: { nodes: { '': 'object', '/a': 'string' } } },
+  {
+    id: 'a data member governed by additionalProperties',
+    schema: {
+      patternProperties: { '^matched': { type: 'number' } },
+      additionalProperties: { type: 'string' },
+    },
+    data: { matched: 1, note: 'hello' },
+    expected: { nodes: { '': 'object', '/note': 'string' } },
+    differs: {
+      '@hyperjump/json-schema': {
+        nodes: { '': 'object', '/matched': 'number', '/note': 'string' },
+        reason: 'the adapter also projects members matched by patternProperties',
+      },
+    },
+  },
+  {
+    id: 'a nested data member governed by additionalProperties',
+    schema: {
+      additionalProperties: { type: 'object', properties: { label: S } },
+    },
+    data: { extra: { label: 'value' } },
+    expected: { nodes: { '': 'object', '/extra': 'object', '/extra/label': 'string' } },
+  },
+  {
+    id: 'a required member governed by additionalProperties before data exists',
+    schema: { required: ['name'], additionalProperties: S },
+    expected: { nodes: { '': 'object', '/name': 'string' } },
+  },
   {
     id: 'a typeless root with required and properties',
     schema: { required: ['a'], properties: { a: S } },
@@ -227,6 +248,55 @@ const rows: readonly Row[] = [
     expected: { nodes: { '': 'object', '/a': 'array', '/a/0': 'object', '/a/0/x': 'string' } },
   },
   {
+    id: 'an inactive oneOf branch cannot change a typeless property inside an array row',
+    schema: obj({
+      rows: {
+        type: 'array',
+        items: {
+          properties: {
+            values: {
+              type: 'array',
+              items: {
+                properties: {
+                  entry: { properties: { name: S } },
+                },
+              },
+            },
+          },
+        },
+        oneOf: [
+          {
+            minItems: 2,
+            items: {
+              properties: {
+                values: {
+                  items: {
+                    properties: {
+                      entry: { items: S },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          { maxItems: 0 },
+        ],
+      },
+    }),
+    data: { rows: [{ values: [{}] }] },
+    expected: {
+      nodes: {
+        '': 'object',
+        '/rows': 'array',
+        '/rows/0': 'object',
+        '/rows/0/values': 'array',
+        '/rows/0/values/0': 'object',
+        '/rows/0/values/0/entry': 'object',
+        '/rows/0/values/0/entry/name': 'string',
+      },
+    },
+  },
+  {
     id: 'typeless rows of an array inside an object',
     schema: obj({ l: { type: 'array', items: { properties: { b: S } } } }),
     data: { l: [{}, {}] },
@@ -273,7 +343,6 @@ const rows: readonly Row[] = [
     schema: { ...obj({ a: { oneOf: [ref] } }), definitions: { n: { properties: { b: S } } } },
     data: { a: {} },
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
-    differs: { '@hyperjump/json-schema draft-07': { nodes: { '': 'object' }, unlisted: ['/a'] } },
   },
   {
     id: 'typeless branches of a oneOf wrapper no data selects',
@@ -390,6 +459,67 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
     })
 
     it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps a typed object active when an allOf member has no selected branch in %s',
+      async (dialect) => {
+        const conditional = {
+          if: { required: ['enabled'] },
+          then: { properties: { detail: S } },
+        }
+        const schemas = [
+          {
+            type: 'object',
+            properties: { name: S },
+            allOf: [conditional],
+          },
+          {
+            allOf: [conditional, { type: 'object', properties: { name: S } }],
+          },
+        ]
+
+        for (const objectSchema of schemas) {
+          const port = await createAdapter({
+            $schema: DIALECTS[dialect],
+            ...obj({ a: objectSchema }),
+          })
+          for (const data of [{}, { a: {} }]) {
+            const projection = port.project(data)
+            expect(projection.nodes.get('/a' as JsonPointer)?.active).toBe(true)
+            expect(projection.nodes.get('/a/name' as JsonPointer)?.active).toBe(true)
+            expect(projection.nodes.get('/a/detail' as JsonPointer)?.active).toBe(false)
+          }
+        }
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps an inferred object active beside an unresolved oneOf in an allOf member in %s',
+      async (dialect) => {
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            p: {
+              properties: { name: S },
+              allOf: [
+                {
+                  oneOf: [
+                    { properties: { first: S }, required: ['first'] },
+                    { properties: { second: S }, required: ['second'] },
+                  ],
+                },
+              ],
+            },
+          }),
+        })
+
+        for (const data of [{}, { p: {} }]) {
+          const projection = port.project(data)
+          expect(projection.nodes.get('/p' as JsonPointer)?.active).toBe(true)
+          expect(projection.nodes.get('/p/name' as JsonPointer)?.active).toBe(true)
+        }
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
       'keeps a typed row active beside a branch that does not apply and declares the row as a oneOf wrapper in %s',
       async (dialect) => {
         const wrapper = { oneOf: [obj({ x: S }), S] }
@@ -414,6 +544,298 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         expect(port.project(structuredClone(data)).diagnostics ?? []).toEqual([])
       }
     })
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps an unresolved oneOf object wrapper inactive in %s',
+      async (dialect) => {
+        const schema = obj({
+          a: {
+            oneOf: [
+              { type: 'object', properties: { b: S }, required: ['b'] },
+              { type: 'object', properties: { c: S }, required: ['c'] },
+            ],
+          },
+        })
+        const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
+
+        for (const data of [{}, { a: {} }]) {
+          expect(port.project(data).nodes.get('/a' as JsonPointer)?.active).toBe(false)
+        }
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps an unresolved oneOf wrapper inactive when it also declares properties in %s',
+      async (dialect) => {
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            a: {
+              properties: { name: S },
+              oneOf: [
+                { type: 'object', required: ['first'] },
+                { type: 'object', required: ['second'] },
+              ],
+            },
+          }),
+        })
+
+        for (const data of [{}, { a: {} }]) {
+          expect(port.project(data).nodes.get('/a' as JsonPointer)?.active).toBe(false)
+        }
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps selected reference-only oneOf branches active in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const schema = {
+          $schema: DIALECTS[dialect],
+          type: 'object',
+          properties: {
+            a: {
+              oneOf: [
+                { $ref: `#/${definitions}/A` },
+                { type: 'null' },
+              ],
+            },
+          },
+          [definitions]: {
+            A: {
+              type: 'object',
+              properties: {
+                b: {
+                  oneOf: [
+                    { $ref: `#/${definitions}/B` },
+                    { type: 'null' },
+                  ],
+                },
+              },
+            },
+            B: { type: 'object', properties: { leaf: S } },
+          },
+        }
+        const port = await createAdapter(schema)
+        const data = { a: { b: {} } }
+
+        expect((await port.validate(data)).valid).toBe(true)
+        const projection = port.project(data)
+        for (const pointer of ['/a', '/a/b', '/a/b/leaf']) {
+          const node = projection.nodes.get(pointer as JsonPointer)
+          expect(node?.active, pointer).toBe(true)
+          expect(node?.provisional ?? false).toBe(false)
+          expect(node?.recursiveExpansion ?? false).toBe(false)
+        }
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'does not select a reference-only oneOf branch when its target is invalid in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            a: {
+              oneOf: [
+                { $ref: `#/${definitions}/A` },
+                { type: 'null' },
+              ],
+            },
+          }),
+          [definitions]: {
+            A: { ...obj({ required: { type: 'string' } }), required: ['required'] },
+          },
+        })
+        const data = { a: {} }
+
+        expect((await port.validate(data)).valid).toBe(false)
+        const projection = port.project(data)
+        expect(projection.nodes.get('/a' as JsonPointer)?.active).toBe(false)
+        expect(projection.nodes.get('/a/required' as JsonPointer)?.active).toBe(false)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps reference-only oneOf ambiguous when two targets validate in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const target = { ...obj({ required: { type: 'string' } }), required: ['required'] }
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            a: {
+              oneOf: [
+                { $ref: `#/${definitions}/A` },
+                { $ref: `#/${definitions}/B` },
+              ],
+            },
+          }),
+          [definitions]: { A: target, B: target },
+        })
+        const data = { a: { required: 'present' } }
+
+        expect((await port.validate(data)).valid).toBe(false)
+        const projection = port.project(data)
+        expect(projection.nodes.get('/a' as JsonPointer)?.active).toBe(false)
+        expect(projection.nodes.get('/a/required' as JsonPointer)?.active).toBe(false)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps a selected then reference active in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            child: {
+              type: 'object',
+              if: { type: 'object' },
+              then: { $ref: `#/${definitions}/Selected` },
+            },
+          }),
+          [definitions]: {
+            Selected: { type: 'object', properties: { name: S } },
+          },
+        })
+        const data = { child: {} }
+
+        expect((await port.validate(data)).valid).toBe(true)
+        const name = port.project(data).nodes.get('/child/name' as JsonPointer)
+        expect(name?.active).toBe(true)
+        expect(name?.provisional ?? false).toBe(false)
+        expect(name?.recursiveExpansion ?? false).toBe(false)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps a selected then reference active through an allOf reference in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            child: {
+              type: 'object',
+              if: { type: 'object' },
+              then: { $ref: `#/${definitions}/Selected` },
+            },
+          }),
+          [definitions]: {
+            Selected: {
+              type: 'object',
+              allOf: [{ $ref: `#/${definitions}/Fields` }],
+            },
+            Fields: { type: 'object', properties: { name: S } },
+          },
+        })
+        const data = { child: {} }
+
+        expect((await port.validate(data)).valid).toBe(true)
+        const name = port.project(data).nodes.get('/child/name' as JsonPointer)
+        expect(name?.active).toBe(true)
+        expect(name?.provisional ?? false).toBe(false)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'keeps an unselected then reference inactive in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            child: {
+              type: 'object',
+              if: { required: ['enabled'] },
+              then: { $ref: `#/${definitions}/Selected` },
+              else: { properties: { reason: S } },
+            },
+          }),
+          [definitions]: {
+            Selected: { type: 'object', properties: { name: S }, required: ['name'] },
+          },
+        })
+        const data = { child: {} }
+
+        expect((await port.validate(data)).valid).toBe(true)
+        const projection = port.project(data)
+        expect(projection.nodes.get('/child/name' as JsonPointer)?.active).toBe(false)
+        expect(projection.nodes.get('/child/reason' as JsonPointer)?.active).toBe(true)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'selects an absent child conditional without changing its ancestor branch in %s',
+      async (dialect) => {
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          type: 'object',
+          if: { required: ['child'] },
+          then: { properties: { child: { type: 'object', properties: { wrong: S } } } },
+          else: {
+            properties: {
+              child: {
+                type: 'object',
+                if: { type: 'object' },
+                then: { properties: { name: S } },
+                else: { properties: { reason: S } },
+              },
+            },
+          },
+        })
+        const absent = port.project({})
+        expect(absent.nodes.get('/child/name' as JsonPointer)?.active).toBe(true)
+        expect(absent.nodes.get('/child/reason' as JsonPointer)?.active ?? false).toBe(false)
+        expect(absent.nodes.get('/child/wrong' as JsonPointer)?.active ?? false).toBe(false)
+
+        const present = port.project({ child: {} })
+        expect(present.nodes.get('/child/name' as JsonPointer)?.active ?? false).toBe(false)
+        expect(present.nodes.get('/child/wrong' as JsonPointer)?.active).toBe(true)
+      },
+    )
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'does not reuse root reference validity inside a nested resource in %s',
+      async (dialect) => {
+        const definitions = dialect === 'draft-07' ? 'definitions' : '$defs'
+        const nestedResource = {
+          $id: 'https://example.com/wrapper',
+          [definitions]: {
+            T: {
+              type: 'object',
+              properties: { nested: S },
+              required: ['nested'],
+            },
+          },
+          oneOf: [
+            { $ref: `#/${definitions}/T` },
+            { type: 'null' },
+          ],
+        }
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          type: 'object',
+          properties: {
+            p: {
+              allOf: [{ $ref: `#/${definitions}/Wrapper` }],
+              not: { $ref: `#/${definitions}/T` },
+            },
+          },
+          [definitions]: {
+            T: { type: 'object', properties: { root: S } },
+            Wrapper: nestedResource,
+          },
+        })
+        const data = { p: { root: 'present' } }
+
+        expect((await port.validate(data)).valid).toBe(false)
+        const projection = port.project(data)
+        expect(projection.nodes.get('/p/root' as JsonPointer)?.active ?? false).toBe(false)
+      },
+    )
 
     it.each(Object.keys(DIALECTS) as Dialect[])(
       'reports nothing for a wrapper nested in a wrapper whatever the data selects in %s',

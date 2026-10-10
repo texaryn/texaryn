@@ -135,7 +135,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -158,8 +158,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -252,100 +252,100 @@
         },
         "deviations": {
           "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref with ref to definitions :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           }
         }
       },
@@ -382,8 +382,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -409,7 +409,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -457,7 +457,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -629,7 +629,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -652,8 +652,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -733,7 +733,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -808,7 +808,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -818,140 +818,140 @@
         },
         "deviations": {
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read, so the validation keywords stay active and the instance is judged against them."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           }
         }
       },
@@ -989,8 +989,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1016,7 +1016,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1064,7 +1064,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -1236,7 +1236,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1259,8 +1259,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1340,7 +1340,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -1415,7 +1415,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -1425,188 +1425,188 @@
         },
         "deviations": {
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "validate-error",
               "errorName": "TypeError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') rather than reporting the unresolved reference."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "validate-error",
               "errorName": "TypeError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. Here validate() throws TypeError: Cannot read properties of undefined (reading 'required') rather than reporting the unresolved reference."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it. The unresolved reference is reported as an error rather than skipped."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createJsonSchemaAdapter exposes no resolver hook, so the reference cannot be resolved and validate() reports it as a $ref error: the instance is judged invalid whatever the referenced schema would have said. Constraints beside the reference are still applied."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234, which decides the vocabulary in force. Without a resolver the custom vocabulary is never read, so the validation keywords stay active and the instance is judged against them."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           }
         }
       }
@@ -1615,7 +1615,7 @@
       "draft-07": {
         "mandatory": {
           "total": 929,
-          "passed": 898
+          "passed": 902
         },
         "optional": {
           "total": 898,
@@ -1648,8 +1648,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1675,7 +1675,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1870,7 +1870,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1893,8 +1893,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1974,7 +1974,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2084,225 +2084,189 @@
             "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
             "issue": "https://github.com/texaryn/texaryn/issues/108"
           },
-          "ref.json :: $ref prevents a sibling $id from changing the base uri :: $ref resolves to /definitions/base_foo, data does not validate": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": true
-            },
-            "note": "draft-07 $ref ignores its siblings, so the sibling $id must not change the base URI. Hyperjump resolves against the sibling $id and reaches definitions/foo (string) rather than definitions/base_foo (number), which inverts both expectations.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $ref prevents a sibling $id from changing the base uri :: $ref resolves to /definitions/base_foo, data validates": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "draft-07 $ref ignores its siblings, so the sibling $id must not change the base URI. Hyperjump resolves against the sibling $id and reaches definitions/foo (string) rather than definitions/base_foo (number), which inverts both expectations.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: naive replacement of $ref with its destination is not correct :: do not evaluate the $ref inside the enum, definition exact match": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": true
-            },
-            "note": "enum entries are literal JSON, never schemas. Hyperjump resolves the $ref inside the entry, so it behaves as {\"type\":\"string\"}.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: naive replacement of $ref with its destination is not correct :: match the enum exactly": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "enum entries are literal JSON, never schemas. Hyperjump resolves the $ref inside the entry, so it behaves as {\"type\":\"string\"}.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
           "refRemote.json :: $ref to $ref finds location-independent $id :: non-number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "TypeError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json. Hyperjump raises TypeError while compiling that unresolved nested reference."
           },
           "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "TypeError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json. Hyperjump raises TypeError while compiling that unresolved nested reference."
           },
           "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to definitions :: invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to definitions :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           }
         }
       },
@@ -2356,8 +2320,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -2383,7 +2347,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -2431,7 +2395,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -2603,7 +2567,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -2626,8 +2590,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2707,7 +2671,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2782,7 +2746,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -2832,292 +2796,292 @@
             "issue": "https://github.com/texaryn/texaryn/issues/108"
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to defs :: invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           }
         }
       },
@@ -3173,8 +3137,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -3200,7 +3164,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -3248,7 +3212,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -3420,7 +3384,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -3443,8 +3407,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -3524,7 +3488,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -3599,7 +3563,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -3613,108 +3577,108 @@
         },
         "deviations": {
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect parent schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect parent schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: non-number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect extended schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect parent schema": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "$dynamicAnchor resolution needs the base document the suite serves from http://localhost:1234, and no resolver is exposed to retrieve it."
+            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
           },
           "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
             "reason": "upstream-validator-deviation",
@@ -3753,292 +3717,292 @@
             "issue": "https://github.com/texaryn/texaryn/issues/108"
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects the referenced folder document to be retrieved from http://localhost:1234. With no resolver the base URI change leaves the subschema empty, and compile() reports a missing property on it rather than naming the unresolved reference."
+            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to defs :: invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "RetrievalError"
             },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. createHyperjumpAdapter exposes no resolver hook, and hyperjump refuses to compile a reference it cannot resolve rather than proceeding without it."
+            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
-            "reason": "external-schema-resolution-not-exposed",
+            "reason": "external-resource-resolver-not-configured",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "$schema names a custom metaschema at http://localhost:1234. With no resolver hyperjump cannot read the vocabulary it declares and rejects the dialect outright."
+            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
           }
         }
       }

@@ -60,6 +60,22 @@ The whole text after an item's link, punctuation included.
 
 ***
 
+### moveItemDown()
+
+> **moveItemDown**(`context`): [`ActionMessage`](ActionMessage.md)
+
+#### Parameters
+
+##### context
+
+[`ItemActionContext`](ItemActionContext.md)
+
+#### Returns
+
+[`ActionMessage`](ActionMessage.md)
+
+***
+
 ### moveItemUp()
 
 > **moveItemUp**(`context`): [`ActionMessage`](ActionMessage.md)

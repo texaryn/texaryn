@@ -5,19 +5,14 @@ type Edge = { readonly to: string; readonly via: string; readonly inPlace: boole
 export interface SchemaGraph {
   readonly edges: ReadonlyMap<string, readonly Edge[]>
   readonly reachable: ReadonlySet<string>
+  readonly references: ReadonlyMap<string, string>
+  readonly resources: ReadonlyMap<string, string>
 }
 
 const ANONYMOUS_BASE = 'https://texaryn.invalid/root'
 
 const IN_PLACE_LIST = ['allOf', 'anyOf', 'oneOf'] as const
-const INSTANCE_SINGLE = [
-  'additionalProperties',
-  'additionalItems',
-  'contains',
-  'propertyNames',
-  'unevaluatedItems',
-  'unevaluatedProperties',
-] as const
+const INSTANCE_SINGLE = ['additionalProperties', 'contains', 'propertyNames'] as const
 const INSTANCE_MAP = ['properties', 'patternProperties'] as const
 const CONTAINERS = ['$defs', 'definitions'] as const
 // The index keeps the last node per $id; json-schema-library compiles $defs first and keeps the first from 2019-09.
@@ -118,11 +113,22 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
   for (const keyword of INSTANCE_SINGLE) {
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
+  if (dialect !== '2020-12' && Array.isArray(schema.items) && isRecord(schema.additionalItems)) {
+    found.push({ position: `${position}/additionalItems`, via: 'additionalItems', inPlace: false })
+  }
+  if (dialect !== 'draft-07') {
+    for (const keyword of ['unevaluatedItems', 'unevaluatedProperties'] as const) {
+      if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
+    }
+  }
   for (const keyword of INSTANCE_MAP) addMap(keyword, false)
-  for (const keyword of ['items', 'prefixItems'] as const) {
-    const value = schema[keyword]
-    if (isRecord(value)) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
-    else if (Array.isArray(value)) value.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: false }))
+  const items = schema.items
+  if (isRecord(items)) found.push({ position: `${position}/items`, via: 'items', inPlace: false })
+  else if (Array.isArray(items) && dialect !== '2020-12') {
+    items.forEach((_, index) => found.push({ position: `${position}/items/${index}`, via: `items/${index}`, inPlace: false }))
+  }
+  if (dialect === '2020-12' && Array.isArray(schema.prefixItems)) {
+    schema.prefixItems.forEach((_, index) => found.push({ position: `${position}/prefixItems/${index}`, via: `prefixItems/${index}`, inPlace: false }))
   }
   if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
   return found
@@ -195,20 +201,47 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
   const documents = documentsOf(document, remotes)
   const index = indexResources(documents, dialect)
   const edges = new Map<string, Edge[]>()
+  const references = new Map<string, string>()
   const reachable = new Set<string>()
-  const visit = (position: string): void => {
+  const visit = (position: string, inheritedBase = ANONYMOUS_BASE): void => {
     if (reachable.has(position)) return
     reachable.add(position)
     const schema = at(documents, position)
     const list: Edge[] = []
     edges.set(position, list)
     if (!isRecord(schema)) return
-    const base = index.baseAt.get(position) ?? ANONYMOUS_BASE
+    let base = index.baseAt.get(position) ?? inheritedBase
+    if (!index.baseAt.has(position)) {
+      const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
+      if (!ignoresSiblings && typeof schema.$id === 'string') {
+        if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
+          index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
+        } else {
+          const resolved = resolveUri(schema.$id, base)
+          if (resolved) {
+            base = withoutFragment(resolved)
+            index.resources.set(base, position)
+          }
+        }
+      }
+      if (!ignoresSiblings) {
+        if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') index.anchors.set(`${base}#${schema.$anchor}`, position)
+        if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+          index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
+          const anchors = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
+          anchors.push(position)
+          index.dynamicAnchors.set(schema.$dynamicAnchor, anchors)
+        }
+        if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
+      }
+      index.baseAt.set(position, base)
+    }
     for (const keyword of REFERENCES[dialect]) {
       const reference = schema[keyword]
       if (typeof reference !== 'string') continue
       const target = resolveReference(reference, base, index, documents)
       if (target === undefined) continue
+      references.set(`${position}\u0000${keyword}`, target)
       const targetSchema = at(documents, target)
       const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
       if (keyword === '$dynamicRef' && isRecord(targetSchema) && fragment !== '' && targetSchema.$dynamicAnchor === fragment) {
@@ -222,10 +255,10 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
       }
     }
     for (const child of childSchemas(schema, position, dialect, false)) list.push({ to: child.position, via: child.via, inPlace: child.inPlace })
-    for (const edge of list) visit(edge.to)
+    for (const edge of list) visit(edge.to, base)
   }
   visit('#')
-  return { edges, reachable }
+  return { edges, reachable, references, resources: index.resources }
 }
 
 export const POSITION = 'x-texaryn-position'
@@ -243,6 +276,16 @@ export interface MarkedDocuments {
   readonly document: unknown
   readonly remotes: readonly unknown[]
   readonly at: (position: string) => unknown
+}
+
+export class ProjectionMarkerCollisionError extends Error {
+  readonly position: string
+
+  constructor(position: string) {
+    super(`Schema position "${position}" declares the reserved key "${POSITION}" and cannot be projected.`)
+    this.name = 'ProjectionMarkerCollisionError'
+    this.position = position
+  }
 }
 
 /** Copies of the documents in which every reachable schema object names its own graph position under `POSITION`. */
@@ -263,6 +306,9 @@ export function markPositions(graph: SchemaGraph, document: unknown, remotes: re
   for (const [, schema] of schemas) {
     for (const keyword of INSTANCE_DATA) hold(schema[keyword])
     for (const keyword of MAPS) if (isRecord(schema[keyword])) held.add(schema[keyword])
+  }
+  for (const [position, schema] of schemas) {
+    if (!held.has(schema) && Object.hasOwn(schema, POSITION)) throw new ProjectionMarkerCollisionError(position)
   }
   for (const [position, schema] of schemas) if (!held.has(schema)) schema[POSITION] = position
   return { document: documents.local, remotes: copies, at: (position) => at(documents, position) }

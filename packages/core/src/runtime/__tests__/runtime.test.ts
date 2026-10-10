@@ -36,10 +36,12 @@ function makeProjection(
 function makePort(
   projectionFn: (data: unknown) => SchemaProjection,
   validateFn?: (data: unknown) => MaybePromise<ValidationResult>,
+  projectSubmissionFn?: (data: unknown) => unknown,
 ): SchemaEvaluationPort {
   return {
     project: projectionFn,
     validate: validateFn ?? (() => ({ valid: true, errors: [] })),
+    ...(projectSubmissionFn ? { projectSubmission: projectSubmissionFn } : {}),
   }
 }
 
@@ -844,6 +846,59 @@ describe('FormRuntime validation scheduling', () => {
 })
 
 describe('submission lifecycle', () => {
+  it('validates and submits one projected snapshot while retaining live data', async () => {
+    let validatedData: unknown
+    let submittedData: unknown
+    const projectedData = { name: 'Alice' }
+    const port = makePort(
+      () => simpleProjection,
+      (data) => {
+        validatedData = data
+        return { valid: true, errors: [] }
+      },
+      () => projectedData,
+    )
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice', revealed: 'typed' },
+      submission: 'projected',
+      onSubmit: (data) => { submittedData = data },
+    })
+
+    runtime.dispatch({ type: 'Submit' })
+    await flushMicrotasks()
+
+    expect(validatedData).toBe(projectedData)
+    expect(submittedData).toBe(projectedData)
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Alice', revealed: 'typed' })
+    expect(runtime.submission.getSnapshot().status).toBe('submitted')
+    runtime.destroy()
+  })
+
+  it('requires a port that implements projected submission', () => {
+    const port = makePort(() => simpleProjection)
+    expect(() => createFormRuntime(port, { submission: 'projected' })).toThrow(
+      'Projected submission requires a SchemaEvaluationPort with projectSubmission().',
+    )
+  })
+
+  it('reports a submission projection failure without validating or submitting', () => {
+    const projectionError = new Error('projection failed')
+    const validate = vi.fn(() => ({ valid: true, errors: [] }))
+    const onSubmit = vi.fn()
+    const port = makePort(() => simpleProjection, validate, () => { throw projectionError })
+    const runtime = createFormRuntime(port, {
+      initialData: { name: 'Alice' },
+      submission: 'projected',
+      onSubmit,
+    })
+
+    expect(() => runtime.dispatch({ type: 'Submit' })).not.toThrow()
+    expect(validate).not.toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(runtime.submission.getSnapshot()).toMatchObject({ status: 'idle', error: projectionError, attempts: 1 })
+    runtime.destroy()
+  })
+
   it('onSubmit receives captured snapshot, not live data', async () => {
     let receivedData: unknown
     const submitDef = deferred<void>()

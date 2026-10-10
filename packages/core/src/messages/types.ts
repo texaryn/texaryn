@@ -34,6 +34,7 @@ export interface FormMessages {
   addItem(context: AddItemContext): ActionMessage
   removeItem(context: ItemActionContext): ActionMessage
   moveItemUp(context: ItemActionContext): ActionMessage
+  moveItemDown(context: ItemActionContext): ActionMessage
   requiredIndicator(): IndicatorMessage
   errorSummaryHeading(context: ErrorSummaryHeadingContext): string
   /** The whole text after an item's link, punctuation included. */

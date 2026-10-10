@@ -35,6 +35,16 @@ describe('englishMessages', () => {
     })
   })
 
+  it('names a move-down control the same way, with its own preposition', () => {
+    expect(
+      englishMessages.moveItemDown({ position: 2, itemTitle: 'Tag', containerTitle: 'Tags' }),
+    ).toEqual({ label: 'Down', accessibleName: 'Move down Tag 2 in Tags' })
+    expect(englishMessages.moveItemDown({ position: 2 })).toEqual({
+      label: 'Down',
+      accessibleName: 'Move down item 2',
+    })
+  })
+
   it('places the required marker after the label', () => {
     expect(englishMessages.requiredIndicator()).toEqual({ text: '(required)', placement: 'after' })
   })
@@ -52,6 +62,7 @@ describe('englishMessages', () => {
     const actions: Array<(m: FormMessages) => { label: string; accessibleName: string }[]> = [
       (m) => contexts.map((c) => m.removeItem(c)),
       (m) => contexts.map((c) => m.moveItemUp(c)),
+      (m) => contexts.map((c) => m.moveItemDown(c)),
       (m) => [
         m.addItem({}),
         m.addItem({ itemTemplateTitle: 'Contact' }),

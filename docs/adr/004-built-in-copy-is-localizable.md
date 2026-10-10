@@ -26,7 +26,7 @@ and the reason to solve it now rather than later is that the cost grows with
 every string added. The error summary is the next item of work and would add
 more.
 
-### What the controls render today
+### What the controls rendered when this ADR was accepted
 
 Measured rather than recalled. Each action puts a short word on the button and
 the distinguishing sentence on `aria-label`:
@@ -234,9 +234,9 @@ maintain and no adopter has asked for one. Rule 3 already buys the
 exhaustiveness half of its value. The condition for revisiting is an adopter who
 cannot integrate through the bridge the guide documents.
 
-**`moveItemDown` is not in the contract**, because no binding renders that
-control. Reorder parity adds it, and `mergeMessages` is not how it arrives: rule
-3 means it lands as a breaking change to `FormMessages`, which is correct.
+**`moveItemDown` was not in the contract when this ADR was accepted.** [ADR-008](008-array-rows-move-in-both-directions.md)
+adds it with renderer reorder parity. Rule 3 makes it a required
+`FormMessages` member rather than an override supplied through `mergeMessages`.
 
 **Text direction is the host document's.** Texaryn sets no `dir` attribute, and
 this contract does not change that.

@@ -24,6 +24,7 @@ interface Row {
   data: unknown
   pointers: string[]
   projected?: boolean
+  keywords?: string[]
 }
 
 const rows: Row[] = [
@@ -62,6 +63,65 @@ const rows: Row[] = [
     data: { metadata: { annotations: {} } },
     pointers: ['/metadata/annotations/backstage.io~1techdocs-ref'],
   },
+  {
+    name: 'a property name constraint points to its containing object',
+    schema: { propertyNames: { maxLength: 2 } },
+    data: { abc: 1 },
+    pointers: [''],
+    keywords: ['propertyNames'],
+  },
+  {
+    name: 'a nested property name constraint points to its containing object',
+    schema: { properties: { profile: { propertyNames: { maxLength: 2 } } } },
+    data: { profile: { abc: 1 } },
+    pointers: ['/profile'],
+    keywords: ['propertyNames'],
+  },
+  {
+    name: 'a hash in the containing property name is decoded',
+    schema: object({ 'a#b': { propertyNames: { maxLength: 2 } } }),
+    data: { 'a#b': { abc: 1 } },
+    pointers: ['/a#b'],
+    keywords: ['propertyNames'],
+  },
+  {
+    name: 'a star in a data key is not a propertyNames marker',
+    schema: object({ propertyNames: { properties: { '*': string } } }),
+    data: { propertyNames: { '*': 1 } },
+    pointers: ['/propertyNames/*'],
+    keywords: ['type'],
+    projected: true,
+  },
+  {
+    name: 'an asterisk in a data key remains part of the instance pointer',
+    schema: { properties: { '*': { properties: { value: { type: 'string' } } } } },
+    data: { '*': { value: 1 } },
+    pointers: ['/*/value'],
+    keywords: ['type'],
+  },
+  {
+    name: 'items false after prefix items points to the array',
+    dialects: ['2020-12'],
+    schema: { properties: { k: { type: 'array', prefixItems: [{}], items: false } } },
+    data: { k: [1, 2] },
+    pointers: ['/k'],
+    keywords: ['type'],
+  },
+  {
+    name: 'items false under allOf points to the array',
+    dialects: ['2020-12'],
+    schema: { allOf: [{ properties: { k: { type: 'array', prefixItems: [{}], items: false } } }] },
+    data: { k: [1, 2] },
+    pointers: ['/k'],
+    keywords: ['type'],
+  },
+  {
+    name: 'items and prefixItems property names stay ordinary properties',
+    dialects: ['2020-12'],
+    schema: { properties: { items: false, prefixItems: { type: 'string' } } },
+    data: { items: 123 },
+    pointers: ['/items'],
+  },
 ]
 
 export function errorPointerConformanceSuite(name: string, create: AdapterFactory): void {
@@ -69,11 +129,14 @@ export function errorPointerConformanceSuite(name: string, create: AdapterFactor
     for (const [dialect, $schema] of Object.entries(DIALECTS)) {
       describe(dialect, () => {
         const applicable = rows.filter((row) => row.dialects === undefined || row.dialects.includes(dialect))
-        it.each(applicable)('reports $name as an RFC 6901 pointer', async ({ schema, data, pointers, projected }) => {
+        it.each(applicable)('reports $name as an RFC 6901 pointer', async ({ schema, data, pointers, projected, keywords }) => {
           const adapter = await create({ $schema, ...schema })
           const result = await adapter.validate(data)
           const reported = [...new Set(result.errors.map((error) => error.instancePointer as string))].sort()
           expect(reported).toEqual([...new Set(pointers)].sort())
+          if (keywords !== undefined) {
+            expect([...new Set(result.errors.map((error) => error.keyword))].sort()).toEqual([...new Set(keywords)].sort())
+          }
           if (projected) {
             const nodes = adapter.project(data).nodes
             for (const pointer of reported) expect(nodes.has(pointer as JsonPointer)).toBe(true)

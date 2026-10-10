@@ -32,6 +32,8 @@ const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
 const UNLOCATED_CHILDREN = [...IN_PLACE_BRANCHES, 'contains'] as const
 const NON_APPLYING = new Set([
   '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
   '$schema',
   '$id',
   '$anchor',
@@ -123,15 +125,45 @@ function resolveFresh(node: SchemaNode): SchemaNode | undefined {
   return isSchemaNode(next) ? next : undefined
 }
 
-export function followRef(node: SchemaNode): SchemaNode | undefined {
-  if (node.$ref === '') {
+export type ReferenceKeyword = '$ref' | '$dynamicRef' | '$recursiveRef'
+
+export function followRef(node: SchemaNode, keyword?: ReferenceKeyword): SchemaNode | undefined {
+  return followReference(node, keyword ?? referenceKeywords(node)[0])
+}
+
+export function referenceKeywords(node: SchemaNode): ReferenceKeyword[] {
+  const schema = node.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return []
+  const keywords: ReferenceKeyword[] = []
+  if (typeof schema.$ref === 'string') keywords.push('$ref')
+  if (node.getDraftVersion() === 'draft-2020-12' && typeof schema.$dynamicRef === 'string') {
+    keywords.push('$dynamicRef')
+  }
+  if (node.getDraftVersion() === 'draft-2019-09' && typeof schema.$recursiveRef === 'string') {
+    keywords.push('$recursiveRef')
+  }
+  return keywords
+}
+
+function followReference(node: SchemaNode, keyword: ReferenceKeyword | undefined): SchemaNode | undefined {
+  if (keyword === undefined) return undefined
+  const raw = node.schema as Record<string, unknown> | undefined
+  if (!raw || typeof raw[keyword] !== 'string') return undefined
+  const reference = raw[keyword] as string
+  if (keyword === '$ref' && reference === '') {
     const root = (node as { context?: { rootNode?: SchemaNode } }).context?.rootNode
     if (root) return root
   }
+  const keywords = referenceKeywords(node)
+  let referenceNode = node
+  if (keywords.length > 1) {
+    const schema = { ...raw }
+    for (const other of keywords) if (other !== keyword) delete schema[other]
+    referenceNode = { ...node, schema } as SchemaNode
+  }
   const context = (node as { context?: object }).context
-  const raw = node.schema as Record<string, unknown> | undefined
-  const dynamic = typeof raw === 'object' && raw !== null && ('$dynamicRef' in raw || '$recursiveRef' in raw)
-  if (!context || dynamic) return resolveFresh(node)
+  const dynamic = keyword !== '$ref'
+  if (!context || dynamic || keywords.length > 1) return resolveFresh(referenceNode)
   let cache = resolvedReferences.get(context)
   if (!cache) {
     cache = new Map()
@@ -147,16 +179,34 @@ export function followRef(node: SchemaNode): SchemaNode | undefined {
     ),
   )
   // A copy keeps the referring site's library location, which default sources read.
-  const key = `${positionOf(node)}|${String(node.schemaLocation)}|${node.$ref}|${copied}`
+  const key = `${positionOf(node)}|${String(node.schemaLocation)}|${reference}|${copied}`
   if (cache.has(key)) return cache.get(key)
-  const resolved = resolveFresh(node)
+  const resolved = resolveFresh(referenceNode)
   cache.set(key, resolved)
   return resolved
 }
 
+export function referenceOf(node: SchemaNode): string | undefined {
+  const schema = node.schema as Record<string, unknown> | undefined
+  const keyword = referenceKeywords(node)[0]
+  return keyword === undefined ? undefined : schema?.[keyword] as string
+}
+
+export function dynamicReferenceKeyword(node: SchemaNode): '$dynamicRef' | '$recursiveRef' | undefined {
+  const schema = node.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return undefined
+  if (node.getDraftVersion() === 'draft-2020-12' && typeof schema.$dynamicRef === 'string') {
+    return '$dynamicRef'
+  }
+  if (node.getDraftVersion() === 'draft-2019-09' && typeof schema.$recursiveRef === 'string') {
+    return '$recursiveRef'
+  }
+  return undefined
+}
+
 // Read from the document rather than the node: a node reached through `$ref`
 // carries the referring site's merged annotations.
-function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknown {
+export function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknown {
   const marker = markerOf(node)
   return (marker === undefined ? undefined : cache.schemaAt(marker)) ?? node.schema
 }
@@ -171,7 +221,8 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   const addAllOf = (): void => {
     for (const branch of node.allOf ?? []) for (const p of closureOf(branch, cache, stack)) out.add(p)
   }
-  if (typeof node.$ref === 'string') {
+  const references = referenceKeywords(node)
+  if (references.length > 0) {
     if (cache.dialect !== 'draft-07') {
       const raw = authoredSchema(node, cache)
       if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
@@ -179,8 +230,10 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
       }
       addAllOf()
     }
-    const target = followRef(node)
-    if (target) for (const p of closureOf(target, cache, stack)) out.add(p)
+    for (const keyword of references) {
+      const target = followReference(node, keyword)
+      if (target) for (const p of closureOf(target, cache, stack)) out.add(p)
+    }
   } else {
     out.add(position)
     addAllOf()
@@ -225,9 +278,12 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
       if (dead) deadNodes.add(node)
     }
     stack.add(position)
-    if (typeof node.$ref === 'string') {
-      const target = followRef(node)
-      if (target) visitAll(target, stack, dead)
+    const references = referenceKeywords(node)
+    if (references.length > 0) {
+      for (const keyword of references) {
+        const target = followReference(node, keyword)
+        if (target) visitAll(target, stack, dead)
+      }
       if (cache.dialect === 'draft-07') {
         stack.delete(position)
         return
@@ -284,7 +340,11 @@ function declaredBelow(info: LocationInfo, member: (node: SchemaNode) => SchemaN
 export function childDeclaring(info: LocationInfo, key: string): readonly SchemaNode[] {
   const cached = info.children.get(key)
   if (cached) return cached
-  const found = declaredBelow(info, (node) => node.properties?.[key] as SchemaNode | undefined)
+  const found = declaredBelow(info, (node) => {
+    if (Object.hasOwn(node.properties ?? {}, key)) return node.properties?.[key]
+    if (node.patternProperties?.some(({ pattern }) => pattern.test(key))) return undefined
+    return node.additionalProperties
+  })
   info.children.set(key, found)
   return found
 }

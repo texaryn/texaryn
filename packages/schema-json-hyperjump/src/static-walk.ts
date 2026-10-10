@@ -11,7 +11,14 @@ import type {
 } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
 import { projectionTypeFamilies, shapeDiagnostic, shapeOfFamilies, type KeywordFamily } from './projection-shape.js'
-import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-utils.js'
+import {
+  schemaAtPosition,
+  schemaFragment,
+  schemaParentPosition,
+  schemaReferenceTarget,
+  schemaPositionSegments,
+  escapeSegment,
+} from './pointer-utils.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
@@ -35,6 +42,7 @@ export interface DraftNode {
   type?: JsonSchemaType
   families?: Set<KeywordFamily>
   inactiveTypes?: Set<JsonSchemaType>
+  hasIndependentActiveShape?: true
   composed?: boolean
   format?: string
   constraints: FieldConstraints
@@ -99,19 +107,79 @@ export interface LocationInfo {
   items?: readonly string[]
 }
 
-function isLeafSchema(schema: unknown, rootSchema: unknown): boolean {
-  let current = schema
-  const seen = new Set<string>()
-  while (isRecord(current)) {
-    const target = refTarget(current)
-    if (target === undefined || seen.has(target)) break
-    seen.add(target)
-    current = resolveJsonPointer(rootSchema, target.slice(1))
+function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
+  const seenPositions = new Set<string>()
+  const seenSchemas = new WeakSet<object>()
+  const pending: Array<{ schema: unknown; position?: string }> = []
+  const enqueue = (schema: unknown, position?: string): void => {
+    if (schema !== null && typeof schema === 'object') {
+      if (position !== undefined) {
+        if (seenPositions.has(position)) return
+        seenPositions.add(position)
+      } else {
+        if (seenSchemas.has(schema)) return
+        seenSchemas.add(schema)
+      }
+    }
+    pending.push({ schema, position })
   }
-  if (!isRecord(current)) return true
-  const type = Array.isArray(current.type) ? current.type.find((t) => VALID_TYPES.has(t as JsonSchemaType)) : current.type
-  if (typeof type === 'string') return type !== 'object'
-  return ('enum' in current || 'const' in current) && !('properties' in current)
+  enqueue(schema, position)
+  while (pending.length > 0) {
+    const current = pending.pop()!
+    if (!isRecord(current.schema)) continue
+    const record = current.schema
+    const targets = refTargets(record, rootSchema, current.position, dialect)
+    if (targets.length > 0 && dialect === 'draft-07') {
+      for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
+      continue
+    }
+    if (dialect === 'draft-07') {
+      // ADR-007 keeps typeless Draft 7 compositions conservative for budgeting.
+      const type = Array.isArray(record.type)
+        ? record.type.find((value) => VALID_TYPES.has(value as JsonSchemaType))
+        : record.type
+      if (typeof type === 'string') {
+        if (type === 'object') return false
+        continue
+      }
+      if (('enum' in record || 'const' in record) && !('properties' in record)) continue
+      return false
+    }
+    const types = Array.isArray(record.type) ? record.type : [record.type]
+    if (types.includes('object') || projectionTypeFamilies(record).has('object')) return false
+    for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
+    for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
+      const branches = record[keyword]
+      if (Array.isArray(branches)) {
+        branches.forEach((branch: unknown, index: number) =>
+          enqueue(
+            branch,
+            current.position === undefined ? undefined : `${current.position}/${keyword}/${index}`,
+          ),
+        )
+      }
+    }
+    if (isRecord(record.if)) {
+      for (const keyword of ['then', 'else'] as const) {
+        enqueue(record[keyword], current.position === undefined ? undefined : `${current.position}/${keyword}`)
+      }
+    }
+    for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
+      const map = record[keyword]
+      if (!isRecord(map)) continue
+      for (const [key, branch] of Object.entries(map)) {
+        if (isRecord(branch)) {
+          enqueue(
+            branch,
+            current.position === undefined
+              ? undefined
+              : `${current.position}/${keyword}/${escapeSegment(key)}`,
+          )
+        }
+      }
+    }
+  }
+  return true
 }
 
 export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimits): RecursionState {
@@ -140,6 +208,8 @@ function addBoundary(state: RecursionState, pointer: string, reason: ProjectionB
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
 const NON_APPLYING = new Set([
   '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
   '$schema',
   '$id',
   '$anchor',
@@ -151,10 +221,27 @@ const NON_APPLYING = new Set([
   'definitions',
 ])
 
-const refTarget = (schema: Record<string, unknown>): string | undefined => {
+const refTargets = (
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  position?: string,
+  dialect: Dialect = 'draft-07',
+): string[] => {
+  if (position !== undefined) {
+    const keywords = dialect === '2020-12'
+      ? ['$ref', '$dynamicRef'] as const
+      : dialect === '2019-09'
+        ? ['$ref', '$recursiveRef'] as const
+        : ['$ref'] as const
+    const targets: string[] = []
+    for (const keyword of keywords) {
+      const resolved = schemaReferenceTarget(rootSchema, position, keyword)
+      if (resolved !== undefined && !targets.includes(resolved)) targets.push(resolved)
+    }
+    return targets
+  }
   const ref = schema.$ref
-  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
-  return `#${schemaFragment(ref)}`
+  return typeof ref === 'string' && ref.startsWith('#') ? [`#${schemaFragment(ref)}`] : []
 }
 
 // Draft 7 ignores a `$ref` site's siblings, so the site adds nothing to an
@@ -165,7 +252,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
   if (stack.has(position)) return []
   stack.add(position)
   const out = new Set<string>()
-  const schema = resolveJsonPointer(rootSchema, position.slice(1))
+  const schema = schemaAtPosition(rootSchema, position)
   const addAllOf = (record: Record<string, unknown>): void => {
     if (!Array.isArray(record.allOf)) return
     record.allOf.forEach((_: unknown, index: number) => {
@@ -173,8 +260,8 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
     })
   }
   if (isRecord(schema)) {
-    const target = refTarget(schema)
-    if (target === undefined) {
+    const targets = refTargets(schema, rootSchema, position, cache.dialect)
+    if (targets.length === 0) {
       out.add(position)
       addAllOf(schema)
     } else {
@@ -182,7 +269,9 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
         if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
         addAllOf(schema)
       }
-      for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
+      for (const target of targets) {
+        for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
+      }
     }
   } else if (typeof schema === 'boolean') out.add(position)
   stack.delete(position)
@@ -200,7 +289,7 @@ export function locationInfo(
   const memoKey = [...declaring].sort().join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
-  const at = (position: string): unknown => resolveJsonPointer(rootSchema, position.slice(1))
+  const at = (position: string): unknown => schemaAtPosition(rootSchema, position)
   const identity = new Set<string>()
   for (const position of declaring) for (const p of closureOf(position, rootSchema, cache, new Set())) identity.add(p)
 
@@ -218,9 +307,9 @@ export function locationInfo(
     if (!isRecord(schema)) return
     expanded.push(position)
     stack.add(position)
-    const target = refTarget(schema)
-    if (target !== undefined) visitAll(target, stack)
-    if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
+    const targets = refTargets(schema, rootSchema, position, cache.dialect)
+    for (const target of targets) visitAll(target, stack)
+    if (targets.length > 0 && cache.dialect === 'draft-07' && isRecord(at(targets[0]!))) {
       stack.delete(position)
       return
     }
@@ -261,11 +350,16 @@ function childDeclaring(info: LocationInfo, key: string, rootSchema: unknown): r
   if (cached) return cached
   const found: string[] = []
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
-    if (isRecord(schema) && isRecord(schema.properties) && key in schema.properties) {
+    const schema = schemaAtPosition(rootSchema, position)
+    if (!isRecord(schema)) continue
+    if (isRecord(schema.properties) && Object.hasOwn(schema.properties, key)) {
       const child = `${position}/properties/${escapeSegment(key)}`
       if (!found.includes(child)) found.push(child)
+      continue
     }
+    if (matchesPatternProperty(schema, key) || !isRecord(schema.additionalProperties)) continue
+    const child = `${position}/additionalProperties`
+    if (!found.includes(child)) found.push(child)
   }
   info.children.set(key, found)
   return found
@@ -275,7 +369,7 @@ function itemDeclaring(info: LocationInfo, rootSchema: unknown): readonly string
   if (info.items) return info.items
   const found: string[] = []
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
+    const schema = schemaAtPosition(rootSchema, position)
     if (isRecord(schema) && schema.items !== undefined && !Array.isArray(schema.items)) {
       found.push(`${position}/items`)
     }
@@ -329,7 +423,7 @@ function decideMember(
     admit = covered || state.nodesUsed < state.limits.nodes
     if (admit && !covered) state.nodesUsed += 1
   } else {
-    const leaves = leafMembers(info, rootSchema)
+    const leaves = leafMembers(info, rootSchema, state.cache.dialect)
     admit = state.objectsUsed < state.limits.objects && state.nodesUsed + 1 + leaves <= state.limits.nodes
     if (admit) {
       state.objectsUsed += 1
@@ -346,16 +440,19 @@ function decideMember(
   return settle({ kind: 'walk', lineage })
 }
 
-function leafMembers(info: LocationInfo, rootSchema: unknown): number {
+function leafMembers(info: LocationInfo, rootSchema: unknown, dialect: Dialect): number {
   const keys = new Set<string>()
+  const requiredKeys = requiredAtLocation(info, rootSchema)
   for (const position of info.expanded) {
-    const schema = resolveJsonPointer(rootSchema, position.slice(1))
-    if (isRecord(schema) && isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
+    const schema = schemaAtPosition(rootSchema, position)
+    if (!isRecord(schema)) continue
+    if (isRecord(schema.properties)) for (const key of Object.keys(schema.properties)) keys.add(key)
+    for (const key of additionalPropertyKeys(schema, undefined, requiredKeys)) keys.add(key)
   }
   let count = 0
   for (const key of keys) {
     const first = childDeclaring(info, key, rootSchema)[0]
-    if (first !== undefined && isLeafSchema(resolveJsonPointer(rootSchema, first.slice(1)), rootSchema)) count += 1
+    if (first !== undefined && isLeafSchema(schemaAtPosition(rootSchema, first), rootSchema, first, dialect)) count += 1
   }
   return count
 }
@@ -462,7 +559,7 @@ export function finalizeNodes(
       type: node.type!,
       format: node.format,
       constraints: node.constraints,
-      children: node.children,
+      children: node.type === 'object' ? node.children : undefined,
       enumValues: node.enumValues,
       active: node.active,
       // Belt and braces: `provisional` is only ever set on the branch that runs
@@ -480,6 +577,87 @@ export function finalizeNodes(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function matchesPatternProperty(schema: Record<string, unknown>, key: string): boolean {
+  if (!isRecord(schema.patternProperties)) return false
+  return Object.keys(schema.patternProperties).some((pattern) => new RegExp(pattern, 'u').test(key))
+}
+
+function additionalPropertyKeys(
+  schema: Record<string, unknown>,
+  data: unknown,
+  requiredAtLocation: ReadonlySet<string> = new Set(),
+): string[] {
+  if (!isRecord(schema.additionalProperties)) return []
+  const keys = new Set<string>(isRecord(data) ? Object.keys(data) : [])
+  if (Array.isArray(schema.required)) {
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  for (const key of requiredAtLocation) keys.add(key)
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+  return [...keys].filter(
+    (key) => !Object.hasOwn(properties, key) && !matchesPatternProperty(schema, key),
+  )
+}
+
+function requiredAtLocation(info: LocationInfo, rootSchema: unknown): Set<string> {
+  const keys = new Set<string>()
+  for (const position of info.expanded) {
+    const schema = schemaAtPosition(rootSchema, position)
+    if (!isRecord(schema) || !Array.isArray(schema.required)) continue
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  return keys
+}
+
+function applicableRequiredAtLocation(
+  info: LocationInfo,
+  rootSchema: unknown,
+  data: unknown,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): Set<string> {
+  const keys = new Set<string>()
+  for (const position of info.expanded) {
+    const segments = schemaPositionSegments(position)
+    let applicable = true
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index]!
+      const previous = segments[index - 1]
+      const parentSchemaPointer = (end: number): string => schemaParentPosition(position, end)
+      if (segment === 'if') {
+        applicable = false
+        break
+      }
+      if (
+        (segment === 'then' || segment === 'else') &&
+        !isBranchActive(parentSchemaPointer(index), instancePointer, `/${segment}`)
+      ) {
+        applicable = false
+        break
+      }
+      if (previous === 'oneOf' || previous === 'anyOf') {
+        const parent = parentSchemaPointer(index - 1)
+        if (!isBranchActive(parent, instancePointer, `/${previous}/${segment}`)) {
+          applicable = false
+          break
+        }
+      }
+      if (previous === 'dependentSchemas' || previous === 'dependencies') {
+        const dependency = segment.replace(/~1/g, '/').replace(/~0/g, '~')
+        if (!isRecord(data) || !Object.hasOwn(data, dependency)) {
+          applicable = false
+          break
+        }
+      }
+    }
+    if (!applicable) continue
+    const schema = schemaAtPosition(rootSchema, position)
+    if (!isRecord(schema) || !Array.isArray(schema.required)) continue
+    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+  }
+  return keys
 }
 
 /**
@@ -554,13 +732,28 @@ function applyStaticAnnotations(node: DraftNode, schema: Record<string, unknown>
 function resolveRef(
   schema: Record<string, unknown>,
   rootSchema: unknown,
+  schemaPointer?: string,
+  dialect: Dialect = 'draft-07',
 ): { pointer: string; schema: Record<string, unknown> } | undefined {
-  const ref = schema.$ref
-  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
-  const pointer = schemaFragment(ref)
-  const target = resolveJsonPointer(rootSchema, pointer)
+  const pointer = refTargets(schema, rootSchema, schemaPointer, dialect)[0]
+  if (pointer === undefined) return undefined
+  const target = schemaAtPosition(rootSchema, pointer)
   if (!isRecord(target)) return undefined
   return { pointer, schema: target }
+}
+
+function resolveRefs(
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  schemaPointer: string,
+  dialect: Dialect,
+): Array<{ pointer: string; schema: Record<string, unknown> }> {
+  const result: Array<{ pointer: string; schema: Record<string, unknown> }> = []
+  for (const pointer of refTargets(schema, rootSchema, schemaPointer, dialect)) {
+    const target = schemaAtPosition(rootSchema, pointer)
+    if (isRecord(target)) result.push({ pointer, schema: target })
+  }
+  return result
 }
 
 /**
@@ -629,10 +822,9 @@ export function staticWalk(
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
-  const ref = resolveRef(schema, rootSchema)
-  if (ref) {
+  for (const ref of resolveRefs(schema, rootSchema, schemaPointer, recursion.cache.dialect)) {
     const cycleKey = `${ref.pointer}@${pointer}`
-    if (visited.has(cycleKey)) return
+    if (visited.has(cycleKey)) continue
     visited.add(cycleKey)
     staticWalk(
       ref.schema,
@@ -652,7 +844,7 @@ export function staticWalk(
       conditional,
     )
     visited.delete(cycleKey)
-    return
+    if (recursion.cache.dialect === 'draft-07') return
   }
 
   // When an inactive branch encounters a node the base or active branch already
@@ -670,6 +862,13 @@ export function staticWalk(
   const exposed = active || provisional
   if (exposed || !existed) {
     applyStaticStructure(node, schema, exposed, conditional)
+    if (
+      exposed &&
+      !Array.isArray(schema.oneOf) &&
+      shapeOfFamilies(projectionTypeFamilies(schema)).kind === 'resolved'
+    ) {
+      node.hasIndependentActiveShape = true
+    }
   } else if (node.type === undefined) {
     const type = resolveType(schema)
     if (type !== undefined) (node.inactiveTypes ??= new Set()).add(type)
@@ -682,60 +881,75 @@ export function staticWalk(
     applyStaticAnnotations(node, schema)
   }
 
-  if (isRecord(schema.properties)) {
-    const required = new Set<string>(
-      Array.isArray(schema.required) ? (schema.required as string[]) : [],
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+  const location = locationInfo(declaring, rootSchema, recursion)
+  const required = new Set<string>(
+    Array.isArray(schema.required) ? (schema.required as string[]) : [],
+  )
+  const applicableRequired = applicableRequiredAtLocation(
+    location,
+    rootSchema,
+    data,
+    pointer,
+    isBranchActive,
+  )
+  const propertyKeys = new Set(Object.keys(properties))
+  for (const key of additionalPropertyKeys(schema, data, requiredAtLocation(location, rootSchema))) propertyKeys.add(key)
+  for (const key of propertyKeys) {
+    const declared = Object.hasOwn(properties, key)
+    const sub = declared ? properties[key] : schema.additionalProperties
+    const keyPresent = isRecord(data) && Object.hasOwn(data, key)
+    const childActive = active && (declared || keyPresent || applicableRequired.has(key))
+    const escaped = escapeSegment(key)
+    const childData = isRecord(data) ? data[key] : undefined
+    const childPointer = `${pointer}/${escaped}`
+    const childSchemaPointer = declared
+      ? `${schemaPointer}/properties/${escaped}`
+      : `${schemaPointer}/additionalProperties`
+    const memberDeclaring = childDeclaring(location, key, rootSchema)
+    const decision = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'enqueue')
+    if (decision !== 'defer' && decision.kind === 'skip') continue
+    // Gated on the branch applying. A branch that does not apply demands
+    // nothing, so a provisionally selected one demands it of the user
+    // without the validator asking yet.
+    addChild(
+      nodes,
+      pointer,
+      key,
+      active && applicableRequired.has(key),
+      escaped,
+      active,
+      provisional && required.has(key),
     )
-    for (const [key, sub] of Object.entries(schema.properties)) {
-      const escaped = escapeSegment(key)
-      const childData = isRecord(data) ? data[key] : undefined
-      const childPointer = `${pointer}/${escaped}`
-      const childSchemaPointer = `${schemaPointer}/properties/${escaped}`
-      const memberDeclaring = childDeclaring(locationInfo(declaring, rootSchema, recursion), key, rootSchema)
-      const decision = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'enqueue')
-      if (decision !== 'defer' && decision.kind === 'skip') continue
-      // Gated on the branch applying. A branch that does not apply demands
-      // nothing, and a provisionally selected one demands it of the user
-      // without the validator asking yet.
-      addChild(
+    const childPath = nextPath()
+    const enter = (settled: Decision): void => {
+      if (settled.kind === 'skip') return
+      staticWalk(
+        sub,
+        childData,
+        childPointer,
+        childSchemaPointer,
+        childActive,
+        provisional,
+        isBranchActive,
         nodes,
-        pointer,
-        key,
-        active && required.has(key),
-        escaped,
-        active,
-        provisional && required.has(key),
+        decision === 'defer' ? new Set() : visited,
+        rootSchema,
+        recursion,
+        memberDeclaring,
+        settled.lineage,
+        childPath,
       )
-      const childPath = nextPath()
-      const enter = (settled: Decision): void => {
-        if (settled.kind === 'skip') return
-        staticWalk(
-          sub,
-          childData,
-          childPointer,
-          childSchemaPointer,
-          active,
-          provisional,
-          isBranchActive,
-          nodes,
-          decision === 'defer' ? new Set() : visited,
-          rootSchema,
-          recursion,
-          memberDeclaring,
-          settled.lineage,
-          childPath,
-        )
-      }
-      if (decision === 'defer') {
-        ;(recursion.queue[lineage!.depth] ??= []).push({
-          path: childPath,
-          enter: () => {
-            const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema))
-            if (settled !== 'defer') enter(settled)
-          },
-        })
-      } else enter(decision)
     }
+    if (decision === 'defer') {
+      ;(recursion.queue[lineage!.depth] ??= []).push({
+        path: childPath,
+        enter: () => {
+          const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema, memberDeclaring[0], recursion.cache.dialect))
+          if (settled !== 'defer') enter(settled)
+        },
+      })
+    } else enter(decision)
   }
 
   // allOf branches always inherit the parent's active flag (they are
@@ -826,6 +1040,9 @@ export function staticWalk(
     })
   }
   if (exposed) walkRows(true)
+  // Complete declared rows before dynamic siblings so an inactive branch cannot
+  // supply the first shape family for a typeless property already in that row.
+  walkRows(false)
 
   // Dynamic branches (if/then/else, oneOf, anyOf, dependentSchemas, dependencies)
   // are collected across all constructs at this schema level and sorted active
@@ -979,23 +1196,19 @@ export function staticWalk(
     )
   }
 
-  // A location whose own keywords imply a shape is not a wrapper, and a oneOf stays
-  // demoted, as in schema-json.
-  const derivedShape =
-    node.families !== undefined &&
-    shapeOfFamilies(node.families).kind === 'resolved' &&
-    !Array.isArray(schema.oneOf)
+  // A resolved shape from another applicable declaration keeps a container active
+  // when an unselected oneOf wrapper appears at the same instance location.
+  const derivedShape = node.hasIndependentActiveShape === true
   if (
+    node.type === undefined &&
     resolveType(schema) === undefined &&
     !derivedShape &&
     dynamicBranches.length > 0 &&
-    (data === undefined || data === null) &&
     !dynamicBranches.some((db) => db.active || db.provisional)
   ) {
     node.active = false
   }
 
-  walkRows(false)
 }
 
 /**

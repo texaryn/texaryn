@@ -9,6 +9,12 @@ export interface WidgetProps {
   node: UINode
 }
 
+function focusAfterRender(row: HTMLElement | null, direction: 'up' | 'down'): void {
+  const focus = () => row?.querySelector<HTMLButtonElement>(`:scope > [data-reorder-direction="${direction}"]`)?.focus()
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focus)
+  else setTimeout(focus, 0)
+}
+
 function MuiArrayControlImpl({ node }: WidgetProps) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
@@ -20,10 +26,42 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
         const remove = actions.remove(index + 1, childNode)
+        const moveUp = actions.moveUp(index + 1, childNode)
+        const moveDown = actions.moveDown(index + 1, childNode)
         return (
-          <Box key={item.id}>
+          <Box key={item.id} data-array-row="">
             {childNode ? (
               <NodeRenderer node={childNode} document={document} registry={registry} />
+            ) : null}
+            {fieldArray.canReorder && index > 0 ? (
+              <Button
+                size="small"
+                aria-label={moveUp.accessibleName}
+                data-reorder-direction="up"
+                onClick={(event) => {
+                  const wasFocused = globalThis.document.activeElement === event.currentTarget
+                  const row = event.currentTarget.closest<HTMLElement>('[data-array-row]')
+                  fieldArray.move(index, index - 1)
+                  if (wasFocused && index === 1) focusAfterRender(row, 'down')
+                }}
+              >
+                {moveUp.label}
+              </Button>
+            ) : null}
+            {fieldArray.canReorder && index < fieldArray.items.length - 1 ? (
+              <Button
+                size="small"
+                aria-label={moveDown.accessibleName}
+                data-reorder-direction="down"
+                onClick={(event) => {
+                  const wasFocused = globalThis.document.activeElement === event.currentTarget
+                  const row = event.currentTarget.closest<HTMLElement>('[data-array-row]')
+                  fieldArray.move(index, index + 1)
+                  if (wasFocused && index === fieldArray.items.length - 2) focusAfterRender(row, 'up')
+                }}
+              >
+                {moveDown.label}
+              </Button>
             ) : null}
             {fieldArray.canRemove ? (
               <Button

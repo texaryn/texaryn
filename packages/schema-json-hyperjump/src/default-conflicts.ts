@@ -80,9 +80,9 @@ export function collectDefaultConflicts(
   ): void => {
     if (!isRecord(schema)) return
 
-    // A `$ref` is followed to its target, which then stands in for this
-    // position entirely: `schemaPointer` becomes the target's, so a declaration
-    // is named by where it is written rather than by what pointed at it.
+    // Draft 7 ignores a `$ref` site's siblings. Later dialects apply them, so
+    // record the site's default before following the target, then keep walking
+    // the sibling keywords at their authored position.
     const ref =
       typeof schema.$ref === 'string' && schema.$ref.startsWith('#') ? schema.$ref : undefined
     if (ref !== undefined) {
@@ -90,12 +90,15 @@ export function collectDefaultConflicts(
       const cycleKey = `${target}@${pointer}`
       if (visited.has(cycleKey)) return
       visited.add(cycleKey)
+      if (dialect !== 'draft-07' && 'default' in schema) {
+        record(pointer, { value: schema.default, source: schemaPointer })
+      }
       visit(resolveJsonPointer(rootSchema, target), current, pointer, target, visited)
       visited.delete(cycleKey)
-      return
+      if (dialect === 'draft-07') return
+    } else if ('default' in schema) {
+      record(pointer, { value: schema.default, source: schemaPointer })
     }
-
-    if ('default' in schema) record(pointer, { value: schema.default, source: schemaPointer })
 
     if (Array.isArray(schema.allOf)) {
       schema.allOf.forEach((branch, index) => {

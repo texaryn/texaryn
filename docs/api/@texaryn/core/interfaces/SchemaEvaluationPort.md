@@ -24,6 +24,24 @@
 
 ***
 
+### projectSubmission()?
+
+> `optional` **projectSubmission**(`data`): `unknown`
+
+Returns an independent snapshot with data from inactive schema declarations removed.
+
+#### Parameters
+
+##### data
+
+`unknown`
+
+#### Returns
+
+`unknown`
+
+***
+
 ### validate()
 
 > **validate**(`data`): [`MaybePromise`](../type-aliases/MaybePromise.md)\<[`ValidationResult`](ValidationResult.md)\>

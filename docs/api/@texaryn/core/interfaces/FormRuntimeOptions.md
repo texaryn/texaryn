@@ -60,6 +60,18 @@ is a root the caller supplied, and nothing is written over it.
 
 ***
 
+### submission?
+
+> `optional` **submission?**: `"retain"` \| `"projected"`
+
+`'retain'`, the default, validates and submits all current form data.
+`'projected'` asks the adapter for a submission snapshot with locations
+outside its currently applicable schema removed. The runtime validates
+that same snapshot and leaves live form data untouched. Creation fails if
+the adapter does not implement `projectSubmission`.
+
+***
+
 ### validationDebounceMs?
 
 > `optional` **validationDebounceMs?**: `number`

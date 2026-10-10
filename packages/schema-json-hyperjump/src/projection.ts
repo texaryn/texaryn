@@ -7,7 +7,14 @@ import type {
   ProjectionDiagnostic,
 } from '@texaryn/core'
 import { ProjectionPlugin, type KeywordRecord } from './plugin.js'
-import { schemaFragment, resolveJsonPointer } from './pointer-utils.js'
+import {
+  schemaAtPosition,
+  schemaParentPosition,
+  schemaPosition,
+  schemaPositionSegments,
+  schemaReferenceTarget,
+  escapeSegment,
+} from './pointer-utils.js'
 import { collectDefaultConflicts } from './default-conflicts.js'
 import {
   staticWalk,
@@ -50,41 +57,234 @@ function walkOrder(a: readonly number[], b: readonly number[]): number {
  * branch then is provisional selection's job rather than this function's. See
  * `selectProvisionalBranch`.
  */
-function makeBranchChecker(scopeValidity: Map<string, boolean>): BranchChecker {
+function makeBranchChecker(
+  rawSchema: unknown,
+  scopeValidity: Map<string, boolean>,
+  compiled: CompiledSchema,
+  data: unknown,
+  dialect: ProjectionCache['dialect'],
+): BranchChecker {
+  const annotationKeys = new Set<string>(ANNOTATION_KEYS)
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+  const schemaSingleKeys = new Set([
+    'additionalItems', 'additionalProperties', 'contains', 'contentSchema', 'else', 'if',
+    'items', 'not', 'propertyNames', 'then', 'unevaluatedItems', 'unevaluatedProperties',
+  ])
+  const schemaListKeys = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+  const schemaMapKeys = new Set([
+    '$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties',
+  ])
+
+  const hasNestedIdBoundary = (pointer: string): boolean => {
+    const hashIndex = pointer.indexOf('#')
+    if (hashIndex > 0) return true
+    const parts = schemaPositionSegments(pointer)
+    return parts.some((_, index) => {
+      const ancestorPointer = schemaParentPosition(pointer, index + 1)
+      const ancestor = schemaAtPosition(rawSchema, ancestorPointer)
+      return isRecord(ancestor) && typeof ancestor.$id === 'string'
+    })
+  }
+
+  const referenceAnalysisCache = new Map<string, { containsReference: boolean; unsafeScope: boolean }>()
+  const analyzeReferences = (pointer: string): { containsReference: boolean; unsafeScope: boolean } => {
+    const cached = referenceAnalysisCache.get(pointer)
+    if (cached) return cached
+
+    const visited = new Set<string>()
+    const result = { containsReference: false, unsafeScope: false }
+    const visit = (schemaPointer: string): void => {
+      if (visited.has(schemaPointer) || result.unsafeScope) return
+      visited.add(schemaPointer)
+      if (hasNestedIdBoundary(schemaPointer)) {
+        result.unsafeScope = true
+        return
+      }
+
+      const schema = schemaAtPosition(rawSchema, schemaPointer)
+      if (!isRecord(schema)) return
+      if ('$dynamicRef' in schema || '$recursiveRef' in schema) {
+        result.containsReference = true
+        result.unsafeScope = true
+        return
+      }
+
+      if (typeof schema.$ref === 'string') {
+        result.containsReference = true
+        if (!schema.$ref.startsWith('#')) {
+          result.unsafeScope = true
+          return
+        }
+        const fragment = schemaReferenceTarget(rawSchema, schemaPointer)
+        const rawFragment = schema.$ref.slice(1)
+        if (rawFragment !== '' && !rawFragment.startsWith('/')) {
+          result.unsafeScope = true
+          return
+        }
+        const target = fragment
+        if (target === undefined) {
+          result.unsafeScope = true
+          return
+        }
+        visit(target)
+      }
+
+      for (const keyword of schemaSingleKeys) {
+        if (isRecord(schema[keyword])) visit(`${schemaPointer}/${keyword}`)
+      }
+      for (const keyword of schemaListKeys) {
+        const branches = schema[keyword]
+        if (Array.isArray(branches)) {
+          branches.forEach((_, index) => visit(`${schemaPointer}/${keyword}/${index}`))
+        }
+      }
+      if (Array.isArray(schema.items)) {
+        schema.items.forEach((_, index) => visit(`${schemaPointer}/items/${index}`))
+      }
+      for (const keyword of schemaMapKeys) {
+        const members = schema[keyword]
+        if (isRecord(members)) {
+          Object.entries(members).forEach(([key, child]) => {
+            if (isRecord(child)) visit(`${schemaPointer}/${keyword}/${escapeSegment(key)}`)
+          })
+        }
+      }
+    }
+    visit(pointer)
+    referenceAnalysisCache.set(pointer, result)
+    return result
+  }
+
+  const hasInstanceAt = (pointer: string): boolean => {
+    if (pointer === '') return true
+    let current = data
+    for (const rawSegment of pointer.split('/').slice(1)) {
+      const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+      if (Array.isArray(current)) {
+        const index = Number(segment)
+        if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) {
+          return false
+        }
+        current = current[index]
+      } else if (isRecord(current) && Object.hasOwn(current, segment)) {
+        current = current[segment]
+      } else {
+        return false
+      }
+    }
+    return true
+  }
+
+  const rootUri = compiled.schemaUri.split('#')[0]!
+  const compiledUrisByFragment = new Map<string, string>()
+  for (const uri of Object.keys(compiled.ast)) {
+    if (uri.startsWith(`${rootUri}#`)) compiledUrisByFragment.set(schemaPosition(uri, rootUri), uri)
+  }
+  const missingIfValidity = new Map<string, boolean | undefined>()
+  const missingIfResult = (schemaPointer: string, instancePointer: string): boolean | undefined => {
+    const conditionPointer = `${schemaPointer}/if`
+    const cacheKey = `${conditionPointer}@${instancePointer}`
+    if (missingIfValidity.has(cacheKey)) return missingIfValidity.get(cacheKey)
+
+    let result: boolean | undefined
+    if (!hasInstanceAt(instancePointer) && !analyzeReferences(conditionPointer).unsafeScope) {
+      const conditionUri = compiledUrisByFragment.get(conditionPointer)
+      if (conditionUri) {
+        try {
+          const output = interpret(
+            { ...compiled, schemaUri: conditionUri },
+            Instance.fromJs({}),
+            BASIC,
+          ) as { valid: boolean }
+          result = output.valid
+        } catch {
+          result = undefined
+        }
+      }
+    }
+
+    missingIfValidity.set(cacheKey, result)
+    return result
+  }
+
+  const referencedValidity = (branch: unknown, instancePointer: string, branchPosition: string): boolean | undefined => {
+    if (!isRecord(branch) || typeof branch.$ref !== 'string') return undefined
+    if (Object.keys(branch).some((key) => key !== '$ref' && !annotationKeys.has(key))) {
+      return undefined
+    }
+
+    let pointer = schemaReferenceTarget(rawSchema, branchPosition)
+    if (pointer === undefined) return undefined
+    const visited = new Set<string>()
+    while (!visited.has(pointer)) {
+      visited.add(pointer)
+      if (hasNestedIdBoundary(pointer)) return undefined
+      const key = `${pointer}@${instancePointer}`
+      if (scopeValidity.has(key)) return scopeValidity.get(key)
+
+      const target = schemaAtPosition(rawSchema, pointer)
+      if (!isRecord(target) || typeof target.$ref !== 'string') {
+        return undefined
+      }
+      if (Object.keys(target).some((name) => name !== '$ref' && !annotationKeys.has(name))) {
+        return undefined
+      }
+      pointer = schemaReferenceTarget(rawSchema, pointer) ?? ''
+    }
+    return undefined
+  }
+
+  const branchValidity = (
+    schemaPointer: string,
+    instancePointer: string,
+    keyword: string,
+    index: number,
+  ): boolean | undefined => {
+    const key = `${schemaPointer}/${keyword}/${index}@${instancePointer}`
+    if (scopeValidity.has(key)) return scopeValidity.get(key)
+    const construct = schemaAtPosition(rawSchema, schemaPointer)
+    const branches = isRecord(construct) ? construct[keyword] : undefined
+    const branch = Array.isArray(branches) ? branches[index] : undefined
+    if (hasNestedIdBoundary(schemaPointer)) return undefined
+    return referencedValidity(branch, instancePointer, `${schemaPointer}/${keyword}/${index}`)
+  }
+
   return (schemaPointer: string, instancePointer: string, suffix: string): boolean => {
     if (suffix === '/then' || suffix === '/else') {
-      const ifValid = scopeValidity.get(`${schemaPointer}/if@${instancePointer}`)
+      const ifKey = `${schemaPointer}/if@${instancePointer}`
+      const branchPointer = `${schemaPointer}${suffix}`
+      const skipDraft07Reference =
+        dialect === 'draft-07' && analyzeReferences(branchPointer).containsReference
+      const ifValid = scopeValidity.has(ifKey)
+        ? scopeValidity.get(ifKey)
+        : skipDraft07Reference
+          ? undefined
+          : missingIfResult(schemaPointer, instancePointer)
       return suffix === '/then' ? ifValid === true : ifValid === false
     }
 
-    const branchKey = `${schemaPointer}${suffix}@${instancePointer}`
-    const directlyValid = scopeValidity.get(branchKey) === true
-
     const match = suffix.match(/^\/(oneOf|anyOf)\/(\d+)$/)
-    if (!match) return directlyValid
+    if (!match) return scopeValidity.get(`${schemaPointer}${suffix}@${instancePointer}`) === true
 
     const [, keyword, indexStr] = match
     const branchIndex = parseInt(indexStr, 10)
-    const prefix = `${schemaPointer}/${keyword}/`
-    const atSuffix = `@${instancePointer}`
+    const construct = schemaAtPosition(rawSchema, schemaPointer)
+    const branches = isRecord(construct) && Array.isArray(construct[keyword])
+      ? construct[keyword] as unknown[]
+      : []
+    const directlyValid = branchValidity(schemaPointer, instancePointer, keyword, branchIndex) === true
+    const validSibling = branches.some((_, index) =>
+      index !== branchIndex && branchValidity(schemaPointer, instancePointer, keyword, index) === true,
+    )
 
     if (directlyValid) {
       if (keyword === 'anyOf') return true
-      // oneOf: ambiguity (multiple directly valid branches) means none selected
-      for (const [key, valid] of scopeValidity) {
-        if (!valid || !key.startsWith(prefix) || !key.endsWith(atSuffix)) continue
-        const segment = key.slice(prefix.length, key.length - atSuffix.length)
-        if (/^\d+$/.test(segment) && parseInt(segment, 10) !== branchIndex) return false
-      }
-      return true
+      return !validSibling
     }
 
     // If any sibling branch is directly valid, this branch lost and is inactive.
-    for (const [key, valid] of scopeValidity) {
-      if (!valid || !key.startsWith(prefix) || !key.endsWith(atSuffix)) continue
-      const segment = key.slice(prefix.length, key.length - atSuffix.length)
-      if (/^\d+$/.test(segment)) return false
-    }
+    if (validSibling) return false
 
     // No branch is directly valid, so none applies. `active` means JSON Schema
     // evaluation says the node applies, and nothing here does.
@@ -128,7 +328,8 @@ export function buildProjection(
   cache: ProjectionCache,
   limits: ProjectionLimits = DEFAULT_LIMITS,
 ): SchemaProjection {
-  const plugin = new ProjectionPlugin()
+  const rootUri = compiled.schemaUri.split('#')[0]!
+  const plugin = new ProjectionPlugin(rootUri)
   interpret(compiled, Instance.fromJs((data === undefined ? {} : data) as Parameters<typeof Instance.fromJs>[0]), {
     outputFormat: BASIC,
     plugins: [plugin],
@@ -149,7 +350,7 @@ export function buildProjection(
 
     const resolvedByKeyword = new Map<string, unknown[]>()
     for (const record of records) {
-      const value = resolveJsonPointer(rawSchema, schemaFragment(record.schemaUri))
+      const value = schemaAtPosition(rawSchema, schemaPosition(record.schemaUri, rootUri))
       const list = resolvedByKeyword.get(record.keywordName) ?? []
       list.push(value)
       resolvedByKeyword.set(record.keywordName, list)
@@ -191,12 +392,12 @@ export function buildProjection(
     }
   }
 
-  const branchChecker = makeBranchChecker(plugin.scopeValidity)
+  const branchChecker = makeBranchChecker(rawSchema, plugin.scopeValidity, compiled, data, cache.dialect)
 
   const recursion = newRecursionState(cache, limits)
   const rootInfo = locationInfo(['#'], rawSchema, recursion)
   if (rootInfo.cycle) recursion.cycles.add('')
-  else staticWalk(rawSchema, data, '', '', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
+  else staticWalk(rawSchema, data, '', '#', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
   for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   resolveShapes(nodes)
   for (const pointer of recursion.flagged) {
@@ -228,7 +429,9 @@ export function buildProjection(
   // omitted wherever either found a disagreement.
   const sources = new Map<string, readonly string[]>()
   const schemaConflicts = collectDefaultConflicts(rawSchema, data, undefined, nodes, cache.dialect)
-  const applicableConflicts = collectDefaultConflicts(rawSchema, data, branchChecker, nodes, cache.dialect, sources)
+  const conflictBranchChecker: BranchChecker = (schemaPointer, instancePointer, suffix) =>
+    branchChecker(schemaPointer.startsWith('#') ? schemaPointer : `#${schemaPointer}`, instancePointer, suffix)
+  const applicableConflicts = collectDefaultConflicts(rawSchema, data, conflictBranchChecker, nodes, cache.dialect, sources)
   for (const pointer of applicableConflicts.keys()) {
     const node = nodes.get(pointer)
     if (node) delete node.annotations.default

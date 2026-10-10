@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { compileSchema, type JsonSchema, type SchemaNode } from 'json-schema-library'
 import type { NodeProjection, SchemaProjection } from '@texaryn/core'
 import { createFormRuntime } from '@texaryn/core'
-import { createJsonSchemaAdapter } from '../index.js'
+import { createJsonSchemaAdapter, ProjectionValidationDivergenceError } from '../index.js'
 import { createAdapter } from '../adapter.js'
 import { followRef, positionOf } from '../identity.js'
 import { buildSchemaGraph, markPositions } from '../schema-graph.js'
@@ -243,12 +243,17 @@ describe('branches the specification never evaluates', () => {
     [
       'a then without if whose allOf applies its parent property',
       { type: 'object', properties: { p: { type: 'object', properties: { a: S }, then: { allOf: [{ $ref: '#/properties/p' }] } }, r: { $ref: '#/properties/p/then' } } },
-      [{}, { p: {} }, { r: {} }].map((data) => [data, ['', '/p', '/p/a', 'unresolved-projection-shape@/r']]),
+      [{}, { p: {} }, { r: {} }].map((data) => [data, ['', '/p', '/p/a', '/r', '/r/a']]),
     ],
     [
       'a then under if: false whose member refers to its parent property',
       { type: 'object', properties: { p: { type: 'object', properties: { a: S }, if: false, then: { properties: { c: { $ref: '#/properties/p' } } } }, r: { $ref: '#/properties/p/then' } } },
-      [{}, { p: {} }, { r: {} }, { p: { c: {} } }].map((data) => [data, ['', '/p', '/p/a', '/p/c(i)', '/p/c/a(i)', '/r', '/r/c', '/r/c/a']]),
+      [
+        [{}, ['', '/p', '/p/a', '/p/c(i)[recursion]', '/p/c/a(i)', '/r', '/r/c', '/r/c/a', '/r/c/c(i)[recursion]', '/r/c/c/a(i)']],
+        [{ p: {} }, ['', '/p', '/p/a', '/p/c(i)[recursion]', '/p/c/a(i)', '/r', '/r/c', '/r/c/a', '/r/c/c(i)[recursion]', '/r/c/c/a(i)']],
+        [{ r: {} }, ['', '/p', '/p/a', '/p/c(i)[recursion]', '/p/c/a(i)', '/r', '/r/c', '/r/c/a', '/r/c/c(i)[recursion]', '/r/c/c/a(i)']],
+        [{ p: { c: {} } }, ['', '/p', '/p/a', '/p/c(i)', '/p/c/a(i)', '/p/c/c(i)[recursion]', '/p/c/c/a(i)', '/r', '/r/c', '/r/c/a', '/r/c/c(i)[recursion]', '/r/c/c/a(i)']],
+      ],
     ],
     ['a then without if in an x-defs container', { type: 'object', 'x-defs': { node: { type: 'object', then: { $ref: '#/x-defs/node' }, properties: { v: S } } }, properties: { r: { $ref: '#/x-defs/node' } } }, [[{}, ['', '/r', '/r/v']]]],
     ['a branch kept by an unused $anchor', { type: 'object', if: false, then: { $anchor: 'unused', $ref: '#' }, properties: { v: S } }, [[{}, ['', '/v']]]],
@@ -315,10 +320,24 @@ describe('branches the specification never evaluates', () => {
     ['a then the library alone resolves into', { type: 'object', then: { properties: { q: S } }, properties: { r: { $ref: '#/properties/q' } } }],
   ] as const
   const stringOn = (dialect: string, label: string) => dialect !== 'draft-07' || label === 'a then the library alone resolves into'
+  const diverges = (dialect: string, label: string) =>
+    dialect === 'draft-07'
+      ? label === 'a then below a property beside a root then' || label === 'a then the library alone resolves into'
+      : label === 'a then declared before the live property' ||
+        label === 'a then declared after the live property' ||
+        label === 'a then in $defs before the live one' ||
+        label === 'a then in $defs after the live one' ||
+        label === 'a then the library alone resolves into'
   it.each(Object.entries(uris).flatMap(([dialect, $schema]) => collisions.map(([label, schema]) => [label, dialect, $schema, schema] as const)))(
-    'validates a reference beside %s as main does before any projection, in %s',
+    'validates a reference beside %s as main does before any projection when its targets agree, in %s',
     async (label, dialect, $schema, schema) => {
-      const adapter = await createJsonSchemaAdapter({ $schema, ...schema })
+      const result = await createJsonSchemaAdapter({ $schema, ...schema }).then((adapter) => adapter, (error: unknown) => error)
+      if (diverges(dialect, label)) {
+        expect(result).toBeInstanceOf(ProjectionValidationDivergenceError)
+        return
+      }
+      expect(result).not.toBeInstanceOf(Error)
+      const adapter = result as Awaited<ReturnType<typeof createJsonSchemaAdapter>>
       const [valid, invalid] = stringOn(dialect, label) ? [{ r: 'x' }, { r: 5 }] : [{ r: 5 }, { r: 'x' }]
       adapter.project(invalid)
       expect(await adapter.validate(valid)).toEqual(expect.objectContaining({ valid: true, errors: [] }))
@@ -452,8 +471,9 @@ describe('the budget', () => {
 
   it('bounds the draft-07 metaschema', async () => {
     const p = await project(metaNoId, {})
-    expect(p.nodes.size).toBe(403)
-    expect(flagged(p)).toBe(361)
+    // Resolving its allOf references exposes the min* constraint nodes beneath items.
+    expect(p.nodes.size).toBe(412)
+    expect(flagged(p)).toBe(367)
     expect(withBoundaries(p)['/items']).toContain('budget')
   })
 
@@ -546,7 +566,11 @@ describe('the draft-07 reference registry', () => {
   const typed = { a: { b: { x: 'typed' } } }
   it.each([[[{}, typed]], [[typed, {}]]])('lists a definition\'s members whatever was projected before, projecting %j in turn', async (datas) => {
     const adapter = await createJsonSchemaAdapter(schema)
-    for (const data of datas) expect(adapter.project(data).nodes.get('/a/b' as never)?.children?.map((child) => child.key)).toEqual(['x', 'flag'])
+    for (const data of datas) {
+      const projection = adapter.project(data)
+      expect(projection.nodes.get('/a/b' as never)?.children?.map((child) => child.key)).toEqual(['x', 'flag', 't'])
+      expect(projection.nodes.get('/a/b/t' as never)?.active).toBe(false)
+    }
   })
 })
 

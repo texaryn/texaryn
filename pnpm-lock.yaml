@@ -314,8 +314,8 @@ importers:
   packages/schema-json-hyperjump:
     dependencies:
       '@hyperjump/json-schema':
-        specifier: ^1.17.8
-        version: 1.17.8(@hyperjump/browser@1.5.0)
+        specifier: ^1.18.0
+        version: 1.18.0(@hyperjump/browser@1.5.0)
       '@texaryn/core':
         specifier: workspace:*
         version: link:../core
@@ -1221,8 +1221,8 @@ packages:
   '@hyperjump/json-schema-formats@1.0.5':
     resolution: {integrity: sha512-JHMa2YwBmHG7N1LD4sOKx3gfYJjXDiV1MRPIpN2huma/hTLMoCZ/cGe2tCQsfqD9KgjFaRO2mmXFlamwdN3/wQ==}
 
-  '@hyperjump/json-schema@1.17.8':
-    resolution: {integrity: sha512-XOqbR9GRNHaH4JEXHdbsm7xfYwudZG7HVDq3qPZUb1gi+ZQPklgNvhMi6zf0Plf433qR61MK+xeeprUwUUvGPg==}
+  '@hyperjump/json-schema@1.18.0':
+    resolution: {integrity: sha512-YPLJsCosW6pHhulKrFogUsl1WxQVRy+fY0pROt66FDFygjIWZkMxXyiy8HLRR1JKeAd5OE6NSZs0NVjSBNwb2Q==}
     peerDependencies:
       '@hyperjump/browser': ^1.1.0
 
@@ -2962,10 +2962,6 @@ packages:
   json-schema-merge-allof@0.8.1:
     resolution: {integrity: sha512-CTUKmIlPJbsWfzRRnOXz+0MjIqvnleIXwFTzz+t9T86HnYX/Rozria6ZVGLktAU9e+NygNljveP+yxqtQp/Q4w==}
     engines: {node: '>=12.0.0'}
-
-  json-stringify-deterministic@1.0.16:
-    resolution: {integrity: sha512-barjhF/wL0ot1i7AVA3gDDfuBIS1Iz7dlYmO6fZnVDUXtB/EJKjqREA/FUndo+kCGYLI67jH3hXKQMwuTFhbpQ==}
-    engines: {node: '>= 4'}
 
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
@@ -5130,7 +5126,7 @@ snapshots:
       '@hyperjump/uri': 1.3.5
       idn-hostname: 15.1.15
 
-  '@hyperjump/json-schema@1.17.8(@hyperjump/browser@1.5.0)':
+  '@hyperjump/json-schema@1.18.0(@hyperjump/browser@1.5.0)':
     dependencies:
       '@hyperjump/browser': 1.5.0
       '@hyperjump/json-pointer': 1.1.2
@@ -5138,7 +5134,6 @@ snapshots:
       '@hyperjump/pact': 1.4.0
       '@hyperjump/uri': 1.3.5
       content-type: 1.0.5
-      json-stringify-deterministic: 1.0.16
       just-curry-it: 5.3.0
       uuid: 14.0.2
 
@@ -6958,8 +6953,6 @@ snapshots:
       compute-lcm: 1.1.2
       json-schema-compare: 0.2.2
       lodash: 4.18.1
-
-  json-stringify-deterministic@1.0.16: {}
 
   json5@2.2.3: {}
 

@@ -1,4 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { mount } from '@vue/test-utils'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import type { UIHints } from '@texaryn/core'
+import { createDefaultRegistry, FormRoot, provideFormRuntime, useForm } from '../index.js'
 import { mountExample, settle } from './harness.js'
 
 function inputs(wrapper: { findAll: (s: string) => { element: HTMLInputElement }[] }) {
@@ -160,6 +165,7 @@ describe('the array control issues the commands it offers', () => {
   it('offers no reorder control when the document does not allow it', async () => {
     const { wrapper } = await mountExample('runtime-array-interactions')
     expect(buttons(wrapper, 'Up')).toHaveLength(0)
+    expect(buttons(wrapper, 'Down')).toHaveLength(0)
   })
 
   it('moves a row up from its own button when reordering is allowed', async () => {
@@ -179,8 +185,78 @@ describe('the array control issues the commands it offers', () => {
     })
   })
 
-  // The shared contract names Remove and Add on every binding; only Vue and
-  // Web Components expose a reorder control, so its name is pinned here.
+  it('restores focus to the outer row controls when moving across either boundary', async () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        rows: {
+          type: 'array',
+          title: 'Rows',
+          items: {
+            type: 'object',
+            title: 'Row',
+            properties: {
+              name: { type: 'string', title: 'Name' },
+              tags: {
+                type: 'array',
+                title: 'Tags',
+                items: { type: 'string', title: 'Tag' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const hints: UIHints = {
+      '/rows': { canReorder: true },
+      '/rows/0/tags': { canReorder: true },
+      '/rows/1/tags': { canReorder: true },
+    }
+    const adapter = await createJsonSchemaAdapter(schema)
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          const form = useForm(adapter, {
+            initialData: {
+              rows: [
+                { name: 'First', tags: ['a', 'b'] },
+                { name: 'Second', tags: ['c', 'd'] },
+              ],
+            },
+            hints,
+          })
+          provideFormRuntime(form.runtime)
+          return () => h(FormRoot, { registry: createDefaultRegistry() })
+        },
+      }),
+      { attachTo: document.body },
+    )
+    await settle()
+
+    const movedDown = wrapper.find('button[aria-label="Move down Row 1 in Rows"]')
+    const movedDownButton = movedDown.element as HTMLButtonElement
+    const row = movedDownButton.closest<HTMLElement>('[data-array-row]')!
+    movedDownButton.focus()
+    expect(document.activeElement).toBe(movedDownButton)
+    await movedDown.trigger('click')
+    await settle()
+    expect(row.isConnected).toBe(true)
+    expect(document.activeElement).toBe(
+      row.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="up"]'),
+    )
+
+    const movedUp = wrapper.find('button[aria-label="Move up Row 2 in Rows"]')
+    const movedUpButton = movedUp.element as HTMLButtonElement
+    movedUpButton.focus()
+    await movedUp.trigger('click')
+    await settle()
+    expect(document.activeElement).toBe(
+      row.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]'),
+    )
+    wrapper.unmount()
+  })
+
+  // The shared contract names each direction from the current row.
   it('names the reorder control by the row it moves', async () => {
     const { wrapper } = await mountExample('ui-hint-array')
     const up = buttons(wrapper, 'Up')
