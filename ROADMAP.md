@@ -1859,7 +1859,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash | Draft PR #193 includes the package build fix; upstream #124 remains open |
+| 3 | `oneOf` inside `dependencies` crash | PR #193 includes the package build fix; upstream #124 remains open |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1876,7 +1876,7 @@ Priorities for what remains:
 3. The rest of the #119 review hardening: #183 (projection and validation coherence, dialect isolation, marker collision), #177 (hyperjump parity) and #179.
 4. #126, optional submission projection, a design question.
 
-#121 is fixed locally against `json-schema-library@11.6.2`. Draft PR #193 includes the patched ESM runtime in the `@texaryn/schema-json` package build. Keep the vendored runtime, workspace patch and regression until upstream issue #124 is fixed and a published upstream version passes it, then remove the local workaround. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
+#121 is fixed locally against `json-schema-library@11.6.2`. PR #193 includes the patched ESM runtime in the `@texaryn/schema-json` package build. Keep the vendored runtime, workspace patch and regression until upstream issue #124 is fixed and a published upstream version passes it, then remove the local workaround. #108 records upstream deviations and stays open until hyperjump-io/json-schema#128 is answered. #120 is fixed in both adapters (#131, #132) and stays open only because its original fixture reaches the crash in #121.
 
 
 ### Phase 0: Foundation (PRs 1-5)
