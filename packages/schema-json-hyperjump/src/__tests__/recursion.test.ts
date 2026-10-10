@@ -354,7 +354,7 @@ describe('a branch under a boolean if', () => {
     },
   )
 
-  it.each(dialects)('walks the live else under if: false inside a conditional branch, in %s', async (_dialect, $schema) => {
+  it.each(dialects)('does not walk a nested branch under an inactive conditional branch, in %s', async (_dialect, $schema) => {
     const twenty = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, { type: 'object', properties: { s: S } }]))
     const schema = {
       $schema,
@@ -371,7 +371,7 @@ describe('a branch under a boolean if', () => {
     }
     const outline = (p: SchemaProjection) => pointers(p).map((key) => `${key}${p.nodes.get(key)!.active ? '' : '(i)'}`)
     expect(outline(await project(schema, {}))).toEqual(['', '/b', '/b/a', '/b/a/y'])
-    expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a', '/b/a/y(i)'])
+    expect(outline(await project(schema, { b: { k: 1 } }))).toEqual(['', '/b', '/b/a'])
     expect(outline(await project(schema, { b: { a: {} } }))).toEqual(['', '/b', '/b/a', '/b/a/y'])
   })
 })

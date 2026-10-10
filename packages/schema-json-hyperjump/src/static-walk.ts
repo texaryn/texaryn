@@ -858,6 +858,8 @@ export function staticWalk(
   lineage: Lineage | undefined,
   path: readonly number[],
   conditional = false,
+  /** Instance pointer where the nearest unselected conditional branch begins. */
+  inactiveConditionalPointer: string | undefined = undefined,
 ): void {
   if (!isRecord(schema)) return
   let step = 0
@@ -883,6 +885,7 @@ export function staticWalk(
       lineage,
       path,
       conditional,
+      inactiveConditionalPointer,
     )
     visited.delete(cycleKey)
     if (recursion.cache.dialect === 'draft-07') return
@@ -921,7 +924,16 @@ export function staticWalk(
     node.provisional = true
     applyStaticAnnotations(node, schema)
   }
-
+  // Preserve the inactive node itself. Its nested conditions stop at a child
+  // location already supplied by an active declaration, while same-location
+  // branch conditions remain available for skeleton projection.
+  const suppressNestedInactiveBranches =
+    inactiveConditionalPointer !== undefined &&
+    pointer !== inactiveConditionalPointer &&
+    !active &&
+    !provisional &&
+    existed &&
+    node.active
   const properties = isRecord(schema.properties) ? schema.properties : {}
   const location = locationInfo(declaring, rootSchema, recursion)
   const required = new Set<string>(
@@ -980,6 +992,8 @@ export function staticWalk(
         memberDeclaring,
         settled.lineage,
         childPath,
+        false,
+        inactiveConditionalPointer,
       )
     }
     if (decision === 'defer') {
@@ -1014,11 +1028,12 @@ export function staticWalk(
         lineage,
         nextPath(),
         conditional,
+        inactiveConditionalPointer,
       )
     })
   }
   const live = liveBranch(schema)
-  if (live !== undefined) {
+  if (live !== undefined && !suppressNestedInactiveBranches) {
     staticWalk(
       schema[live],
       data,
@@ -1035,6 +1050,7 @@ export function staticWalk(
       lineage,
       nextPath(),
       true,
+      inactiveConditionalPointer,
     )
   }
 
@@ -1076,6 +1092,8 @@ export function staticWalk(
           rowDeclaring,
           undefined,
           nextPath(),
+          false,
+          inactiveConditionalPointer,
         )
       }
     })
@@ -1217,24 +1235,27 @@ export function staticWalk(
     (a, b) =>
       Number(b.active) - Number(a.active) || Number(b.provisional) - Number(a.provisional),
   )
-  for (const db of dynamicBranches) {
-    staticWalk(
-      db.schema,
-      data,
-      pointer,
-      db.schemaPointer,
-      db.active,
-      db.provisional,
-      isBranchActive,
-      nodes,
-      visited,
-      rootSchema,
-      recursion,
-      declaring,
-      lineage,
-      nextPath(),
-      db.conditional,
-    )
+  if (!suppressNestedInactiveBranches) {
+    for (const db of dynamicBranches) {
+      staticWalk(
+        db.schema,
+        data,
+        pointer,
+        db.schemaPointer,
+        db.active,
+        db.provisional,
+        isBranchActive,
+        nodes,
+        visited,
+        rootSchema,
+        recursion,
+        declaring,
+        lineage,
+        nextPath(),
+        db.conditional,
+        db.conditional && !db.active && !db.provisional ? pointer : inactiveConditionalPointer,
+      )
+    }
   }
 
   // A resolved shape from another applicable declaration keeps a container active
