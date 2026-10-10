@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import type { JsonPointer } from '@texaryn/core'
 import { createAdapter } from '../adapter.js'
 import { createJsonSchemaAdapter } from '../index.js'
+
+const toPointer = (pointer: string) => pointer as JsonPointer
 
 const on2020 = (schema: Record<string, unknown>) => ({
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -16,7 +19,7 @@ const adapterFor = (schema: Record<string, unknown>) =>
   createJsonSchemaAdapter(schema, { dynamicReferenceProjection: 'local' })
 
 const childKeys = (projection: Awaited<ReturnType<Awaited<ReturnType<typeof adapterFor>>['project']>>, pointer: string) =>
-  projection.nodes.get(pointer as never)?.children?.map(({ key }) => key)
+  projection.nodes.get(toPointer(pointer))?.children?.map(({ key }) => key)
 
 describe('local dynamic reference projection', () => {
   it('rebinds a recursive reference to the matching outer anchor', async () => {
@@ -43,8 +46,8 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project({ nested: { next: {} } })
 
     expect(childKeys(projection, '/nested/next')).toEqual(['rootValue', 'nested'])
-    expect(projection.nodes.has('/nested/next/rootValue')).toBe(true)
-    expect(projection.nodes.get('/nested/next/nested')?.boundaries).toEqual(['recursion'])
+    expect(projection.nodes.has(toPointer('/nested/next/rootValue'))).toBe(true)
+    expect(projection.nodes.get(toPointer('/nested/next/nested'))?.boundaries).toEqual(['recursion'])
   })
 
   it('does not let an unrelated outer anchor capture a dynamic reference', async () => {
@@ -71,7 +74,7 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project({ nested: { next: {} } })
 
     expect(childKeys(projection, '/nested/next')).toEqual(['baseValue', 'next'])
-    expect(projection.nodes.has('/nested/next/outerValue')).toBe(false)
+    expect(projection.nodes.has(toPointer('/nested/next/outerValue'))).toBe(false)
   })
 
   it('keeps pointer dynamic references static when an unrelated anchor is in scope', async () => {
@@ -94,7 +97,7 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project({ next: {} })
 
     expect(childKeys(projection, '/next')).toEqual(['baseValue'])
-    expect(projection.nodes.has('/next/outerValue')).toBe(false)
+    expect(projection.nodes.has(toPointer('/next/outerValue'))).toBe(false)
     expect((await adapter.validate({ next: {} })).valid).toBe(false)
   })
 
@@ -124,7 +127,7 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project({ child: { next: {} } })
 
     expect(childKeys(projection, '/child/next')).toEqual(['outerValue'])
-    expect(projection.nodes.has('/child/next/baseValue')).toBe(false)
+    expect(projection.nodes.has(toPointer('/child/next/baseValue'))).toBe(false)
   })
 
   it('adds an id only child resource to dynamic scope', async () => {
@@ -161,7 +164,7 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project({ child: { nested: { next: {} } } })
 
     expect(childKeys(projection, '/child/nested/next')).toEqual(['childValue'])
-    expect(projection.nodes.has('/child/nested/next/baseValue')).toBe(false)
+    expect(projection.nodes.has(toPointer('/child/nested/next/baseValue'))).toBe(false)
   })
 
   it('isolates dynamic scope between sibling resources in either property order', async () => {
@@ -220,9 +223,9 @@ describe('local dynamic reference projection', () => {
 
     const projection = adapter.project({})
     expect(childKeys(projection, '/nested/next')).toEqual(['rootValue'])
-    expect(projection.nodes.get('/nested/next')?.active).toBe(true)
-    expect(projection.nodes.get('/nested/next')?.recursiveExpansion).toBe(true)
-    expect(projection.nodes.get('/nested')?.boundaries).toEqual(['recursion'])
+    expect(projection.nodes.get(toPointer('/nested/next'))?.active).toBe(true)
+    expect(projection.nodes.get(toPointer('/nested/next'))?.recursiveExpansion).toBe(true)
+    expect(projection.nodes.get(toPointer('/nested'))?.boundaries).toEqual(['recursion'])
   })
 
   it('allows a property name that matches an applicator keyword', async () => {
@@ -351,8 +354,8 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project(data)
 
     expect((await adapter.validate(data)).valid).toBe(true)
-    expect(projection.nodes.get('/choice/yes')?.active).toBe(true)
-    expect(projection.nodes.get('/choice/no')?.active).toBe(false)
+    expect(projection.nodes.get(toPointer('/choice/yes'))?.active).toBe(true)
+    expect(projection.nodes.get(toPointer('/choice/no'))?.active).toBe(false)
   })
 
   it('keeps separately applicable additional properties in a scoped child', async () => {
@@ -380,7 +383,7 @@ describe('local dynamic reference projection', () => {
     const projection = adapter.project(data)
 
     expect(childKeys(projection, '/child')).toEqual(expect.arrayContaining(['base', 'extra']))
-    expect(projection.nodes.get('/child')?.children?.find(({ key }) => key === 'extra')?.required).toBe(true)
+    expect(projection.nodes.get(toPointer('/child'))?.children?.find(({ key }) => key === 'extra')?.required).toBe(true)
     expect((await adapter.validate(data)).valid).toBe(false)
   })
 
@@ -405,7 +408,7 @@ describe('local dynamic reference projection', () => {
     }))
 
     const projection = adapter.project({ nested: { next: {} } })
-    const recursive = projection.nodes.get('/nested/next')!
+    const recursive = projection.nodes.get(toPointer('/nested/next'))!
 
     expect(recursive.annotations.default).toEqual({ rootValue: 'root' })
     expect(recursive.defaultConflict).toBeUndefined()
@@ -450,7 +453,7 @@ describe('local dynamic reference projection', () => {
 
     expect(result.valid).toBe(true)
     expect(rejected.valid).toBe(false)
-    expect(projection.nodes.get('/nested/next')?.children?.some(({ key, required }) => key === 'rootValue' && required)).toBe(true)
+    expect(projection.nodes.get(toPointer('/nested/next'))?.children?.some(({ key, required }) => key === 'rootValue' && required)).toBe(true)
   })
 
   it('honors recursion budgets on dynamically selected targets', async () => {
@@ -477,8 +480,8 @@ describe('local dynamic reference projection', () => {
 
     const projection = adapter.project({ nested: { baseValue: 'base', next: { rootValue: 'nested' } } })
     expect(childKeys(projection, '/nested/next')).toEqual(['rootValue', 'nested'])
-    expect(projection.nodes.get('/nested/next/nested')?.boundaries).toContain('budget')
-    expect(projection.nodes.has('/nested/next/nested/next')).toBe(false)
+    expect(projection.nodes.get(toPointer('/nested/next/nested'))?.boundaries).toContain('budget')
+    expect(projection.nodes.has(toPointer('/nested/next/nested/next'))).toBe(false)
   })
 
   it('rejects unsupported dialects, reference siblings, and applicator paths', async () => {
@@ -533,7 +536,7 @@ describe('local dynamic reference projection', () => {
       properties: { free: true },
     }))
 
-    expect(adapter.project({}).nodes.has('')).toBe(true)
+    expect(adapter.project({}).nodes.has(toPointer(''))).toBe(true)
   })
 })
 
@@ -743,8 +746,8 @@ describe('local recursive reference projection', () => {
     }), { dynamicReferenceProjection: 'local' })
     const projection = adapter.project({ label: 'root', child: {} })
 
-    expect(projection.nodes.get('/no')?.active).toBe(true)
-    expect(projection.nodes.get('/yes')?.active).toBe(false)
+    expect(projection.nodes.get(toPointer('/no'))?.active).toBe(true)
+    expect(projection.nodes.get(toPointer('/yes'))?.active).toBe(false)
   })
 
   it('classifies applicators separately from property names after array items', async () => {
