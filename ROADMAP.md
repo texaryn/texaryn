@@ -1875,6 +1875,8 @@ The #177 work fixes the typeless array-row shape gap, removes scalar child entri
 
 Shared conformance coverage now includes an inactive `anyOf` branch inside an array row, pure `$ref` targets of both boolean values, Draft 7 false-reference siblings, and a renderable `$ref` sibling in 2020-12. Hyperjump matches `json-schema-library` on those cases. ChatGPT peer review found no actionable findings.
 
+Projection shape inference now includes unconditional `allOf` members in the schema-json adapter. Shared conformance covers typeless object shapes supplied only by `allOf` and mixed object plus array families across `allOf`; both adapters now produce matching projections and diagnostics.
+
 The Draft 7 registry overwrite report is filed upstream as json-schema-library issue #138. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.

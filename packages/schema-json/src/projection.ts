@@ -27,7 +27,13 @@ import {
   type LocationInfo,
   type ProjectionCache,
 } from './identity.js'
-import { inferProjectionShape, shapeDiagnostic } from './projection-shape.js'
+import {
+  inferProjectionShape,
+  projectionTypeFamilies,
+  shapeDiagnostic,
+  shapeOfFamilies,
+  type KeywordFamily,
+} from './projection-shape.js'
 import { POSITION } from './schema-graph.js'
 
 const VALID_TYPES = new Set<JsonSchemaType>([
@@ -89,7 +95,7 @@ function compositionHasRenderableAlternative(node: SchemaNode): boolean {
     const schema = resolved.schema as Record<string, unknown> | undefined
     if (!schema || typeof schema !== 'object') return false
     if (resolveExplicitType(schema)) return true
-    return inferProjectionShape(schema).kind === 'resolved'
+    return inferAllOfProjectionShape(resolved, schema).kind === 'resolved'
   })
 }
 
@@ -294,6 +300,37 @@ function dereference(node: SchemaNode): SchemaNode {
   return dereferenceChecked(node).node
 }
 
+function inferAllOfProjectionShape(
+  node: SchemaNode,
+  schema: unknown = node.schema,
+): ReturnType<typeof inferProjectionShape> {
+  const families = new Set<KeywordFamily>()
+  const addSchema = (candidate: unknown): void => {
+    if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) return
+    for (const family of projectionTypeFamilies(candidate as Record<string, unknown>)) {
+      families.add(family)
+    }
+  }
+  addSchema(schema)
+
+  const visited = new Set<string>()
+  const visit = (current: SchemaNode): void => {
+    const position = positionOf(current)
+    if (visited.has(position)) return
+    visited.add(position)
+    for (const branch of current.allOf ?? []) {
+      const reference = referenceOf(branch) !== undefined ? dereferenceChecked(branch) : undefined
+      if (reference?.unresolved || (reference && !isSchemaNode(reference.node))) continue
+      const target = reference?.node ?? branch
+      if (!isSchemaNode(target)) continue
+      addSchema(target.schema)
+      visit(target)
+    }
+  }
+  visit(node)
+  return shapeOfFamilies(families)
+}
+
 function visitReferenceDefaultSites(
   node: SchemaNode,
   cache: ProjectionCache,
@@ -372,7 +409,7 @@ function declaresObject(node: SchemaNode, visited = new Set<string>()): boolean 
   if (explicitType) return explicitType === 'object'
   const allOfType = allOfExplicitType(resolved)
   if (allOfType) return allOfType === 'object'
-  const shape = inferProjectionShape(schema)
+  const shape = inferAllOfProjectionShape(resolved, schema)
   if (shape.kind === 'resolved') return shape.type === 'object'
   return (resolved.allOf ?? []).some((branch) => declaresObject(branch, visited))
 }
@@ -389,7 +426,7 @@ function declaresArray(node: SchemaNode, visited = new Set<string>()): boolean {
   if (explicitType) return explicitType === 'array'
   const allOfType = allOfExplicitType(resolved)
   if (allOfType) return allOfType === 'array'
-  const shape = inferProjectionShape(schema)
+  const shape = inferAllOfProjectionShape(resolved, schema)
   if (shape.kind === 'resolved') return shape.type === 'array'
   return (resolved.allOf ?? []).some((branch) => declaresArray(branch, visited))
 }
@@ -484,7 +521,10 @@ function resolveSelectedBranch(
 ): SchemaNode {
   const reducedSchema = reduced.schema as Record<string, unknown>
   if (reducedSchema && typeof reducedSchema === 'object') {
-    if (resolveExplicitType(reducedSchema) || inferProjectionShape(reducedSchema).kind === 'resolved') {
+    if (
+      resolveExplicitType(reducedSchema) ||
+      inferAllOfProjectionShape(reduced, reducedSchema).kind === 'resolved'
+    ) {
       return reduced
     }
   }
@@ -1540,7 +1580,7 @@ function walk(
   let resolved = original
   let schema = originalSchema
   let type = resolveExplicitType(schema)
-  const localShape = inferProjectionShape(schema)
+  const localShape = inferAllOfProjectionShape(original, schema)
   const allOfType = original.allOf ? allOfExplicitType(original) : undefined
   const hasReferencedAllOfBranch = original.allOf ? hasReferencedAllOf(original) : false
   if (
@@ -1665,7 +1705,7 @@ function walk(
   // chosen, and inferring first would take a schema carrying both `properties`
   // and `oneOf` down the object path without ever resolving its branch.
   if (!type) {
-    const shape = inferProjectionShape(schema)
+    const shape = inferAllOfProjectionShape(resolved, schema)
     if (shape.kind === 'resolved') {
       type = shape.type
     } else if (shape.kind === 'none' && composedAgainstData && isTransientBranchMiss()) {
