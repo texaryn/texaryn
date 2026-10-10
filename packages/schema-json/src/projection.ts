@@ -904,6 +904,14 @@ function applicableRequiredKeys(roots: readonly SchemaNode[], data: unknown): Se
   return keys
 }
 
+function unconditionalRequiredKeys(roots: readonly SchemaNode[]): Set<string> {
+  const keys = new Set<string>()
+  eachUnconditional(roots, (node) => {
+    for (const key of node.required ?? []) keys.add(key)
+  })
+  return keys
+}
+
 function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown): SchemaNode {
   if (source.getDraftVersion() !== 'draft-07') return source.reduceNode(data).node ?? source
   const { node, unresolved } = dereferenceChecked(source)
@@ -1543,6 +1551,9 @@ function walk(
       }
     }
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
+    if (!reducedNode) {
+      for (const key of unconditionalRequiredKeys(declaredAt.unconditional)) requiredSet.add(key)
+    }
 
     // Two conditions, and they are not the same kind of condition.
     //

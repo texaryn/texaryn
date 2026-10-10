@@ -340,6 +340,7 @@ describe('static reference projection composition', () => {
           $ref: '#/$defs/target',
           title: 'Selected object',
           properties: { note: { type: 'string' } },
+          required: ['note'],
         },
       },
     })
@@ -349,6 +350,12 @@ describe('static reference projection composition', () => {
     expect(projection.nodes.get('/field' as JsonPointer)?.active).toBe(true)
     expect(projection.nodes.get('/field/value' as JsonPointer)?.provisional).toBe(true)
     expect(projection.nodes.get('/field/note' as JsonPointer)?.active).toBe(true)
+    const children = projection.nodes.get('/field' as JsonPointer)?.children
+    expect(children?.find(({ key }) => key === 'note')).toMatchObject({ required: true })
+    expect(children?.find(({ key }) => key === 'value')).toMatchObject({
+      required: false,
+      provisionalRequired: true,
+    })
   })
 
   it('preserves each reference component resource scope', async () => {
