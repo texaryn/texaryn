@@ -85,6 +85,7 @@ The adapter currently handles the schema features required by Texaryn's runtime 
 - arrays
 - enums
 - local `$ref`, including recursive references
+- opt-in dynamic scope projection for supported `$dynamicRef` and `$recursiveRef` paths
 - `if` / `then` / `else`
 - `oneOf`
 - `anyOf`
@@ -104,6 +105,19 @@ A local `$ref` may point back to a schema that contains it, such as `{ propertie
 A schema that applies itself at one instance location without crossing into a property or item, such as `{ allOf: [{ $ref: '#' }] }`, makes the evaluator recurse without end, so `createJsonSchemaAdapter` rejects it with `SameLocationCycleError`. Its `positions` field lists the schema positions of each cycle, and the message names one of them and the path through the cycle. The check reads the schema, not the data: a cycle behind an `if` is rejected even while the `if` does not hold, except the branches the specification never evaluates. It is conservative for dynamic references, treating a `$dynamicRef` to a `$dynamicAnchor` as reaching every `$dynamicAnchor` of that name and a `$recursiveRef` as reaching every schema that declares `$recursiveAnchor: true`, so a schema whose dynamic references could close such a cycle is rejected even when no evaluation selects it.
 
 The [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/#recursive-references) has the details, and ADR-007 records the decision.
+
+## Dynamic reference projection
+
+Dynamic scope aware form projection is opt in with `dynamicReferenceProjection: 'local'`. It supports Draft 2020-12 `$dynamicRef` and Draft 2019-09 `$recursiveRef: '#'` under object properties or homogeneous array items, including references reached through `allOf`, `anyOf`, `oneOf`, conditionals and `dependentSchemas`.
+
+External dynamic references use the host supplied `resolveResource` callback. The adapter does not fetch schemas. Without the option, the projector does not follow the active dynamic scope. The option rejects references below unsupported applicators and array keywords, root relative resource identifiers, and unsupported reference siblings. See [ADR-010](../../docs/adr/010-local-dynamic-reference-projection.md) for the exact boundaries.
+
+```ts
+const adapter = await createJsonSchemaAdapter(schema, {
+  dynamicReferenceProjection: 'local',
+  resolveResource: (uri) => schemaResources.get(uri),
+})
+```
 
 Adapter creation also rejects a retained static `$ref` when json-schema-library resolves it to different declarations with different validation assertions in the validation tree and the normalised projection tree. The check covers the dialect's supported assertions, including boolean subschemas. The error is `ProjectionValidationDivergenceError`.
 
@@ -179,6 +193,9 @@ const adapter = await createJsonSchemaAdapter(schema, {
 ```ts
 interface AdapterConfig {
   defaultDialect?: Dialect
+  dynamicReferenceProjection?: 'local'
+  resolveResource?: (uri: string) => unknown | undefined | Promise<unknown | undefined>
+  maxExternalResources?: number
 }
 ```
 
