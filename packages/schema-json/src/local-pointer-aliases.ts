@@ -195,7 +195,7 @@ function ancestorAlias(
 }
 
 /** Gives the validator an indexed schema location for a pointer into non-schema JSON. */
-export function materializeLocalPointerAliases(input: unknown, dialect: Dialect): unknown {
+export function materializeLocalPointerAliases(input: unknown, dialect: Dialect, preserveRootId = false): unknown {
   const document = clone(input)
   if (!isRecord(document)) return document
 
@@ -271,7 +271,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect)
 
     let scope = inherited
     const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
-    if (ignoresSiblings) Reflect.deleteProperty(schema, '$id')
+    if (ignoresSiblings && !(preserveRootId && position === '#')) Reflect.deleteProperty(schema, '$id')
     if (!ignoresSiblings && typeof schema.$id === 'string' && !(dialect === 'draft-07' && schema.$id.startsWith('#'))) {
       let base = inherited.base
       try {

@@ -653,7 +653,14 @@ function remoteSchema(
         Object.defineProperty(output, keyword, { value: cloneValue(child), enumerable: true, configurable: true, writable: true })
       }
     }
-    if (root) output.$id = rootIdentifier
+    if (root) {
+      output.$id = rootIdentifier
+      if (!Object.hasOwn(output, '$schema')) {
+        output.$schema = dialect === 'draft-07'
+          ? 'http://json-schema.org/draft-07/schema#'
+          : `https://json-schema.org/draft/${dialect}/schema`
+      }
+    }
     return output
   }
 

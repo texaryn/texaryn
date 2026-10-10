@@ -121,7 +121,7 @@ async function prepareSchema(
     drafts: DRAFTS,
     draft: toDraftOption(dialect),
     formatAssertion,
-    remotes: remotes?.map((remote) => materializeLocalPointerAliases(remote, dialect) as JsonSchema),
+    remotes: remotes?.map((remote) => materializeLocalPointerAliases(remote, dialect, true) as JsonSchema),
   })
   fixRootReference(root, dialect)
   return root

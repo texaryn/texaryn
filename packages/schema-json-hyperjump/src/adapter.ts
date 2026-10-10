@@ -143,7 +143,7 @@ export async function createAdapter(
   const externalRemotes = await loadExternalResources(schema, dialect, config)
   const sourceSchema = externalRemotes.length === 0 ? schema : ownRoot(schema)
   const adapterSchema = materializeLocalPointerAliases(sourceSchema, dialect)
-  const adapterRemotes = externalRemotes.map((remote) => materializeLocalPointerAliases(remote, dialect))
+  const adapterRemotes = externalRemotes.map((remote) => materializeLocalPointerAliases(remote, dialect, true))
   const graph = buildSchemaGraph(adapterSchema, dialect, adapterRemotes)
   rejectSameLocationCycles(graph)
   const cache = newProjectionCache(dialect, cyclicPositions(graph))

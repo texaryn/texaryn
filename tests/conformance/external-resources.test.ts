@@ -490,11 +490,13 @@ for (const [name, createAdapter] of adapters) {
           resolveResource: (uri) => uri === profileUri
             ? {
                 $id: canonicalUri,
+                required: ['name'],
                 type: 'object',
                 properties: { name: { type: 'string' } },
               }
             : {
                 properties: { name: { type: 'string' } },
+                required: ['name'],
                 $id: canonicalUri,
                 type: 'object',
               },
@@ -507,6 +509,68 @@ for (const [name, createAdapter] of adapters) {
       })).valid).toBe(true)
       expect(adapter.project({}).nodes.get('/profile/name' as JsonPointer)?.type).toBe('string')
       expect(adapter.project({}).nodes.get('/alias/name' as JsonPointer)?.type).toBe('string')
+    })
+
+    it('discovers references in each 2020-12 schema container', async () => {
+      const calls: string[] = []
+      await expect(createAdapter(
+        {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          $id: rootUri,
+          properties: { direct: { $ref: profileUri } },
+          patternProperties: { '^pattern': { $ref: profileUri } },
+          additionalProperties: { $ref: profileUri },
+          prefixItems: [{ $ref: profileUri }],
+          items: { $ref: profileUri },
+          contains: { $ref: profileUri },
+          not: { $ref: profileUri },
+          allOf: [{ $ref: profileUri }],
+          anyOf: [{ $ref: profileUri }],
+          oneOf: [{ $ref: profileUri }],
+          if: { properties: { flag: { const: true } } },
+          then: { properties: { branch: { $ref: profileUri } } },
+          else: { properties: { fallback: { $ref: profileUri } } },
+          dependentSchemas: { enabled: { properties: { dependent: { $ref: profileUri } } } },
+          $defs: { stored: { $ref: profileUri } },
+        },
+        {
+          resolveResource: (uri) => {
+            calls.push(uri)
+            return { type: 'string' }
+          },
+        },
+      )).resolves.toBeDefined()
+
+      expect(calls).toEqual([profileUri])
+    })
+
+    it('retrieves an absolute reference when the root has no identifier', async () => {
+      const calls: string[] = []
+      const adapter = await createAdapter(
+        { $schema: 'https://json-schema.org/draft/2020-12/schema', $ref: profileUri },
+        {
+          resolveResource: (uri) => {
+            calls.push(uri)
+            return { type: 'string' }
+          },
+        },
+      )
+
+      expect(calls).toEqual([profileUri])
+      expect((await adapter.validate('value')).valid).toBe(true)
+    })
+
+    it('rejects malformed references inside a retrieved document', async () => {
+      const result = await createAdapter(
+        { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+        { resolveResource: () => ({ properties: { broken: { $ref: 'http://[invalid' } } }) },
+      ).catch((error: unknown) => error)
+
+      expect(result).toMatchObject({
+        name: 'SchemaResourceResolutionError',
+        uri: profileUri,
+        referringPosition: '#/properties/broken/$ref',
+      })
     })
 
     it('resolves nested resource identifiers from the retrieved document without another resolver call', async () => {
@@ -538,6 +602,100 @@ for (const [name, createAdapter] of adapters) {
 
       expect(calls).toEqual([profileUri])
       expect(adapter.project({}).nodes.get('/profile/nested/label' as JsonPointer)?.type).toBe('string')
+    })
+
+    it('discovers nested references in ignored Draft 7 reference siblings', async () => {
+      const nestedUri = 'https://forms.example.test/nested-profile.json'
+      const siblingUri = 'https://forms.example.test/ignored-profile.json'
+      const calls: string[] = []
+      const adapter = await createAdapter(
+        { $schema: 'http://json-schema.org/draft-07/schema#', $id: rootUri, properties: { profile: { $ref: profileUri } } },
+        {
+          defaultDialect: 'draft-07',
+          resolveResource: (uri) => {
+            calls.push(uri)
+            if (uri === profileUri) {
+              return {
+                $ref: nestedUri,
+                definitions: { ignored: { type: 'null' } },
+                $defs: { ignored: { $ref: siblingUri } },
+                description: { $ref: 'https://forms.example.test/unscanned.json' },
+              }
+            }
+            return { type: 'string' }
+          },
+        },
+      )
+
+      expect(calls).toEqual([profileUri, nestedUri, siblingUri])
+      expect((await adapter.validate({ profile: 'ok' })).valid).toBe(true)
+      expect((await adapter.validate({ profile: 7 })).valid).toBe(false)
+    })
+
+    it('rejects malformed and file identifiers nested in a retrieved resource', async () => {
+      const cases = [
+        [{ properties: { nested: { $id: 'http://[invalid', type: 'string' } } }, profileUri],
+        [{ properties: { nested: { $id: 'file:///tmp/nested.json', type: 'string' } } }, 'file:///tmp/nested.json'],
+      ] as const
+
+      for (const [resource, uri] of cases) {
+        const result = await createAdapter(
+          { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+          { resolveResource: () => resource },
+        ).catch((error: unknown) => error)
+
+        expect(result).toMatchObject({ name: 'SchemaResourceResolutionError', uri })
+      }
+    })
+
+    it('preserves shared schema objects and Draft 7 tuple dependencies in a retrieved document', async () => {
+      const shared = { type: 'string' }
+      const supplied = {
+        $id: profileUri,
+        type: 'object',
+        required: ['enabled', 'values'],
+        properties: {
+          left: shared,
+          right: shared,
+          values: { type: 'array', items: [shared, true] },
+        },
+        dependencies: { values: ['enabled'] },
+      }
+      const adapter = await createAdapter(
+        { $schema: 'http://json-schema.org/draft-07/schema#', $id: rootUri, $ref: profileUri },
+        { defaultDialect: 'draft-07', resolveResource: () => supplied },
+      )
+
+      expect(supplied.properties.left).toBe(shared)
+      expect(adapter.project({}).nodes.get('/left' as JsonPointer)?.type).toBe('string')
+      expect(adapter.project({}).nodes.get('/right' as JsonPointer)?.type).toBe('string')
+      expect((await adapter.validate({ left: 'a', right: 'b', enabled: true, values: ['c'] })).valid).toBe(true)
+      expect((await adapter.validate({ left: 'a', right: 'b', enabled: true, values: [3] })).valid).toBe(false)
+    })
+
+    it('resolves recursive references within a retrieved 2019-09 resource', async () => {
+      const adapter = await createAdapter(
+        {
+          $schema: 'https://json-schema.org/draft/2019-09/schema',
+          $id: rootUri,
+          properties: { profile: { $ref: profileUri } },
+        },
+        {
+          defaultDialect: '2019-09',
+          resolveResource: () => ({
+            $id: profileUri,
+            $recursiveAnchor: true,
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              next: { $recursiveRef: '#' },
+            },
+          }),
+        },
+      )
+
+      expect((await adapter.validate({ profile: { name: 'Ada', next: { name: 'Grace' } } })).valid).toBe(true)
+      expect((await adapter.validate({ profile: { name: 'Ada', next: { name: 7 } } })).valid).toBe(false)
     })
 
     it('rejects resources that declare a different JSON Schema dialect', async () => {
@@ -712,6 +870,131 @@ for (const [name, createAdapter] of adapters) {
         ),
       ).rejects.toMatchObject({ name: 'SchemaResourceResolutionError', uri: 'file:///tmp/schema.json' })
       expect(calls).toEqual([])
+    })
+
+    it('rejects invalid resource limits before calling the resolver', async () => {
+      for (const maxExternalResources of [0, 1.5]) {
+        const calls: string[] = []
+        const result = await createAdapter(
+          { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+          {
+            maxExternalResources,
+            resolveResource: (uri) => {
+              calls.push(uri)
+              return { type: 'string' }
+            },
+          },
+        ).catch((error: unknown) => error)
+
+        expect(result).toBeInstanceOf(RangeError)
+        expect(calls).toEqual([])
+      }
+    })
+
+    it('rejects a relative external reference without a base URI', async () => {
+      const calls: string[] = []
+      const result = await createAdapter(
+        { $schema: 'https://json-schema.org/draft/2020-12/schema', properties: { profile: { $ref: './profile.json' } } },
+        {
+          resolveResource: (uri) => {
+            calls.push(uri)
+            return { type: 'string' }
+          },
+        },
+      ).catch((error: unknown) => error)
+
+      expect(result).toMatchObject({
+        name: 'SchemaResourceResolutionError',
+        uri: undefined,
+        referringPosition: '#/properties/profile/$ref',
+      })
+      expect(calls).toEqual([])
+    })
+
+    it('rejects file references discovered inside a retrieved document', async () => {
+      const calls: string[] = []
+      const result = await createAdapter(
+        { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+        {
+          resolveResource: (uri) => {
+            calls.push(uri)
+            return { properties: { local: { $ref: 'file:///tmp/local.json' } } }
+          },
+        },
+      ).catch((error: unknown) => error)
+
+      expect(result).toMatchObject({
+        name: 'SchemaResourceResolutionError',
+        uri: 'file:///tmp/local.json',
+        referringPosition: '#/properties/local/$ref',
+      })
+      expect(calls).toEqual([profileUri])
+    })
+
+    it('rejects malformed and non string identifiers on retrieved documents', async () => {
+      for (const [supplied, uri] of [
+        [{ $id: 7 }, profileUri],
+        [{ $id: 'http://[invalid' }, profileUri],
+        [{ $id: 'file:///tmp/resource.json' }, 'file:///tmp/resource.json'],
+      ] as const) {
+        const result = await createAdapter(
+          { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+          { resolveResource: () => supplied },
+        ).catch((error: unknown) => error)
+
+        expect(result).toMatchObject({ name: 'SchemaResourceResolutionError', uri })
+      }
+
+      await expect(
+        createAdapter(
+          { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: rootUri, $ref: profileUri },
+          { resolveResource: () => 'not a schema' },
+        ),
+      ).rejects.toMatchObject({ name: 'SchemaResourceResolutionError', uri: profileUri })
+    })
+
+    it('rejects conflicting schemas that declare the same canonical identifier', async () => {
+      const aliasUri = 'https://forms.example.test/profile-alias.json'
+      const canonicalUri = 'https://schemas.example.test/profile.json'
+      const result = await createAdapter(
+        {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          $id: rootUri,
+          properties: { profile: { $ref: profileUri }, alias: { $ref: aliasUri } },
+        },
+        {
+          resolveResource: (uri) => uri === profileUri
+            ? { $id: canonicalUri, type: 'object', required: ['name'], properties: { name: { type: 'string' } } }
+            : { $id: canonicalUri, type: 'object', required: ['name'], properties: { name: { type: 'number' } } },
+        },
+      ).catch((error: unknown) => error)
+
+      expect(result).toMatchObject({ name: 'SchemaResourceResolutionError', uri: aliasUri })
+      expect((result as Error).message).toContain('conflicting schemas')
+    })
+
+    it('finds references in Draft 7 tuple items and leaves property dependencies intact', async () => {
+      const calls: string[] = []
+      const adapter = await createAdapter(
+        {
+          $schema: 'http://json-schema.org/draft-07/schema#',
+          $id: rootUri,
+          type: 'object',
+          properties: { values: { type: 'array', items: [{ $ref: profileUri }, true] } },
+          dependencies: { values: ['enabled'] },
+        },
+        {
+          defaultDialect: 'draft-07',
+          resolveResource: (uri) => {
+            calls.push(uri)
+            return { type: 'string' }
+          },
+        },
+      )
+
+      expect(calls).toEqual([profileUri])
+      expect((await adapter.validate({ values: ['ok'], enabled: true })).valid).toBe(true)
+      expect((await adapter.validate({ values: [1], enabled: true })).valid).toBe(false)
     })
   })
 }
