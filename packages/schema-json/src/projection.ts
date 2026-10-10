@@ -1278,21 +1278,22 @@ function computeRequiredSet(
   return required
 }
 
+// Keep aligned with json-schema-library 11.6.2 addReduce predicates.
 function requiresReduction(node: SchemaNode): boolean {
   const schema = node.schema as Record<string, unknown>
   return (
-    '$ref' in schema ||
-    '$dynamicRef' in schema ||
-    '$recursiveRef' in schema ||
-    schema.if !== undefined ||
-    schema.then !== undefined ||
-    schema.else !== undefined ||
-    schema.dependencies !== undefined ||
-    schema.dependentSchemas !== undefined ||
-    (node.allOf?.length ?? 0) > 0 ||
-    (node.anyOf?.length ?? 0) > 0 ||
-    (node.oneOf?.length ?? 0) > 0 ||
-    Object.keys(node.dependentSchemas ?? {}).length > 0
+    schema.$ref != null ||
+    schema.$dynamicRef != null ||
+    schema.allOf != null ||
+    schema.anyOf != null ||
+    schema.contains != null ||
+    schema.dependencies != null ||
+    schema.dependentSchemas != null ||
+    (schema.if != null && (schema.then != null || schema.else != null)) ||
+    schema.oneOf != null ||
+    schema.patternProperties != null ||
+    schema.propertyDependencies != null ||
+    Array.isArray(node.type)
   )
 }
 
