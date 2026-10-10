@@ -30,6 +30,7 @@ import {
   type ProjectionLimits,
   type DraftNode,
   type BranchChecker,
+  unselectedAlternativeFamilies,
 } from './static-walk.js'
 import { CONSTRAINT_KEYS, ANNOTATION_KEYS } from './constants.js'
 
@@ -209,6 +210,46 @@ function makeBranchChecker(
     return result
   }
 
+  const missingBranchValidity = new Map<string, boolean | undefined>()
+  const missingAnyOfObjectApplicability = new Map<string, boolean>()
+  const hasUnselectedObjectAlternatives = (schemaPointer: string): boolean => {
+    if (missingAnyOfObjectApplicability.has(schemaPointer)) {
+      return missingAnyOfObjectApplicability.get(schemaPointer)!
+    }
+    const construct = schemaAtPosition(rawSchema, schemaPointer)
+    const families = isRecord(construct)
+      ? unselectedAlternativeFamilies(construct, rawSchema, 'anyOf')
+      : new Set()
+    const result = families.size === 1 && families.has('object')
+    missingAnyOfObjectApplicability.set(schemaPointer, result)
+    return result
+  }
+
+  const missingBranchResult = (branchPointer: string, instancePointer: string): boolean | undefined => {
+    const cacheKey = `${branchPointer}@${instancePointer}`
+    if (missingBranchValidity.has(cacheKey)) return missingBranchValidity.get(cacheKey)
+
+    let result: boolean | undefined
+    if (!hasInstanceAt(instancePointer) && !analyzeReferences(branchPointer).unsafeScope) {
+      const branchUri = compiledUrisByFragment.get(branchPointer)
+      if (branchUri) {
+        try {
+          const output = interpret(
+            { ...compiled, schemaUri: branchUri },
+            Instance.fromJs({}),
+            BASIC,
+          ) as { valid: boolean }
+          result = output.valid
+        } catch {
+          result = undefined
+        }
+      }
+    }
+
+    missingBranchValidity.set(cacheKey, result)
+    return result
+  }
+
   const referencedValidity = (branch: unknown, instancePointer: string, branchPosition: string): boolean | undefined => {
     if (!isRecord(branch) || typeof branch.$ref !== 'string') return undefined
     if (Object.keys(branch).some((key) => key !== '$ref' && !annotationKeys.has(key))) {
@@ -248,7 +289,11 @@ function makeBranchChecker(
     const branches = isRecord(construct) ? construct[keyword] : undefined
     const branch = Array.isArray(branches) ? branches[index] : undefined
     if (hasNestedIdBoundary(schemaPointer)) return undefined
-    return referencedValidity(branch, instancePointer, `${schemaPointer}/${keyword}/${index}`)
+    const branchPosition = `${schemaPointer}/${keyword}/${index}`
+    const referenced = referencedValidity(branch, instancePointer, branchPosition)
+    if (referenced !== undefined) return referenced
+    if (keyword !== 'anyOf' || !hasUnselectedObjectAlternatives(schemaPointer)) return undefined
+    return missingBranchResult(branchPosition, instancePointer)
   }
 
   return (schemaPointer: string, instancePointer: string, suffix: string): boolean => {

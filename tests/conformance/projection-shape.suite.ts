@@ -454,7 +454,11 @@ const rows: readonly Row[] = [
     id: 'typeless branches of a oneOf wrapper no data selects',
     schema: obj({ a: { oneOf: [{ properties: { b: S } }, { properties: { c: S } }] } }),
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string', '/a/c': 'string' } },
-    differs: { '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'] } },
+  },
+  {
+    id: 'typeless branches of an anyOf wrapper no data selects',
+    schema: obj({ a: { anyOf: [{ properties: { b: S } }, { properties: { c: S } }] } }),
+    expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string', '/a/c': 'string' } },
   },
   {
     id: 'a oneOf wrapper whose branches carry no keyword of any shape',
@@ -497,9 +501,6 @@ const rows: readonly Row[] = [
     id: 'a oneOf wrapper whose allOf branch mixes keywords of two types',
     schema: obj({ a: { oneOf: [{ allOf: [{ properties: { b: S } }, { minItems: 1 }] }] } }),
     expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
-    differs: {
-      '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
-    },
   },
   ...inactiveTypeRows,
 ]
@@ -564,6 +565,29 @@ export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFa
         expect(typeless).toEqual(typed)
       })
     })
+
+    it.each(Object.keys(DIALECTS) as Dialect[])(
+      'marks missing object-only anyOf branches active beside oneOf in %s',
+      async (dialect) => {
+        const port = await createAdapter({
+          $schema: DIALECTS[dialect],
+          ...obj({
+            a: {
+              anyOf: [
+                { properties: { b: S } },
+                { properties: { c: S } },
+              ],
+              oneOf: [{ type: 'object', required: ['tag'] }],
+            },
+          }),
+        })
+
+        const projection = port.project({})
+        expect(projection.nodes.get('/a' as JsonPointer)?.active).toBe(true)
+        expect(projection.nodes.get('/a/b' as JsonPointer)?.active).toBe(true)
+        expect(projection.nodes.get('/a/c' as JsonPointer)?.active).toBe(true)
+      },
+    )
 
     it.each(Object.keys(DIALECTS) as Dialect[])(
       'keeps a typed object active when an allOf member has no selected branch in %s',
