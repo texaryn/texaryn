@@ -873,7 +873,7 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
       const schema = inDialect(dialect, fixture.schema())
       const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
       const [pa, pb] = [a.project(structuredClone(data)), b.project(structuredClone(data))]
-      // hyperjump follows only `#`-local references, as on main.
+      // Pointer parity is checked for fragment-local fixtures; non-local cases are excluded here.
       if (!fixture.nonLocal) {
         const [sa, sb] = [summarize(pa), summarize(pb)]
         const known = KNOWN_POINTER_DIFFERENCES[`${fixture.id} ${dialect} ${depth}`] ?? {}
