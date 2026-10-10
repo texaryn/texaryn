@@ -22,6 +22,56 @@ const childKeys = (projection: Awaited<ReturnType<Awaited<ReturnType<typeof adap
   projection.nodes.get(toPointer(pointer))?.children?.map(({ key }) => key)
 
 describe('local dynamic reference projection', () => {
+  it('keeps missing-value branch defaults local to each dynamic scope', async () => {
+    const firstUri = 'https://example.test/first.json'
+    const secondUri = 'https://example.test/second.json'
+    const sharedUri = 'https://example.test/shared.json'
+    const baseUri = 'https://example.test/base.json'
+    const adapter = await createJsonSchemaAdapter(on2020({
+      $id: 'https://example.test/root.json',
+      type: 'object',
+      properties: {
+        first: { $ref: firstUri },
+        second: { $ref: secondUri },
+      },
+    }), {
+      dynamicReferenceProjection: 'local',
+      resolveResource: (uri) => uri === firstUri
+        ? {
+            $id: firstUri,
+            $ref: sharedUri,
+            $defs: { gate: { $dynamicAnchor: 'gate', const: null } },
+          }
+        : uri === secondUri
+          ? {
+              $id: secondUri,
+              $ref: sharedUri,
+              $defs: { gate: { $dynamicAnchor: 'gate' } },
+            }
+          : uri === sharedUri
+            ? {
+                $id: sharedUri,
+                type: 'object',
+                properties: {
+                  pending: {
+                    type: 'string',
+                    if: { $dynamicRef: `${baseUri}#gate` },
+                    then: { default: 'yes' },
+                    else: { default: 'no' },
+                  },
+                },
+              }
+            : uri === baseUri
+              ? { $id: baseUri, $dynamicAnchor: 'gate', const: 'base' }
+              : undefined,
+    })
+
+    const projection = adapter.project({})
+
+    expect(projection.nodes.get(toPointer('/first/pending'))?.annotations.default).toBe('no')
+    expect(projection.nodes.get(toPointer('/second/pending'))?.annotations.default).toBe('yes')
+  })
+
   it('rebinds a recursive reference to the matching outer anchor', async () => {
     const adapter = await adapterFor(on2020({
       $dynamicAnchor: 'node',

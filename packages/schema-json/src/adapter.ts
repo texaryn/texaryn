@@ -102,12 +102,13 @@ export async function createAdapter(
     )
     enableLocalDynamicReferenceScopes(submissionSchema, dialect, externalResourceIds)
   }
+  // A schema node can validate differently under different dynamic anchor scopes.
   const cache = newProjectionCache(
     dialect,
     cyclicPositions(graph),
     marked.at,
     dynamicReferenceProjection,
-    !hasOneOf([marked.document, marked.remotes]),
+    !dynamicReferenceProjection && !hasOneOf([marked.document, marked.remotes]),
   )
 
   return {
