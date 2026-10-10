@@ -58,6 +58,22 @@ const cases = [
     type: 'object',
     keyword: 'additionalProperties',
   },
+  {
+    label: 'anyOf mismatch from allOf',
+    projected: { type: 'number', anyOf: [{ minimum: 0 }, { maximum: 10 }] },
+    hidden: { type: 'number', allOf: [{ minimum: 0 }, { maximum: 10 }] },
+    value: 20,
+    type: 'number',
+    keyword: 'applicator',
+  },
+  {
+    label: 'boolean items mismatch',
+    projected: { type: 'array', items: true },
+    hidden: { type: 'array', items: false },
+    value: [1],
+    type: 'array',
+    keyword: 'items',
+  },
 ] as const
 
 describe('projection and validation reference targets', () => {
@@ -102,6 +118,19 @@ describe('projection and validation reference targets', () => {
       type: 'object',
       then: { properties: { value: target } },
       properties: { value: target, result: { $ref: '#/properties/value' } },
+    }
+
+    await expect(createJsonSchemaAdapter(schema)).resolves.toBeDefined()
+  })
+
+  it('accepts equivalent targets with reordered applicator branches', async () => {
+    const projected = { type: 'number', anyOf: [{ minimum: 0 }, { maximum: 10 }] }
+    const validation = { type: 'number', anyOf: [{ maximum: 10 }, { minimum: 0 }] }
+    const schema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      then: { properties: { value: validation } },
+      properties: { value: projected, result: { $ref: '#/properties/value' } },
     }
 
     await expect(createJsonSchemaAdapter(schema)).resolves.toBeDefined()

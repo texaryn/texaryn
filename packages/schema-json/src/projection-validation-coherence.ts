@@ -74,20 +74,71 @@ function escape(segment: string): string {
   return segment.replace(/~/g, '~0').replace(/\//g, '~1')
 }
 
-function validationContracts(schema: unknown, dialect: Dialect): Map<string, string[]> {
-  const contracts = new Map<string, string[]>()
+type ContractSegment =
+  | string
+  | { readonly kind: 'applicator'; readonly keyword: 'allOf' | 'anyOf' | 'oneOf'; readonly index: number }
+
+interface ContractNode {
+  readonly profiles: string[]
+  readonly children: Map<string, { readonly segment: ContractSegment; readonly node: ContractNode }>
+}
+
+function createContractNode(): ContractNode {
+  return { profiles: [], children: new Map() }
+}
+
+function contractNodeAt(root: ContractNode, path: readonly ContractSegment[]): ContractNode {
+  let node = root
+  for (const segment of path) {
+    const key = JSON.stringify(segment)
+    let child = node.children.get(key)
+    if (!child) {
+      child = { segment, node: createContractNode() }
+      node.children.set(key, child)
+    }
+    node = child.node
+  }
+  return node
+}
+
+function serializeContract(node: ContractNode): string {
+  const profiles = [...node.profiles].sort()
+  const children: Array<readonly [string, string]> = []
+  const applicators = new Map<string, string[]>()
+
+  for (const { segment, node: child } of node.children.values()) {
+    const contract = serializeContract(child)
+    if (typeof segment === 'string') {
+      children.push([segment, contract])
+      continue
+    }
+    const branches = applicators.get(segment.keyword) ?? []
+    branches.push(contract)
+    applicators.set(segment.keyword, branches)
+  }
+
+  children.sort(([left], [right]) => left.localeCompare(right))
+  const branchGroups = [...applicators]
+    .map(([keyword, branches]) => [keyword, branches.sort()] as const)
+    .sort(([left], [right]) => left.localeCompare(right))
+
+  return JSON.stringify({ profiles, children, branchGroups })
+}
+
+function validationContracts(schema: unknown, dialect: Dialect): string {
+  const root = createContractNode()
   const seenOnPath = new WeakMap<object, Set<string>>()
-  const visit = (value: unknown, pointer: string): void => {
+  const visit = (value: unknown, path: readonly ContractSegment[]): void => {
+    const node = contractNodeAt(root, path)
     if (typeof value === 'boolean') {
-      const values = contracts.get(pointer) ?? []
-      values.push(JSON.stringify({ schema: value }))
-      contracts.set(pointer, values)
+      node.profiles.push(JSON.stringify({ schema: value }))
       return
     }
     if (!isRecord(value)) return
     const paths = seenOnPath.get(value) ?? new Set<string>()
-    if (paths.has(pointer)) return
-    paths.add(pointer)
+    const pathKey = JSON.stringify(path)
+    if (paths.has(pathKey)) return
+    paths.add(pathKey)
     seenOnPath.set(value, paths)
 
     const profile = Object.fromEntries(
@@ -100,65 +151,59 @@ function validationContracts(schema: unknown, dialect: Dialect): Map<string, str
         .filter((key) => key !== 'additionalItems' || Array.isArray(value.items))
         .map((key) => [key, value[key]]),
     )
-    if (Object.keys(profile).length > 0) {
-      const values = contracts.get(pointer) ?? []
-      values.push(JSON.stringify(profile))
-      contracts.set(pointer, values)
-    }
+    if (Object.keys(profile).length > 0) node.profiles.push(JSON.stringify(profile))
 
     for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
       const branches = value[keyword]
-      if (Array.isArray(branches)) branches.forEach((branch) => visit(branch, pointer))
+      if (!Array.isArray(branches)) continue
+      node.profiles.push(JSON.stringify({ applicator: keyword, branchCount: branches.length }))
+      branches.forEach((branch, index) => visit(branch, [...path, { kind: 'applicator', keyword, index }]))
     }
-    for (const keyword of ['if', 'then', 'else', 'not'] as const) visit(value[keyword], `${pointer}/${keyword}`)
+    for (const keyword of ['if', 'then', 'else', 'not'] as const) visit(value[keyword], [...path, keyword])
 
     for (const keyword of ['properties', 'patternProperties'] as const) {
       const members = value[keyword]
       if (!isRecord(members)) continue
-      for (const [key, child] of Object.entries(members)) visit(child, `${pointer}/${keyword}/${escape(key)}`)
+      for (const [key, child] of Object.entries(members)) visit(child, [...path, keyword, escape(key)])
     }
 
     for (const keyword of ['additionalProperties', 'propertyNames', 'contains'] as const) {
-      visit(value[keyword], `${pointer}/${keyword}`)
+      visit(value[keyword], [...path, keyword])
     }
 
     if (dialect !== 'draft-07') {
-      visit(value.unevaluatedProperties, `${pointer}/unevaluatedProperties`)
-      visit(value.unevaluatedItems, `${pointer}/unevaluatedItems`)
+      visit(value.unevaluatedProperties, [...path, 'unevaluatedProperties'])
+      visit(value.unevaluatedItems, [...path, 'unevaluatedItems'])
       for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
         const members = value[keyword]
-        if (isRecord(members)) for (const child of Object.values(members)) visit(child, `${pointer}/${keyword}`)
+        if (isRecord(members)) {
+          for (const [key, child] of Object.entries(members)) visit(child, [...path, keyword, escape(key)])
+        }
       }
     } else {
       const members = value.dependencies
-      if (isRecord(members)) for (const child of Object.values(members)) visit(child, `${pointer}/dependencies`)
+      if (isRecord(members)) {
+        for (const [key, child] of Object.entries(members)) visit(child, [...path, 'dependencies', escape(key)])
+      }
     }
 
     const items = value.items
-    if (isRecord(items)) visit(items, `${pointer}/items`)
-    else if (Array.isArray(items) && dialect !== '2020-12') items.forEach((child, index) => visit(child, `${pointer}/items/${index}`))
-    if (dialect === '2020-12' && Array.isArray(value.prefixItems)) {
-      value.prefixItems.forEach((child, index) => visit(child, `${pointer}/prefixItems/${index}`))
+    if (isRecord(items) || typeof items === 'boolean') visit(items, [...path, 'items'])
+    else if (Array.isArray(items) && dialect !== '2020-12') {
+      items.forEach((child, index) => visit(child, [...path, 'items', String(index)]))
     }
-    if (dialect !== '2020-12' && Array.isArray(items)) visit(value.additionalItems, `${pointer}/additionalItems`)
+    if (dialect === '2020-12' && Array.isArray(value.prefixItems)) {
+      value.prefixItems.forEach((child, index) => visit(child, [...path, 'prefixItems', String(index)]))
+    }
+    if (dialect !== '2020-12' && Array.isArray(items)) visit(value.additionalItems, [...path, 'additionalItems'])
   }
 
-  visit(withoutUnreachableBranches(schema), '')
-  return contracts
+  visit(withoutUnreachableBranches(schema), [])
+  return serializeContract(root)
 }
 
 function sameValidationContracts(left: unknown, right: unknown, dialect: Dialect): boolean {
-  const a = validationContracts(left, dialect)
-  const b = validationContracts(right, dialect)
-  if (a.size !== b.size) return false
-  for (const [pointer, profiles] of a) {
-    const other = b.get(pointer)
-    if (!other || profiles.length !== other.length) return false
-    profiles.sort()
-    other.sort()
-    if (profiles.some((profile, index) => profile !== other[index])) return false
-  }
-  return true
+  return validationContracts(left, dialect) === validationContracts(right, dialect)
 }
 
 function resolveTarget(site: SchemaNode): SchemaNode | undefined {
