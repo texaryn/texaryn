@@ -18,6 +18,14 @@
 
 ***
 
+### dynamicReferenceProjection?
+
+> `optional` **dynamicReferenceProjection?**: `"local"`
+
+Opt in to dynamic scope aware projection for supported Draft 2019-09 and Draft 2020-12 schemas.
+
+***
+
 ### maxExternalResources?
 
 > `readonly` `optional` **maxExternalResources?**: `number`

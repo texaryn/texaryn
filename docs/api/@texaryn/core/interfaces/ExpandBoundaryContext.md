@@ -6,13 +6,11 @@
 
 # Interface: ExpandBoundaryContext
 
-Context passed to the localized label builder for a projection boundary action.
-
 ## Properties
 
 ### boundary
 
-> **boundary**: [`ProjectionBoundary`](../type-aliases/ProjectionBoundary.md)
+> **boundary**: `"recursion"` \| `"budget"`
 
 ***
 

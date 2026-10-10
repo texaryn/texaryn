@@ -38,6 +38,8 @@
 
 > `optional` **boundaryTargets?**: readonly [`ProjectionBoundaryTarget`](ProjectionBoundaryTarget.md)[]
 
+Individual withheld locations that may be explicitly revealed in the view.
+
 ***
 
 ### children

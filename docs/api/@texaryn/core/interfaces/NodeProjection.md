@@ -34,9 +34,7 @@ form should show.
 
 > `optional` **boundaryTargets?**: readonly [`ProjectionBoundaryTarget`](ProjectionBoundaryTarget.md)[]
 
-The next withheld instance location for each boundary reason has a token that
-can be passed back through `ProjectionOptions.expandedBoundaryTokens` to reveal
-that target in the view. Expansion does not change form data or validation.
+Individual withheld locations that may be explicitly revealed in the view.
 
 ***
 

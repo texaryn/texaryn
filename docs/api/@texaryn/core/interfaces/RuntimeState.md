@@ -12,8 +12,7 @@
 
 > `optional` **boundaryGeneration?**: `number`
 
-Invalidates boundary tokens when replacing containers can change pointer
-ownership.
+Invalidates boundary tokens when replacing containers can change pointer ownership.
 
 ***
 

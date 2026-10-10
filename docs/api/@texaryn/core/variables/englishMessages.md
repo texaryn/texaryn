@@ -6,8 +6,6 @@
 
 # Variable: englishMessages
 
-> `const` **englishMessages**: [`FormMessages`](../interfaces/FormMessages.md)
+> `const` **englishMessages**: [`FormMessages`](../interfaces/FormMessages.md) & `Required`\<`Pick`\<[`FormMessages`](../interfaces/FormMessages.md), `"expandBoundary"`\>\>
 
 Names carry the row's 1-based position, never its value: mutable, often blank, sometimes sensitive.
-
-Includes the English expansion label required by built in boundary controls.

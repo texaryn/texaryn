@@ -6,9 +6,6 @@
 
 # Interface: ProjectionBoundaryTarget
 
-The next instance location withheld by a recursion or projection budget
-boundary.
-
 ## Properties
 
 ### pointer
@@ -23,7 +20,7 @@ Instance location that the projection withheld.
 
 > **reason**: [`ProjectionBoundary`](../type-aliases/ProjectionBoundary.md)
 
-Whether recursion or the per projection budget withheld this location.
+Why the projection withheld this location.
 
 ***
 
@@ -31,6 +28,4 @@ Whether recursion or the per projection budget withheld this location.
 
 > **token**: `string`
 
-Generation scoped opaque token to pass to
-`ProjectionOptions.expandedBoundaryTokens` when the view should reveal this
-location.
+Opaque token scoped to the schema location and instance pointer.
