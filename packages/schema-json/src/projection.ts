@@ -200,6 +200,8 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   if (parts.length === 1) return { node: parts[0]!, cycle: false, unresolved: false }
   const position = JSON.stringify(parts.map(positionOf))
   const type = referenceCompositionType(parts)
+  const oneOfSource = parts.find((part) => part.oneOf !== undefined)
+  const anyOfSource = parts.find((part) => part.anyOf !== undefined)
   const projectionFields: Record<string, unknown> = {}
   const projectionKeys = [
     'format',
@@ -245,8 +247,15 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     `${first.evaluationPath}/$ref`,
     `${first.schemaLocation}/reference-composition`,
   )
-  composed.schema = { ...composed.schema, allOf: parts.map((part) => part.schema) }
+  composed.schema = {
+    ...composed.schema,
+    allOf: parts.map((part) => part.schema),
+    ...(oneOfSource?.oneOf ? { oneOf: oneOfSource.oneOf.map((branch) => branch.schema) } : {}),
+    ...(anyOfSource?.anyOf ? { anyOf: anyOfSource.anyOf.map((branch) => branch.schema) } : {}),
+  }
   composed.allOf = [...parts]
+  if (oneOfSource?.oneOf) composed.oneOf = [...oneOfSource.oneOf]
+  if (anyOfSource?.anyOf) composed.anyOf = [...anyOfSource.anyOf]
   composed.reduceNode = (data, options = {}) => {
     let reduced: SchemaNode | undefined
     for (const part of parts) {
@@ -256,16 +265,14 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     }
     if (!reduced) return { node: composed, error: undefined }
 
-    const reducedSchema = {
+    const reducedSchema: Record<string, unknown> = {
       ...(reduced.schema as Record<string, unknown>),
       [POSITION]: `reference-composition:${position}`,
     }
-    if (type === undefined) delete reducedSchema.type
-    else reducedSchema.type = type
+    if (type !== undefined) reducedSchema.type = type
 
     const reducedNode = { ...reduced, schema: reducedSchema, allOf: undefined }
-    if (type === undefined) delete reducedNode.type
-    else reducedNode.type = type
+    if (type !== undefined) reducedNode.type = type
     return { node: reducedNode, error: undefined }
   }
   return { node: composed, cycle: false, unresolved: false }

@@ -297,6 +297,32 @@ describe('Draft 7 allOf references', () => {
 })
 
 describe('static reference projection composition', () => {
+  it.each(['oneOf', 'anyOf'] as const)('selects a referenced %s branch with scalar siblings', async (keyword) => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      $defs: {
+        target: {
+          [keyword]: [{ type: 'string' }, { type: 'number' }],
+        },
+      },
+      type: 'object',
+      properties: {
+        field: {
+          $ref: '#/$defs/target',
+          title: 'Selected value',
+          pattern: '^a',
+        },
+      },
+    })
+
+    const projection = adapter.project({ field: 'apple' })
+    const field = projection.nodes.get('/field' as JsonPointer)
+
+    expect(field?.type).toBe('string')
+    expect(field?.constraints.pattern).toBe('^a')
+    expect(field?.annotations.title).toBe('Selected value')
+  })
+
   it('preserves each reference component resource scope', async () => {
     const adapter = await createJsonSchemaAdapter({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
