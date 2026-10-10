@@ -258,11 +258,19 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   if (anyOfSource?.anyOf) composed.anyOf = [...anyOfSource.anyOf]
   composed.reduceNode = (data, options = {}) => {
     let reduced: SchemaNode | undefined
+    let reductionFailed = false
+    let reductionError: ReturnType<SchemaNode['reduceNode']>['error']
     for (const part of parts) {
-      const candidate = part.reduceNode(data, options).node
-      if (!isSchemaNode(candidate)) continue
+      const outcome = part.reduceNode(data, options)
+      if (!isSchemaNode(outcome.node)) {
+        reductionFailed = true
+        reductionError ??= outcome.error
+        continue
+      }
+      const candidate = outcome.node
       reduced = reduced ? mergeNode(reduced, candidate) : candidate
     }
+    if (reductionFailed) return { node: undefined, error: reductionError }
     if (!reduced) return { node: composed, error: undefined }
 
     const reducedSchema: Record<string, unknown> = {

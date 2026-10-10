@@ -323,6 +323,27 @@ describe('static reference projection composition', () => {
     expect(field?.annotations.title).toBe('Selected value')
   })
 
+  it('keeps a provisionally selected object branch when a referenced oneOf is incomplete', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      $defs: {
+        target: {
+          oneOf: [
+            { properties: { kind: { const: 'a' }, value: { type: 'string' } }, required: ['kind', 'value'] },
+            { properties: { kind: { const: 'b' }, count: { type: 'number' } }, required: ['kind', 'count'] },
+          ],
+        },
+      },
+      type: 'object',
+      properties: { field: { $ref: '#/$defs/target', title: 'Selected object' } },
+    })
+
+    const projection = adapter.project({ field: { kind: 'a' } })
+
+    expect(projection.nodes.get('/field' as JsonPointer)?.provisional).toBe(true)
+    expect(projection.nodes.get('/field/value' as JsonPointer)?.provisional).toBe(true)
+  })
+
   it('preserves each reference component resource scope', async () => {
     const adapter = await createJsonSchemaAdapter({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
