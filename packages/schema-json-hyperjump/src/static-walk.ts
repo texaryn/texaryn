@@ -899,6 +899,8 @@ export function staticWalk(
 
   const referenceHasNoShape =
     referenceToBoolean && Object.keys(schema).every((key) => REFERENCE_METADATA_KEYS.has(key))
+  inactiveConditionalRetained =
+    inactiveConditionalRetained && retainedConditionalBranch(schemaPointer, recursion.cache)
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
@@ -1299,7 +1301,7 @@ export function staticWalk(
         nextPath(),
         db.conditional,
         inactiveConditional ? pointer : inactiveConditionalPointer,
-        inactiveConditionalRetained || retained,
+        inactiveConditional ? retained : inactiveConditionalRetained,
       )
     }
   }
