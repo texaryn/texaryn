@@ -512,26 +512,42 @@ for (const [name, createAdapter] of adapters) {
     })
 
     it('discovers references in each 2020-12 schema container', async () => {
+      const references = {
+        property: 'https://forms.example.test/containers/property.json',
+        patternProperty: 'https://forms.example.test/containers/pattern-property.json',
+        additionalProperties: 'https://forms.example.test/containers/additional-properties.json',
+        prefixItems: 'https://forms.example.test/containers/prefix-items.json',
+        items: 'https://forms.example.test/containers/items.json',
+        contains: 'https://forms.example.test/containers/contains.json',
+        not: 'https://forms.example.test/containers/not.json',
+        allOf: 'https://forms.example.test/containers/all-of.json',
+        anyOf: 'https://forms.example.test/containers/any-of.json',
+        oneOf: 'https://forms.example.test/containers/one-of.json',
+        then: 'https://forms.example.test/containers/then.json',
+        else: 'https://forms.example.test/containers/else.json',
+        dependentSchema: 'https://forms.example.test/containers/dependent-schema.json',
+        definition: 'https://forms.example.test/containers/definition.json',
+      }
       const calls: string[] = []
       await expect(createAdapter(
         {
           $schema: 'https://json-schema.org/draft/2020-12/schema',
           $id: rootUri,
-          properties: { direct: { $ref: profileUri } },
-          patternProperties: { '^pattern': { $ref: profileUri } },
-          additionalProperties: { $ref: profileUri },
-          prefixItems: [{ $ref: profileUri }],
-          items: { $ref: profileUri },
-          contains: { $ref: profileUri },
-          not: { $ref: profileUri },
-          allOf: [{ $ref: profileUri }],
-          anyOf: [{ $ref: profileUri }],
-          oneOf: [{ $ref: profileUri }],
+          properties: { direct: { $ref: references.property } },
+          patternProperties: { '^pattern': { $ref: references.patternProperty } },
+          additionalProperties: { $ref: references.additionalProperties },
+          prefixItems: [{ $ref: references.prefixItems }],
+          items: { $ref: references.items },
+          contains: { $ref: references.contains },
+          not: { $ref: references.not },
+          allOf: [{ $ref: references.allOf }],
+          anyOf: [{ $ref: references.anyOf }],
+          oneOf: [{ $ref: references.oneOf }],
           if: { properties: { flag: { const: true } } },
-          then: { properties: { branch: { $ref: profileUri } } },
-          else: { properties: { fallback: { $ref: profileUri } } },
-          dependentSchemas: { enabled: { properties: { dependent: { $ref: profileUri } } } },
-          $defs: { stored: { $ref: profileUri } },
+          then: { properties: { branch: { $ref: references.then } } },
+          else: { properties: { fallback: { $ref: references.else } } },
+          dependentSchemas: { enabled: { properties: { dependent: { $ref: references.dependentSchema } } } },
+          $defs: { stored: { $ref: references.definition } },
         },
         {
           resolveResource: (uri) => {
@@ -541,7 +557,8 @@ for (const [name, createAdapter] of adapters) {
         },
       )).resolves.toBeDefined()
 
-      expect(calls).toEqual([profileUri])
+      expect(calls).toHaveLength(Object.keys(references).length)
+      expect([...calls].sort()).toEqual(Object.values(references).sort())
     })
 
     it('retrieves an absolute reference when the root has no identifier', async () => {
@@ -653,7 +670,7 @@ for (const [name, createAdapter] of adapters) {
       const supplied = {
         $id: profileUri,
         type: 'object',
-        required: ['enabled', 'values'],
+        required: ['values'],
         properties: {
           left: shared,
           right: shared,
@@ -671,6 +688,7 @@ for (const [name, createAdapter] of adapters) {
       expect(adapter.project({}).nodes.get('/right' as JsonPointer)?.type).toBe('string')
       expect((await adapter.validate({ left: 'a', right: 'b', enabled: true, values: ['c'] })).valid).toBe(true)
       expect((await adapter.validate({ left: 'a', right: 'b', enabled: true, values: [3] })).valid).toBe(false)
+      expect((await adapter.validate({ left: 'a', right: 'b', values: ['c'] })).valid).toBe(false)
     })
 
     it('resolves recursive references within a retrieved 2019-09 resource', async () => {
@@ -995,6 +1013,7 @@ for (const [name, createAdapter] of adapters) {
       expect(calls).toEqual([profileUri])
       expect((await adapter.validate({ values: ['ok'], enabled: true })).valid).toBe(true)
       expect((await adapter.validate({ values: [1], enabled: true })).valid).toBe(false)
+      expect((await adapter.validate({ values: ['ok'] })).valid).toBe(false)
     })
   })
 }
