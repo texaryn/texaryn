@@ -33,6 +33,11 @@ const VALID_TYPES = new Set<JsonSchemaType>([
   'null',
 ])
 
+const REFERENCE_METADATA_KEYS = new Set([
+  '$ref', '$schema', '$id', '$anchor', '$comment', '$defs', 'definitions',
+  ...ANNOTATION_KEYS,
+])
+
 /**
  * Working node used while a projection is under construction. `type` starts
  * unresolved and is filled in by either the data-driven pass or this module's
@@ -745,13 +750,19 @@ function resolveType(schema: Record<string, unknown>): JsonSchemaType | undefine
  * pass is authoritative, and within the static walk the active-first traversal order
  * guarantees the selected branch writes before any inactive sibling.
  */
-function applyStaticStructure(node: DraftNode, schema: Record<string, unknown>, exposed: boolean, conditional: boolean): void {
+function applyStaticStructure(
+  node: DraftNode,
+  schema: Record<string, unknown>,
+  exposed: boolean,
+  conditional: boolean,
+  referenceHasNoShape: boolean,
+): void {
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) {
     if (exposed) node.type = type
     else (node.inactiveTypes ??= new Set()).add(type)
   }
-  if (node.type === undefined && type === undefined && !conditional) {
+  if (node.type === undefined && type === undefined && !conditional && !referenceHasNoShape) {
     const families = (node.families ??= new Set())
     for (const family of projectionTypeFamilies(schema)) families.add(family)
   }
@@ -877,6 +888,17 @@ export function staticWalk(
   inactiveConditionalRetained = false,
 ): void {
   if (!isRecord(schema)) return
+  const referencePosition = typeof schema.$ref === 'string'
+    ? schemaReferenceTarget(rootSchema, schemaPointer)
+    : undefined
+  const referenceTarget = referencePosition === undefined
+    ? undefined
+    : schemaAtPosition(rootSchema, referencePosition)
+  const referenceToBoolean = typeof referenceTarget === 'boolean'
+  if (referenceTarget === false && recursion.cache.dialect === 'draft-07') return
+
+  const referenceHasNoShape =
+    referenceToBoolean && Object.keys(schema).every((key) => REFERENCE_METADATA_KEYS.has(key))
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
@@ -921,7 +943,7 @@ export function staticWalk(
   // contaminating what it wrote.
   const exposed = active || provisional
   if (exposed || !existed) {
-    applyStaticStructure(node, schema, exposed, conditional)
+    applyStaticStructure(node, schema, exposed, conditional, referenceHasNoShape)
     if (
       exposed &&
       !Array.isArray(schema.oneOf) &&
