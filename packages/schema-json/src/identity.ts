@@ -161,11 +161,18 @@ export function referenceOf(node: SchemaNode): string | undefined {
   if (typeof node.$ref === 'string') return node.$ref
   const schema = node.schema as Record<string, unknown> | undefined
   if (!schema || typeof schema !== 'object') return undefined
+  const keyword = dynamicReferenceKeyword(node)
+  return keyword === undefined ? undefined : schema[keyword] as string
+}
+
+export function dynamicReferenceKeyword(node: SchemaNode): '$dynamicRef' | '$recursiveRef' | undefined {
+  const schema = node.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return undefined
   if (node.getDraftVersion() === 'draft-2020-12' && typeof schema.$dynamicRef === 'string') {
-    return schema.$dynamicRef
+    return '$dynamicRef'
   }
   if (node.getDraftVersion() === 'draft-2019-09' && typeof schema.$recursiveRef === 'string') {
-    return schema.$recursiveRef
+    return '$recursiveRef'
   }
   return undefined
 }

@@ -14,6 +14,7 @@ import type {
 import {
   authoredSchema,
   childDeclaring,
+  dynamicReferenceKeyword,
   followRef,
   itemDeclaring,
   locationInfo,
@@ -134,19 +135,25 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
 function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
   let current = node
   const seen = new Set<string>()
+  const referenceSiblings: { node: SchemaNode; keyword: '$dynamicRef' | '$recursiveRef' }[] = []
   while (referenceOf(current) !== undefined) {
     const position = positionOf(current)
     if (seen.has(position)) return { node: current, cycle: true, unresolved: false }
     seen.add(position)
+    const siblingKeyword = dynamicReferenceKeyword(current)
+    if (siblingKeyword !== undefined) referenceSiblings.push({ node: current, keyword: siblingKeyword })
     const next = followRef(current)
     if (!next) {
       const raw = current.resolveRef()
-      return isSchemaNode(raw)
-        ? { node: raw, cycle: false, unresolved: false }
-        : { node: current, cycle: false, unresolved: true }
+      if (!isSchemaNode(raw)) return { node: current, cycle: false, unresolved: true }
+      current = raw
+      break
     }
     current = next
     if (!onlyPoints(current)) break
+  }
+  for (const sibling of referenceSiblings.reverse()) {
+    current = mergeNode(current, sibling.node, sibling.keyword) ?? current
   }
   return { node: current, cycle: false, unresolved: false }
 }

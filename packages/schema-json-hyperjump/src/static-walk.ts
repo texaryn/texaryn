@@ -108,20 +108,21 @@ export interface LocationInfo {
 }
 
 function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
-  let current = schema
-  let currentPosition = position
   const seen = new Set<string>()
-  while (isRecord(current)) {
-    const target = refTarget(current, rootSchema, currentPosition, dialect)
-    if (target === undefined || seen.has(target)) break
-    seen.add(target)
-    current = schemaAtPosition(rootSchema, target)
-    currentPosition = target
+  const pending: Array<{ schema: unknown; position?: string }> = [{ schema, position }]
+  while (pending.length > 0) {
+    const current = pending.pop()!
+    if (!isRecord(current.schema)) continue
+    const record = current.schema
+    const types = Array.isArray(record.type) ? record.type : [record.type]
+    if (types.includes('object') || isRecord(record.properties) || isRecord(record.patternProperties)) return false
+    for (const target of refTargets(record, rootSchema, current.position, dialect)) {
+      if (seen.has(target)) continue
+      seen.add(target)
+      pending.push({ schema: schemaAtPosition(rootSchema, target), position: target })
+    }
   }
-  if (!isRecord(current)) return true
-  const type = Array.isArray(current.type) ? current.type.find((t) => VALID_TYPES.has(t as JsonSchemaType)) : current.type
-  if (typeof type === 'string') return type !== 'object'
-  return ('enum' in current || 'const' in current) && !('properties' in current)
+  return true
 }
 
 export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimits): RecursionState {
@@ -163,27 +164,27 @@ const NON_APPLYING = new Set([
   'definitions',
 ])
 
-const refTarget = (
+const refTargets = (
   schema: Record<string, unknown>,
   rootSchema: unknown,
   position?: string,
   dialect: Dialect = 'draft-07',
-): string | undefined => {
+): string[] => {
   if (position !== undefined) {
     const keywords = dialect === '2020-12'
       ? ['$ref', '$dynamicRef'] as const
       : dialect === '2019-09'
         ? ['$ref', '$recursiveRef'] as const
         : ['$ref'] as const
+    const targets: string[] = []
     for (const keyword of keywords) {
       const resolved = schemaReferenceTarget(rootSchema, position, keyword)
-      if (resolved !== undefined) return resolved
+      if (resolved !== undefined && !targets.includes(resolved)) targets.push(resolved)
     }
-    return undefined
+    return targets
   }
   const ref = schema.$ref
-  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined
-  return `#${schemaFragment(ref)}`
+  return typeof ref === 'string' && ref.startsWith('#') ? [`#${schemaFragment(ref)}`] : []
 }
 
 // Draft 7 ignores a `$ref` site's siblings, so the site adds nothing to an
@@ -202,8 +203,8 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
     })
   }
   if (isRecord(schema)) {
-    const target = refTarget(schema, rootSchema, position, cache.dialect)
-    if (target === undefined) {
+    const targets = refTargets(schema, rootSchema, position, cache.dialect)
+    if (targets.length === 0) {
       out.add(position)
       addAllOf(schema)
     } else {
@@ -211,7 +212,9 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
         if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
         addAllOf(schema)
       }
-      for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
+      for (const target of targets) {
+        for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
+      }
     }
   } else if (typeof schema === 'boolean') out.add(position)
   stack.delete(position)
@@ -247,9 +250,9 @@ export function locationInfo(
     if (!isRecord(schema)) return
     expanded.push(position)
     stack.add(position)
-    const target = refTarget(schema, rootSchema, position, cache.dialect)
-    if (target !== undefined) visitAll(target, stack)
-    if (target !== undefined && cache.dialect === 'draft-07' && isRecord(at(target))) {
+    const targets = refTargets(schema, rootSchema, position, cache.dialect)
+    for (const target of targets) visitAll(target, stack)
+    if (targets.length > 0 && cache.dialect === 'draft-07' && isRecord(at(targets[0]!))) {
       stack.delete(position)
       return
     }
@@ -675,14 +678,25 @@ function resolveRef(
   schemaPointer?: string,
   dialect: Dialect = 'draft-07',
 ): { pointer: string; schema: Record<string, unknown> } | undefined {
-  const ref = schema.$ref
-  const pointer = schemaPointer === undefined
-    ? typeof ref === 'string' && ref.startsWith('#') ? `#${schemaFragment(ref)}` : undefined
-    : refTarget(schema, rootSchema, schemaPointer, dialect)
+  const pointer = refTargets(schema, rootSchema, schemaPointer, dialect)[0]
   if (pointer === undefined) return undefined
   const target = schemaAtPosition(rootSchema, pointer)
   if (!isRecord(target)) return undefined
   return { pointer, schema: target }
+}
+
+function resolveRefs(
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  schemaPointer: string,
+  dialect: Dialect,
+): Array<{ pointer: string; schema: Record<string, unknown> }> {
+  const result: Array<{ pointer: string; schema: Record<string, unknown> }> = []
+  for (const pointer of refTargets(schema, rootSchema, schemaPointer, dialect)) {
+    const target = schemaAtPosition(rootSchema, pointer)
+    if (isRecord(target)) result.push({ pointer, schema: target })
+  }
+  return result
 }
 
 /**
@@ -751,10 +765,9 @@ export function staticWalk(
   let step = 0
   const nextPath = (): readonly number[] => [...path, step++]
 
-  const ref = resolveRef(schema, rootSchema, schemaPointer, recursion.cache.dialect)
-  if (ref) {
+  for (const ref of resolveRefs(schema, rootSchema, schemaPointer, recursion.cache.dialect)) {
     const cycleKey = `${ref.pointer}@${pointer}`
-    if (visited.has(cycleKey)) return
+    if (visited.has(cycleKey)) continue
     visited.add(cycleKey)
     staticWalk(
       ref.schema,
