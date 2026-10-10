@@ -15,6 +15,8 @@ export interface LocationInfo {
 export interface ProjectionCache {
   readonly dialect: Dialect
   readonly schemaAt: (position: string) => unknown
+  readonly dynamicReferenceProjection: boolean
+  readonly memoizeUndefinedBranchResults: boolean
   readonly closure: Map<string, readonly string[]>
   readonly info: Map<string, LocationInfo>
   readonly cyclic: ReadonlySet<string>
@@ -24,8 +26,18 @@ export function newProjectionCache(
   dialect: Dialect,
   cyclic: ReadonlySet<string>,
   schemaAt: (position: string) => unknown,
+  dynamicReferenceProjection = false,
+  memoizeUndefinedBranchResults = false,
 ): ProjectionCache {
-  return { dialect, schemaAt, closure: new Map(), info: new Map(), cyclic }
+  return {
+    dialect,
+    schemaAt,
+    dynamicReferenceProjection,
+    memoizeUndefinedBranchResults,
+    closure: new Map(),
+    info: new Map(),
+    cyclic,
+  }
 }
 
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
@@ -246,6 +258,17 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
 
 // A member of a branch that never applies declares its location, but its references do not extend live identity.
 const deadMembers = new WeakMap<readonly SchemaNode[], ReadonlySet<SchemaNode>>()
+
+export function extendDeclaring(
+  declaring: readonly SchemaNode[],
+  additions: readonly SchemaNode[],
+): readonly SchemaNode[] {
+  if (additions.length === 0) return declaring
+  const extended = [...declaring, ...additions]
+  const dead = deadMembers.get(declaring)
+  if (dead) deadMembers.set(extended, dead)
+  return extended
+}
 
 export function locationInfo(declaring: readonly SchemaNode[], cache: ProjectionCache): LocationInfo {
   const members = deadMembers.get(declaring)

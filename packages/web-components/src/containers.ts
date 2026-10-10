@@ -1,4 +1,4 @@
-import { objectChildKey } from '@texaryn/core'
+import { englishMessages, objectChildKey } from '@texaryn/core'
 import type { ContainerNode, StableItemId, UINode } from '@texaryn/core'
 import type { DomWidget, NodeBinding, RenderContext } from './widget.js'
 
@@ -62,6 +62,11 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   return element
 }
 
+interface BoundaryAction {
+  element: HTMLButtonElement
+  target: { containerId: ContainerNode['id']; targetToken: string }
+}
+
 export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
   // Whether a node is nested is fixed for its lifetime, but its title is not:
   // a conditional subschema can add or drop one on any recompile, and this
@@ -74,7 +79,10 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
   // Children live in their own element so the legend is never a candidate for reorder.
   const body = nested ? document.createElement('div') : root
   if (body !== root) root.append(body)
+  const actions = document.createElement('div')
+  actions.className = 'texaryn-boundary-actions'
   const bindings = new Map<string, NodeBinding>()
+  const boundaryActions = new Map<string, BoundaryAction>()
 
   /** The root object is the form itself, so only a nested titled object names a group. */
   function applyGrouping(node: UINode): void {
@@ -117,6 +125,50 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
       bindings.delete(key)
     }
     reorder(body, elements)
+    const boundaryTargets = node.boundaryTargets ?? []
+    if (boundaryTargets.length === 0) {
+      actions.remove()
+      boundaryActions.clear()
+      return
+    }
+    if (actions.parentNode !== root) root.append(actions)
+    const firstTargetByReason = new Map<string, (typeof boundaryTargets)[number]>()
+    for (const target of boundaryTargets) {
+      if (!firstTargetByReason.has(target.reason)) firstTargetByReason.set(target.reason, target)
+    }
+    const wantedActions: HTMLButtonElement[] = []
+    for (const [reason, target] of firstTargetByReason) {
+      const message = (ctx.messages.expandBoundary ?? englishMessages.expandBoundary)({
+        boundary: target.reason,
+        containerTitle: node.annotations.title,
+        position: 1,
+        count: 1,
+      })
+      let action = boundaryActions.get(reason)
+      if (!action) {
+        const targetRef = { containerId: node.id, targetToken: target.token }
+        const element = button(message.label, () =>
+          ctx.runtime.dispatch({
+            type: 'ExpandBoundary',
+            containerId: targetRef.containerId,
+            targetToken: targetRef.targetToken,
+          }),
+        )
+        action = { element, target: targetRef }
+        boundaryActions.set(reason, action)
+      }
+      action.target.containerId = node.id
+      action.target.targetToken = target.token
+      action.element.textContent = message.label
+      action.element.setAttribute('aria-label', message.accessibleName)
+      wantedActions.push(action.element)
+    }
+    for (const [reason, action] of boundaryActions) {
+      if (firstTargetByReason.has(reason)) continue
+      action.element.remove()
+      boundaryActions.delete(reason)
+    }
+    reorder(actions, wantedActions)
   }
 
   reconcile(initial as ContainerNode)

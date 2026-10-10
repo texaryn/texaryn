@@ -2,6 +2,7 @@ import type { ContainerNode, UINode } from '@texaryn/core'
 import { useRendererContext } from '../components/renderer-context.js'
 
 export interface ObjectGroup {
+  container: ContainerNode
   /**
    * Fixed for the widget's lifetime. The root object is the form itself, so
    * only a nested object is a candidate for being a named group.
@@ -25,6 +26,7 @@ export function useObjectGroup(node: UINode): ObjectGroup {
   const { document } = useRendererContext()
   const current = (document.nodes[node.id] ?? node) as ContainerNode
   return {
+    container: current,
     nested: node.parentId !== null,
     title: current.annotations.title,
     children: current.children

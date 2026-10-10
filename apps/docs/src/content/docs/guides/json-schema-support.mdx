@@ -61,8 +61,9 @@ Projection has these limits:
   a schema inside it declares an `$id`, `$anchor` or `$dynamicAnchor`.
   Validation still runs on the schema as written, so an error that only such a
   branch declares attaches to no field.
-- Remote schema loading, `$recursiveRef` and `$dynamicRef` are outside the
-  documented form projection scope. Use local `$ref` for reusable fields.
+- Remote schema loading is controlled by the host supplied resource resolver.
+  Static external `$ref` resources project. Dynamic scope aware projection is
+  opt in as described below.
 
 ### Recursive references
 
@@ -143,6 +144,33 @@ one applies is decided during evaluation. A schema whose dynamic references
 could close such a cycle is rejected even when no evaluation would select it.
 A reference keyword from another dialect, such as `$dynamicRef` in Draft 7, is
 not a reference there.
+
+### Dynamic reference projection
+
+The `@texaryn/schema-json` adapter can project active dynamic scopes when the
+config sets `dynamicReferenceProjection: 'local'`:
+
+```ts
+const adapter = await createJsonSchemaAdapter(schema, {
+  dynamicReferenceProjection: 'local',
+  resolveResource: (uri) => schemaResources.get(uri),
+})
+```
+
+Draft 2020-12 `$dynamicRef` and Draft 2019-09 `$recursiveRef: '#'` are
+supported below object properties and homogeneous array `items`. The adapter
+also supports these references through `allOf`, `anyOf`, `oneOf`, conditionals
+and `dependentSchemas`. A dynamic target may be in the input schema or in a
+resource returned by `resolveResource`. The resolver owns fetching and trust
+policy. Texaryn does not perform network requests.
+
+The default projection does not apply this dynamic scope handling. The opt in
+mode rejects references below `not`, `contains`, `patternProperties`, tuple
+items, `prefixItems`, `additionalProperties`, `unevaluatedProperties` and
+other unsupported applicators. It also rejects root relative resource IDs,
+assertion siblings beside `$dynamicRef`, and `$recursiveRef` values other than
+`'#'` or with siblings. Projection support is limited to the cases listed
+above. ADR-010 records the supported paths.
 
 ## Validation scope
 

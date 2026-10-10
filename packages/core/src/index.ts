@@ -41,6 +41,8 @@ export type {
   ProjectionDiagnosticCode,
   NodeProjection,
   ProjectionBoundary,
+  ProjectionBoundaryTarget,
+  ProjectionOptions,
   ChildProjection,
   AnnotationSet,
 } from './schema/index.js'
@@ -53,6 +55,7 @@ export type {
   IndicatorMessage,
   ItemActionContext,
   AddItemContext,
+  ExpandBoundaryContext,
   ErrorSummaryHeadingContext,
   ErrorSummaryDetailContext,
 } from './messages/index.js'

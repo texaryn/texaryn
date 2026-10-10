@@ -187,6 +187,7 @@ function compileNode(
       order,
       visible: isExposed(proj),
       ...(proj.boundaries ? { boundaries: proj.boundaries } : {}),
+      ...(proj.boundaryTargets ? { boundaryTargets: proj.boundaryTargets } : {}),
       disabled: false,
       readOnly,
       annotations,

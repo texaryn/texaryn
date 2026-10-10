@@ -5,6 +5,7 @@ import type {
   EnumOption,
   JsonPointer,
   ProjectionDiagnostic,
+  ProjectionOptions,
 } from '@texaryn/core'
 import { ProjectionPlugin, type KeywordRecord } from './plugin.js'
 import {
@@ -327,6 +328,7 @@ export function buildProjection(
   data: unknown,
   cache: ProjectionCache,
   limits: ProjectionLimits = DEFAULT_LIMITS,
+  options: ProjectionOptions = {},
 ): SchemaProjection {
   const rootUri = compiled.schemaUri.split('#')[0]!
   const plugin = new ProjectionPlugin(rootUri)
@@ -394,7 +396,12 @@ export function buildProjection(
 
   const branchChecker = makeBranchChecker(rawSchema, plugin.scopeValidity, compiled, data, cache.dialect)
 
-  const recursion = newRecursionState(cache, limits)
+  const recursion = newRecursionState(
+    cache,
+    limits,
+    options.expandedBoundaryTokens,
+    options.boundaryGeneration,
+  )
   const rootInfo = locationInfo(['#'], rawSchema, recursion)
   if (rootInfo.cycle) recursion.cycles.add('')
   else staticWalk(rawSchema, data, '', '#', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
@@ -406,7 +413,11 @@ export function buildProjection(
   }
   for (const [pointer, reasons] of recursion.boundaries) {
     const node = nodes.get(pointer)
-    if (node?.type === 'object') node.boundaries = (['recursion', 'budget'] as const).filter((reason) => reasons.has(reason))
+    if (node?.type === 'object') {
+      node.boundaries = (['recursion', 'budget'] as const).filter((reason) => reasons.has(reason))
+      const targets = recursion.boundaryTargets.get(pointer)
+      if (targets) node.boundaryTargets = [...targets.values()]
+    }
   }
   for (const node of nodes.values()) {
     if (!node.children) continue

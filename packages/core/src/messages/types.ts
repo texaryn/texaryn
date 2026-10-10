@@ -15,6 +15,13 @@ export interface AddItemContext {
   containerTitle?: string
 }
 
+export interface ExpandBoundaryContext {
+  boundary: 'recursion' | 'budget'
+  containerTitle?: string
+  position: number
+  count: number
+}
+
 export interface IndicatorMessage {
   text: string
   placement: 'before' | 'after'
@@ -35,6 +42,8 @@ export interface FormMessages {
   removeItem(context: ItemActionContext): ActionMessage
   moveItemUp(context: ItemActionContext): ActionMessage
   moveItemDown(context: ItemActionContext): ActionMessage
+  /** Optional localized label for boundary expansion controls. */
+  expandBoundary?(context: ExpandBoundaryContext): ActionMessage
   requiredIndicator(): IndicatorMessage
   errorSummaryHeading(context: ErrorSummaryHeadingContext): string
   /** The whole text after an item's link, punctuation included. */

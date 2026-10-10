@@ -3,7 +3,12 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { objectChildKey } from '@texaryn/core'
 import type { UINode } from '@texaryn/core'
-import { NodeRenderer, useObjectGroup, useRendererContext } from '@texaryn/react'
+import {
+  NodeRenderer,
+  ProjectionBoundaryActions,
+  useObjectGroup,
+  useRendererContext,
+} from '@texaryn/react'
 
 export interface WidgetProps {
   node: UINode
@@ -11,14 +16,19 @@ export interface WidgetProps {
 
 function MuiObjectLayoutImpl({ node }: WidgetProps) {
   const { document, registry } = useRendererContext()
-  const { nested, title, children } = useObjectGroup(node)
+  const { container, nested, title, children } = useObjectGroup(node)
 
   const rendered = children.map((child) => (
     <NodeRenderer key={objectChildKey(child)} node={child} document={document} registry={registry} />
   ))
 
   if (!nested) {
-    return <Stack spacing={2}>{rendered}</Stack>
+    return (
+      <Stack spacing={2}>
+        {rendered}
+        <ProjectionBoundaryActions container={container} title={title} />
+      </Stack>
+    )
   }
 
   // A plain fieldset rather than one of MUI's own containers: this package is
@@ -36,7 +46,10 @@ function MuiObjectLayoutImpl({ node }: WidgetProps) {
           {title}
         </Typography>
       )}
-      <Stack spacing={2}>{rendered}</Stack>
+      <Stack spacing={2}>
+        {rendered}
+        <ProjectionBoundaryActions container={container} title={title} />
+      </Stack>
     </Stack>
   )
 }

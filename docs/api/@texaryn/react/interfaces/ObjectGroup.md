@@ -14,6 +14,12 @@
 
 ***
 
+### container
+
+> **container**: [`ContainerNode`](../../core/interfaces/ContainerNode.md)
+
+***
+
 ### nested
 
 > **nested**: `boolean`

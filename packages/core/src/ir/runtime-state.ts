@@ -6,6 +6,10 @@ export interface RuntimeState {
   initialData: unknown
   nodes: Map<NodeId, NodeRuntimeState>
   identities: IdentityMap
+  /** View state for boundary targets that a user explicitly expanded. */
+  expandedBoundaryTokens?: ReadonlySet<string>
+  /** Invalidates boundary tokens when replacing containers can change pointer ownership. */
+  boundaryGeneration?: number
   submission: SubmissionState
 }
 

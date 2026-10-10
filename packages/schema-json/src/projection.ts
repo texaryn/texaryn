@@ -1,4 +1,4 @@
-import { mergeNode, isSchemaNode, type SchemaNode } from 'json-schema-library'
+import { mergeNode, isSchemaNode, type SchemaNode, type ValidationPath } from 'json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -10,10 +10,13 @@ import type {
   FieldConstraints,
   EnumOption,
   ProjectionBoundary,
+  ProjectionBoundaryTarget,
+  ProjectionOptions,
 } from '@texaryn/core'
 import {
   authoredSchema,
   childDeclaring,
+  extendDeclaring,
   followRef,
   itemDeclaring,
   locationInfo,
@@ -295,6 +298,7 @@ function visitReferenceDefaultSites(
   node: SchemaNode,
   cache: ProjectionCache,
   visitor: (node: SchemaNode) => void,
+  dynamicReferenceProjection = false,
 ): void {
   if (cache.dialect === 'draft-07' || referenceOf(node) === undefined) return
   const pending = [node]
@@ -315,6 +319,7 @@ function visitReferenceDefaultSites(
     }
 
     for (const keyword of referenceKeywords(current)) {
+      if (dynamicReferenceProjection && (keyword === '$dynamicRef' || keyword === '$recursiveRef')) continue
       const target = followRef(current, keyword)
       if (target) pending.push(target)
     }
@@ -462,15 +467,21 @@ function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): Sch
   return changed ? { ...node, allOf: branches } : node
 }
 
-function reduceAllOfForProjection(node: SchemaNode, data: unknown): SchemaNode | undefined {
+function reduceAllOfForProjection(node: SchemaNode, data: unknown, scope: ValidationPath = []): SchemaNode | undefined {
   if (hasUnresolvedAllOfReference(node)) return undefined
-  if (node.getDraftVersion() !== 'draft-07') return node.reduceNode(data).node
+  if (node.getDraftVersion() !== 'draft-07') return node.reduceNode(data, { path: [...scope] }).node
   const expanded = expandAllOfReferences(node)
-  return expanded?.reduceNode(data).node
+  return expanded?.reduceNode(data, { path: [...scope] }).node
 }
 
 // A dialect whose reducer leaves $ref unresolved reduces a selected `{ $ref }` branch to `{}`.
-function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: unknown): SchemaNode {
+function resolveSelectedBranch(
+  original: SchemaNode,
+  reduced: SchemaNode,
+  data: unknown,
+  scope: ValidationPath = [],
+  branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
+): SchemaNode {
   const reducedSchema = reduced.schema as Record<string, unknown>
   if (reducedSchema && typeof reducedSchema === 'object') {
     if (resolveExplicitType(reducedSchema) || inferProjectionShape(reducedSchema).kind === 'resolved') {
@@ -479,18 +490,18 @@ function resolveSelectedBranch(original: SchemaNode, reduced: SchemaNode, data: 
   }
   const selected: SchemaNode[] = []
   if (original.oneOf) {
-    const matching = original.oneOf.filter((branch) => branchApplies(branch, data))
+    const matching = original.oneOf.filter((branch) => branchApplies(branch, data, scope, branchApplicability))
     if (matching.length === 1) selected.push(matching[0]!)
   }
   for (const branch of original.anyOf ?? []) {
-    if (branchApplies(branch, data)) selected.push(branch)
+    if (branchApplies(branch, data, scope, branchApplicability)) selected.push(branch)
   }
   if (!selected.some((branch) => referenceOf(branch) !== undefined)) return reduced
   let merged: SchemaNode = reduced
   for (const branch of selected) {
     const target = dereference(branch)
     if (!isSchemaNode(target)) continue
-    const targetReduced = target.reduceNode(data).node ?? target
+    const targetReduced = target.reduceNode(data, { path: [...scope] }).node ?? target
     merged = mergeNode(merged, targetReduced) ?? merged
   }
   return merged
@@ -501,14 +512,16 @@ function resolveSelectedConditionalReference(
   original: SchemaNode,
   reduced: SchemaNode,
   data: unknown,
+  scope: ValidationPath = [],
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): SchemaNode {
   if (original.getDraftVersion() !== 'draft-07' || !original.if) return reduced
-  const selected = branchApplies(original.if, data) ? original.then : original.else
+  const selected = branchApplies(original.if, data, scope, branchApplicability) ? original.then : original.else
   if (!selected || typeof selected.$ref !== 'string') return reduced
 
   const target = dereference(selected)
   if (!isSchemaNode(target)) return reduced
-  const targetReduced = reduceAllOfForProjection(target, data) ?? target
+  const targetReduced = reduceAllOfForProjection(target, data, scope) ?? target
   const reducedProperties = reduced.properties ?? {}
   const hasUnprojectedProperty = Object.keys(targetReduced.properties ?? {}).some(
     (key) => !Object.hasOwn(reducedProperties, key),
@@ -533,8 +546,12 @@ interface Lineage {
 
 interface RecursionContext {
   readonly cache: ProjectionCache
+  readonly branchApplicability: WeakMap<SchemaNode, boolean> | undefined
   readonly limits: ProjectionLimits
   readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly boundaryTargets: Map<string, Map<string, ProjectionBoundaryTarget>>
+  readonly expandedBoundaryTokens: ReadonlySet<string>
+  readonly boundaryGeneration: number
   readonly removed: Set<string>
   readonly flagged: Set<string>
   readonly reserved: Set<string>
@@ -548,10 +565,26 @@ function walkOrder(a: readonly number[], b: readonly number[]): number {
   return a.length - b.length
 }
 
-function addBoundary(ctx: RecursionContext, pointer: string, reason: ProjectionBoundary): void {
+function boundaryToken(pointer: string, schemaKey: string, generation: number): string {
+  return JSON.stringify([pointer, schemaKey, generation])
+}
+
+function addBoundary(
+  ctx: RecursionContext,
+  pointer: string,
+  reason: ProjectionBoundary,
+  targetPointer: string,
+  schemaKey: string,
+): void {
   const reasons = ctx.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
   reasons.add(reason)
   ctx.boundaries.set(pointer, reasons)
+  const targets = ctx.boundaryTargets.get(pointer) ?? new Map<string, ProjectionBoundaryTarget>()
+  if (![...targets.values()].some((target) => target.reason === reason)) {
+    const token = boundaryToken(targetPointer, schemaKey, ctx.boundaryGeneration)
+    targets.set(token, { pointer: toPointer(targetPointer), reason, token })
+  }
+  ctx.boundaryTargets.set(pointer, targets)
 }
 
 // A leaf needs no reduction, so it rides with its parent's budget unit.
@@ -635,9 +668,19 @@ function eachUnconditional(
  * own descent already survives the shapes that throw (#119, #121), and a
  * conflict is the wrong place to surface one.
  */
-function branchApplies(branch: SchemaNode, data: unknown): boolean {
+function branchApplies(
+  branch: SchemaNode,
+  data: unknown,
+  scope: ValidationPath = [],
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
+): boolean {
+  if (data === undefined && branchApplicability?.has(branch)) {
+    return branchApplicability.get(branch)!
+  }
   try {
-    return branch.validate(data).valid === true
+    const applies = branch.validate(data, '#', [...scope]).valid === true
+    if (data === undefined) branchApplicability?.set(branch, applies)
+    return applies
   } catch {
     return false
   }
@@ -659,21 +702,26 @@ function branchApplies(branch: SchemaNode, data: unknown): boolean {
 function eachApplicable(
   roots: readonly SchemaNode[],
   data: unknown,
+  branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
   visitor: (node: SchemaNode) => void,
   referenceVisitor?: (node: SchemaNode) => void,
   cache?: ProjectionCache,
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
 ): void {
   const visited = new Set<string | SchemaNode>()
 
-  const visit = (current: SchemaNode): void => {
-    if (referenceVisitor && cache) visitReferenceDefaultSites(current, cache, referenceVisitor)
-    const resolved = dereference(current)
+  const visit = (current: SchemaNode, parentScope: ValidationPath): void => {
+    if (referenceVisitor && cache) visitReferenceDefaultSites(current, cache, referenceVisitor, dynamicReferenceProjection)
+    const entered = dynamicReferenceProjection ? enterDynamicScope(current, parentScope) : { node: dereference(current), path: parentScope }
+    const resolved = entered.node
+    const currentScope = entered.path
     const key = traversalKey(resolved)
     if (visited.has(key)) return
     visited.add(key)
 
     visitor(resolved)
-    for (const branch of resolved.allOf ?? []) visit(branch)
+    for (const branch of resolved.allOf ?? []) visit(branch, currentScope)
 
     // `oneOf` contributes the one branch it selects, which is the evaluator's
     // rule and not "every branch the data matches": an empty object matches
@@ -683,7 +731,9 @@ function eachApplicable(
     // branch stands in, which is what the projection exposes.
     const oneOf = resolved.oneOf ?? []
     if (oneOf.length > 0) {
-      const matching = oneOf.filter((branch) => branchApplies(branch, data))
+      const matching = oneOf.filter((branch) =>
+        branchApplies(branch, data, currentScope, branchApplicability),
+      )
       const selected =
         matching.length === 1
           ? matching[0]
@@ -693,30 +743,57 @@ function eachApplicable(
                 ? (data as Record<string, unknown>)
                 : undefined,
             )
-      if (selected) visit(selected)
+      if (selected) visit(selected, currentScope)
     }
 
     // `anyOf` is the opposite case and needs no such rule: several of its
     // branches applying at once is ordinary, and each that validates
     // contributes its annotations, so each competes.
     for (const branch of resolved.anyOf ?? []) {
-      if (branchApplies(branch, data)) visit(branch)
+      if (branchApplies(branch, data, currentScope, branchApplicability)) visit(branch, currentScope)
     }
 
     if (resolved.if) {
-      const taken = branchApplies(resolved.if, data) ? resolved.then : resolved.else
-      if (taken) visit(taken)
+      const taken = branchApplies(resolved.if, data, currentScope, branchApplicability) ? resolved.then : resolved.else
+      if (taken) visit(taken, currentScope)
     }
 
     const dependent = resolved.dependentSchemas as Record<string, SchemaNode> | undefined
     if (dependent && typeof data === 'object' && data !== null && !Array.isArray(data)) {
       for (const [dependency, subschema] of Object.entries(dependent)) {
-        if (Object.prototype.hasOwnProperty.call(data, dependency)) visit(subschema)
+        if (Object.prototype.hasOwnProperty.call(data, dependency)) visit(subschema, currentScope)
       }
     }
   }
 
-  for (const root of roots) visit(root)
+  for (const root of roots) visit(root, scope)
+}
+
+function enterDynamicScope(node: SchemaNode, scope: ValidationPath): { node: SchemaNode; path: ValidationPath } {
+  const path = [...scope]
+  let current = node
+  const seen = new Set<string>()
+  while (
+    typeof current.$ref === 'string' ||
+    typeof (current.schema as Record<string, unknown>).$dynamicRef === 'string' ||
+    typeof (current.schema as Record<string, unknown>).$recursiveRef === 'string'
+  ) {
+    const position = positionOf(current)
+    if (seen.has(position)) break
+    seen.add(position)
+    const resolved = current.resolveRef({ pointer: '#', path })
+    if (!isSchemaNode(resolved) || resolved === current) break
+    if (
+      typeof current.$ref === 'string' &&
+      current.getDraftVersion() !== 'draft-07' &&
+      !onlyPoints(current)
+    ) {
+      return { node: dereference(current), path }
+    }
+    current = resolved
+  }
+  if (path[path.length - 1]?.node !== current) path.push({ pointer: '#', node: current })
+  return { node: current, path }
 }
 
 /**
@@ -774,9 +851,22 @@ function collectApplicableDefaults(
   roots: readonly SchemaNode[],
   data: unknown,
   cache: ProjectionCache,
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): DefaultDeclaration[] {
   return declarationsFrom(
-    (visitor, referenceVisitor) => eachApplicable(roots, data, visitor, referenceVisitor, cache),
+    (visitor, referenceVisitor) =>
+      eachApplicable(
+        roots,
+        data,
+        branchApplicability,
+        visitor,
+        referenceVisitor,
+        cache,
+        scope,
+        dynamicReferenceProjection,
+      ),
     cache,
   )
 }
@@ -787,6 +877,9 @@ function childPositions(
   key: string,
   data: unknown,
   declaring: readonly SchemaNode[],
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
@@ -795,10 +888,10 @@ function childPositions(
   })
 
   const applicable: SchemaNode[] = []
-  eachApplicable(roots.applicable, data, (node) => {
+  eachApplicable(roots.applicable, data, branchApplicability, (node) => {
     const child = memberSchema(node, key)
     if (child) applicable.push(child)
-  })
+  }, undefined, undefined, scope, dynamicReferenceProjection)
 
   return { unconditional, applicable, declaring }
 }
@@ -808,6 +901,9 @@ function itemPositions(
   roots: DeclarationPositions,
   data: unknown,
   declaring: readonly SchemaNode[],
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): DeclarationPositions {
   const unconditional: SchemaNode[] = []
   eachUnconditional(roots.unconditional, (node) => {
@@ -815,9 +911,9 @@ function itemPositions(
   })
 
   const applicable: SchemaNode[] = []
-  eachApplicable(roots.applicable, data, (node) => {
+  eachApplicable(roots.applicable, data, branchApplicability, (node) => {
     if (node.items) applicable.push(node.items)
-  })
+  }, undefined, undefined, scope, dynamicReferenceProjection)
 
   return { unconditional, applicable, declaring }
 }
@@ -882,25 +978,34 @@ function applicableAdditionalPropertySchemas(
   roots: readonly SchemaNode[],
   key: string,
   data: unknown,
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): SchemaNode[] {
   const schemas: SchemaNode[] = []
   const seen = new Set<string>()
-  eachApplicable(roots, data, (node) => {
+  eachApplicable(roots, data, branchApplicability, (node) => {
     const schema = additionalPropertySchema(node, key)
     if (!schema) return
     const position = positionOf(schema)
     if (seen.has(position)) return
     seen.add(position)
     schemas.push(schema)
-  })
+  }, undefined, undefined, scope, dynamicReferenceProjection)
   return schemas
 }
 
-function applicableRequiredKeys(roots: readonly SchemaNode[], data: unknown): Set<string> {
+function applicableRequiredKeys(
+  roots: readonly SchemaNode[],
+  data: unknown,
+  scope: ValidationPath = [],
+  dynamicReferenceProjection = false,
+  branchApplicability?: WeakMap<SchemaNode, boolean>,
+): Set<string> {
   const keys = new Set<string>()
-  eachApplicable(roots, data, (node) => {
+  eachApplicable(roots, data, branchApplicability, (node) => {
     for (const key of node.required ?? []) keys.add(key)
-  })
+  }, undefined, undefined, scope, dynamicReferenceProjection)
   return keys
 }
 
@@ -912,12 +1017,14 @@ function unconditionalRequiredKeys(roots: readonly SchemaNode[]): Set<string> {
   return keys
 }
 
-function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown): SchemaNode {
-  if (source.getDraftVersion() !== 'draft-07') return source.reduceNode(data).node ?? source
+function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown, scope: ValidationPath = []): SchemaNode {
+  if (source.getDraftVersion() !== 'draft-07') return source.reduceNode(data, { path: [...scope] }).node ?? source
   const { node, unresolved } = dereferenceChecked(source)
   if (unresolved || !isSchemaNode(node)) return source
   return reduceAllOfForProjection(node, data) ?? node
 }
+
+const candidatePropertyCache = new WeakMap<SchemaNode, ReadonlyMap<string, CandidateProperty> | null>()
 
 /**
  * Property keys that might need to appear at this instance location.
@@ -954,7 +1061,11 @@ function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown): Sche
 function collectCandidateProperties(
   node: SchemaNode,
   data: Record<string, unknown> | undefined,
-): Map<string, CandidateProperty> {
+): ReadonlyMap<string, CandidateProperty> {
+  if (candidatePropertyCache.has(node)) {
+    const cached = candidatePropertyCache.get(node)
+    if (cached) return cached
+  }
   const candidates = new Map<string, CandidateProperty>()
   const visited = new Set<string>()
   const scopes: { node: SchemaNode; own: boolean }[] = []
@@ -1001,6 +1112,8 @@ function collectCandidateProperties(
       if (propNode) record(key, propNode, own)
     }
   }
+  const hasDataDependentAdditionalProperties = scopes.some(({ node: scope }) => Boolean(scope.additionalProperties))
+  candidatePropertyCache.set(node, hasDataDependentAdditionalProperties ? null : candidates)
   return candidates
 }
 
@@ -1201,6 +1314,95 @@ function computeRequiredSet(
   return required
 }
 
+// reduceNode recompiles a subtree when any descendant has reduction work.
+const REDUCE_NODE_SCHEMA_FIELDS = [
+  '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
+  '$defs',
+  'if',
+  'then',
+  'else',
+  'allOf',
+  'anyOf',
+  'oneOf',
+  'contains',
+  'dependentSchemas',
+  'dependentRequired',
+  'definitions',
+  'dependencies',
+  'patternProperties',
+  'propertyDependencies',
+] as const
+
+const SCHEMA_MAP_KEYWORDS = [
+  '$defs',
+  'definitions',
+  'dependentSchemas',
+  'patternProperties',
+  'properties',
+] as const
+const SCHEMA_SINGLE_KEYWORDS = [
+  'additionalItems',
+  'additionalProperties',
+  'contains',
+  'if',
+  'items',
+  'not',
+  'propertyNames',
+  'then',
+  'else',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const
+const SCHEMA_ARRAY_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const
+
+const reductionRequirementCache = new WeakMap<object, boolean>()
+
+function schemaRequiresReduction(schema: unknown, visiting = new WeakSet<object>()): boolean {
+  if (schema === true) return true
+  if (typeof schema !== 'object' || schema === null) return false
+
+  const cached = reductionRequirementCache.get(schema)
+  if (cached !== undefined) return cached
+  if (visiting.has(schema)) return false
+  visiting.add(schema)
+
+  const record = schema as Record<string, unknown>
+  const direct =
+    REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(record, field)) ||
+    Object.prototype.hasOwnProperty.call(record, 'oneOfProperty') ||
+    Array.isArray(record.type)
+  const children: unknown[] = []
+  for (const keyword of SCHEMA_MAP_KEYWORDS) {
+    const value = record[keyword]
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      children.push(...Object.values(value))
+    }
+  }
+  for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
+    const value = record[keyword]
+    if (keyword === 'items' && Array.isArray(value)) children.push(...value)
+    else if (value !== undefined) children.push(value)
+  }
+  for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+    const value = record[keyword]
+    if (Array.isArray(value)) children.push(...value)
+  }
+  for (const value of Object.values(record.dependencies ?? {})) children.push(value)
+  for (const values of Object.values(record.propertyDependencies ?? {})) {
+    if (typeof values === 'object' && values !== null) children.push(...Object.values(values))
+  }
+  const required = direct || children.some((child) => schemaRequiresReduction(child, visiting))
+  visiting.delete(schema)
+  reductionRequirementCache.set(schema, required)
+  return required
+}
+
+function requiresReduction(node: SchemaNode): boolean {
+  return node.reducers.length > 0 || schemaRequiresReduction(node.schema)
+}
+
 // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
 const budgeted = (info: LocationInfo): boolean => info.cyclic || info.key === ''
 
@@ -1240,7 +1442,13 @@ function walk(
   /** The past-the-data ancestors, nearest first, up to the nearest location holding data. */
   lineage: Lineage | undefined,
   path: readonly number[],
+  scope: ValidationPath,
 ): void {
+  if (ctx.cache.dynamicReferenceProjection) {
+    const entered = enterDynamicScope(node, scope)
+    node = entered.node
+    scope = entered.path
+  }
   const info = locationInfo(declaredAt.declaring, ctx.cache)
   const { node: original, cycle: referenceCycle, unresolved: unresolvedReference } = dereferenceChecked(node)
   if (info.cycle || referenceCycle) {
@@ -1254,11 +1462,16 @@ function walk(
     return
   }
   const pastData = member && (data === undefined || data === null)
+  const token = boundaryToken(pointer, info.key, ctx.boundaryGeneration)
   const recursive =
     pastData && !unresolvedReference && ((lineage?.recursive ?? false) || budgeted(info))
   for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
-    if (info.key !== '' && ancestor.key === info.key) {
-      addBoundary(ctx, ancestor.pointer, 'recursion')
+    if (
+      info.key !== '' &&
+      ancestor.key === info.key &&
+      !ctx.expandedBoundaryTokens.has(token)
+    ) {
+      addBoundary(ctx, ancestor.pointer, 'recursion', pointer, info.key)
       ctx.removed.add(pointer)
       return
     }
@@ -1269,21 +1482,24 @@ function walk(
     let admit: boolean
     if (isLeafSchema(originalSchema)) {
       const covered = ctx.reserved.has(parent)
-      admit = covered || ctx.nodesUsed < ctx.limits.nodes
+      admit = ctx.expandedBoundaryTokens.has(token) || covered || ctx.nodesUsed < ctx.limits.nodes
       if (admit && !covered) ctx.nodesUsed += 1
     } else {
+      const explicitlyExpanded = ctx.expandedBoundaryTokens.has(token)
       const leaves = [...collectCandidateProperties(original, undefined).values()].filter((candidate) =>
         isLeafSchema(dereference(candidatePrototype(candidate)).schema),
       ).length
-      admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
+      admit =
+        explicitlyExpanded ||
+        (ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes)
       if (admit) {
         ctx.objectsUsed += 1
-        ctx.nodesUsed += 1 + leaves
-        ctx.reserved.add(pointer)
+        ctx.nodesUsed += explicitlyExpanded ? 1 : 1 + leaves
+        if (!explicitlyExpanded) ctx.reserved.add(pointer)
       }
     }
     if (!admit) {
-      addBoundary(ctx, parent, 'budget')
+      addBoundary(ctx, parent, 'budget', pointer, info.key)
       ctx.removed.add(pointer)
       return
     }
@@ -1310,12 +1526,21 @@ function walk(
       (data === undefined || data === null)
         ? {}
         : data
-    const reduced = reduceAllOfForProjection(original, reductionData)
+    const reduced = reduceAllOfForProjection(original, reductionData, scope)
     const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
     if (reduced && reducedSchema && typeof reducedSchema === 'object') {
       resolved = reduced
       schema = reducedSchema
       if (!type) type = resolveExplicitType(schema)
+    }
+  }
+
+  if (!type && ctx.cache.dynamicReferenceProjection && original.allOf?.length) {
+    const reduced = original.reduceNode(data, { path: [...scope] }).node
+    if (reduced) {
+      resolved = reduced
+      schema = reduced.schema as Record<string, unknown>
+      type = resolveExplicitType(schema)
     }
   }
   // Whether this node's own active branch could be determined. Stays true for every
@@ -1343,9 +1568,9 @@ function walk(
 
   if (!type && (original.oneOf || original.anyOf)) {
     composedAgainstData = true
-    const { node: branchNode } = original.reduceNode(data)
+    const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
     if (branchNode) {
-      resolved = resolveSelectedBranch(original, branchNode, data)
+      resolved = resolveSelectedBranch(original, branchNode, data, scope, ctx.branchApplicability)
       schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
@@ -1433,7 +1658,7 @@ function walk(
 
   // Arrays do not pass through the object path that reduces the active schema.
   if (type === 'array' && resolved === original && original.allOf) {
-    const reduced = reduceAllOfForProjection(original, data)
+    const reduced = reduceAllOfForProjection(original, data, scope)
     const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
     if (reduced && reducedSchema && typeof reducedSchema === 'object') {
       resolved = reduced
@@ -1475,6 +1700,9 @@ function walk(
     declaredAt.applicable,
     applicableData,
     ctx.cache,
+    scope,
+    ctx.cache.dynamicReferenceProjection,
+    ctx.branchApplicability,
   )
   const applicableConflict = disagreeingDefaults(applicableDeclarations)
   const conflictedDefault = applicableConflict !== undefined || ambiguousDefault !== undefined
@@ -1519,13 +1747,21 @@ function walk(
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
     let reducedNode =
       resolved === original
-        ? original.allOf && hasReferencedAllOf(original)
-          ? reduceAllOfForProjection(resolved, dataRecord ?? {})
-          : resolved.reduceNode(dataRecord ?? {}).node
+        ? requiresReduction(resolved)
+          ? original.allOf && hasReferencedAllOf(original)
+            ? reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
+            : resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
+          : resolved
         : resolved
     if (reducedNode && resolved === original && (!member || data !== undefined)) {
       // Missing child data has no evaluated conditional branch to recover.
-      reducedNode = resolveSelectedConditionalReference(original, reducedNode, dataRecord ?? {})
+      reducedNode = resolveSelectedConditionalReference(
+        original,
+        reducedNode,
+        dataRecord ?? {},
+        scope,
+        ctx.branchApplicability,
+      )
     }
     if (
       reducedNode &&
@@ -1533,14 +1769,20 @@ function walk(
       !resolveExplicitType(originalSchema) &&
       (original.oneOf || original.anyOf)
     ) {
-      reducedNode = resolveSelectedBranch(original, reducedNode, dataRecord ?? {})
+      reducedNode = resolveSelectedBranch(
+        original,
+        reducedNode,
+        dataRecord ?? {},
+        scope,
+        ctx.branchApplicability,
+      )
     }
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
     const reducedProperties =
       (reducedSchema?.properties as Record<string, unknown> | undefined) ??
       (schema.properties as Record<string, unknown> | undefined) ??
       {}
-    const candidateProps = collectCandidateProperties(original, dataRecord)
+    let candidateProps: ReadonlyMap<string, CandidateProperty> = collectCandidateProperties(original, dataRecord)
     const activeKeys = new Set([
       ...Object.keys(reducedProperties),
       ...additionalPropertyKeys(reducedNode, dataRecord),
@@ -1551,6 +1793,27 @@ function walk(
       }
     }
     const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
+    const dynamicApplicableNodes: SchemaNode[] = []
+    if (ctx.cache.dynamicReferenceProjection) {
+      eachApplicable([original], data, ctx.branchApplicability, (applicableNode) => {
+        dynamicApplicableNodes.push(applicableNode)
+        for (const key of Object.keys(applicableNode.properties ?? {})) activeKeys.add(key)
+        for (const key of applicableNode.required ?? []) requiredSet.add(key)
+      }, undefined, undefined, scope, true)
+      const expandedCandidates = new Map(candidateProps)
+      const activeCandidateNode = reducedNode ?? resolved
+      if (activeCandidateNode !== original) {
+        for (const [key, candidate] of collectCandidateProperties(activeCandidateNode, dataRecord)) {
+          if (!expandedCandidates.has(key)) expandedCandidates.set(key, candidate)
+        }
+      }
+      for (const applicableNode of dynamicApplicableNodes) {
+        for (const [key, propertyNode] of Object.entries(applicableNode.properties ?? {})) {
+          if (!expandedCandidates.has(key)) expandedCandidates.set(key, { direct: propertyNode, alternatives: [] })
+        }
+      }
+      candidateProps = expandedCandidates
+    }
     if (!reducedNode) {
       for (const key of unconditionalRequiredKeys(declaredAt.unconditional)) requiredSet.add(key)
     }
@@ -1585,15 +1848,34 @@ function walk(
     // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
     // branch's properties are represented (the matching branch alone, via `resolved`,
     // would only expose its own properties).
-    const applicableRequired = applicableRequiredKeys(declaredAt.applicable, applicableData)
+    const applicableRequired = applicableRequiredKeys(
+      declaredAt.applicable,
+      applicableData,
+      scope,
+      ctx.cache.dynamicReferenceProjection,
+      ctx.branchApplicability,
+    )
     const provisionalRequiredKeys = provisionalBranch
-      ? applicableRequiredKeys([provisionalBranch], applicableData)
+      ? applicableRequiredKeys(
+          [provisionalBranch],
+          applicableData,
+          scope,
+          ctx.cache.dynamicReferenceProjection,
+          ctx.branchApplicability,
+        )
       : new Set<string>()
     for (const key of candidateProps.keys()) {
       const present = dataRecord !== undefined && Object.hasOwn(dataRecord, key)
       if (
         (present || applicableRequired.has(key)) &&
-        applicableAdditionalPropertySchemas(declaredAt.applicable, key, applicableData).length > 0
+        applicableAdditionalPropertySchemas(
+          declaredAt.applicable,
+          key,
+          applicableData,
+          scope,
+          ctx.cache.dynamicReferenceProjection,
+          ctx.branchApplicability,
+        ).length > 0
       ) {
         activeKeys.add(key)
       }
@@ -1602,8 +1884,22 @@ function walk(
       for (const key of candidateProps.keys()) {
         if (
           provisionalRequiredKeys.has(key) &&
-          (applicableAdditionalPropertySchemas(declaredAt.applicable, key, applicableData).length > 0 ||
-            applicableAdditionalPropertySchemas([provisionalBranch], key, applicableData).length > 0)
+          (applicableAdditionalPropertySchemas(
+            declaredAt.applicable,
+            key,
+            applicableData,
+            scope,
+            ctx.cache.dynamicReferenceProjection,
+            ctx.branchApplicability,
+          ).length > 0 ||
+            applicableAdditionalPropertySchemas(
+              [provisionalBranch],
+              key,
+              applicableData,
+              scope,
+              ctx.cache.dynamicReferenceProjection,
+              ctx.branchApplicability,
+            ).length > 0)
         ) {
           provisionalKeys.add(key)
         }
@@ -1658,18 +1954,58 @@ function walk(
       const provisionalChildNode = memberSchema(provisionalBranch, key)
       const candidate = candidateProps.get(key)!
       const childData = dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined
+      const sourceChildNode = reducedChildNode ?? candidate.direct ?? candidatePrototype(candidate)
+      const sourceSchema = sourceChildNode.schema as Record<string, unknown>
+      let scopedChildNode: SchemaNode | undefined
+      let childScope = scope
+      if (ctx.cache.dynamicReferenceProjection && childActive) {
+        const nextScope: ValidationPath = [...scope]
+        if (
+          typeof sourceSchema.$dynamicAnchor === 'string' ||
+          typeof sourceSchema.$id === 'string' ||
+          sourceSchema.$recursiveAnchor === true
+        ) {
+          nextScope.push({ pointer: `#${childPointer}`, node: sourceChildNode })
+        }
+        const result = resolved.getNodeChild(key, dataRecord ?? {}, {
+          pointer: `#${childPointer}`,
+          path: nextScope,
+        })
+        if (!result.error && isSchemaNode(result.node)) {
+          scopedChildNode = result.node
+          if (nextScope[nextScope.length - 1]?.node !== scopedChildNode) {
+            nextScope.push({ pointer: `#${childPointer}`, node: scopedChildNode })
+          }
+          childScope = nextScope
+        }
+      }
       let applicableChildNode = reducedChildNode
+      let scopedApplicableChildNode = scopedChildNode
+      const hasScopedReference =
+        typeof sourceSchema.$dynamicRef === 'string' || typeof sourceSchema.$recursiveRef === 'string'
       for (const source of applicableAdditionalPropertySchemas(
         declaredAt.applicable,
         key,
         applicableData,
+        scope,
+        ctx.cache.dynamicReferenceProjection,
+        ctx.branchApplicability,
       )) {
-        if (applicableChildNode && positionOf(applicableChildNode) === positionOf(source)) continue
-        const reduced = reduceAdditionalPropertySchema(source, childData)
-        applicableChildNode =
-          applicableChildNode === undefined
-            ? reduced
-            : mergeNode(applicableChildNode, reduced) ?? applicableChildNode
+        const alreadyApplicable =
+          applicableChildNode !== undefined && positionOf(applicableChildNode) === positionOf(source)
+        const alreadyScoped =
+          scopedApplicableChildNode !== undefined && positionOf(scopedApplicableChildNode) === positionOf(source)
+        if (alreadyApplicable && (!scopedApplicableChildNode || alreadyScoped)) continue
+        const reduced = reduceAdditionalPropertySchema(source, childData, scope)
+        if (!alreadyApplicable) {
+          applicableChildNode =
+            applicableChildNode === undefined
+              ? reduced
+              : mergeNode(applicableChildNode, reduced) ?? applicableChildNode
+        }
+        if (scopedApplicableChildNode && !alreadyScoped) {
+          scopedApplicableChildNode = mergeNode(scopedApplicableChildNode, reduced) ?? scopedApplicableChildNode
+        }
       }
       // Applicable declarations retain their authored scope here. The parent
       // reducer merges `properties` across `allOf`, which can make an
@@ -1677,10 +2013,11 @@ function walk(
       // Failing that, use the reducer's child, then the selected branch, then a
       // stable placeholder from the candidate set.
       const childNode =
+        (hasScopedReference ? scopedApplicableChildNode : undefined) ??
         applicableChildNode ??
         composeChild(candidate.direct, provisionalChildNode) ??
         candidatePrototype(candidate)
-      const positions = childPositions(
+      let positions = childPositions(
         declaredAt,
         key,
         // This node's own data, not the child's: the branches being entered
@@ -1690,7 +2027,25 @@ function walk(
         // when this location has no object value yet.
         applicableData,
         childDeclaring(info, key),
+        scope,
+        ctx.cache.dynamicReferenceProjection,
+        ctx.branchApplicability,
       )
+      const dynamicChildDeclarations = dynamicApplicableNodes.flatMap((applicableNode) => {
+        const dynamicChild = applicableNode.properties?.[key]
+        return dynamicChild ? [dynamicChild] : []
+      })
+      positions = {
+        ...positions,
+        declaring: extendDeclaring(positions.declaring, dynamicChildDeclarations),
+      }
+      if (scopedChildNode && hasScopedReference && !positions.declaring.includes(scopedChildNode)) {
+        positions = {
+          ...positions,
+          applicable: [...positions.applicable, scopedChildNode],
+          declaring: [...positions.declaring, scopedChildNode],
+        }
+      }
       const enter = (): void =>
         walk(
           childNode,
@@ -1705,6 +2060,7 @@ function walk(
           true,
           selfLineage,
           [...path, index],
+          childScope,
         )
       // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
       const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
@@ -1739,10 +2095,20 @@ function walk(
   })
 
   if (type === 'array' && resolved.items && Array.isArray(data)) {
-    const elementPositions = itemPositions(declaredAt, data, itemDeclaring(info))
+    const elementPositions = itemPositions(
+      declaredAt,
+      data,
+      itemDeclaring(info),
+      scope,
+      ctx.cache.dynamicReferenceProjection,
+      ctx.branchApplicability,
+    )
     data.forEach((item, index) => {
+      const enteredItem = ctx.cache.dynamicReferenceProjection
+        ? enterDynamicScope(resolved.items!, scope)
+        : { node: resolved.items!, path: scope }
       walk(
-        resolved.items!,
+        enteredItem.node,
         `${pointer}/${index}`,
         item,
         nodeActive,
@@ -1754,6 +2120,7 @@ function walk(
         false,
         undefined,
         [...path, index],
+        enteredItem.path,
       )
     })
   }
@@ -1774,13 +2141,18 @@ export function buildProjection(
   data: unknown,
   cache: ProjectionCache,
   limits: ProjectionLimits = DEFAULT_LIMITS,
+  options: ProjectionOptions = {},
 ): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
   const ctx: RecursionContext = {
     cache,
+    branchApplicability: cache.memoizeUndefinedBranchResults ? new WeakMap() : undefined,
     limits,
     boundaries: new Map(),
+    boundaryTargets: new Map(),
+    expandedBoundaryTokens: options.expandedBoundaryTokens ?? new Set(),
+    boundaryGeneration: options.boundaryGeneration ?? 0,
     removed: new Set(),
     flagged: new Set(),
     reserved: new Set(),
@@ -1801,6 +2173,7 @@ export function buildProjection(
     false,
     undefined,
     [],
+    [{ pointer: '#', node: root }],
   )
   for (const level of ctx.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   for (const node of nodes.values()) {
@@ -1820,6 +2193,12 @@ export function buildProjection(
       ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
         ['recursion', 'budget'] as const
       ).filter((reason) => reasons.has(reason))
+      const targets = ctx.boundaryTargets.get(pointer)
+      if (targets) {
+        ;(node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }).boundaryTargets = [
+          ...targets.values(),
+        ]
+      }
     }
   }
   return { nodes, diagnostics }

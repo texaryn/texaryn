@@ -4,7 +4,7 @@ import '@hyperjump/json-schema/draft-07'
 import { buildSchemaDocument, compile, getSchema, interpret, BASIC } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { Output } from '@hyperjump/json-schema'
-import type { SchemaProjection, ValidationResult } from '@texaryn/core'
+import type { ProjectionOptions, SchemaProjection, ValidationResult } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { buildProjection, DEFAULT_LIMITS } from './projection.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
@@ -169,8 +169,8 @@ export async function createAdapter(
   const compiled = await compile(schemaDoc)
 
   return {
-    project(data: unknown): SchemaProjection {
-      return buildProjection(adapterSchema, compiled, toJsonInstance(data), cache, limits)
+    project(data: unknown, options?: ProjectionOptions): SchemaProjection {
+      return buildProjection(adapterSchema, compiled, toJsonInstance(data), cache, limits, options)
     },
 
     // hyperjump's async work (registerSchema -> getSchema -> compile) already happened

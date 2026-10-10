@@ -43,9 +43,8 @@ resource URI with different resolver results.
 1. The host owns network access, authentication, caching, origin restrictions,
 and resource trust decisions.
 2. Static external `$ref` resources participate in validation and projection.
-   External `$dynamicRef` and `$recursiveRef` resources can be loaded for
-   validation, while form projection through their dynamic scope remains
-   outside this decision, as described in ADR-007 and issue #179.
+   External dynamic references participate in validation. Bounded dynamic
+   form projection is opt in under ADR-010 and issue #179.
 3. The default resource cap bounds work during adapter creation. Hosts can
    lower or raise it for their schema collections.
 4. The conformance suite covers both adapters, remote fragments, mutually

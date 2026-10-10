@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from '@vitest/browser/context'
 import { createFormRuntime, englishMessages } from '@texaryn/core'
-import type { FormRuntime, UIHints } from '@texaryn/core'
+import type { FormRuntime, JsonPointer, SchemaEvaluationPort, SchemaProjection, UIHints } from '@texaryn/core'
 import { createDefaultRegistry, defineTexarynForm, mountErrorSummary, mountForm } from '../index.js'
 import type { Mount, TexarynFormElement } from '../index.js'
 import { adapterFor, conditionalSchema, flush, listSchema, nodeAt, requiredSchema } from './harness.js'
@@ -62,6 +62,44 @@ afterEach(() => {
 })
 
 describe('browser semantics', () => {
+  it('removes a boundary action when that target is no longer projected', async () => {
+    const targets = [
+      { pointer: '/recursive' as JsonPointer, reason: 'recursion' as const, token: 'recursive' },
+      { pointer: '/budgeted' as JsonPointer, reason: 'budget' as const, token: 'budgeted' },
+    ]
+    const port: SchemaEvaluationPort = {
+      project: (_data, options) => {
+        const expanded = options?.expandedBoundaryTokens ?? new Set()
+        const boundaryTargets = expanded.has('recursive') ? [targets[1]!] : targets
+        const projection: SchemaProjection = {
+          nodes: new Map([
+            ['' as JsonPointer, {
+              type: 'object',
+              constraints: {},
+              active: true,
+              annotations: {},
+              children: [],
+              boundaryTargets,
+            }],
+          ]),
+        }
+        return projection
+      },
+      validate: () => ({ valid: true, errors: [] }),
+    }
+    runtime = createFormRuntime(port, { initialData: {}, validationDebounceMs: 0 })
+    container = document.body.appendChild(document.createElement('div'))
+    mounted = mountForm(container, runtime, { registry, idPrefix: 'f' })
+    await flush()
+
+    expect(container.querySelectorAll('.texaryn-boundary-actions button')).toHaveLength(2)
+    await userEvent.click(container.querySelector<HTMLButtonElement>('button[aria-label="Expand recursive fields"]')!)
+    await flush()
+
+    expect(container.querySelector('button[aria-label="Expand recursive fields"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="Show more fields"]')).not.toBeNull()
+  })
+
   it('a conditional reveal keeps the focused input and its caret', async () => {
     const rt = await mount(conditionalSchema, { kind: '' })
     const kind = input('/kind')

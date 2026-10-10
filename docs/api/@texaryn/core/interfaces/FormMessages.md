@@ -60,6 +60,24 @@ The whole text after an item's link, punctuation included.
 
 ***
 
+### expandBoundary()?
+
+> `optional` **expandBoundary**(`context`): [`ActionMessage`](ActionMessage.md)
+
+Optional localized label for boundary expansion controls.
+
+#### Parameters
+
+##### context
+
+[`ExpandBoundaryContext`](ExpandBoundaryContext.md)
+
+#### Returns
+
+[`ActionMessage`](ActionMessage.md)
+
+***
+
 ### moveItemDown()
 
 > **moveItemDown**(`context`): [`ActionMessage`](ActionMessage.md)

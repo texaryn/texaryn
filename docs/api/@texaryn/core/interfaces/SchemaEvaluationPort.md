@@ -10,13 +10,17 @@
 
 ### project()
 
-> **project**(`data`): [`SchemaProjection`](SchemaProjection.md)
+> **project**(`data`, `options?`): [`SchemaProjection`](SchemaProjection.md)
 
 #### Parameters
 
 ##### data
 
 `unknown`
+
+##### options?
+
+[`ProjectionOptions`](ProjectionOptions.md)
 
 #### Returns
 

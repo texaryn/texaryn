@@ -40,12 +40,36 @@ export function processCommand(
     case 'MoveItem':
       if (isReadOnly(document, command.containerId)) return { nextState: state, effects: [] }
       return handleMoveItem(state, command, document)
+    case 'ExpandBoundary':
+      return handleExpandBoundary(state, command, document)
     case 'SetTouched':
       return handleSetTouched(state, command)
     case 'Submit':
       return handleSubmit(state)
     case 'Reset':
       return handleReset(state, command, document)
+  }
+}
+
+function handleExpandBoundary(
+  state: RuntimeState,
+  command: Extract<Command, { type: 'ExpandBoundary' }>,
+  document: UIDocument,
+): CommandResult {
+  const container = document.nodes[command.containerId as string]
+  if (
+    container?.type !== 'container' ||
+    !container.visible ||
+    !container.boundaryTargets?.some((target) => target.token === command.targetToken)
+  ) {
+    return { nextState: state, effects: [] }
+  }
+  const expanded = new Set(state.expandedBoundaryTokens ?? [])
+  if (expanded.has(command.targetToken)) return { nextState: state, effects: [] }
+  expanded.add(command.targetToken)
+  return {
+    nextState: { ...state, expandedBoundaryTokens: expanded },
+    effects: [{ type: 'recompile', reason: 'projection-expanded' }],
   }
 }
 
@@ -69,7 +93,17 @@ function handleSetValue(
   })
 
   return {
-    nextState: { ...state, data: newData, nodes },
+    nextState: {
+      ...state,
+      data: newData,
+      nodes,
+      ...(node.type === 'container'
+        ? {
+            expandedBoundaryTokens: new Set(),
+            boundaryGeneration: (state.boundaryGeneration ?? 0) + 1,
+          }
+        : {}),
+    },
     effects: [
       { type: 'recompile', reason: 'data-changed' },
       { type: 'validate', nodeIds: [cmd.nodeId], trigger: 'change' },
@@ -99,7 +133,13 @@ function handleInsertItem(
   const { map: newIdentities } = insertItem(state.identities, key, cmd.index)
 
   return {
-    nextState: { ...state, data: newData, identities: newIdentities },
+    nextState: {
+      ...state,
+      data: newData,
+      identities: newIdentities,
+      expandedBoundaryTokens: new Set(),
+      boundaryGeneration: (state.boundaryGeneration ?? 0) + 1,
+    },
     provisional: stated
       ? undefined
       : [`${container.dataPointer}/${cmd.index}` as JsonPointer],
@@ -126,7 +166,13 @@ function handleRemoveItem(
   const { map: newIdentities } = removeItem(state.identities, key, cmd.index)
 
   return {
-    nextState: { ...state, data: newData, identities: newIdentities },
+    nextState: {
+      ...state,
+      data: newData,
+      identities: newIdentities,
+      expandedBoundaryTokens: new Set(),
+      boundaryGeneration: (state.boundaryGeneration ?? 0) + 1,
+    },
     effects: [
       { type: 'recompile', reason: 'data-changed' },
       { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
@@ -154,7 +200,13 @@ function handleMoveItem(
   const newIdentities = moveItem(state.identities, key, cmd.from, cmd.to)
 
   return {
-    nextState: { ...state, data: newData, identities: newIdentities },
+    nextState: {
+      ...state,
+      data: newData,
+      identities: newIdentities,
+      expandedBoundaryTokens: new Set(),
+      boundaryGeneration: (state.boundaryGeneration ?? 0) + 1,
+    },
     effects: [
       { type: 'recompile', reason: 'data-changed' },
       { type: 'validate', nodeIds: [cmd.containerId], trigger: 'change' },
@@ -247,6 +299,8 @@ function handleReset(
       initialData: newData,
       nodes,
       identities,
+      expandedBoundaryTokens: new Set(),
+      boundaryGeneration: (state.boundaryGeneration ?? 0) + 1,
       submission: { status: 'idle', attempts: 0 },
     },
     effects: [{ type: 'recompile', reason: 'data-changed' }],

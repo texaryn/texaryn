@@ -1,6 +1,6 @@
 import type { NodeId, StableItemId, JsonPointer } from '../types.js'
 import type { IdentityKey } from '../identity/key.js'
-import type { ProjectionBoundary } from '../schema/port.js'
+import type { ProjectionBoundary, ProjectionBoundaryTarget } from '../schema/port.js'
 
 export interface UIDocument {
   version: 1
@@ -83,6 +83,8 @@ export interface ContainerNode extends NodeBase {
   children: NodeId[]
   arrayMeta?: ArrayMeta
   boundaries?: readonly ProjectionBoundary[]
+  /** Individual withheld locations that may be explicitly revealed in the view. */
+  boundaryTargets?: readonly ProjectionBoundaryTarget[]
 }
 
 export interface ArrayMeta {

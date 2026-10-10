@@ -109,7 +109,62 @@ function simpleState(): RuntimeState {
 }
 
 describe('processCommand', () => {
+  describe('ExpandBoundary', () => {
+    it('admits a visible boundary target once and rejects stale tokens', () => {
+      const target = { pointer: jp('/child'), reason: 'recursion' as const, token: 'recursive-child' }
+      const root = {
+        ...makeContainerNode('root', '', []),
+        boundaryTargets: [target],
+      }
+      const document: UIDocument = {
+        version: 1,
+        rootId: nid('root'),
+        nodes: { [nid('root') as string]: root },
+      }
+      const state = simpleState()
+      const command: Command = {
+        type: 'ExpandBoundary',
+        containerId: nid('root'),
+        targetToken: target.token,
+      }
+
+      const first = processCommand(state, command, document)
+      expect(first.nextState.expandedBoundaryTokens).toEqual(new Set([target.token]))
+      expect(first.effects).toEqual([{ type: 'recompile', reason: 'projection-expanded' }])
+
+      const repeated = processCommand(first.nextState, command, document)
+      expect(repeated.nextState).toBe(first.nextState)
+      expect(repeated.effects).toEqual([])
+
+      const stale = processCommand(state, { ...command, targetToken: 'stale' }, document)
+      expect(stale.nextState).toBe(state)
+      expect(stale.effects).toEqual([])
+    })
+  })
+
   describe('SetValue', () => {
+    it('clears expanded boundaries when replacing a container value', () => {
+      const document: UIDocument = {
+        version: 1,
+        rootId: nid('root'),
+        nodes: { [nid('root') as string]: makeContainerNode('root', '', ['name', 'age']) },
+      }
+      const state: RuntimeState = {
+        ...simpleState(),
+        expandedBoundaryTokens: new Set(['old-boundary']),
+        boundaryGeneration: 3,
+      }
+
+      const { nextState } = processCommand(
+        state,
+        { type: 'SetValue', nodeId: nid('root'), value: { name: 'Bob', age: 30 } },
+        document,
+      )
+
+      expect(nextState.expandedBoundaryTokens).toEqual(new Set())
+      expect(nextState.boundaryGeneration).toBe(4)
+    })
+
     it('updates data at the node dataPointer', () => {
       const state = simpleState()
       const cmd: Command = { type: 'SetValue', nodeId: nid('name'), value: 'Bob' }

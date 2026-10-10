@@ -30,6 +30,14 @@ form should show.
 
 ***
 
+### boundaryTargets?
+
+> `optional` **boundaryTargets?**: readonly [`ProjectionBoundaryTarget`](ProjectionBoundaryTarget.md)[]
+
+Individual withheld locations that may be explicitly revealed in the view.
+
+***
+
 ### children?
 
 > `optional` **children?**: [`ChildProjection`](ChildProjection.md)[]

@@ -252,6 +252,8 @@ export function createFormRuntime(
     initialData,
     nodes,
     identities: initialCompile.identityMap,
+    expandedBoundaryTokens: new Set(),
+    boundaryGeneration: 0,
     submission: { status: 'idle', attempts: 0 },
   }
 
@@ -300,7 +302,10 @@ export function createFormRuntime(
     // ordering the current positional node ids were built from.
     const previous = indexByLogicalKey(currentDoc, state.nodes)
 
-    const nextProjection = port.project(state.data)
+    const nextProjection = port.project(state.data, {
+      expandedBoundaryTokens: state.expandedBoundaryTokens,
+      boundaryGeneration: state.boundaryGeneration,
+    })
     const result = compile(nextProjection, state.data, options.hints, state.identities)
     const nextDoc = result.document
     const next = indexByLogicalKey(nextDoc)

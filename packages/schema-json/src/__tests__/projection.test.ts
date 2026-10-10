@@ -87,3 +87,35 @@ describe('boolean item schemas', () => {
     expect(adapter.project({}).nodes.get('/k' as never)?.type).toBe('array')
   })
 })
+
+describe('data-dependent additional properties', () => {
+  it('projects an additional-property schema declared in a separate allOf scope', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      allOf: [
+        { properties: { declared: { type: 'object', properties: { name: { type: 'string' } } } } },
+        { additionalProperties: { type: 'object', properties: { extra: { type: 'string' } } } },
+      ],
+    })
+
+    const projection = adapter.project({ declared: { name: 'known' }, other: { extra: 'unknown' } })
+
+    expect(projection.nodes.has('/declared/name' as never)).toBe(true)
+    expect(projection.nodes.has('/other/extra' as never)).toBe(true)
+  })
+
+  it('recomputes candidate names for each projection of the same schema', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: { known: { type: 'string' } },
+      additionalProperties: { type: 'string' },
+    })
+
+    const first = adapter.project({ first: 'one' })
+    const second = adapter.project({ second: 'two' })
+
+    expect(first.nodes.has('/first' as never)).toBe(true)
+    expect(second.nodes.has('/second' as never)).toBe(true)
+    expect(second.nodes.has('/first' as never)).toBe(false)
+  })
+})

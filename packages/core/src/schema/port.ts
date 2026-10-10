@@ -2,7 +2,7 @@ import type { JsonPointer, JsonSchemaType, MaybePromise, ValidationResult } from
 import type { FieldConstraints, EnumOption } from '../ir/types.js'
 
 export interface SchemaEvaluationPort {
-  project(data: unknown): SchemaProjection
+  project(data: unknown, options?: ProjectionOptions): SchemaProjection
 
   /** Returns an independent snapshot with data from inactive schema declarations removed. */
   projectSubmission?(data: unknown): unknown
@@ -128,6 +128,22 @@ export type ProjectionDiagnosticCode =
 
 export type ProjectionBoundary = 'recursion' | 'budget'
 
+export interface ProjectionOptions {
+  /** Boundary tokens from the current projection to admit into the view. */
+  expandedBoundaryTokens?: ReadonlySet<string>
+  /** Changes when instance pointers can refer to different logical array items. */
+  boundaryGeneration?: number
+}
+
+export interface ProjectionBoundaryTarget {
+  /** Instance location that the projection withheld. */
+  pointer: JsonPointer
+  /** Why the projection withheld this location. */
+  reason: ProjectionBoundary
+  /** Opaque token scoped to the schema location and instance pointer. */
+  token: string
+}
+
 export interface NodeProjection {
   /**
    * The shape a renderer should present, which is not an assertion about the
@@ -166,6 +182,8 @@ export interface NodeProjection {
    */
   provisional?: boolean
   boundaries?: readonly ProjectionBoundary[]
+  /** Individual withheld locations that may be explicitly revealed in the view. */
+  boundaryTargets?: readonly ProjectionBoundaryTarget[]
   /** Reached only by expanding recursion past the data, so a policy must not write here (ADR-007). */
   recursiveExpansion?: boolean
   /** The schema positions that supplied `annotations.default`, when this node applies a position on a cycle. */

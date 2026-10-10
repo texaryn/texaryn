@@ -8,9 +8,25 @@
 
 ## Properties
 
+### boundaryGeneration?
+
+> `optional` **boundaryGeneration?**: `number`
+
+Invalidates boundary tokens when replacing containers can change pointer ownership.
+
+***
+
 ### data
 
 > **data**: `unknown`
+
+***
+
+### expandedBoundaryTokens?
+
+> `optional` **expandedBoundaryTokens?**: `ReadonlySet`\<`string`\>
+
+View state for boundary targets that a user explicitly expanded.
 
 ***
 

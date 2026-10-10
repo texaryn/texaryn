@@ -5,6 +5,8 @@ export type {
   ProjectionDiagnosticCode,
   NodeProjection,
   ProjectionBoundary,
+  ProjectionBoundaryTarget,
+  ProjectionOptions,
   ChildProjection,
   AnnotationSet,
 } from './port.js'

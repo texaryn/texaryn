@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { createRendererRegistry } from '@texaryn/core'
-import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints } from '@texaryn/core'
+import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection, JsonPointer, UIHints, ProjectionOptions } from '@texaryn/core'
 import { FormProvider } from '../../context.js'
 import { useForm } from '../../hooks/use-form.js'
 import { FormRoot } from '../../components/FormRoot.js'
@@ -23,6 +23,7 @@ function makeProjection(
       children: partial.children,
       enumValues: partial.enumValues,
       format: partial.format,
+      boundaryTargets: partial.boundaryTargets,
     })
   }
   return { nodes }
@@ -31,10 +32,14 @@ function makeProjection(
 // Form data of the most recent render, so a test can assert what a change event
 // stored rather than what the control displays.
 let latestData: unknown
+let latestProjectionOptions: ProjectionOptions | undefined
 
 function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
   const port: SchemaEvaluationPort = {
-    project: () => proj,
+    project: (_data, options) => {
+      latestProjectionOptions = options
+      return proj
+    },
     validate: () => ({ valid: true, errors: [] }),
   }
 
@@ -57,6 +62,7 @@ function renderForm(proj: SchemaProjection, data: unknown, hints?: UIHints) {
 afterEach(() => {
   cleanup()
   latestData = undefined
+  latestProjectionOptions = undefined
 })
 
 describe('RendererRegistry (re-exported from @texaryn/core)', () => {
@@ -67,6 +73,21 @@ describe('RendererRegistry (re-exported from @texaryn/core)', () => {
 })
 
 describe('Default widgets', () => {
+  it('renders a boundary action and sends its token back to projection', () => {
+    const token = 'recursive-child'
+    const proj = makeProjection([
+      ['', {
+        type: 'object',
+        boundaryTargets: [{ pointer: toPointer('/child'), reason: 'recursion', token }],
+      }],
+    ])
+
+    renderForm(proj, {})
+    fireEvent.click(screen.getByRole('button', { name: 'Expand recursive fields' }))
+
+    expect(latestProjectionOptions?.expandedBoundaryTokens?.has(token)).toBe(true)
+  })
+
   it('renders a text input for string field', () => {
     const proj = makeProjection([
       ['', { type: 'object', children: [

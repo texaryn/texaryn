@@ -4,6 +4,8 @@ import type { SchemaResourceOptions, SchemaResourceResolver } from './resources.
 
 export interface AdapterConfig extends SchemaResourceOptions {
   defaultDialect?: Dialect
+  /** Opt in to dynamic scope aware projection for supported Draft 2019-09 and Draft 2020-12 schemas. */
+  dynamicReferenceProjection?: 'local'
 }
 
 export type { SchemaResourceResolver }
