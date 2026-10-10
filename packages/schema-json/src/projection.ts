@@ -205,6 +205,7 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     'format',
     'minLength',
     'maxLength',
+    'pattern',
     'minimum',
     'maximum',
     'exclusiveMinimum',
@@ -246,6 +247,27 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   )
   composed.schema = { ...composed.schema, allOf: parts.map((part) => part.schema) }
   composed.allOf = [...parts]
+  composed.reduceNode = (data, options = {}) => {
+    let reduced: SchemaNode | undefined
+    for (const part of parts) {
+      const candidate = part.reduceNode(data, options).node
+      if (!isSchemaNode(candidate)) continue
+      reduced = reduced ? mergeNode(reduced, candidate) : candidate
+    }
+    if (!reduced) return { node: composed, error: undefined }
+
+    const reducedSchema = {
+      ...(reduced.schema as Record<string, unknown>),
+      [POSITION]: `reference-composition:${position}`,
+    }
+    if (type === undefined) delete reducedSchema.type
+    else reducedSchema.type = type
+
+    const reducedNode = { ...reduced, schema: reducedSchema, allOf: undefined }
+    if (type === undefined) delete reducedNode.type
+    else reducedNode.type = type
+    return { node: reducedNode, error: undefined }
+  }
   return { node: composed, cycle: false, unresolved: false }
 }
 
