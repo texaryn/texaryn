@@ -910,5 +910,26 @@ export function recursiveRefParity(createA: AdapterFactory, createB: AdapterFact
         expect(summarize(pb)).toEqual(summarize(pa))
       }
     })
+
+    it.each(PROJECTED)('limits inactive retention to its schema subtree in %s', async (dialect) => {
+      const schema = inDialect(dialect, {
+        ...obj({ a: { type: 'object' }, b: { type: 'object' } }),
+        if: { required: ['flag'] },
+        then: {
+          properties: {
+            a: { if: false, else: { $id: 'https://example.com/retained-sibling', properties: { y: S } } },
+            b: { if: false, else: { properties: { z: S } } },
+          },
+        },
+      })
+      const [a, b] = await Promise.all([createA(structuredClone(schema)), createB(structuredClone(schema))])
+      const [pa, pb] = [a.project({}), b.project({})]
+
+      expect(pa.nodes.get('/a/y' as JsonPointer)?.active).toBe(false)
+      expect(pb.nodes.get('/a/y' as JsonPointer)?.active).toBe(false)
+      expect(pa.nodes.has('/b/z' as JsonPointer)).toBe(false)
+      expect(pb.nodes.has('/b/z' as JsonPointer)).toBe(false)
+      expect(summarize(pb)).toEqual(summarize(pa))
+    })
   })
 }
