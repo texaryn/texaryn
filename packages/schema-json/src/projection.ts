@@ -1314,24 +1314,93 @@ function computeRequiredSet(
   return required
 }
 
-// Keep aligned with json-schema-library 11.6.2 addReduce predicates.
+// reduceNode recompiles a subtree when any descendant has reduction work.
+const REDUCE_NODE_SCHEMA_FIELDS = [
+  '$ref',
+  '$dynamicRef',
+  '$recursiveRef',
+  '$defs',
+  'if',
+  'then',
+  'else',
+  'allOf',
+  'anyOf',
+  'oneOf',
+  'contains',
+  'dependentSchemas',
+  'dependentRequired',
+  'definitions',
+  'dependencies',
+  'patternProperties',
+  'propertyDependencies',
+] as const
+
+const SCHEMA_MAP_KEYWORDS = [
+  '$defs',
+  'definitions',
+  'dependentSchemas',
+  'patternProperties',
+  'properties',
+] as const
+const SCHEMA_SINGLE_KEYWORDS = [
+  'additionalItems',
+  'additionalProperties',
+  'contains',
+  'if',
+  'items',
+  'not',
+  'propertyNames',
+  'then',
+  'else',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const
+const SCHEMA_ARRAY_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const
+
+const reductionRequirementCache = new WeakMap<object, boolean>()
+
+function schemaRequiresReduction(schema: unknown, visiting = new WeakSet<object>()): boolean {
+  if (schema === true) return true
+  if (typeof schema !== 'object' || schema === null) return false
+
+  const cached = reductionRequirementCache.get(schema)
+  if (cached !== undefined) return cached
+  if (visiting.has(schema)) return false
+  visiting.add(schema)
+
+  const record = schema as Record<string, unknown>
+  const direct =
+    REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(record, field)) ||
+    Object.prototype.hasOwnProperty.call(record, 'oneOfProperty') ||
+    Array.isArray(record.type)
+  const children: unknown[] = []
+  for (const keyword of SCHEMA_MAP_KEYWORDS) {
+    const value = record[keyword]
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      children.push(...Object.values(value))
+    }
+  }
+  for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
+    const value = record[keyword]
+    if (keyword === 'items' && Array.isArray(value)) children.push(...value)
+    else if (value !== undefined) children.push(value)
+  }
+  for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+    const value = record[keyword]
+    if (Array.isArray(value)) children.push(...value)
+  }
+  for (const value of Object.values(record.dependencies ?? {})) children.push(value)
+  for (const values of Object.values(record.propertyDependencies ?? {})) {
+    if (typeof values === 'object' && values !== null) children.push(...Object.values(values))
+  }
+  const required = direct || children.some((child) => schemaRequiresReduction(child, visiting))
+  visiting.delete(schema)
+  reductionRequirementCache.set(schema, required)
+  return required
+}
+
 function requiresReduction(node: SchemaNode): boolean {
-  const schema = node.schema as Record<string, unknown>
-  return (
-    schema.$ref != null ||
-    schema.$dynamicRef != null ||
-    schema.$recursiveRef != null ||
-    schema.allOf != null ||
-    schema.anyOf != null ||
-    schema.contains != null ||
-    schema.dependencies != null ||
-    schema.dependentSchemas != null ||
-    (schema.if != null && (schema.then != null || schema.else != null)) ||
-    schema.oneOf != null ||
-    schema.patternProperties != null ||
-    schema.propertyDependencies != null ||
-    Array.isArray(node.type)
-  )
+  return node.reducers.length > 0 || schemaRequiresReduction(node.schema)
 }
 
 // An unreadable identity is never a repeat, and is budgeted so it cannot expand without end.
