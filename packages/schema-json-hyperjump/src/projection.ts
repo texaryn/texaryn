@@ -339,6 +339,21 @@ export function buildProjection(
 
   const byPointer = new Map<string, KeywordRecord[]>()
   for (const record of plugin.records) {
+    if (cache.dialect === 'draft-07') {
+      const position = schemaPosition(record.schemaUri, rootUri)
+      const source = schemaAtPosition(rawSchema, position)
+      if (
+        source !== null &&
+        typeof source === 'object' &&
+        !Array.isArray(source) &&
+        typeof (source as Record<string, unknown>).$ref === 'string'
+      ) {
+        const referencePosition = schemaReferenceTarget(rawSchema, position)
+        if (referencePosition !== undefined && schemaAtPosition(rawSchema, referencePosition) === false) {
+          continue
+        }
+      }
+    }
     const list = byPointer.get(record.instancePointer) ?? []
     list.push(record)
     byPointer.set(record.instancePointer, list)

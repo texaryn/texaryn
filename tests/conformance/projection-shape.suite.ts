@@ -19,6 +19,7 @@ interface Expected {
 
 interface Row {
   id: string
+  dialects?: readonly Dialect[]
   schema: Record<string, unknown>
   data?: unknown
   expected: Expected
@@ -201,6 +202,40 @@ const rows: readonly Row[] = [
     expected: { nodes: { '': 'object' }, unlisted: ['/a'] },
   },
   {
+    id: 'a reference to a boolean schema has no renderable shape',
+    schema: {
+      ...obj({ a: { $ref: '#/definitions/deny' } }),
+      definitions: { deny: false },
+    },
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'] },
+  },
+  {
+    id: 'a reference to true has no renderable shape',
+    schema: {
+      ...obj({ a: { $ref: '#/definitions/allow' } }),
+      definitions: { allow: true },
+    },
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'] },
+  },
+  {
+    id: 'draft-07 omits shape siblings beside a reference to false',
+    dialects: ['draft-07'],
+    schema: {
+      ...obj({ a: { $ref: '#/definitions/deny', type: 'string' } }),
+      definitions: { deny: false },
+    },
+    expected: { nodes: { '': 'object' }, unlisted: ['/a'] },
+  },
+  {
+    id: 'a shape sibling beside a boolean reference remains visible in modern drafts',
+    dialects: ['2020-12'],
+    schema: {
+      ...obj({ a: { $ref: '#/definitions/deny', properties: { name: S } } }),
+      definitions: { deny: false },
+    },
+    expected: { nodes: { '': 'object', '/a': 'object', '/a/name': 'string' } },
+  },
+  {
     id: 'a leaf without a type beneath an omitted location',
     schema: obj({ a: { properties: { b: { enum: [1] } }, minItems: 1 } }),
     expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
@@ -215,6 +250,15 @@ const rows: readonly Row[] = [
     id: 'a typeless object behind a reference',
     schema: { ...obj({ a: ref }), definitions: { n: { properties: { b: S } } } },
     expected: { nodes: { '': 'object', '/a': 'object', '/a/b': 'string' } },
+  },
+  {
+    id: 'draft-07 ignores a sibling shape beside a reference it follows',
+    dialects: ['draft-07'],
+    schema: {
+      ...obj({ a: { $ref: '#/definitions/n', type: 'string' } }),
+      definitions: { n: { type: 'number' } },
+    },
+    expected: { nodes: { '': 'object', '/a': 'number' } },
   },
   {
     id: 'a typeless location under allOf',
@@ -293,6 +337,40 @@ const rows: readonly Row[] = [
         '/rows/0/values/0': 'object',
         '/rows/0/values/0/entry': 'object',
         '/rows/0/values/0/entry/name': 'string',
+      },
+    },
+  },
+  {
+    id: 'an inactive anyOf branch cannot change a typeless property inside an array row',
+    schema: obj({
+      rows: {
+        type: 'array',
+        items: {
+          properties: {
+            entry: { properties: { name: S } },
+          },
+        },
+        anyOf: [
+          {
+            minItems: 2,
+            items: {
+              properties: {
+                entry: { items: S },
+              },
+            },
+          },
+          { maxItems: 0 },
+        ],
+      },
+    }),
+    data: { rows: [{ entry: {} }] },
+    expected: {
+      nodes: {
+        '': 'object',
+        '/rows': 'array',
+        '/rows/0': 'object',
+        '/rows/0/entry': 'object',
+        '/rows/0/entry/name': 'string',
       },
     },
   },
@@ -416,7 +494,8 @@ const unreachable = (nodes: ReadonlyMap<string, { type: JsonSchemaType }>) =>
 export function projectionShapeSuite(name: AdapterName, createAdapter: AdapterFactory): void {
   describe(`${name}: a location without a type`, () => {
     describe.each(Object.keys(DIALECTS) as Dialect[])('%s', (dialect) => {
-      it.each(rows)('projects $id', async ({ schema, data = {}, expected, differs }) => {
+      const dialectRows = rows.filter((row) => row.dialects === undefined || row.dialects.includes(dialect))
+      it.each(dialectRows)('projects $id', async ({ schema, data = {}, expected, differs }) => {
         const want = differs?.[`${name} ${dialect}`] ?? differs?.[name] ?? expected
         const port = await createAdapter({ $schema: DIALECTS[dialect], ...schema })
         const projection = port.project(structuredClone(data))
