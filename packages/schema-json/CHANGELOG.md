@@ -1,5 +1,29 @@
 # @texaryn/schema-json
 
+## 0.8.0
+
+### Minor Changes
+
+- 8605d64: Adds opt-in projected submissions and rejects reference scope collisions that give validation and projection different assertions. The runtime validates and submits the same independent snapshot while retaining live form data.
+- 82f38e9: Add explicit view expansion for recursion and budget boundaries.
+- 8605d64: Adds host supplied external schema resolution with a configurable resource limit.
+- 82f38e9: Adds opt in dynamic scope projection for supported local references and host supplied external resources.
+
+### Patch Changes
+
+- 1adb31d: Patches dependent schema reduction and includes the fixed runtime in published adapter builds, so invalid `oneOf` dependencies remain projectable for installed consumers.
+- 8605d64: Corrects projection through `allOf` references and applies dialect-specific defaults beside `$ref`.
+- 8605d64: Preserves inherited dialects and Draft 7 identifiers when compiling retrieved schemas.
+- 6f6bd70: Projects fields from retained inactive conditional branches and keeps them aligned with Hyperjump.
+- 8605d64: Projects fields from the selected Draft 7 `then` or `else` reference.
+- 82f38e9: Reuse static property candidates across data projections and skip reductions that cannot change an object's projected shape.
+- 82f38e9: Avoid repeated branch validation for missing values during a single schema projection.
+- 8605d64: Projects existing and required fields governed by `additionalProperties`.
+- Updated dependencies [8605d64]
+- Updated dependencies [82f38e9]
+- Updated dependencies [8605d64]
+  - @texaryn/core@0.14.0
+
 ## 0.7.1
 
 ### Patch Changes
