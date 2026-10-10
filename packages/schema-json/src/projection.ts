@@ -14,12 +14,11 @@ import type {
 import {
   authoredSchema,
   childDeclaring,
-  dynamicReferenceKeyword,
   followRef,
   itemDeclaring,
   locationInfo,
-  onlyPoints,
   positionOf,
+  referenceKeywords,
   referenceOf,
   type LocationInfo,
   type ProjectionCache,
@@ -133,29 +132,49 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
 }
 
 function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
-  let current = node
-  const seen = new Set<string>()
-  const referenceSiblings: { node: SchemaNode; keyword: '$dynamicRef' | '$recursiveRef' }[] = []
-  while (referenceOf(current) !== undefined) {
+  const completed = new Set<string>()
+  const active = new Set<string>()
+  const parts: SchemaNode[] = []
+  let cycle = false
+  let unresolved = false
+
+  const visit = (current: SchemaNode): void => {
     const position = positionOf(current)
-    if (seen.has(position)) return { node: current, cycle: true, unresolved: false }
-    seen.add(position)
-    const siblingKeyword = dynamicReferenceKeyword(current)
-    if (siblingKeyword !== undefined) referenceSiblings.push({ node: current, keyword: siblingKeyword })
-    const next = followRef(current)
-    if (!next) {
-      const raw = current.resolveRef()
-      if (!isSchemaNode(raw)) return { node: current, cycle: false, unresolved: true }
-      current = raw
-      break
+    if (active.has(position)) {
+      cycle = true
+      return
     }
-    current = next
-    if (!onlyPoints(current)) break
+    if (completed.has(position)) return
+    const references = referenceKeywords(current)
+    if (references.length === 0) {
+      parts.push(current)
+      completed.add(position)
+      return
+    }
+
+    active.add(position)
+    for (const keyword of references) {
+      const target = followRef(current, keyword)
+      if (target === undefined || !isSchemaNode(target)) {
+        unresolved = true
+      } else {
+        visit(target)
+      }
+    }
+    if (current.getDraftVersion() !== 'draft-07') {
+      const sibling = mergeNode(current, current, ...references)
+      if (isSchemaNode(sibling)) parts.push(sibling)
+    }
+    active.delete(position)
+    completed.add(position)
   }
-  for (const sibling of referenceSiblings.reverse()) {
-    current = mergeNode(current, sibling.node, sibling.keyword) ?? current
-  }
-  return { node: current, cycle: false, unresolved: false }
+
+  visit(node)
+  if (cycle) return { node, cycle: true, unresolved: false }
+  if (unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
+  let composed = parts[0]!
+  for (const part of parts.slice(1)) composed = mergeNode(composed, part) ?? composed
+  return { node: composed, cycle: false, unresolved: false }
 }
 
 /** Follows a $ref to the node it points at; returns the node unchanged otherwise. */
@@ -169,11 +188,12 @@ function visitReferenceDefaultSites(
   visitor: (node: SchemaNode) => void,
 ): void {
   if (cache.dialect === 'draft-07' || referenceOf(node) === undefined) return
-  let current = node
+  const pending = [node]
   const visited = new Set<string>()
-  while (true) {
+  while (pending.length > 0) {
+    const current = pending.pop()!
     const position = positionOf(current)
-    if (visited.has(position)) return
+    if (visited.has(position)) continue
     visited.add(position)
 
     const authored = authoredSchema(current, cache)
@@ -185,10 +205,10 @@ function visitReferenceDefaultSites(
       visitor(current)
     }
 
-    if (referenceOf(current) === undefined) return
-    const target = followRef(current)
-    if (!target) return
-    current = target
+    for (const keyword of referenceKeywords(current)) {
+      const target = followRef(current, keyword)
+      if (target) pending.push(target)
+    }
   }
 }
 

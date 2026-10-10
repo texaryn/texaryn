@@ -108,21 +108,63 @@ export interface LocationInfo {
 }
 
 function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
-  const seen = new Set<string>()
-  const pending: Array<{ schema: unknown; position?: string }> = [{ schema, position }]
+  const seenPositions = new Set<string>()
+  const seenSchemas = new WeakSet<object>()
+  const pending: Array<{ schema: unknown; position?: string }> = []
+  const enqueue = (schema: unknown, position?: string): void => {
+    if (schema !== null && typeof schema === 'object') {
+      if (position !== undefined) {
+        if (seenPositions.has(position)) return
+        seenPositions.add(position)
+      } else {
+        if (seenSchemas.has(schema)) return
+        seenSchemas.add(schema)
+      }
+    }
+    pending.push({ schema, position })
+  }
+  enqueue(schema, position)
   while (pending.length > 0) {
     const current = pending.pop()!
     if (!isRecord(current.schema)) continue
     const record = current.schema
     const targets = refTargets(record, rootSchema, current.position, dialect)
-    if (targets.length === 0 || dialect !== 'draft-07') {
-      const types = Array.isArray(record.type) ? record.type : [record.type]
-      if (types.includes('object') || isRecord(record.properties) || isRecord(record.patternProperties)) return false
+    if (targets.length > 0 && dialect === 'draft-07') {
+      for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
+      continue
     }
-    for (const target of targets) {
-      if (seen.has(target)) continue
-      seen.add(target)
-      pending.push({ schema: schemaAtPosition(rootSchema, target), position: target })
+    const types = Array.isArray(record.type) ? record.type : [record.type]
+    if (types.includes('object') || projectionTypeFamilies(record).has('object')) return false
+    for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
+    for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
+      const branches = record[keyword]
+      if (Array.isArray(branches)) {
+        branches.forEach((branch: unknown, index: number) =>
+          enqueue(
+            branch,
+            current.position === undefined ? undefined : `${current.position}/${keyword}/${index}`,
+          ),
+        )
+      }
+    }
+    if (isRecord(record.if)) {
+      for (const keyword of ['then', 'else'] as const) {
+        enqueue(record[keyword], current.position === undefined ? undefined : `${current.position}/${keyword}`)
+      }
+    }
+    for (const keyword of dialect === 'draft-07' ? (['dependencies'] as const) : (['dependentSchemas', 'dependencies'] as const)) {
+      const map = record[keyword]
+      if (!isRecord(map)) continue
+      for (const [key, branch] of Object.entries(map)) {
+        if (isRecord(branch)) {
+          enqueue(
+            branch,
+            current.position === undefined
+              ? undefined
+              : `${current.position}/${keyword}/${escapeSegment(key)}`,
+          )
+        }
+      }
     }
   }
   return true
