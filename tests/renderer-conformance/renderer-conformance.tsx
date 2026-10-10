@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import React from 'react'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import type { RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
+import type { RendererRegistry, SchemaEvaluationPort, UIHints } from '@texaryn/core'
 import { useForm, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
 
@@ -14,7 +14,7 @@ export interface RendererConformanceOptions {
 export function rendererConformance({ name, createRegistry }: RendererConformanceOptions): void {
   const registry = createRegistry()
 
-  function TestForm({ schema, data }: { schema: unknown; data: unknown }) {
+  function TestForm({ schema, data, hints }: { schema: unknown; data: unknown; hints?: UIHints }) {
     const [port, setPort] = React.useState<SchemaEvaluationPort | null>(null)
     React.useEffect(() => {
       let cancelled = false
@@ -26,11 +26,11 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
       }
     }, [schema])
     if (!port) return null
-    return <FormInner port={port} data={data} />
+    return <FormInner port={port} data={data} hints={hints} />
   }
 
-  function FormInner({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
-    const form = useForm(port, { initialData: data })
+  function FormInner({ port, data, hints }: { port: SchemaEvaluationPort; data: unknown; hints?: UIHints }) {
+    const form = useForm(port, { initialData: data, hints })
     return (
       <FormProvider value={form.runtime}>
         <FormRoot registry={registry} />
@@ -163,6 +163,59 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
       })
       const input = screen.getByLabelText('City') as HTMLInputElement
       expect(input.value).toBe('Paris')
+    })
+
+    it('restores focus to the row controls when a row moves at either boundary', async () => {
+      const schema = {
+        type: 'object',
+        properties: {
+          rows: {
+            type: 'array',
+            title: 'Rows',
+            items: {
+              type: 'object',
+              title: 'Row',
+              properties: {
+                name: { type: 'string', title: 'Name' },
+                tags: {
+                  type: 'array',
+                  title: 'Tags',
+                  items: { type: 'string', title: 'Tag' },
+                },
+              },
+            },
+          },
+        },
+      }
+      const hints: UIHints = {
+        '/rows': { canReorder: true },
+        '/rows/0/tags': { canReorder: true },
+        '/rows/1/tags': { canReorder: true },
+      }
+      render(
+        <TestForm
+          schema={schema}
+          data={{ rows: [{ name: 'First', tags: ['a', 'b'] }, { name: 'Second', tags: ['c', 'd'] }] }}
+          hints={hints}
+        />,
+      )
+
+      const movedDown = await screen.findByRole('button', { name: 'Move down Row 1 in Rows' })
+      const row = movedDown.closest<HTMLElement>('[data-array-row]')!
+      movedDown.focus()
+      fireEvent.click(movedDown)
+      await waitFor(() => {
+        const rowUp = row.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="up"]')
+        expect(document.activeElement).toBe(rowUp)
+      })
+
+      const movedUp = screen.getByRole('button', { name: 'Move up Row 2 in Rows' })
+      movedUp.focus()
+      fireEvent.click(movedUp)
+      await waitFor(() => {
+        const rowDown = row.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]')
+        expect(document.activeElement).toBe(rowDown)
+      })
     })
   })
 }

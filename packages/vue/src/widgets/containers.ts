@@ -97,7 +97,7 @@ export const ArrayControl = defineComponent({
                           const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
                           array.move(index, index - 1)
                           if (wasFocused && index === 1) {
-                            void nextTick(() => row?.querySelector<HTMLButtonElement>('[data-reorder-direction="down"]')?.focus())
+                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]')?.focus())
                           }
                         },
                       },
@@ -123,7 +123,7 @@ export const ArrayControl = defineComponent({
                           const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
                           array.move(index, index + 1)
                           if (wasFocused && index === array.items.value.length - 2) {
-                            void nextTick(() => row?.querySelector<HTMLButtonElement>('[data-reorder-direction="up"]')?.focus())
+                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="up"]')?.focus())
                           }
                         },
                       },

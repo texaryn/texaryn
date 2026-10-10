@@ -7,7 +7,7 @@ export interface WidgetProps {
 }
 
 function focusAfterRender(row: HTMLElement | null, direction: 'up' | 'down'): void {
-  const focus = () => row?.querySelector<HTMLButtonElement>(`[data-reorder-direction="${direction}"]`)?.focus()
+  const focus = () => row?.querySelector<HTMLButtonElement>(`:scope > [data-reorder-direction="${direction}"]`)?.focus()
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focus)
   else setTimeout(focus, 0)
 }
