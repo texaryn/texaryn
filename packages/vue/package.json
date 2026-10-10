@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/vue",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Vue 3 bindings, composables, and default widgets for Texaryn",
   "keywords": [
     "vue",

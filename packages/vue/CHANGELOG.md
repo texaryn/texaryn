@@ -1,5 +1,19 @@
 # @texaryn/vue
 
+## 0.5.0
+
+### Minor Changes
+
+- 82f38e9: Add explicit view expansion for recursion and budget boundaries.
+- 8605d64: Adds localized Up and Down controls for reorderable array rows across all renderer families.
+
+### Patch Changes
+
+- Updated dependencies [8605d64]
+- Updated dependencies [82f38e9]
+- Updated dependencies [8605d64]
+  - @texaryn/core@0.14.0
+
 ## 0.4.3
 
 ### Patch Changes

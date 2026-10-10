@@ -1,5 +1,13 @@
 # @texaryn/core
 
+## 0.14.0
+
+### Minor Changes
+
+- 8605d64: Adds opt-in projected submissions and rejects reference scope collisions that give validation and projection different assertions. The runtime validates and submits the same independent snapshot while retaining live form data.
+- 82f38e9: Add explicit view expansion for recursion and budget boundaries.
+- 8605d64: Adds localized Up and Down controls for reorderable array rows across all renderer families.
+
 ## 0.13.0
 
 ### Minor Changes
