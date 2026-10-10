@@ -36,6 +36,19 @@ const VALID_TYPES = new Set<JsonSchemaType>([
   'null',
 ])
 
+const NON_ASSERTION_REFERENCE_SIBLINGS = new Set([
+  '$id',
+  '$anchor',
+  '$dynamicAnchor',
+  '$recursiveAnchor',
+  '$schema',
+  '$vocabulary',
+  '$comment',
+  '$defs',
+  'definitions',
+  POSITION,
+])
+
 function toPointer(value: string): JsonPointer {
   return value as JsonPointer
 }
@@ -163,7 +176,13 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     }
     if (current.getDraftVersion() !== 'draft-07') {
       const sibling = mergeNode(current, current, ...references)
-      if (isSchemaNode(sibling)) parts.push(sibling)
+      const siblingSchema = sibling?.schema as Record<string, unknown> | undefined
+      if (
+        isSchemaNode(sibling) &&
+        Object.keys(siblingSchema ?? {}).some((keyword) => !NON_ASSERTION_REFERENCE_SIBLINGS.has(keyword))
+      ) {
+        parts.push(sibling)
+      }
     }
     active.delete(position)
     completed.add(position)
@@ -172,8 +191,20 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   visit(node)
   if (cycle) return { node, cycle: true, unresolved: false }
   if (unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
-  let composed = parts[0]!
-  for (const part of parts.slice(1)) composed = mergeNode(composed, part) ?? composed
+  if (parts.length === 1) return { node: parts[0]!, cycle: false, unresolved: false }
+  const position = JSON.stringify(parts.map(positionOf))
+  const type = referenceCompositionType(parts)
+  const schema = {
+    [POSITION]: `reference-composition:${position}`,
+    ...(type === undefined ? {} : { type }),
+    allOf: parts.map((part) => part.schema),
+  }
+  const first = parts[0]!
+  const composed = first.compileSchema(
+    schema,
+    `${first.evaluationPath}/$ref`,
+    `${first.schemaLocation}/reference-composition`,
+  )
   return { node: composed, cycle: false, unresolved: false }
 }
 
@@ -261,6 +292,40 @@ function declaresObject(node: SchemaNode, visited = new Set<string>()): boolean 
   const shape = inferProjectionShape(schema)
   if (shape.kind === 'resolved') return shape.type === 'object'
   return (resolved.allOf ?? []).some((branch) => declaresObject(branch, visited))
+}
+
+function declaresArray(node: SchemaNode, visited = new Set<string>()): boolean {
+  const resolved = dereference(node)
+  if (!isSchemaNode(resolved)) return false
+  const position = positionOf(resolved)
+  if (visited.has(position)) return false
+  visited.add(position)
+  const schema = resolved.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return false
+  const explicitType = resolveExplicitType(schema)
+  if (explicitType) return explicitType === 'array'
+  const allOfType = allOfExplicitType(resolved)
+  if (allOfType) return allOfType === 'array'
+  const shape = inferProjectionShape(schema)
+  if (shape.kind === 'resolved') return shape.type === 'array'
+  return (resolved.allOf ?? []).some((branch) => declaresArray(branch, visited))
+}
+
+function referenceCompositionType(parts: readonly SchemaNode[]): JsonSchemaType | undefined {
+  const explicit = new Set(
+    parts
+      .map((part) => {
+        const schema = part.schema as Record<string, unknown> | undefined
+        return (schema && typeof schema === 'object' ? resolveExplicitType(schema) : undefined) ?? allOfExplicitType(part)
+      })
+      .filter((type): type is JsonSchemaType => type !== undefined),
+  )
+  if (explicit.size === 1) return [...explicit][0]
+  if (explicit.size > 1) return undefined
+  const object = parts.some((part) => declaresObject(part))
+  const array = parts.some((part) => declaresArray(part))
+  if (object === array) return undefined
+  return object ? 'object' : 'array'
 }
 
 function hasReferencedAllOf(node: SchemaNode, visited = new Set<string>()): boolean {
