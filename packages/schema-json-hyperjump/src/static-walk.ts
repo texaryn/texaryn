@@ -114,9 +114,12 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
     const current = pending.pop()!
     if (!isRecord(current.schema)) continue
     const record = current.schema
-    const types = Array.isArray(record.type) ? record.type : [record.type]
-    if (types.includes('object') || isRecord(record.properties) || isRecord(record.patternProperties)) return false
-    for (const target of refTargets(record, rootSchema, current.position, dialect)) {
+    const targets = refTargets(record, rootSchema, current.position, dialect)
+    if (targets.length === 0 || dialect !== 'draft-07') {
+      const types = Array.isArray(record.type) ? record.type : [record.type]
+      if (types.includes('object') || isRecord(record.properties) || isRecord(record.patternProperties)) return false
+    }
+    for (const target of targets) {
       if (seen.has(target)) continue
       seen.add(target)
       pending.push({ schema: schemaAtPosition(rootSchema, target), position: target })
