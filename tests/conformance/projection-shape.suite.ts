@@ -497,9 +497,6 @@ const rows: readonly Row[] = [
     id: 'a oneOf wrapper whose allOf branch mixes keywords of two types',
     schema: obj({ a: { oneOf: [{ allOf: [{ properties: { b: S } }, { minItems: 1 }] }] } }),
     expected: { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [ambiguous('/a')] },
-    differs: {
-      '@hyperjump/json-schema': { nodes: { '': 'object' }, unlisted: ['/a'], diagnostics: [unresolved('/a')] },
-    },
   },
   ...inactiveTypeRows,
 ]

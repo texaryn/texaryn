@@ -1270,10 +1270,18 @@ export function staticWalk(
   if (
     (exposed || !existed) &&
     !node.composed &&
-    hasRenderableAlternative(schema, rootSchema) &&
     !dynamicBranches.some((db) => db.composition && (db.active || db.provisional))
   ) {
-    node.composed = true
+    const hasRenderableComposition = hasRenderableAlternative(schema, rootSchema)
+    if (hasRenderableComposition) {
+      node.composed = true
+    } else if (!dynamicBranches.some((db) => db.active || db.provisional) && node.type === undefined) {
+      const ambiguousFamilies = ambiguousAlternativeFamilies(schema, rootSchema)
+      if (ambiguousFamilies.size > 0) {
+        const families = (node.families ??= new Set())
+        for (const family of ambiguousFamilies) families.add(family)
+      }
+    }
   }
 
   dynamicBranches.sort(
@@ -1368,6 +1376,22 @@ export function selectProvisionalBranch(
 
 function hasRenderableAlternative(schema: Record<string, unknown>, rootSchema: unknown): boolean {
   return branchesOf(schema).some((branch) => canRender(branch, rootSchema, new Set()))
+}
+
+function ambiguousAlternativeFamilies(
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+): Set<KeywordFamily> {
+  const ambiguous = new Set<KeywordFamily>()
+  for (const branch of branchesOf(schema)) {
+    const members = allOfClosure(branch, rootSchema, new Set())
+    if (members.some((member) => resolveType(member) !== undefined)) continue
+    const families = new Set(members.flatMap((member) => [...projectionTypeFamilies(member)]))
+    if (shapeOfFamilies(families).kind === 'ambiguous') {
+      for (const family of families) ambiguous.add(family)
+    }
+  }
+  return ambiguous
 }
 
 const branchesOf = (schema: Record<string, unknown>): unknown[] =>
