@@ -6,4 +6,20 @@
 
 # Type Alias: Command
 
-> **Command** = \{ `nodeId`: [`NodeId`](NodeId.md); `type`: `"SetValue"`; `value`: `unknown`; \} \| \{ `containerId`: [`NodeId`](NodeId.md); `index`: `number`; `type`: `"InsertItem"`; `value?`: `unknown`; \} \| \{ `containerId`: [`NodeId`](NodeId.md); `index`: `number`; `type`: `"RemoveItem"`; \} \| \{ `containerId`: [`NodeId`](NodeId.md); `from`: `number`; `to`: `number`; `type`: `"MoveItem"`; \} \| \{ `nodeId`: [`NodeId`](NodeId.md); `type`: `"SetTouched"`; \} \| \{ `type`: `"Submit"`; \} \| \{ `data?`: `unknown`; `type`: `"Reset"`; \}
+Serializable runtime commands.
+
+`Command` includes value updates, array operations, interaction state changes,
+submission, reset, and explicit projection boundary expansion.
+
+## ExpandBoundary
+
+```ts
+{
+  type: 'ExpandBoundary'
+  containerId: NodeId
+  targetToken: string
+}
+```
+
+The runtime accepts this action only while the target token belongs to the
+visible container. It recompiles the projection without changing form data.

@@ -7,6 +7,8 @@ import type {
   FieldConstraints,
   EnumOption,
   ProjectionBoundary,
+  ProjectionBoundaryTarget,
+  ProjectionOptions,
   ProjectionDiagnostic,
 } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
@@ -53,6 +55,7 @@ export interface DraftNode {
   provisional?: boolean
   annotations: AnnotationSet
   boundaries?: ProjectionBoundary[]
+  boundaryTargets?: ProjectionBoundaryTarget[]
   recursiveExpansion?: true
   defaultSources?: readonly string[]
 }
@@ -85,6 +88,9 @@ export interface RecursionState {
   readonly cache: ProjectionCache
   readonly limits: ProjectionLimits
   readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly boundaryTargets: Map<string, Map<string, ProjectionBoundaryTarget>>
+  readonly expandedBoundaryTokens: ReadonlySet<string>
+  readonly boundaryGeneration: number
   readonly pruned: Set<string>
   readonly cycles: Set<string>
   readonly decisions: Map<string, Decision>
@@ -182,11 +188,19 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
   return true
 }
 
-export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimits): RecursionState {
+export function newRecursionState(
+  cache: ProjectionCache,
+  limits: ProjectionLimits,
+  expandedBoundaryTokens: ReadonlySet<string> = new Set(),
+  boundaryGeneration = 0,
+): RecursionState {
   return {
     cache,
     limits,
     boundaries: new Map(),
+    boundaryTargets: new Map(),
+    expandedBoundaryTokens,
+    boundaryGeneration,
     pruned: new Set(),
     cycles: new Set(),
     decisions: new Map(),
@@ -199,10 +213,26 @@ export function newRecursionState(cache: ProjectionCache, limits: ProjectionLimi
   }
 }
 
-function addBoundary(state: RecursionState, pointer: string, reason: ProjectionBoundary): void {
+function boundaryToken(pointer: string, schemaKey: string, generation: number): string {
+  return JSON.stringify([pointer, schemaKey, generation])
+}
+
+function addBoundary(
+  state: RecursionState,
+  pointer: string,
+  reason: ProjectionBoundary,
+  targetPointer: string,
+  schemaKey: string,
+): void {
   const set = state.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
   set.add(reason)
   state.boundaries.set(pointer, set)
+  const targets = state.boundaryTargets.get(pointer) ?? new Map<string, ProjectionBoundaryTarget>()
+  if (![...targets.values()].some((target) => target.reason === reason)) {
+    const token = boundaryToken(targetPointer, schemaKey, state.boundaryGeneration)
+    targets.set(token, { pointer: targetPointer as JsonPointer, reason, token })
+  }
+  state.boundaryTargets.set(pointer, targets)
 }
 
 const IN_PLACE_BRANCHES = ['if', 'then', 'else'] as const
@@ -395,6 +425,7 @@ function decideMember(
   const cached = state.decisions.get(childPointer)
   if (cached) return cached
   const info = locationInfo(declaring, rootSchema, state)
+  const token = boundaryToken(childPointer, info.key, state.boundaryGeneration)
   const settle = (decision: Decision): Decision => {
     state.decisions.set(childPointer, decision)
     return decision
@@ -409,8 +440,12 @@ function decideMember(
   const lineage: Lineage = { key: info.key, pointer: childPointer, recursive, depth: (parentLineage?.depth ?? 0) + 1, parent: parentLineage }
   if (parentLineage === undefined) return settle({ kind: 'walk', lineage })
   for (let ancestor: Lineage | undefined = parentLineage; ancestor; ancestor = ancestor.parent) {
-    if (info.key !== '' && ancestor.key === info.key) {
-      addBoundary(state, ancestor.pointer, 'recursion')
+    if (
+      info.key !== '' &&
+      ancestor.key === info.key &&
+      !state.expandedBoundaryTokens.has(token)
+    ) {
+      addBoundary(state, ancestor.pointer, 'recursion', childPointer, info.key)
       state.pruned.add(childPointer)
       return settle({ kind: 'skip' })
     }
@@ -420,19 +455,22 @@ function decideMember(
   let admit: boolean
   if (leaf) {
     const covered = state.reserved.has(parentPointer)
-    admit = covered || state.nodesUsed < state.limits.nodes
+    admit = state.expandedBoundaryTokens.has(token) || covered || state.nodesUsed < state.limits.nodes
     if (admit && !covered) state.nodesUsed += 1
   } else {
+    const explicitlyExpanded = state.expandedBoundaryTokens.has(token)
     const leaves = leafMembers(info, rootSchema, state.cache.dialect)
-    admit = state.objectsUsed < state.limits.objects && state.nodesUsed + 1 + leaves <= state.limits.nodes
+    admit =
+      explicitlyExpanded ||
+      (state.objectsUsed < state.limits.objects && state.nodesUsed + 1 + leaves <= state.limits.nodes)
     if (admit) {
       state.objectsUsed += 1
-      state.nodesUsed += 1 + leaves
-      state.reserved.add(childPointer)
+      state.nodesUsed += explicitlyExpanded ? 1 : 1 + leaves
+      if (!explicitlyExpanded) state.reserved.add(childPointer)
     }
   }
   if (!admit) {
-    addBoundary(state, parentPointer, 'budget')
+    addBoundary(state, parentPointer, 'budget', childPointer, info.key)
     state.pruned.add(childPointer)
     return settle({ kind: 'skip' })
   }
@@ -568,6 +606,9 @@ export function finalizeNodes(
       provisional: node.active ? undefined : node.provisional,
       annotations: node.annotations,
       ...(node.boundaries && node.boundaries.length > 0 ? { boundaries: node.boundaries } : {}),
+      ...(node.boundaryTargets && node.boundaryTargets.length > 0
+        ? { boundaryTargets: node.boundaryTargets }
+        : {}),
       ...(node.recursiveExpansion ? { recursiveExpansion: true as const } : {}),
       ...(node.defaultSources !== undefined ? { defaultSources: node.defaultSources } : {}),
     })

@@ -1,6 +1,6 @@
 import { computed, defineComponent, h, nextTick } from 'vue'
 import type { PropType } from 'vue'
-import { objectChildKey } from '@texaryn/core'
+import { englishMessages, objectChildKey } from '@texaryn/core'
 import type { ContainerNode, UINode } from '@texaryn/core'
 import { useFormMessages, useFormRuntime } from '../context.js'
 import { useStore } from '../use-store.js'
@@ -14,6 +14,7 @@ export const ObjectLayout = defineComponent({
   props: nodeProp,
   setup(props) {
     const runtime = useFormRuntime()
+    const messages = useFormMessages()
     const document = useStore(runtime.document, runtime.document.getSnapshot())
     // Whether a node is nested is fixed for its lifetime, but its title is
     // not: a conditional subschema can add or drop one on any recompile.
@@ -25,6 +26,7 @@ export const ObjectLayout = defineComponent({
       () => (document.value.nodes[props.node.id] ?? props.node) as ContainerNode,
     )
     const title = computed(() => current.value.annotations.title)
+    const boundaryTargets = computed(() => current.value.boundaryTargets ?? [])
     const children = computed(() =>
       current.value.children
         .map((id) => document.value.nodes[id])
@@ -32,8 +34,37 @@ export const ObjectLayout = defineComponent({
     )
 
     return () => {
-      const rendered = children.value.map((child) => h(NodeRenderer, { key: objectChildKey(child), node: child }))
-      if (!nested) return h('div', rendered)
+      const rendered = children.value.map((child) =>
+        h(NodeRenderer, { key: objectChildKey(child), node: child }),
+      )
+      const firstTargetByReason = new Map<string, (typeof boundaryTargets.value)[number]>()
+      for (const target of boundaryTargets.value) {
+        if (!firstTargetByReason.has(target.reason)) firstTargetByReason.set(target.reason, target)
+      }
+      const expandActions = [...firstTargetByReason.values()].map((target) => {
+        const message = (messages.value.expandBoundary ?? englishMessages.expandBoundary)({
+          boundary: target.reason,
+          containerTitle: title.value,
+          position: 1,
+          count: 1,
+        })
+        return h(
+          'button',
+          {
+            key: target.reason,
+            type: 'button',
+            'aria-label': message.accessibleName,
+            onClick: () =>
+              runtime.dispatch({
+                type: 'ExpandBoundary',
+                containerId: current.value.id,
+                targetToken: target.token,
+              }),
+          },
+          message.label,
+        )
+      })
+      if (!nested) return h('div', [...rendered, ...expandActions])
       // The root object is the form itself, so only a nested titled object
       // names a group. An unnamed group is noise, so the fieldset stops being
       // one. Children sit in their own element so the legend is never a
@@ -43,7 +74,7 @@ export const ObjectLayout = defineComponent({
         { role: title.value === undefined ? 'none' : undefined },
         [
           ...(title.value === undefined ? [] : [h('legend', title.value)]),
-          h('div', rendered),
+          h('div', [...rendered, ...expandActions]),
         ],
       )
     }

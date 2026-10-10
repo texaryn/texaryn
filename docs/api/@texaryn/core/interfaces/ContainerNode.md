@@ -34,6 +34,12 @@
 
 ***
 
+### boundaryTargets?
+
+> `optional` **boundaryTargets?**: readonly [`ProjectionBoundaryTarget`](ProjectionBoundaryTarget.md)[]
+
+***
+
 ### children
 
 > **children**: [`NodeId`](../type-aliases/NodeId.md)[]

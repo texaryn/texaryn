@@ -4,6 +4,7 @@ export type {
   IndicatorMessage,
   ItemActionContext,
   AddItemContext,
+  ExpandBoundaryContext,
   ErrorSummaryHeadingContext,
   ErrorSummaryDetailContext,
 } from './types.js'

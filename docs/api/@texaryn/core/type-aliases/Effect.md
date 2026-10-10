@@ -6,4 +6,7 @@
 
 # Type Alias: Effect
 
-> **Effect** = \{ `nodeIds`: [`NodeId`](NodeId.md)[]; `trigger`: `"blur"` \| `"change"` \| `"submit"`; `type`: `"validate"`; \} \| \{ `reason`: `"data-changed"` \| `"schema-changed"`; `type`: `"recompile"`; \} \| \{ `actionType`: `string`; `args`: `unknown`; `type`: `"executeAction"`; \} \| \{ `event`: `string`; `payload`: `unknown`; `type`: `"notify"`; \}
+Effects emitted by runtime commands.
+
+The `recompile` effect accepts `data-changed`, `schema-changed`, and
+`projection-expanded` reasons.

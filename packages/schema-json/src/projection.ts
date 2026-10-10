@@ -10,6 +10,8 @@ import type {
   FieldConstraints,
   EnumOption,
   ProjectionBoundary,
+  ProjectionBoundaryTarget,
+  ProjectionOptions,
 } from '@texaryn/core'
 import {
   authoredSchema,
@@ -539,6 +541,9 @@ interface RecursionContext {
   readonly cache: ProjectionCache
   readonly limits: ProjectionLimits
   readonly boundaries: Map<string, Set<ProjectionBoundary>>
+  readonly boundaryTargets: Map<string, Map<string, ProjectionBoundaryTarget>>
+  readonly expandedBoundaryTokens: ReadonlySet<string>
+  readonly boundaryGeneration: number
   readonly removed: Set<string>
   readonly flagged: Set<string>
   readonly reserved: Set<string>
@@ -552,10 +557,26 @@ function walkOrder(a: readonly number[], b: readonly number[]): number {
   return a.length - b.length
 }
 
-function addBoundary(ctx: RecursionContext, pointer: string, reason: ProjectionBoundary): void {
+function boundaryToken(pointer: string, schemaKey: string, generation: number): string {
+  return JSON.stringify([pointer, schemaKey, generation])
+}
+
+function addBoundary(
+  ctx: RecursionContext,
+  pointer: string,
+  reason: ProjectionBoundary,
+  targetPointer: string,
+  schemaKey: string,
+): void {
   const reasons = ctx.boundaries.get(pointer) ?? new Set<ProjectionBoundary>()
   reasons.add(reason)
   ctx.boundaries.set(pointer, reasons)
+  const targets = ctx.boundaryTargets.get(pointer) ?? new Map<string, ProjectionBoundaryTarget>()
+  if (![...targets.values()].some((target) => target.reason === reason)) {
+    const token = boundaryToken(targetPointer, schemaKey, ctx.boundaryGeneration)
+    targets.set(token, { pointer: toPointer(targetPointer), reason, token })
+  }
+  ctx.boundaryTargets.set(pointer, targets)
 }
 
 // A leaf needs no reduction, so it rides with its parent's budget unit.
@@ -1308,11 +1329,16 @@ function walk(
     return
   }
   const pastData = member && (data === undefined || data === null)
+  const token = boundaryToken(pointer, info.key, ctx.boundaryGeneration)
   const recursive =
     pastData && !unresolvedReference && ((lineage?.recursive ?? false) || budgeted(info))
   for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
-    if (info.key !== '' && ancestor.key === info.key) {
-      addBoundary(ctx, ancestor.pointer, 'recursion')
+    if (
+      info.key !== '' &&
+      ancestor.key === info.key &&
+      !ctx.expandedBoundaryTokens.has(token)
+    ) {
+      addBoundary(ctx, ancestor.pointer, 'recursion', pointer, info.key)
       ctx.removed.add(pointer)
       return
     }
@@ -1323,21 +1349,24 @@ function walk(
     let admit: boolean
     if (isLeafSchema(originalSchema)) {
       const covered = ctx.reserved.has(parent)
-      admit = covered || ctx.nodesUsed < ctx.limits.nodes
+      admit = ctx.expandedBoundaryTokens.has(token) || covered || ctx.nodesUsed < ctx.limits.nodes
       if (admit && !covered) ctx.nodesUsed += 1
     } else {
+      const explicitlyExpanded = ctx.expandedBoundaryTokens.has(token)
       const leaves = [...collectCandidateProperties(original, undefined).values()].filter((candidate) =>
         isLeafSchema(dereference(candidatePrototype(candidate)).schema),
       ).length
-      admit = ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes
+      admit =
+        explicitlyExpanded ||
+        (ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes)
       if (admit) {
         ctx.objectsUsed += 1
-        ctx.nodesUsed += 1 + leaves
-        ctx.reserved.add(pointer)
+        ctx.nodesUsed += explicitlyExpanded ? 1 : 1 + leaves
+        if (!explicitlyExpanded) ctx.reserved.add(pointer)
       }
     }
     if (!admit) {
-      addBoundary(ctx, parent, 'budget')
+      addBoundary(ctx, parent, 'budget', pointer, info.key)
       ctx.removed.add(pointer)
       return
     }
@@ -1951,6 +1980,7 @@ export function buildProjection(
   data: unknown,
   cache: ProjectionCache,
   limits: ProjectionLimits = DEFAULT_LIMITS,
+  options: ProjectionOptions = {},
 ): SchemaProjection {
   const nodes = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
@@ -1958,6 +1988,9 @@ export function buildProjection(
     cache,
     limits,
     boundaries: new Map(),
+    boundaryTargets: new Map(),
+    expandedBoundaryTokens: options.expandedBoundaryTokens ?? new Set(),
+    boundaryGeneration: options.boundaryGeneration ?? 0,
     removed: new Set(),
     flagged: new Set(),
     reserved: new Set(),
@@ -1998,6 +2031,12 @@ export function buildProjection(
       ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
         ['recursion', 'budget'] as const
       ).filter((reason) => reasons.has(reason))
+      const targets = ctx.boundaryTargets.get(pointer)
+      if (targets) {
+        ;(node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }).boundaryTargets = [
+          ...targets.values(),
+        ]
+      }
     }
   }
   return { nodes, diagnostics }

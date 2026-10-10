@@ -13,6 +13,7 @@ import type {
   ValidationResult,
   ValidationError,
   JsonPointer,
+  ProjectionOptions,
 } from '@texaryn/core'
 import { detectDialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
@@ -104,8 +105,8 @@ export async function createAdapter(
   const cache = newProjectionCache(dialect, cyclicPositions(graph), marked.at, dynamicReferenceProjection)
 
   return {
-    project(data: unknown): SchemaProjection {
-      return buildProjection(projected, data, cache, limits)
+    project(data: unknown, options?: ProjectionOptions): SchemaProjection {
+      return buildProjection(projected, data, cache, limits, options)
     },
 
     ...(submissionSchema

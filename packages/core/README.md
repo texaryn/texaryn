@@ -78,7 +78,7 @@ Schema libraries integrate with Texaryn through `SchemaEvaluationPort`:
 
 ```ts
 interface SchemaEvaluationPort {
-  project(data: unknown): SchemaProjection
+  project(data: unknown, options?: ProjectionOptions): SchemaProjection
   validate(data: unknown): ValidationResult | Promise<ValidationResult>
   validateAt?(
     data: unknown,
@@ -88,6 +88,8 @@ interface SchemaEvaluationPort {
 ```
 
 The core does not parse or validate JSON Schema itself. That responsibility belongs to schema adapter packages such as `@texaryn/schema-json`.
+
+`ProjectionOptions.expandedBoundaryTokens` carries view state for explicit expansion of recursion or budget boundaries. The built in JSON Schema adapters honor those tokens and scope them to `boundaryGeneration`, which changes when container replacements can move array pointer ownership. Expansion does not write data or change validation and initialization.
 
 ## Runtime
 
@@ -264,6 +266,9 @@ The helpers:
 ### Schema and IR
 
 - `SchemaEvaluationPort`
+- `ProjectionOptions`
+- `ProjectionBoundary`
+- `ProjectionBoundaryTarget`
 - `SchemaProjection`
 - `NodeProjection`
 - `ChildProjection`
@@ -291,7 +296,7 @@ The helpers:
 
 ### Messages
 
-- `FormMessages`, `ActionMessage`, `IndicatorMessage`, `ItemActionContext`, `AddItemContext`
+- `FormMessages`, `ActionMessage`, `IndicatorMessage`, `ItemActionContext`, `AddItemContext`, `ExpandBoundaryContext`
 - `englishMessages`
 - `mergeMessages`
 
@@ -313,7 +318,7 @@ The helpers:
 
 ### Commands
 
-- `Command`
+- `Command`, including the `ExpandBoundary` action
 - `Effect`
 - `CommandResult`
 - `processCommand`
