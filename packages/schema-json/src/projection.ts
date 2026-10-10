@@ -1284,6 +1284,7 @@ function requiresReduction(node: SchemaNode): boolean {
   return (
     schema.$ref != null ||
     schema.$dynamicRef != null ||
+    schema.$recursiveRef != null ||
     schema.allOf != null ||
     schema.anyOf != null ||
     schema.contains != null ||
