@@ -197,7 +197,11 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   const schema = {
     [POSITION]: `reference-composition:${position}`,
     ...(type === undefined ? {} : { type }),
-    allOf: parts.map((part) => part.schema),
+    // Compile a harmless branch so json-schema-library installs the allOf
+    // reducer, then attach the already compiled components below. Recompiling
+    // their raw schemas here would resolve relative references in the first
+    // component's resource scope instead of each component's original scope.
+    allOf: [{}],
   }
   const first = parts[0]!
   const composed = first.compileSchema(
@@ -205,6 +209,8 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
     `${first.evaluationPath}/$ref`,
     `${first.schemaLocation}/reference-composition`,
   )
+  composed.schema = { ...composed.schema, allOf: parts.map((part) => part.schema) }
+  composed.allOf = [...parts]
   return { node: composed, cycle: false, unresolved: false }
 }
 

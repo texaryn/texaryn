@@ -296,6 +296,35 @@ describe('Draft 7 allOf references', () => {
   })
 })
 
+describe('static reference projection composition', () => {
+  it('preserves each reference component resource scope', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      $id: 'https://example.test/root.json',
+      $defs: {
+        Local: { type: 'string' },
+        External: {
+          $id: 'https://example.test/external.json',
+          type: 'object',
+          properties: { remote: { type: 'string' } },
+        },
+      },
+      type: 'object',
+      properties: {
+        field: {
+          $ref: 'https://example.test/external.json',
+          properties: { local: { $ref: '#/$defs/Local' } },
+        },
+      },
+    })
+
+    const projection = adapter.project({ field: {} })
+
+    expect(projection.nodes.get('/field/local' as JsonPointer)?.type).toBe('string')
+    expect(projection.nodes.get('/field/remote' as JsonPointer)?.type).toBe('string')
+  })
+})
+
 describe('allOf reduction with missing object data', () => {
   it.each([
     ['draft-07', draft07],
