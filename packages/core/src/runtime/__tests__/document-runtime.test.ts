@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createDocumentRuntime } from '../document-runtime.js'
-import type { UIDocumentV2 } from '../../ir/types.js'
+import type { DocumentNode, UIDocumentV2 } from '../../ir/types.js'
 import type { JsonPointer, NodeId } from '../../types.js'
 
 const id = (value: string) => value as NodeId
@@ -341,5 +341,97 @@ describe('DocumentRuntime', () => {
     const items = [{ id: 'a', label: 'Ada' }] as Array<{ id: string; label: string }> & Record<string, unknown>
     items['4294967295'] = { id: 'invisible', label: 'Invisible' }
     expect(() => createDocumentRuntime(document(), { initialData: initialData(items) })).toThrow(/non-JSON array property/)
+  })
+
+  it.each([
+    ['unknown document properties', (value: UIDocumentV2) => {
+      ;(value as unknown as Record<string, unknown>).extra = true
+    }, /document.extra is not supported/],
+    ['node IDs that do not match their map key', (value: UIDocumentV2) => {
+      value.nodes.action!.id = id('other')
+    }, /id must match its map key/],
+    ['a group without an accessible title', (value: UIDocumentV2) => {
+      const root = value.nodes.root!
+      if (root.type !== 'container') throw new Error('expected root container')
+      root.annotations.title = '   '
+    }, /accessible group name/],
+    ['an unsupported node kind', (value: UIDocumentV2) => {
+      ;(value.nodes.list as unknown as Record<string, unknown>).type = 'field'
+    }, /unsupported node kind/],
+    ['an action with an unsupported button role', (value: UIDocumentV2) => {
+      ;(value.nodes.action as unknown as Record<string, unknown>).buttonRole = 'submit'
+    }, /buttonRole must be button/],
+    ['a duplicate collection ID', (value: UIDocumentV2) => {
+      const table = value.nodes.table!
+      if (table.type !== 'table') throw new Error('expected table node')
+      table.collectionId = 'list-results'
+    }, /collectionId must be unique/],
+    ['a child that is listed more than once', (value: UIDocumentV2) => {
+      const root = value.nodes.root!
+      if (root.type !== 'container') throw new Error('expected root container')
+      root.children.push(root.children[0]!)
+    }, /duplicate child/],
+    ['a child whose parent disagrees with the child list', (value: UIDocumentV2) => {
+      value.nodes.action!.parentId = id('table')
+    }, /does not agree with its parent/],
+    ['a child that is missing from the node map', (value: UIDocumentV2) => {
+      const root = value.nodes.root!
+      if (root.type !== 'container') throw new Error('expected root container')
+      root.children.push(id('missing'))
+    }, /references missing node/],
+    ['an unreachable node', (value: UIDocumentV2) => {
+      value.nodes.orphan = {
+        id: id('orphan'),
+        type: 'text',
+        parentId: id('root'),
+        annotations: {},
+        content: 'Detached',
+        textRole: 'paragraph',
+      }
+    }, /contains unreachable nodes/],
+  ])('rejects %s', (_name, change, error) => {
+    const input = document()
+    change(input)
+    expect(() => createDocumentRuntime(input)).toThrow(error)
+  })
+
+  it('validates display text nodes and list and table values', () => {
+    const invalidText = document()
+    const root = invalidText.nodes.root
+    if (root.type !== 'container') throw new Error('expected root container')
+    root.children.push(id('caption'))
+    invalidText.nodes.caption = {
+      id: id('caption'),
+      type: 'text',
+      parentId: id('root'),
+      annotations: {},
+      content: 'Caption',
+      textRole: 'invalid',
+    } as unknown as DocumentNode
+    expect(() => createDocumentRuntime(invalidText)).toThrow(/textRole is not supported/)
+
+    const list = document()
+    const listNode = list.nodes.list
+    if (listNode.type !== 'list') throw new Error('expected list node')
+    listNode.rowKeyPointer = pointer('/missing')
+    expect(() => createDocumentRuntime(list, { initialData: initialData() })).toThrow(/row key/)
+
+    const table = document()
+    const listCollection = table.nodes.list
+    if (listCollection.type !== 'list') throw new Error('expected list node')
+    listCollection.dataPointer = pointer('/not-present')
+    expect(() => createDocumentRuntime(table, { initialData: initialData([1]) })).toThrow(/table row/)
+  })
+
+  it('bounds aggregate rows and table cells across collections', () => {
+    expect(() => createDocumentRuntime(document(), {
+      initialData: initialData([rows[0]]),
+      limits: { maxCollectionRows: 1 },
+    })).toThrow(/maximum total row count/)
+
+    expect(() => createDocumentRuntime(document(), {
+      initialData: initialData(rows),
+      limits: { maxTableCells: 3 },
+    })).toThrow(/maximum table cell count/)
   })
 })

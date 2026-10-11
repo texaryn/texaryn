@@ -74,6 +74,74 @@ function makeSession(runtime = createDocumentRuntime(document(), { initialData: 
 }
 
 describe('DocumentUpdateSession', () => {
+  it('rejects malformed messages and invalid revisions without creating a session state', () => {
+    const { session } = makeSession()
+    expect(() => session.apply(null)).toThrow(/message must be an object/)
+    expect(() => session.apply({ protocol: 2, kind: 'snapshot', revision: 1, document: document(), data: data() }))
+      .toThrow(/protocol must be 1/)
+    expect(() => session.apply({ protocol: 1, kind: 'snapshot', revision: -1, document: document(), data: data() }))
+      .toThrow(/nonnegative safe integer/)
+    expect(() => session.apply({ protocol: 1, kind: 'snapshot', revision: 1.5, document: document(), data: data() }))
+      .toThrow(/nonnegative safe integer/)
+    expect(() => session.apply({ protocol: 1, kind: 'unknown', revision: 1 })).toThrow(/kind must be snapshot or update/)
+    expect(() => session.apply({ protocol: 1, kind: 'snapshot', revision: 1, document: document() }))
+      .toThrow(/message.data is required/)
+    expect(() => session.apply({
+      protocol: 1,
+      kind: 'snapshot',
+      revision: 1,
+      document: document(),
+      data: data(),
+      extra: true,
+    })).toThrow(/message.extra is not supported/)
+    expect(() => session.apply({ protocol: 1, kind: 'update', revision: 1, data: data() }))
+      .toThrow(/first document message must be a snapshot/)
+    expect(session.getRevision()).toBeUndefined()
+  })
+
+  it.each([
+    [null, /patch\[0\] must be an object/],
+    [{ op: 'copy', path: '/nodes/title/content', value: 'x' }, /op is not supported/],
+    [{ op: 'add', path: '/nodes/title/content' }, /patch\[0\]\.value is required/],
+    [{ op: 'remove', path: '/nodes/title/content', value: true }, /patch\[0\]\.value is not supported/],
+    [{ op: 'replace', path: 1, value: 'x' }, /path must be a string/],
+    [{ op: 'replace', path: '/nodes/title/content/~2', value: 'x' }, /valid JSON Pointer/],
+    [{ op: 'replace', path: '/document/version', value: 3 }, /descendant of \/nodes/],
+    [{ op: 'replace', path: '/nodes/title/absent', value: 'x' }, /target does not exist/],
+    [{ op: 'replace', path: '/nodes/items/id/x/value', value: 'x' }, /missing intermediate parent/],
+    [{ op: 'replace', path: '/nodes/root/children/01', value: 'list' }, /canonical array index/],
+    [{ op: 'replace', path: '/nodes/root/children/99', value: 'list' }, /outside the array bounds/],
+  ])('rejects malformed patch %j without advancing the revision', (patch, error) => {
+    const { session } = makeSession()
+    session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document: document(), data: data() })
+    expect(() => session.apply({ protocol: 1, kind: 'update', revision: 1, patch: [patch] })).toThrow(error)
+    expect(session.getRevision()).toBe(0)
+  })
+
+  it('validates session limits and clock ordering, then rejects use after destruction', () => {
+    const runtime = createDocumentRuntime(document(), { initialData: data() })
+    expect(() => createDocumentUpdateSession(runtime, {
+      onNotificationError: vi.fn(),
+      maxMessagesPerSecond: 0,
+    })).toThrow(/maxMessagesPerSecond must be an integer/)
+    expect(() => createDocumentUpdateSession(runtime, {
+      onNotificationError: null as unknown as (error: unknown) => void,
+    })).toThrow(/onNotificationError must be a function/)
+
+    let now = 0
+    const session = createDocumentUpdateSession(runtime, { onNotificationError: vi.fn(), now: () => now })
+    session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document: document(), data: data() })
+    now = -1
+    expect(() => session.apply({ protocol: 1, kind: 'update', revision: 1, data: data() }))
+      .toThrow(/finite, nondecreasing values/)
+    now = 1_000
+    session.apply({ protocol: 1, kind: 'update', revision: 1, patch: [] })
+    expect(session.getRevision()).toBe(1)
+    session.destroy()
+    expect(() => session.apply({ protocol: 1, kind: 'update', revision: 2, patch: [] }))
+      .toThrow(/has been destroyed/)
+  })
+
   it('requires a snapshot, then applies sequential revisions and data replacement', () => {
     const { runtime, session } = makeSession()
     expect(() => session.apply({ protocol: 1, kind: 'update', revision: 1, data: data() })).toThrow(/first.*snapshot/)
