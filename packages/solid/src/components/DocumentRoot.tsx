@@ -106,6 +106,7 @@ function DisplayNodeView(props: { nodeId: NodeId }) {
           fallback = (
             <button
               type="button"
+              disabled={!context.runtime().hasActionHandler(action()?.actionType ?? '')}
               onClick={() => {
                 const current = node()
                 if (current?.type !== 'action') return

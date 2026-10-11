@@ -67,6 +67,7 @@ function DisplayNodeView({ nodeId }: { nodeId: DocumentNode['id'] }): ReactNode 
     return (
       <button
         type="button"
+        disabled={!runtime.hasActionHandler(node.actionType)}
         onClick={() => {
           void runtime.invokeAction(node.id).catch(onActionError)
         }}

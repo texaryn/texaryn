@@ -324,6 +324,7 @@ function mountNode(node: DocumentNode, context: InternalDocumentRenderContext): 
 
   const element = document.createElement('button')
   element.type = 'button'
+  element.disabled = !context.runtime.hasActionHandler(node.actionType)
   element.textContent = node.label
   const onClick = (): void => {
     void context.runtime.invokeAction(node.id).catch(context.onActionError)
@@ -334,7 +335,10 @@ function mountNode(node: DocumentNode, context: InternalDocumentRenderContext): 
     element,
     (next) => next.type === 'action',
     (next) => {
-      if (next.type === 'action') element.textContent = next.label
+      if (next.type === 'action') {
+        element.textContent = next.label
+        element.disabled = !context.runtime.hasActionHandler(next.actionType)
+      }
     },
     () => element.removeEventListener('click', onClick),
   )

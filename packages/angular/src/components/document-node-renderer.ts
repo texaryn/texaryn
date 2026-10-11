@@ -49,7 +49,7 @@ import type { AngularDocumentWidget } from '../widget.js'
           @case ('list') { <texaryn-document-list-view [node]="current" /> }
           @case ('table') { <texaryn-document-table-view [node]="current" /> }
           @case ('action') {
-            <button type="button" (click)="invoke(current)">{{ current.label }}</button>
+            <button type="button" [disabled]="actionDisabled()" (click)="invoke(current)">{{ current.label }}</button>
           }
         }
       }
@@ -65,6 +65,10 @@ export class DocumentNodeRenderer {
     return node ? this.context.registry()?.resolve(node) : undefined
   })
   readonly componentInputs = computed(() => ({ node: this.node()!, runtime: this.context.runtime() }))
+  readonly actionDisabled = computed(() => {
+    const node = this.node()
+    return node?.type !== 'action' || !this.context.runtime().hasActionHandler(node.actionType)
+  })
 
   invoke(node: DisplayActionNode): void {
     void this.context.runtime().invokeAction(node.id).catch((error: unknown) => {

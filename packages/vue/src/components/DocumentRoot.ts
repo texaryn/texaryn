@@ -64,6 +64,7 @@ DisplayNodeView = defineComponent({
       if (current.type === 'table') return h(DisplayTable, { node: current })
       return h('button', {
         type: 'button',
+        disabled: !context.runtime.value.hasActionHandler(current.actionType),
         onClick: () => {
           void context.runtime.value.invokeAction(current.id).catch((error: unknown) => {
             if (context.onActionError.value) context.onActionError.value(error)

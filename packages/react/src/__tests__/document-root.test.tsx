@@ -77,4 +77,10 @@ describe('DocumentRoot', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Refresh' })))
     expect(onActionError).toHaveBeenCalledWith(actionFailure)
   })
+
+  it('disables action nodes without a registered host handler', () => {
+    const runtime = createDocumentRuntime(fixture())
+    render(<DocumentRoot runtime={runtime} />)
+    expect((screen.getByRole('button', { name: 'Refresh' }) as HTMLButtonElement).disabled).toBe(true)
+  })
 })

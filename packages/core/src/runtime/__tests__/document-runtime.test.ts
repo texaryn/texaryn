@@ -205,6 +205,8 @@ describe('DocumentRuntime', () => {
       initialData: initialData(),
       actions: { 'open-item': handler },
     })
+    expect(runtime.hasActionHandler('open-item')).toBe(true)
+    expect(runtime.hasActionHandler('missing')).toBe(false)
     await runtime.invokeAction(id('action'))
     expect(handler).toHaveBeenCalledWith(
       { source: 'results' },
@@ -212,7 +214,9 @@ describe('DocumentRuntime', () => {
     )
     expect(Object.isFrozen(handler.mock.calls[0]![0])).toBe(true)
     await expect(runtime.invokeAction(id('list'))).rejects.toThrow(/not a display action/)
-    await expect(createDocumentRuntime(document()).invokeAction(id('action'))).rejects.toThrow(/No host action/)
+    const withoutHandler = createDocumentRuntime(document())
+    expect(withoutHandler.hasActionHandler('open-item')).toBe(false)
+    await expect(withoutHandler.invokeAction(id('action'))).rejects.toThrow(/No host action/)
   })
 
   it('rejects unsupported documents and malformed JSON pointers', () => {

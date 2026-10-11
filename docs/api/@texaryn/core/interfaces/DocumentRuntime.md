@@ -62,6 +62,22 @@
 
 ***
 
+### hasActionHandler()
+
+> **hasActionHandler**(`actionType`): `boolean`
+
+#### Parameters
+
+##### actionType
+
+`string`
+
+#### Returns
+
+`boolean`
+
+***
+
 ### invokeAction()
 
 > **invokeAction**(`nodeId`): `Promise`\<`void`\>

@@ -66,4 +66,10 @@ describe('Solid DocumentRoot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     await waitFor(() => expect(onActionError).toHaveBeenCalledWith(error))
   })
+
+  it('disables action nodes without a registered host handler', () => {
+    const runtime = createDocumentRuntime(fixture())
+    render(() => <DocumentRoot runtime={runtime} />)
+    expect((screen.getByRole('button', { name: 'Refresh' }) as HTMLButtonElement).disabled).toBe(true)
+  })
 })
