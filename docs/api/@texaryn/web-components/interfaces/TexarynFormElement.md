@@ -3079,7 +3079,7 @@ node is a ProcessingInstruction node.
 
 ### registry
 
-> **registry**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md)\> \| `null`
+> **registry**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetFactory`](../type-aliases/WidgetFactory.md), [`UINode`](../../core/type-aliases/UINode.md)\> \| `null`
 
 ***
 

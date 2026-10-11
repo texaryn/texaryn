@@ -1,6 +1,7 @@
 import React from 'react'
 import type { ContainerNode, UINode } from '@texaryn/core'
 import { useFieldArray } from '../hooks/use-field-array.js'
+import { useArrayDrag } from '../hooks/use-array-drag.js'
 import { NodeRenderer } from '../components/NodeRenderer.js'
 import { useRendererContext } from '../components/renderer-context.js'
 import { useArrayActions } from '../hooks/use-array-actions.js'
@@ -20,16 +21,27 @@ function ArrayControlImpl({ node }: WidgetProps) {
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
   const actions = useArrayActions(node)
+  const drag = useArrayDrag(containerNode.id, fieldArray.items, fieldArray.move)
 
   return (
-    <div>
+    <div ref={drag.rootRef} data-array-container="">
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
         const remove = actions.remove(index + 1, childNode)
         const moveUp = actions.moveUp(index + 1, childNode)
         const moveDown = actions.moveDown(index + 1, childNode)
         return (
-          <div key={item.id} data-array-row="">
+          <div
+            key={item.id}
+            {...drag.rowProps(item.id)}
+          >
+            {drag.canDrag ? (
+              <span
+                {...drag.handleProps(item.id)}
+              >
+                ⠿
+              </span>
+            ) : null}
             {childNode ? (
               <NodeRenderer node={childNode} document={document} registry={registry} />
             ) : null}

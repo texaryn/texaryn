@@ -1,0 +1,14 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "display",
+  "document": {
+    "version": 2,
+    "rootId": "root",
+    "nodes": {
+      "root": { "id": "root", "type": "container", "parentId": null, "annotations": {}, "containerType": "layout", "children": ["refresh"] },
+      "refresh": { "id": "refresh", "type": "action", "parentId": "root", "annotations": {}, "actionType": "refresh", "label": "Refresh", "actionArgs": { "scope": "all" }, "buttonRole": "button" }
+    }
+  },
+  "data": {}
+}

@@ -4,13 +4,17 @@
 
 [Documentation](../../../README.md) / [@texaryn/core](../README.md) / RendererRegistry
 
-# Interface: RendererRegistry\<T\>
+# Interface: RendererRegistry\<T, Node\>
 
 ## Type Parameters
 
 ### T
 
 `T` = `unknown`
+
+### Node
+
+`Node` = [`UINode`](../type-aliases/UINode.md)
 
 ## Methods
 
@@ -22,7 +26,7 @@
 
 ##### tester
 
-[`WidgetTester`](WidgetTester.md)
+[`WidgetTester`](WidgetTester.md)\<`Node`\>
 
 ##### component
 
@@ -42,7 +46,7 @@
 
 ##### node
 
-[`UINode`](../type-aliases/UINode.md)
+`Node`
 
 #### Returns
 

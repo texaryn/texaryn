@@ -188,6 +188,7 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
 interface Row {
   element: HTMLElement
   slot: HTMLElement
+  handle: HTMLSpanElement
   binding: NodeBinding | null
   up: HTMLButtonElement
   down: HTMLButtonElement
@@ -202,8 +203,16 @@ interface Row {
  */
 export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
   let node = initial as ContainerNode
+  let dragSession: {
+    runtime: RenderContext['runtime']
+    identityKey: NonNullable<ContainerNode['arrayMeta']>['identityKey']
+    root: HTMLDivElement
+    itemId: StableItemId
+  } | null = null
+  const dragType = 'application/x-texaryn-array-item'
   const root = document.createElement('div')
   root.className = 'texaryn-array'
+  root.dataset.arrayContainer = ''
   const list = document.createElement('div')
   const add = button('', () => {
     ctx.runtime.dispatch({
@@ -215,6 +224,23 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
   root.append(list, add)
   const rows = new Map<StableItemId, Row>()
 
+  function clearDrag(): void {
+    root.removeAttribute('data-array-drag-active')
+    root.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
+      row.removeAttribute('data-dragging')
+      row.removeAttribute('data-drop-target')
+    })
+    dragSession = null
+  }
+
+  function canDrag(): boolean {
+    return node.arrayMeta?.canReorder === true && !node.readOnly && !node.disabled
+  }
+
+  function ownsTarget(event: DragEvent): boolean {
+    return event.target instanceof Element && event.target.closest('[data-array-container]') === root
+  }
+
   function indexOf(itemId: StableItemId): number {
     return node.arrayMeta?.itemIds.indexOf(itemId) ?? -1
   }
@@ -225,7 +251,31 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     element.dataset.itemId = itemId
     element.dataset.arrayRow = ''
     const slot = document.createElement('div')
+    const handle = document.createElement('span')
+    handle.className = 'texaryn-array-drag-handle'
+    handle.setAttribute('aria-hidden', 'true')
+    handle.tabIndex = -1
+    handle.textContent = '⠿'
+    handle.draggable = true
     let row: Row
+    handle.addEventListener('dragstart', (event) => {
+      const index = indexOf(itemId)
+      const identityKey = node.arrayMeta?.identityKey
+      if (!canDrag() || index < 0 || identityKey === undefined || !event.dataTransfer) {
+        event.preventDefault()
+        return
+      }
+      event.stopPropagation()
+      event.dataTransfer.setData(dragType, itemId)
+      event.dataTransfer.effectAllowed = 'move'
+      dragSession = { runtime: ctx.runtime, identityKey, root, itemId }
+      root.setAttribute('data-array-drag-active', '')
+      row.element.setAttribute('data-dragging', '')
+    })
+    handle.addEventListener('dragend', (event) => {
+      event.dataTransfer?.clearData(dragType)
+      clearDrag()
+    })
     const up = button('', () => {
       const index = indexOf(itemId)
       if (index > 0) {
@@ -253,8 +303,63 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       const index = indexOf(itemId)
       if (index >= 0) ctx.runtime.dispatch({ type: 'RemoveItem', containerId: node.id, index })
     })
-    element.append(slot, up, down, remove)
-    row = { element, slot, binding: null, up, down, remove }
+    element.append(handle, slot, up, down, remove)
+    row = { element, slot, handle, binding: null, up, down, remove }
+    element.addEventListener('dragover', (event) => {
+      const dragEvent = event as DragEvent
+      if (!Array.from(dragEvent.dataTransfer?.types ?? []).includes(dragType)) return
+      if (!ownsTarget(dragEvent)) {
+        dragEvent.stopPropagation()
+        return
+      }
+      const session = dragSession
+      const ids = node.arrayMeta?.itemIds ?? []
+      if (
+        !session || session.runtime !== ctx.runtime || session.root !== root ||
+        session.identityKey !== node.arrayMeta?.identityKey || !canDrag() ||
+        !ids.includes(session.itemId) || !ids.includes(itemId)
+      ) {
+        dragEvent.stopPropagation()
+        return
+      }
+      dragEvent.preventDefault()
+      dragEvent.stopPropagation()
+      if (dragEvent.dataTransfer) dragEvent.dataTransfer.dropEffect = 'move'
+      element.setAttribute('data-drop-target', '')
+    })
+    element.addEventListener('dragleave', (event) => {
+      const dragEvent = event as DragEvent
+      if (Array.from(dragEvent.dataTransfer?.types ?? []).includes(dragType)) {
+        element.removeAttribute('data-drop-target')
+      }
+    })
+    element.addEventListener('drop', (event) => {
+      const dragEvent = event as DragEvent
+      if (!Array.from(dragEvent.dataTransfer?.types ?? []).includes(dragType)) return
+      dragEvent.stopPropagation()
+      const session = dragSession
+      const ids = node.arrayMeta?.itemIds ?? []
+      if (!ownsTarget(dragEvent) || !session) {
+        clearDrag()
+        return
+      }
+      const from = ids.indexOf(session.itemId)
+      const toIndex = ids.indexOf(itemId)
+      if (
+        session.runtime !== ctx.runtime || session.root !== root ||
+        session.identityKey !== node.arrayMeta?.identityKey || !canDrag() || from < 0 || toIndex < 0
+      ) {
+        clearDrag()
+        return
+      }
+      dragEvent.preventDefault()
+      const bounds = element.getBoundingClientRect()
+      const after = dragEvent.clientY >= bounds.top + bounds.height / 2
+      const boundary = toIndex + (after ? 1 : 0)
+      const to = boundary > from ? boundary - 1 : boundary
+      clearDrag()
+      if (to !== from) ctx.runtime.dispatch({ type: 'MoveItem', containerId: node.id, from, to })
+    })
     return row
   }
 
@@ -263,6 +368,10 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
     const meta = node.arrayMeta
     const nodes = currentNodes(ctx)
     const itemIds = meta?.itemIds ?? []
+    if (dragSession && (
+      dragSession.runtime !== ctx.runtime || dragSession.identityKey !== meta?.identityKey ||
+      meta?.canReorder !== true || node.readOnly || node.disabled || !itemIds.includes(dragSession.itemId)
+    )) clearDrag()
     const keep = new Set<StableItemId>()
     const elements: HTMLElement[] = []
     itemIds.forEach((itemId, index) => {
@@ -286,6 +395,8 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
         row.binding = null
       }
       row.remove.hidden = !(meta?.canRemove ?? false)
+      row.handle.hidden = !canDrag()
+      row.handle.draggable = canDrag()
       row.up.hidden = !(meta?.canReorder ?? false) || index === 0
       row.down.hidden = !(meta?.canReorder ?? false) || index === itemIds.length - 1
       // Named here rather than in createRow: a row survives a move, so the
@@ -333,6 +444,7 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       reconcile(next as ContainerNode)
     },
     destroy() {
+      clearDrag()
       for (const row of rows.values()) row.binding?.destroy()
       rows.clear()
     },

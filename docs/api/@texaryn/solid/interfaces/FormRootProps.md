@@ -40,7 +40,7 @@
 
 ### registry?
 
-> `optional` **registry?**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>
+> `optional` **registry?**: [`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>
 
 ***
 

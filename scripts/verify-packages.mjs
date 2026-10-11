@@ -208,6 +208,17 @@ for (const pkg of packages) {
         'dir',
       )
     }
+    if (pkg.name === '@texaryn/collaboration-yjs') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+      symlinkSync(
+        join(process.cwd(), pkg.dir, 'node_modules', 'yjs'),
+        join(isolatedNodeModules, 'yjs'),
+        'dir',
+      )
+    }
     try {
       let mod
       if (pkg.name === '@texaryn/angular') {
@@ -272,11 +283,13 @@ for (const pkg of packages) {
       } else {
         mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
       }
-      const expectedExports = pkg.name === '@texaryn/svelte'
-        ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
-        : pkg.name === '@texaryn/solid'
-          ? ['createForm', 'createDefaultRegistry', 'FormRoot']
-        : [pkg.expectedExport]
+      const expectedExports = pkg.name === '@texaryn/core'
+        ? ['createFormRuntime', 'createDocumentRuntime', 'createDocumentUpdateSession']
+        : pkg.name === '@texaryn/svelte'
+          ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
+          : pkg.name === '@texaryn/solid'
+            ? ['createForm', 'createDefaultRegistry', 'FormRoot']
+            : [pkg.expectedExport]
       for (const expectedExport of expectedExports) {
         if (!(expectedExport in mod)) {
           console.error(`Expected export "${expectedExport}" not found in ${pkg.name}`)
@@ -306,6 +319,32 @@ for (const pkg of packages) {
           failed = true
         } else {
           console.log('  ok: packed consumer projects and rejects invalid oneOf dependencies')
+        }
+      }
+      if (pkg.name === '@texaryn/core') {
+        const document = {
+          version: 2,
+          rootId: 'root',
+          nodes: {
+            root: {
+              id: 'root',
+              type: 'container',
+              parentId: null,
+              annotations: { title: 'Smoke test' },
+              containerType: 'group',
+              children: [],
+            },
+          },
+        }
+        const runtime = mod.createDocumentRuntime(document, { initialData: {} })
+        const session = mod.createDocumentUpdateSession(runtime, { onNotificationError: () => undefined })
+        session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document, data: {} })
+        session.apply({ protocol: 1, kind: 'update', revision: 1, patch: [] })
+        if (session.getRevision() !== 1) {
+          console.error('Packed core document update session did not advance its revision')
+          failed = true
+        } else {
+          console.log('  ok: packed document update session smoke test')
         }
       }
     } catch (err) {

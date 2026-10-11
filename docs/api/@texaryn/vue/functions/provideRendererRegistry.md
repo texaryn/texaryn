@@ -21,7 +21,7 @@ runtime belongs to the example rather than to the presentation over it.
 
 ### registry
 
-`MaybeRefOrGetter`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+`MaybeRefOrGetter`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>
 
 ## Returns
 

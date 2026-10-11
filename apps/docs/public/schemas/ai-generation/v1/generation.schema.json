@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://texaryn.github.io/texaryn/schemas/ai-generation/v1/generation.schema.json",
+  "title": "Texaryn AI generation output, version 1",
+  "oneOf": [
+    { "$ref": "#/$defs/formOutput" },
+    { "$ref": "#/$defs/displayOutput" }
+  ],
+  "$defs": {
+    "jsonPointer": {
+      "type": "string",
+      "pattern": "^(?:/(?:[^~/]|~[01])*)*$",
+      "description": "A JSON Pointer. The empty string addresses the root."
+    },
+    "jsonValue": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+        }
+      ]
+    },
+    "fieldHints": {
+      "type": "object",
+      "properties": {
+        "widget": { "type": "string", "minLength": 1 },
+        "order": { "type": "number" },
+        "placeholder": { "type": "string" },
+        "helpText": { "type": "string" },
+        "validationTrigger": { "enum": ["blur", "change", "submit"] }
+      },
+      "additionalProperties": false
+    },
+    "arrayHints": {
+      "type": "object",
+      "properties": {
+        "widget": { "type": "string", "minLength": 1 },
+        "order": { "type": "number" },
+        "placeholder": { "type": "string" },
+        "helpText": { "type": "string" },
+        "validationTrigger": { "enum": ["blur", "change", "submit"] },
+        "itemKey": { "$ref": "#/$defs/jsonPointer" },
+        "canReorder": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "uiHints": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/jsonPointer" },
+      "additionalProperties": {
+        "anyOf": [
+          { "$ref": "#/$defs/fieldHints" },
+          { "$ref": "#/$defs/arrayHints" }
+        ]
+      },
+      "description": "A map from data JSON Pointers to supported presentation hints. Widget names must be registered by the host."
+    },
+    "annotations": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "readOnly": { "type": "boolean" },
+        "writeOnly": { "type": "boolean" },
+        "deprecated": { "type": "boolean" },
+        "examples": { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        "default": { "$ref": "#/$defs/jsonValue" }
+      },
+      "additionalProperties": false
+    },
+    "displayNodeBase": {
+      "type": "object",
+      "required": ["id", "type", "parentId", "annotations"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "parentId": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "annotations": { "$ref": "#/$defs/annotations" }
+      }
+    },
+    "displayContainer": {
+      "allOf": [
+        { "$ref": "#/$defs/displayNodeBase" },
+        {
+          "type": "object",
+          "required": ["containerType", "children"],
+          "properties": {
+            "type": { "const": "container" },
+            "containerType": { "enum": ["group", "layout"] },
+            "children": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "containerType": { "const": "group" } },
+                "required": ["containerType"]
+              },
+              "then": {
+                "properties": {
+                  "annotations": {
+                    "properties": { "title": { "type": "string", "minLength": 1 } },
+                    "required": ["title"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "displayText": {
+      "allOf": [
+        { "$ref": "#/$defs/displayNodeBase" },
+        {
+          "type": "object",
+          "required": ["content", "textRole"],
+          "properties": {
+            "type": { "const": "text" },
+            "content": { "type": "string" },
+            "textRole": { "enum": ["heading", "paragraph", "help"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "displayAction": {
+      "allOf": [
+        { "$ref": "#/$defs/displayNodeBase" },
+        {
+          "type": "object",
+          "required": ["actionType", "label", "buttonRole"],
+          "properties": {
+            "type": { "const": "action" },
+            "actionType": { "type": "string", "minLength": 1 },
+            "label": { "type": "string", "minLength": 1 },
+            "actionArgs": { "$ref": "#/$defs/jsonValue" },
+            "buttonRole": { "const": "button" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "displayList": {
+      "allOf": [
+        { "$ref": "#/$defs/displayNodeBase" },
+        {
+          "type": "object",
+          "required": ["collectionId", "dataPointer", "valuePointer"],
+          "properties": {
+            "type": { "const": "list" },
+            "collectionId": { "type": "string", "minLength": 1 },
+            "dataPointer": { "$ref": "#/$defs/jsonPointer" },
+            "valuePointer": { "$ref": "#/$defs/jsonPointer" },
+            "rowKeyPointer": { "$ref": "#/$defs/jsonPointer" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "tableColumn": {
+      "type": "object",
+      "required": ["id", "label", "valuePointer"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "valuePointer": { "$ref": "#/$defs/jsonPointer" }
+      },
+      "additionalProperties": false
+    },
+    "displayTable": {
+      "allOf": [
+        { "$ref": "#/$defs/displayNodeBase" },
+        {
+          "type": "object",
+          "required": ["collectionId", "dataPointer", "columns"],
+          "properties": {
+            "type": { "const": "table" },
+            "collectionId": { "type": "string", "minLength": 1 },
+            "dataPointer": { "$ref": "#/$defs/jsonPointer" },
+            "rowKeyPointer": { "$ref": "#/$defs/jsonPointer" },
+            "columns": { "type": "array", "items": { "$ref": "#/$defs/tableColumn" } }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "displayNode": {
+      "oneOf": [
+        { "$ref": "#/$defs/displayContainer" },
+        { "$ref": "#/$defs/displayText" },
+        { "$ref": "#/$defs/displayAction" },
+        { "$ref": "#/$defs/displayList" },
+        { "$ref": "#/$defs/displayTable" }
+      ]
+    },
+    "displayDocumentV2": {
+      "type": "object",
+      "required": ["version", "rootId", "nodes"],
+      "properties": {
+        "version": { "const": 2 },
+        "rootId": { "type": "string", "minLength": 1 },
+        "nodes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "minLength": 1 },
+          "additionalProperties": { "$ref": "#/$defs/displayNode" }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Structural contract for a version 2 standalone display document. Runtime validation also checks node key agreement, graph reachability, limits, pointers, collection values, and unique IDs."
+    },
+    "formOutput": {
+      "type": "object",
+      "required": ["format", "version", "kind", "schema"],
+      "properties": {
+        "format": { "const": "texaryn-generation" },
+        "version": { "const": 1 },
+        "kind": { "const": "form" },
+        "schema": {
+          "type": "object",
+          "required": ["$schema", "type"],
+          "properties": {
+            "$schema": {
+              "enum": [
+                "http://json-schema.org/draft-07/schema#",
+                "http://json-schema.org/draft-07/schema",
+                "https://json-schema.org/draft/2019-09/schema",
+                "https://json-schema.org/draft/2020-12/schema"
+              ]
+            },
+            "type": { "const": "object" }
+          },
+          "description": "Version 1 form generation requires an explicit supported dialect and object root. Acceptance also bounds schema complexity, rejects oneOf and anyOf, and restricts external references to exact URIs in a host supplied resource map."
+        },
+        "hints": { "$ref": "#/$defs/uiHints" }
+      },
+      "additionalProperties": false
+    },
+    "displayOutput": {
+      "type": "object",
+      "required": ["format", "version", "kind", "document", "data"],
+      "properties": {
+        "format": { "const": "texaryn-generation" },
+        "version": { "const": 1 },
+        "kind": { "const": "display" },
+        "document": { "$ref": "#/$defs/displayDocumentV2" },
+        "data": { "$ref": "#/$defs/jsonValue" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

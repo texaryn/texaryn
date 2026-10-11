@@ -1,0 +1,13 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "form",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "oneOf": [
+      { "type": "object", "required": ["kind"], "properties": { "kind": { "type": "string", "enum": ["person"] }, "name": { "type": "string" } } },
+      { "type": "object", "required": ["kind"], "properties": { "kind": { "type": "string", "enum": ["company"] }, "legalName": { "type": "string" } } }
+    ]
+  }
+}

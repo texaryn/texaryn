@@ -91,7 +91,12 @@ function mockRuntime(visibleErrors: VisibleError[]): FormRuntime {
     submission: createStore<SubmissionState>({ status: 'idle', attempts: 0 }),
     visibleErrors: createStore<VisibleError[]>(visibleErrors),
     initialization: createStore<InitializationReport | undefined>(undefined),
+    initializationPolicy: 'none',
     dispatch: () => {},
+    subscribeMutations: () => () => {},
+    registerCommandGuard: () => () => {},
+    applyRemoteSnapshot: () => {},
+    lockArrayStructure: () => () => {},
     getNodeState: () => undefined,
     destroy: () => {},
   }

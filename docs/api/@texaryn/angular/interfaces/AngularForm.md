@@ -16,7 +16,7 @@
 
 ### document
 
-> **document**: `Signal`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\>
+> **document**: `Signal`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\<`1`\>\>
 
 ***
 

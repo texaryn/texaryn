@@ -8,6 +8,7 @@
 
 ## Interfaces
 
+- [DocumentRootProps](interfaces/DocumentRootProps.md)
 - [FieldAria](interfaces/FieldAria.md)
 - [FieldArrayItem](interfaces/FieldArrayItem.md)
 - [FieldWidget](interfaces/FieldWidget.md)
@@ -18,6 +19,7 @@
 
 ## Type Aliases
 
+- [DocumentWidgetComponent](type-aliases/DocumentWidgetComponent.md)
 - [FieldKind](type-aliases/FieldKind.md)
 - [WidgetComponent](type-aliases/WidgetComponent.md)
 
@@ -25,6 +27,7 @@
 
 - [ArrayControl](variables/ArrayControl.md)
 - [Checkbox](variables/Checkbox.md)
+- [DocumentRoot](variables/DocumentRoot.md)
 - [ErrorSummary](variables/ErrorSummary.md)
 - [FieldErrors](variables/FieldErrors.md)
 - [FormMessagesKey](variables/FormMessagesKey.md)

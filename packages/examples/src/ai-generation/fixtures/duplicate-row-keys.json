@@ -1,0 +1,14 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "display",
+  "document": {
+    "version": 2,
+    "rootId": "root",
+    "nodes": {
+      "root": { "id": "root", "type": "container", "parentId": null, "annotations": { "title": "People" }, "containerType": "group", "children": ["people"] },
+      "people": { "id": "people", "type": "list", "parentId": "root", "annotations": {}, "collectionId": "people-list", "dataPointer": "/people", "valuePointer": "/name", "rowKeyPointer": "/id" }
+    }
+  },
+  "data": { "people": [{ "id": "same", "name": "Ada" }, { "id": "same", "name": "Grace" }] }
+}

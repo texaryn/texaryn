@@ -107,6 +107,20 @@ describe('batch', () => {
 
     expect(listener).toHaveBeenCalledOnce()
   })
+
+  it('continues every notification when one listener throws', () => {
+    const a = createSignal(0)
+    const b = createSignal(0)
+    const secondListener = vi.fn()
+    subscribeToSignal(a, () => { throw new Error('first listener failed') })
+    subscribeToSignal(b, secondListener)
+
+    expect(() => batch(() => {
+      a.set(1)
+      b.set(1)
+    })).toThrow(/first listener failed/)
+    expect(secondListener).toHaveBeenCalledOnce()
+  })
 })
 
 describe('property-based', () => {

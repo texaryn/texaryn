@@ -2,6 +2,8 @@ export type {
   NodeId,
   StableItemId,
   JsonPointer,
+  JsonScalar,
+  JsonValue,
   MaybePromise,
   JsonSchemaType,
   ValidationResult,
@@ -10,8 +12,19 @@ export type {
 } from './types.js'
 
 export type {
+  AnyUIDocument,
   UIDocument,
+  UIDocumentV2,
+  UIDocumentVersion,
   UINode,
+  DocumentNode,
+  DisplayNodeBase,
+  DisplayContainerNode,
+  DisplayTextNode,
+  DisplayActionNode,
+  ListNode,
+  TableNode,
+  TableColumn,
   NodeBase,
   NodeAnnotations,
   FieldNode,
@@ -68,13 +81,34 @@ export type { Command, Effect, CommandResult } from './commands/index.js'
 export { processCommand } from './commands/index.js'
 
 export type {
+  UIDocumentRuntime,
+  DocumentRuntime,
+  DocumentRuntimeOptions,
+  DocumentCollectionRow,
+  DocumentActionContext,
+  DocumentActionHandler,
+  DocumentActionArgumentValidator,
+  DocumentActionRegistration,
+  DocumentAction,
+  DocumentRuntimeLimits,
+  DocumentUpdateSession,
+  DocumentUpdateSessionOptions,
   FormRuntime,
   FormRuntimeOptions,
+  FormMutation,
+  FormCommandGuard,
+  FormCommandGuardContext,
+  RemoteSnapshotOptions,
   InitializationPolicy,
   InitializationReport,
   NodeState,
 } from './runtime/index.js'
-export { createFormRuntime } from './runtime/index.js'
+export {
+  createDocumentRuntime,
+  createDocumentUpdateSession,
+  createFormRuntime,
+  RemoteSnapshotNotificationError,
+} from './runtime/index.js'
 
 // The pass itself stays unexported. What a caller needs is what the report
 // carries, which is why these two travel and `initializeDefaults` does not.

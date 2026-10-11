@@ -16,7 +16,7 @@
 
 ### document
 
-> **document**: `Ref`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\>
+> **document**: `Ref`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\<`1`\>\>
 
 ***
 

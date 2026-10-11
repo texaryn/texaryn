@@ -13,6 +13,7 @@ import {
   requiredSchema,
   type,
 } from './harness.js'
+import { createArrayDragTransfer, dispatchArrayDrag } from '../../../../tests/renderer-conformance/array-drag.js'
 
 defineTexarynForm()
 const registry = createDefaultRegistry()
@@ -326,5 +327,32 @@ describe('reorder control naming', () => {
     expect(upNames()[0]).toBeNull()
     expect(upNames()[1]).toMatch(/^Move up .*2/)
     expect(upNames()[2]).toMatch(/^Move up .*3/)
+  })
+})
+
+describe('native array drag reorder', () => {
+  it('moves the row identified by its stable id to the selected insertion boundary', async () => {
+    const rt = await mount(listSchema, items, { '/items': { canReorder: true } })
+    const root = outerArray()
+    const rows = rowsOf(root)
+    const sourceId = rows[0]!.dataset.itemId
+    const transfer = createArrayDragTransfer()
+    const handle = rows[0]!.querySelector<HTMLElement>('.texaryn-array-drag-handle')!
+    expect(handle.tabIndex).toBe(-1)
+    expect(handle.getAttribute('aria-hidden')).toBe('true')
+    rows[2]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+    dispatchArrayDrag('dragstart', handle, transfer)
+    dispatchArrayDrag('dragover', rows[2]!, transfer, 90)
+    dispatchArrayDrag('drop', rows[2]!, transfer, 90)
+    await flush()
+
+    expect((rt.data.getSnapshot() as typeof items).items.map((item) => item.name)).toEqual([
+      'Bob',
+      'Cid',
+      'Ann',
+    ])
+    expect(rowsOf(root)[2]!.dataset.itemId).toBe(sourceId)
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
   })
 })

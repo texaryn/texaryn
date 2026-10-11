@@ -3,12 +3,15 @@ import { Component, provideZonelessChangeDetection } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { JsonPipe } from '@angular/common'
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { createForm, createDefaultRegistry, FormRoot } from '@texaryn/angular'
+import { createDocumentRuntime } from '@texaryn/core'
+import type { JsonPointer, NodeId, UIDocumentV2 } from '@texaryn/core'
+import { createForm, createDefaultRegistry, DocumentRoot, FormRoot } from '@texaryn/angular'
 import type { AngularForm } from '@texaryn/angular'
 import { angularAdapter } from './angular-adapter.js'
 import { rendererDomAccessibilityContract } from '../../../../tests/renderer-conformance/renderer-dom-accessibility-contract.js'
+import { createArrayDragTransfer, dispatchArrayDrag } from '../../../../tests/renderer-conformance/array-drag.js'
 
 @Component({
   selector: 'texaryn-angular-smoke-host',
@@ -47,8 +50,54 @@ class AngularReadOnlyHost {
   readonly registry = createDefaultRegistry()
 }
 
+@Component({
+  selector: 'texaryn-angular-array-host',
+  standalone: true,
+  imports: [FormRoot],
+  template: '<texaryn-form-root [form]="form" [registry]="registry" idPrefix="array" />',
+})
+class AngularArrayHost {
+  readonly form = createForm(arrayAdapter, {
+    initialData: { people: ['Ada', 'Grace', 'Lin'] },
+    hints: { '/people': { canReorder: true } },
+  })
+  readonly registry = createDefaultRegistry()
+}
+
+function displayDocument(): UIDocumentV2 {
+  const nodeId = (value: string) => value as NodeId
+  const pointer = (value: string) => value as JsonPointer
+  return {
+    version: 2,
+    rootId: nodeId('root'),
+    nodes: {
+      root: { id: nodeId('root'), type: 'container', parentId: null, annotations: { title: 'People' }, containerType: 'group', children: [nodeId('heading'), nodeId('list'), nodeId('table'), nodeId('action')] },
+      heading: { id: nodeId('heading'), type: 'text', parentId: nodeId('root'), annotations: {}, textRole: 'heading', content: 'Directory' },
+      list: { id: nodeId('list'), type: 'list', parentId: nodeId('root'), annotations: {}, collectionId: 'people-list', dataPointer: pointer('/people'), valuePointer: pointer('/name'), rowKeyPointer: pointer('/id') },
+      table: { id: nodeId('table'), type: 'table', parentId: nodeId('root'), annotations: {}, collectionId: 'people-table', dataPointer: pointer('/people'), rowKeyPointer: pointer('/id'), columns: [{ id: 'name', label: 'Name', valuePointer: pointer('/name') }] },
+      action: { id: nodeId('action'), type: 'action', parentId: nodeId('root'), annotations: {}, actionType: 'refresh', label: 'Refresh', buttonRole: 'button' },
+    },
+  }
+}
+
+const refresh = vi.fn()
+
+@Component({
+  selector: 'texaryn-angular-display-host',
+  standalone: true,
+  imports: [DocumentRoot],
+  template: '<texaryn-document-root [runtime]="runtime" />',
+})
+class AngularDocumentHost {
+  readonly runtime = createDocumentRuntime(displayDocument(), {
+    initialData: { people: [{ id: 'ada', name: 'Ada' }] },
+    actions: { refresh },
+  })
+}
+
 let adapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 let readOnlyAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
+let arrayAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 
 describe('Angular signal renderer', () => {
   beforeAll(() => {
@@ -57,7 +106,7 @@ describe('Angular signal renderer', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [AngularSmokeHost],
+      imports: [AngularSmokeHost, AngularArrayHost, AngularDocumentHost],
       providers: [provideZonelessChangeDetection()],
     })
   })
@@ -82,6 +131,10 @@ describe('Angular signal renderer', () => {
         objectChoice: { type: ['string', 'object'], title: 'Object choice', enum: [{ code: 1 }, { code: 2 }] },
       },
     })
+    arrayAdapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: { people: { type: 'array', items: { type: 'string' } } },
+    })
   })
 
   it('binds store updates to standalone components in zoneless change detection', async () => {
@@ -96,6 +149,30 @@ describe('Angular signal renderer', () => {
     await fixture.whenStable()
 
     expect(fixture.nativeElement.querySelector('[data-testid="form-data"]')?.textContent).toContain('"name": "Ada"')
+    fixture.destroy()
+    fixture.nativeElement.remove()
+  })
+
+  it('reorders the selected stable row with native drag events', async () => {
+    const fixture = TestBed.createComponent(AngularArrayHost)
+    document.body.append(fixture.nativeElement)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+    const root = fixture.nativeElement.querySelector('[data-array-container]') as HTMLElement
+    expect(root, fixture.nativeElement.innerHTML).not.toBeNull()
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const transfer = createArrayDragTransfer()
+    const handle = rows[1]!.querySelector<HTMLElement>('[draggable="true"]')!
+    expect(handle.tabIndex).toBe(-1)
+    expect(handle.getAttribute('aria-hidden')).toBe('true')
+    rows[0]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+    dispatchArrayDrag('dragstart', handle, transfer)
+    dispatchArrayDrag('dragover', rows[0]!, transfer, 10)
+    dispatchArrayDrag('drop', rows[0]!, transfer, 10)
+    await fixture.whenStable()
+
+    expect(fixture.componentInstance.form.data()).toEqual({ people: ['Grace', 'Ada', 'Lin'] })
     fixture.destroy()
     fixture.nativeElement.remove()
   })
@@ -144,5 +221,41 @@ describe('Angular signal renderer', () => {
 
     fixture.destroy()
     fixture.nativeElement.remove()
+  })
+
+  it('renders non-form nodes and subscribes to collection stores', async () => {
+    refresh.mockClear()
+    const fixture = TestBed.createComponent(AngularDocumentHost)
+    document.body.append(fixture.nativeElement)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+
+    expect(fixture.nativeElement.querySelector('fieldset legend')?.textContent).toBe('People')
+    expect(fixture.nativeElement.querySelector('h2')?.textContent).toBe('Directory')
+    expect(fixture.nativeElement.querySelector('ul li')?.textContent).toBe('Ada')
+    expect(fixture.nativeElement.querySelector('td')?.textContent).toBe('Ada')
+
+    fixture.componentInstance.runtime.setData({ people: [{ id: 'grace', name: 'Grace' }] })
+    await fixture.whenStable()
+    expect(fixture.nativeElement.querySelector('ul li')?.textContent).toBe('Grace')
+    fixture.nativeElement.querySelector('button')?.click()
+    await fixture.whenStable()
+    expect(refresh).toHaveBeenCalledOnce()
+
+    fixture.destroy()
+    fixture.nativeElement.remove()
+  })
+
+  it('disables action nodes without a registered host handler', async () => {
+    const runtime = createDocumentRuntime(displayDocument(), { initialData: { people: [] } })
+    const fixture = TestBed.createComponent(DocumentRoot)
+    fixture.componentRef.setInput('runtime', runtime)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+
+    expect((fixture.nativeElement.querySelector('button') as HTMLButtonElement).disabled).toBe(true)
+
+    fixture.destroy()
+    runtime.destroy()
   })
 })

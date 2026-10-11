@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "packages/core" },
+    { "path": "packages/collaboration-yjs" },
     { "path": "packages/schema-json" },
     { "path": "packages/schema-json-hyperjump" },
     { "path": "packages/react" },

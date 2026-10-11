@@ -1,0 +1,14 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "display",
+  "document": {
+    "version": 2,
+    "rootId": "root",
+    "nodes": {
+      "root": { "id": "root", "type": "container", "parentId": null, "annotations": {}, "containerType": "layout", "children": ["people"] },
+      "people": { "id": "people", "type": "list", "parentId": "root", "annotations": {}, "collectionId": "people", "dataPointer": "/people", "valuePointer": "/~2name" }
+    }
+  },
+  "data": { "people": [] }
+}

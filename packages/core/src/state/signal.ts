@@ -2,6 +2,25 @@ let currentComputation: ComputedImpl<unknown> | null = null
 let batchDepth = 0
 const pendingNotifications = new Set<() => void>()
 
+export function isBatchActive(): boolean {
+  return batchDepth > 0
+}
+
+function throwNotificationErrors(errors: unknown[]): void {
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) throw new AggregateError(errors, 'Multiple signal notifications failed')
+}
+
+function notifyListeners(listeners: Iterable<() => void>, errors: unknown[]): void {
+  for (const listener of listeners) {
+    try {
+      listener()
+    } catch (error) {
+      errors.push(error)
+    }
+  }
+}
+
 export interface Signal<T> {
   get(): T
   set(value: T): void
@@ -21,16 +40,20 @@ export function createComputed<T>(fn: () => T): Computed<T> {
 
 export function batch(fn: () => void): void {
   batchDepth++
+  const errors: unknown[] = []
   try {
     fn()
+  } catch (error) {
+    errors.push(error)
   } finally {
     batchDepth--
     if (batchDepth === 0) {
       const fns = [...pendingNotifications]
       pendingNotifications.clear()
-      for (const f of fns) f()
+      notifyListeners(fns, errors)
     }
   }
+  throwNotificationErrors(errors)
 }
 
 export function subscribeToSignal<T>(
@@ -67,12 +90,20 @@ class SignalImpl<T> implements Signal<T> {
   }
 
   private notify(): void {
-    for (const dep of this.dependents) dep.markDirty()
+    const errors: unknown[] = []
+    for (const dep of this.dependents) {
+      try {
+        dep.markDirty()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
     if (batchDepth > 0) {
       for (const fn of this.subscribers) pendingNotifications.add(fn)
     } else {
-      for (const fn of this.subscribers) fn()
+      notifyListeners(this.subscribers, errors)
     }
+    throwNotificationErrors(errors)
   }
 }
 
@@ -100,12 +131,20 @@ class ComputedImpl<T> implements Computed<T> {
   markDirty(): void {
     if (this.dirty) return
     this.dirty = true
-    for (const dep of this.dependents) dep.markDirty()
+    const errors: unknown[] = []
+    for (const dep of this.dependents) {
+      try {
+        dep.markDirty()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
     if (batchDepth > 0) {
       for (const fn of this.subscribers) pendingNotifications.add(fn)
     } else {
-      for (const fn of this.subscribers) fn()
+      notifyListeners(this.subscribers, errors)
     }
+    throwNotificationErrors(errors)
   }
 
   private recompute(): void {

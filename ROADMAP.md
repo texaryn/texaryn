@@ -2,11 +2,15 @@
 
 *From Latin texere: to weave, construct, compose.*
 
-A framework-neutral, headless runtime for declarative and dynamically generated
-interfaces. Forms are the first domain. The architecture targets general dynamic
-UI (layouts, tables, lists, actions, conditional and repeated content,
-server-driven UI, AI-generated UI) without building any of it until the form
-runtime has shipped and found users.
+A framework-neutral, headless runtime for declarative interfaces. Forms shipped
+first, and the versioned IR now also supports standalone display documents.
+ADR-012 through ADR-017 are implemented on `feat/non-form-node-types` and are
+being reviewed in stacked PRs #212 through #214. Native drag reorder and scalar
+collaboration close post-validation items 7 and 8. The branch is not released.
+PR #210 has passing checks. PR #211's updated build, typecheck, Changeset and
+Dependency review checks pass. Its test job is pending. Codecov will rerun after
+coverage upload. Local patch coverage for changed Angular implementation lines
+is 96.02% (434 of 452).
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -16,15 +20,14 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
-The `@texaryn/svelte` implementation is complete locally in branch
-`feat/svelte-renderer`, stacked on Angular PR #211. It adds Svelte 5 store
-bindings, a default component registry, package and site documentation,
+The `@texaryn/svelte` implementation is in PR #212, stacked on Angular PR #211.
+It adds Svelte 5 store bindings, a default component registry, package and site
+documentation,
 playground integration, and shared example conformance coverage. The renderer
 is not released yet.
 
-The `@texaryn/solid` renderer is implemented locally in branch
-`feat/solid-renderer`, stacked on the Svelte renderer. It adds SolidJS bindings,
-a default component registry, package and site documentation, playground
+The `@texaryn/solid` renderer is in PR #213, stacked on PR #212. It adds SolidJS
+bindings, a default component registry, package and site documentation, playground
 integration, and cross-framework state sharing coverage. The renderer is not
 released yet.
 
@@ -32,8 +35,8 @@ The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
 `@texaryn/schema-json`. PR #207 merged that dependency change and PR #208
-created the 0.8.2 release. All release checks passed; the publish job is
-waiting for approval in the protected `npm-release` environment. The private
+created the 0.8.2 release. All release checks passed, and the protected
+`npm-release` workflow published version 0.8.2. The private
 Hyperjump adapter is a CI comparison implementation, not a planned production
 migration.
 
@@ -43,9 +46,9 @@ is [published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library
 and has a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
 Merged PR #207 replaces the upstream dependency, removes the packaged
 workaround, and adds a patch changeset for `@texaryn/schema-json`. Build,
-typecheck, the full test suite, package verification, and main CI passed. The
-published adapter remains at 0.8.1 on upstream 11.6.2 until the 0.8.2 publish
-job completes.
+typecheck, the full test suite, package verification, and main CI passed.
+`@texaryn/schema-json` 0.8.2 is [published on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.8.2)
+and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2).
 
 ## Table of Contents
 
@@ -430,14 +433,14 @@ Each is a distinct representation with a distinct owner.
 C4Component
   title Texaryn JSON Schema engine boundary
 
-  System_Ext(currentEngine, "json-schema-library 11.6.2", "Engine in published adapter 0.8.1")
+  System_Ext(currentEngine, "json-schema-library 11.6.2", "Used by adapter 0.8.1")
   System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published fork, adopted by merged PR #207")
   System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
 
   Container_Boundary(texaryn, "Texaryn workspace") {
     Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
-    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.1, 0.8.2 publish pending", "Merged adapter source uses the fork and builds Texaryn projections and validation results")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.2, uses fork 11.6.6", "Builds Texaryn projections and validation results")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
     Component(renderers, "React, Vue, and Web Components", "Renderer packages", "Consume core runtime state")
   }
@@ -448,8 +451,8 @@ C4Component
   Rel(renderers, core, "depends on")
   Rel(productionAdapter, port, "implements")
   Rel(comparisonAdapter, port, "implements for CI comparison")
-  Rel(productionAdapter, currentEngine, "published 0.8.1 uses")
-  Rel(productionAdapter, forkEngine, "merged adapter source uses")
+  Rel(productionAdapter, currentEngine, "0.8.1 used")
+  Rel(productionAdapter, forkEngine, "0.8.2 uses")
   Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
@@ -1259,10 +1262,11 @@ The schema evaluation port is defined in `@texaryn/core` (interface only).
 The supported production implementation and the private CI comparison
 implementation live in separate packages:
 
-1. `@texaryn/schema-json`: published production adapter. Version 0.8.1 pins
-   upstream `json-schema-library` 11.6.2. Merged PR #207 updates the adapter
-   source to the Texaryn maintained fork. Version 0.8.2 awaits the protected
-   npm publish job.
+1. `@texaryn/schema-json`: published production adapter. Version 0.8.1 used
+   upstream `json-schema-library` 11.6.2. Version 0.8.2 uses the Texaryn
+   maintained fork `@texaryn/json-schema-library` 11.6.6. The
+   [0.8.2 release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2)
+   is published.
 2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
    supported production option or a planned migration target.
 
@@ -1577,21 +1581,22 @@ This works because:
 ### Server-Driven UI Flow
 
 ```
-Server ──(UIDocument JSON)──> Client Runtime
-  |                               |
-  |  partial update:              |
-  |  { patch: [                   |
-  |    { op: "replace",           |
-  |      path: "/nodes/n1/visible"|
-  |      value: true }            |
-  |  ]}                           |
-  |                               |
-  +─(JSON Patch)────────────────> |
+Server ──(versioned snapshot)────> Update Session ──> DocumentRuntime
+  |                                  |                       |
+  |  revision 12                     | validate and commit   | notify
+  |                                  |                       |
+  +──(revision 13 patch or data)─────+                       |
 ```
 
-The server can send a full `UIDocument` on initial load and JSON Patch updates
-for subsequent changes. The runtime applies patches, updates affected node
-signals, and the renderer updates the affected widgets.
+The first message is a full version 2 document and data snapshot. Each later
+update uses the next revision and contains a restricted JSON Patch, replacement
+data, or both. A higher revision snapshot can resynchronize the session. The
+session validates the whole resulting document and data before one atomic
+runtime publication. Its patch subset supports `add`, `remove`, and `replace`
+under `/nodes`; it does not implement every RFC 6902 operation. The session
+bounds message size, JSON depth, document nodes and depth, collections, patch
+operations, and update rate. The host limits raw request bytes before parsing.
+See [ADR-013](docs/adr/013-server-driven-document-updates.md) for the protocol.
 
 ### AI-Generated UI Flow
 
@@ -1619,11 +1624,12 @@ button as disabled.
 This is the same pattern as DivKit's action catalog: the server can describe
 what actions exist, but the client decides which are allowed.
 
-Additional security constraints for remote IR:
-- No `eval` or dynamic code in any layer.
-- Action arguments are validated against the registered schema before dispatch.
-- The IR validator rejects unknown node types and unknown properties.
-- Rate limiting on IR updates (prevent DoS via rapid re-compilation).
+Remote IR executes no dynamic code. Every action registration supplies a
+synchronous argument validator when that action accepts arguments. Core clones
+and freezes the validated arguments before dispatch, while authorization stays
+in the host handler. The versioned structural validator rejects unknown node
+types and properties. The update session bounds input work and rate limits
+updates.
 
 ## 14. Package Structure
 
@@ -1713,10 +1719,10 @@ The primary threats come from remote IR (server-driven UI, AI-generated UI):
 
 ### Mitigations
 
-**IR validation.** Every `UIDocument` from an external source is validated
-against a strict JSON Schema for the IR itself. Unknown properties are rejected.
-Node types must be from the known set. Action types must exist in the host's
-action registry.
+**IR validation.** Every external `UIDocument` is validated against its
+versioned structural contract. Unknown properties and node types are rejected.
+An action with no host registration renders disabled, and direct invocation is
+rejected. Actions that accept arguments have a registered argument validator.
 
 **Schema expansion limits.** A recursive schema's projection past the data has two
 fixed limits per projection, 16 objects and 512 nodes, and a schema that applies
@@ -1890,32 +1896,86 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-The Svelte 5 renderer is implemented in local branch `feat/svelte-renderer`,
-stacked on Angular PR #211, and is not released. Its build, typecheck, package
-verification, coverage, and site build passed. ChatGPT review found a runtime
+The Svelte 5 renderer is in PR #212, stacked on Angular PR #211, and is not
+released. Its build, typecheck, package verification, coverage, and site build
+passed. ChatGPT review found a runtime
 replacement edge case in `FormRoot`; the binding and teardown behavior now
 follow the active form and a regression test covers replacement. A follow-up
 ChatGPT review confirmed the finding is resolved and reported no remaining
 actionable issues.
 
-The SolidJS renderer is implemented in local branch `feat/solid-renderer`,
-stacked on `feat/svelte-renderer`, and is not released. Build, typecheck, package
-verification, the full test suite, and site build pass. The full suite passes
+The SolidJS renderer is in PR #213, stacked on PR #212, and is not released.
+Build, typecheck, package verification, the full test suite, and site build
+passed. The full suite passes
 5,497 tests across 153 files. ChatGPT review found read-only control state and
 object enum comparison issues. Both fixes have regression coverage, and the
 follow-up review found no remaining actionable issues.
 
-PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
-and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
-the Angular PR, and the Svelte merge depends on that base.
+ADR-012 accepts a standalone, schema independent display document runtime for
+tables, lists, layouts, text, and actions. The implementation is in PR #214.
+Core runtime support and semantic renderer roots are available in React, Vue,
+Solid, Svelte, Angular, and Web
+Components. Build, typecheck, package verification, site validation, and the full
+test suite passed with 5,529 tests across 159 files. ChatGPT reviewed the ADR,
+runtime, and renderer changes and found no remaining actionable issues. The work
+is unreleased. Forms remain on version 1 and `FormRuntime`.
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Zod adapter is under review in [PR #210](https://github.com/texaryn/texaryn/pull/210). The Angular renderer is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211).
+ADR-013 accepts bounded versioned updates for those display documents. Core now
+provides snapshot replacement, a restricted patch session, monotonic revisions,
+fixed JSON and collection limits, explicit action argument validators, and
+atomic runtime publication. ChatGPT reviewed the protocol and implementation
+and found no remaining actionable issues. The full suite passed 5,547 tests
+across 160 files. Typecheck, build, package verification and site build pass.
+The work is in PR #214 and unreleased.
+
+ADR-014 accepts a provider-neutral AI generation kit. The versioned output
+contract supports schema-generated version 1 forms and direct version 2 display
+documents. A downloadable schema and instructions, bounded repair example,
+runtime acceptance checks, and deterministic fixtures are in PR #214. The kit
+adds no AI SDK or runtime package and is unreleased. ChatGPT's final code review
+identified reference traversal and
+metaschema validation gaps. The fixes cover local and host supplied references,
+including Draft 7 pointers into unknown keywords. ChatGPT's final review found
+no remaining actionable findings. The full suite passed 5,569 tests across 162
+files; typecheck, build, package verification and site build pass.
+
+ADR-015 accepts a playground-only visual form builder. It edits simple scalar
+properties in the existing JSON Schema source, with the JSON editor retained
+for advanced schemas. The implementation and integration coverage are in PR
+#214 and unreleased.
+
+ADR-016 accepts native drag reorder for array controls in all renderer packages.
+Stable item IDs resolve to current indexes at drop time, nested array ownership
+is scoped to its own DOM region, and the accessible Up and Down controls remain
+the keyboard and touch path. The implementation, renderer coverage and package
+changesets are in PR #214.
+Build, typecheck, package verification, site validation and the full suite
+pass. The suite has 5,596 tests across 164 files.
+
+ADR-017 selects an optional Yjs adapter for collaborative scalar edits.
+`@texaryn/collaboration-yjs` stores an immutable baseline and JSON Pointer
+overrides, while the host supplies `Y.Doc` and its provider. The core mutation
+bridge, fixed-shape remote snapshot application, array locks, adapter, package
+documentation and changeset are in PR #214. Structural edits and
+concurrent array ordering remain outside version 1. ChatGPT's final code review
+confirmed the four reported runtime findings are resolved and found no remaining
+actionable issue in the supplied implementation. Build, typecheck, package
+verification, site validation and the full suite pass with 5,596 tests across
+164 files.
+
+PR #211 remains open. On its current head, build, typecheck, Changeset and
+Dependency review pass. Its test job is pending, followed by Codecov. The local
+run measures 96.02% coverage across 434 of 452 changed executable Angular
+lines. `codecov.yml` excludes the Angular test host helper from product source
+coverage.
+
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Zod adapter is under review in [PR #210](https://github.com/texaryn/texaryn/pull/210). The Angular renderer is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211).
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. The 0.8.2 release checks passed; its protected npm publish job is
-awaiting approval. Hyperjump remains in CI for comparison only. This is an
+workaround. Version 0.8.2 passed its release checks and is published. Hyperjump
+remains in CI for comparison only. This is an
 implementation change within the accepted strategy, not a later engine
 selection phase.
 
@@ -1925,7 +1985,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 created version 0.8.2; its publish job awaits protected environment approval. |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 published version 0.8.2 and created its immutable release. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1953,7 +2013,7 @@ The weekly and manually dispatched compatibility workflow compares published ups
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. The 0.8.2 publish job awaits protected environment approval. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes adapter 0.8.2 to `@texaryn/json-schema-library` while removing the packaged workaround. The [0.8.2 release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2) is published. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
 
 PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
 
@@ -2116,17 +2176,22 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. Continue the remaining work in
-this order:
+MUI and custom styling examples are complete. The implementation sequence is
+in review through collaborative scalar editing. Remaining integration work is:
 
-1. Additional schema adapters: Zod in PR #210, then TypeBox
-2. Additional renderers: Angular in PR #211, Svelte in `feat/svelte-renderer`, and Solid in `feat/solid-renderer`
-3. Non-form node types: tables, lists and layouts
-4. Server-driven UI tooling
-5. AI generation tooling
-6. Visual form builder
-7. Drag-and-drop array reorder
-8. Collaborative editing with OT or CRDT on top of commands
+1. Zod adapter and TypeBox coverage are in open PR #210. All reported checks
+   pass.
+2. Angular renderer is in open PR #211. On its current head, build, typecheck,
+   Changeset and Dependency review pass. Its test job is pending, followed by
+   Codecov. Local patch coverage is 96.02% across 434 of 452 changed executable
+   lines. Svelte renderer
+   is in PR #212, stacked on #211. Solid renderer is in PR #213, stacked on #212.
+3. Non-form node types, server-driven UI tooling, AI generation tooling and the
+   visual form builder are in PR #214 under ADR-012 through ADR-015.
+4. Native drag reorder is in PR #214 under ADR-016.
+5. Collaborative scalar editing is in PR #214 under ADR-017. Structural
+   array collaboration remains deferred pending shared row identity and an
+   ordering contract for concurrent moves, inserts and deletes.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 
@@ -2258,9 +2323,9 @@ Deferred from MVP:
 - Schema adapters for anything other than JSON Schema
 - Renderers beyond React and one proof-of-neutrality renderer
 - Non-form node types (tables, lists, general layouts)
-- Server-driven UI tooling (the IR supports it by construction; the tooling can wait)
-- AI generation tooling
-- Visual form builder
+- AI provider SDKs, streaming, conversations, and prompt orchestration
+- Nested and advanced visual schema editing beyond the playground builder in
+  ADR-015
 - Drag-and-drop reorder (array add/remove/move via commands is sufficient)
 - Draft-04 JSON Schema support
 - Collaborative editing
@@ -2395,11 +2460,9 @@ These questions are not resolved by the research and require implementation
 experience or user feedback to answer:
 
 1. **Should the IR support layout hints (grid columns, flex direction) or leave
-   all layout to the renderer?** The research is split: A2UI includes layout;
-   DivKit includes layout; Adaptive Cards includes layout. But all three are
-   server-driven UI systems where the server controls layout. For a form
-   library, the question is whether layout hints in the IR are a feature or a
-   maintenance burden.
+   all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
+   the IR carries semantic layout containers, while each renderer chooses its
+   markup and spacing. Grid and flex hints remain deferred.
 
 2. **Should the validator port include a "resolve applicable sub-schema"
    method?** For oneOf/anyOf discrimination, the adapter needs to know which
