@@ -152,6 +152,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      published-packages: ${{ steps.publish.outputs['published-packages'] }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -165,6 +167,19 @@ jobs:
       - name: Pin npm for publishing
         run: npm install --global npm@11.19.1
       - run: pnpm build
+      # npm cannot attach a trusted publisher until the package exists. A
+      # short-lived NPM_TOKEN can bootstrap first publishes; without it, npm
+      # uses OIDC. Remove the secret after trusted publishing is configured.
+      - name: Configure npm auth for first publishes
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -n "${NPM_TOKEN:-}" ]]; then
+            umask 077
+            npmrc="$RUNNER_TEMP/texaryn-npmrc"
+            printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$npmrc"
+            echo "NPM_CONFIG_USERCONFIG=$npmrc" >> "$GITHUB_ENV"
+          fi
       - id: publish
         uses: changesets/action@v2
         with:
@@ -173,21 +188,53 @@ jobs:
           push-git-tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_ACCESS: public
           NPM_CONFIG_PROVENANCE: true
-      # Reconciles GitHub releases with what is published. The action output
-      # only describes this execution, so a rerun after npm already succeeded
-      # reports nothing; the package tags on this commit are the retry source.
-      # No release claims "latest": packages version independently, so the
-      # badge would land on whichever happened to publish last. The npm
-      # dist-tag is the authoritative latest, per package.
+
+  reconcile:
+    if: >-
+      always() &&
+      !cancelled() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.ci.result == 'success' &&
+      needs.changesets.result == 'success' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'failure' || needs.publish.result == 'skipped')
+    needs: [ci, changesets, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Check published package versions
+        id: registry
+        run: node scripts/check-unpublished-packages.mjs
+      - name: Pin npm for provenance verification
+        run: npm install --global npm@11.19.1
+      - name: Verify package provenance and source commits
+        id: provenance
+        env:
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs['published-packages'] }}
+          REGISTRY_PACKAGES: ${{ steps.registry.outputs['published-packages'] }}
+        run: node scripts/resolve-release-targets.mjs
+      # Check published versions, not tags, because a partial Changesets publish
+      # can leave npm ahead of the tags and releases on GitHub.
       - name: Reconcile GitHub releases
         env:
           GH_TOKEN: ${{ github.token }}
-          PUBLISHED_PACKAGES: ${{ steps.publish.outputs.published-packages }}
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs['published-packages'] }}
+          REGISTRY_PACKAGES: ${{ steps.registry.outputs['published-packages'] }}
+          SOURCE_COMMITS: ${{ steps.provenance.outputs['source-commits'] }}
         run: |
           set -euo pipefail
-          RELEASE_TAGS=$(git tag --points-at "$GITHUB_SHA")
-          export RELEASE_TAGS
+          EXISTING_RELEASES=$(gh api --paginate repos/texaryn/texaryn/releases --jq '.[].tag_name')
+          export EXISTING_RELEASES
+          export PUBLISHED_PACKAGES
+          export REGISTRY_PACKAGES
+          export SOURCE_COMMITS
           node scripts/release-plan.mjs > release-plan.json
 
           count=$(jq 'length' release-plan.json)
@@ -203,6 +250,7 @@ jobs:
             tag=$(jq -r ".[$i].tag" release-plan.json)
             title=$(jq -r ".[$i].title" release-plan.json)
             prerelease=$(jq -r ".[$i].prerelease" release-plan.json)
+            target=$(jq -r ".[$i].target // empty" release-plan.json)
             jq -r ".[$i].notes" release-plan.json > .github-release-notes.md
 
             if gh release view "$tag" >/dev/null 2>&1; then
@@ -214,7 +262,23 @@ jobs:
                 --latest=false
             else
               echo "creating release $tag"
+              if [[ ! "$target" =~ ^[[:xdigit:]]{40}$ ]]; then
+                echo "no verified source commit for $tag"
+                exit 1
+              fi
+              if git show-ref --verify --quiet "refs/tags/$tag"; then
+                tag_target=$(git rev-parse --verify "refs/tags/$tag^{commit}")
+                if [[ "$tag_target" != "$target" ]]; then
+                  echo "refusing to move $tag from $tag_target to $target"
+                  exit 1
+                fi
+              else
+                gh api --method POST repos/texaryn/texaryn/git/refs \
+                  -f ref="refs/tags/$tag" \
+                  -f sha="$target" >/dev/null
+              fi
               gh release create "$tag" \
+                --verify-tag \
                 --title "$title" \
                 --notes-file .github-release-notes.md \
                 --prerelease="$prerelease" \

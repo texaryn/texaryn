@@ -3,9 +3,8 @@ import { publishedPackages } from './packages.mjs'
 import {
   extractVersionSection,
   main,
-  packagesFromTags,
-  parsePackageTag,
   parsePublishedPackages,
+  parseSourceCommits,
   planReleases,
 } from './release-plan.mjs'
 
@@ -53,34 +52,12 @@ describe('parsePublishedPackages', () => {
   })
 })
 
-describe('parsePackageTag', () => {
-  it('splits on the final @ so the scope survives', () => {
-    expect(parsePackageTag('@texaryn/react-mui@0.1.0')).toEqual({
-      name: '@texaryn/react-mui',
-      version: '0.1.0',
-    })
-  })
-
-  it('keeps prerelease versions intact', () => {
-    expect(parsePackageTag('@texaryn/core@1.0.0-rc.1')).toEqual({
-      name: '@texaryn/core',
-      version: '1.0.0-rc.1',
-    })
-  })
-
-  it('ignores tags that are not package tags', () => {
-    expect(parsePackageTag('v0.2.0')).toBeNull()
-    expect(parsePackageTag('@texaryn/core')).toBeNull()
-    expect(parsePackageTag('@texaryn/core@')).toBeNull()
-    expect(parsePackageTag('@other/thing@1.0.0')).toBeNull()
-  })
-})
-
-describe('packagesFromTags', () => {
-  it('keeps package tags and discards the rest', () => {
-    expect(packagesFromTags(['v0.2.0', '@texaryn/react-mui@0.1.0', 'nightly'])).toEqual([
-      { name: '@texaryn/react-mui', version: '0.1.0' },
-    ])
+describe('parseSourceCommits', () => {
+  it('keeps entries with full commit hashes', () => {
+    expect(parseSourceCommits(JSON.stringify([
+      { name: '@texaryn/core', version: '0.3.0', commit: 'a'.repeat(40) },
+      { name: '@texaryn/core', version: '0.3.1', commit: 'bad' },
+    ]))).toEqual([{ name: '@texaryn/core', version: '0.3.0', commit: 'a'.repeat(40) }])
   })
 })
 
@@ -183,34 +160,52 @@ describe('planReleases', () => {
     expect(result[0].prerelease).toBe(false)
   })
 
-  it('falls back to commit tags when a rerun reports nothing published', () => {
+  it('recovers package releases from exact versions on the registry', () => {
     const result = plan({
-      publishedPackages: '',
-      tags: ['@texaryn/react-mui@0.1.0', 'v0.2.0'],
+      registryPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
     })
     expect(result.map((r) => r.tag)).toEqual(['@texaryn/react-mui@0.1.0'])
     expect(result[0].notes).toBe('- mui first release')
   })
 
-  it('prefers the action output over tags when both are present', () => {
+  it('attaches the verified source commit to a release candidate', () => {
+    const target = 'a'.repeat(40)
+    const result = plan({
+      registryPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
+      sourceCommits: [{ name: '@texaryn/react-mui', version: '0.1.0', commit: target }],
+    })
+    expect(result[0].target).toBe(target)
+  })
+
+  it('combines the action output with registry confirmed versions', () => {
     const result = plan({
       publishedPackages: published([{ name: '@texaryn/core', version: '0.3.0' }]),
-      tags: ['@texaryn/react-mui@0.1.0'],
+      registryPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
+    })
+    expect(result.map((r) => r.tag)).toEqual([
+      '@texaryn/core@0.3.0',
+      '@texaryn/react-mui@0.1.0',
+    ])
+  })
+
+  it('skips tags that already have GitHub releases', () => {
+    const result = plan({
+      publishedPackages: published([{ name: '@texaryn/core', version: '0.3.0' }]),
+      registryPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
+      existingReleases: ['@texaryn/react-mui@0.1.0'],
     })
     expect(result.map((r) => r.tag)).toEqual(['@texaryn/core@0.3.0'])
   })
 
   it('plans nothing when neither source has anything', () => {
-    expect(plan({ publishedPackages: '', tags: [] })).toEqual([])
-    expect(plan({ publishedPackages: '[]', tags: ['v0.2.0'] })).toEqual([])
+    expect(plan({ publishedPackages: '', registryPackages: '' })).toEqual([])
+    expect(plan({ publishedPackages: '[]', registryPackages: 'not json' })).toEqual([])
   })
 
   it('deduplicates a package that appears in both forms', () => {
     const result = plan({
-      publishedPackages: published([
-        { name: '@texaryn/react-mui', version: '0.1.0' },
-        { name: '@texaryn/react-mui', version: '0.1.0' },
-      ]),
+      publishedPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
+      registryPackages: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
     })
     expect(result).toHaveLength(1)
   })
@@ -233,19 +228,31 @@ describe('main', () => {
     main({
       env: {
         PUBLISHED_PACKAGES: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
-        RELEASE_TAGS: '',
+        REGISTRY_PACKAGES: published([{ name: '@texaryn/core', version: '0.3.0' }]),
+        SOURCE_COMMITS: JSON.stringify([
+          { name: '@texaryn/core', version: '0.3.0', commit: 'a'.repeat(40) },
+          { name: '@texaryn/react-mui', version: '0.1.0', commit: 'b'.repeat(40) },
+        ]),
+        EXISTING_RELEASES: '',
       },
       log: (line) => lines.push(line),
     })
     const parsed = JSON.parse(lines[0])
-    expect(parsed).toHaveLength(1)
-    expect(parsed[0].tag).toBe('@texaryn/react-mui@0.1.0')
+    expect(parsed.map((release) => release.tag)).toEqual([
+      '@texaryn/core@0.3.0',
+      '@texaryn/react-mui@0.1.0',
+    ])
+    expect(parsed[0].target).toBe('a'.repeat(40))
   })
 
-  it('reads newline separated tags for the retry path', () => {
+  it('reads registry packages and existing releases for the recovery path', () => {
     const lines = []
     main({
-      env: { PUBLISHED_PACKAGES: '', RELEASE_TAGS: '@texaryn/react-mui@0.1.0\nv0.2.0\n' },
+      env: {
+        PUBLISHED_PACKAGES: '',
+        REGISTRY_PACKAGES: published([{ name: '@texaryn/react-mui', version: '0.1.0' }]),
+        EXISTING_RELEASES: '@texaryn/core@0.3.0\n',
+      },
       log: (line) => lines.push(line),
     })
     expect(JSON.parse(lines[0]).map((r) => r.tag)).toEqual(['@texaryn/react-mui@0.1.0'])

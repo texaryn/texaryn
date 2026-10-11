@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checkVersion, decide, main, packages, readVersions } from './check-unpublished-packages.mjs'
@@ -114,5 +114,22 @@ describe('main', () => {
     const root = fakeRepo(allVersions('0.1.1'))
     const result = await main({ root, fetch: fakeFetch(() => new Error('fetch failed')), log: () => {} })
     expect(result).toBe(true)
+  })
+
+  it('writes only registry confirmed versions to the GitHub output', async () => {
+    const root = fakeRepo(allVersions('0.1.1'))
+    const outputPath = join(root, 'github-output')
+    await main({
+      root,
+      fetch: fakeFetch((url) => (url.includes('/@texaryn%2Fcore/') ? 200 : 503)),
+      log: () => {},
+      outputPath,
+    })
+
+    const output = readFileSync(outputPath, 'utf8')
+    expect(output).toContain('should-publish=true\n')
+    expect(JSON.parse(output.match(/published-packages=(.*)/)[1])).toEqual([
+      { name: '@texaryn/core', version: '0.1.1' },
+    ])
   })
 })
