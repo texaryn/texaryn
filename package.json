@@ -9,6 +9,7 @@
     "test": "pnpm --filter @texaryn/angular build && vitest run --passWithNoTests",
     "test:coverage": "pnpm --filter @texaryn/angular build && vitest run --coverage --passWithNoTests",
     "test:watch": "pnpm --filter @texaryn/angular build && vitest",
+    "bench:performance": "pnpm build && pnpm --filter @texaryn/playground bench:performance",
     "json-schema-suite:baseline": "UPDATE_JSON_SCHEMA_BASELINE=1 vitest run --project conformance json-schema-suite",
     "json-schema-suite:manifest": "node scripts/json-schema-suite-manifest.mjs",
     "changeset": "changeset",

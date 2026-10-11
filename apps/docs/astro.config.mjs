@@ -157,7 +157,10 @@ export default defineConfig({
         },
         {
           label: 'Concepts',
-          items: [{ label: 'Architecture', slug: 'concepts/architecture' }],
+          items: [
+            { label: 'Architecture', slug: 'concepts/architecture' },
+            { label: 'Performance baseline', slug: 'concepts/performance' },
+          ],
         },
         {
           label: 'Guides',

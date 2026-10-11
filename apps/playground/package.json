@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "bench:performance": "node --expose-gc scripts/benchmarks/run.mjs",
     "build": "vite build",
     "build:pages": "vite build --mode pages && node scripts/materialize-routes.mjs"
   },

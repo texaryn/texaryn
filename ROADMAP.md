@@ -18,13 +18,15 @@ through ADR-021 close the IR migration, plugin architecture, hydration boundary,
 and command history decisions. Migration code waits for a scheduled breaking
 change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
+Section 18 publishes a local performance baseline, with targeted diffing gated
+on representative workload evidence.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
 takes explicit positions and records the evidence or trigger needed to revisit
 each decision.
 
-The current state and follow-up triggers are in [Status, 2026-10-11](#status-2026-10-11).
+The current state and follow-up triggers are in [Status, 2026-10-12](#status-2026-10-12).
 
 The `@texaryn/svelte` implementation merged in
 [PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
@@ -1873,43 +1875,54 @@ dependency on the core.
 
 1. **IR compilation.** Runs on initial render and on every data change for
    schemas with conditionals. The compiler walks the schema tree and produces a
-   flat node map. For a 50-field form, this should complete in under 1ms.
+   flat node map. The baseline in
+   [Performance](apps/docs/src/content/docs/concepts/performance.md) measured
+   0.0635 ms at p95 for a 50-field compile with a prepared projection, below the
+   1 ms target.
 
 2. **Diffing.** When the IR is recompiled, the runtime diffs old and new node
    maps to determine which signals to update. A naive diff (iterate all nodes,
-   compare) is O(n) where n is node count. For forms under 200 fields, this is
-   fast enough. For larger forms, a targeted diff (only recompile the subtree
-   affected by the data change) is worth implementing.
+   compare) is O(n) where n is node count. The 200-field prepared compile is
+   0.1499 ms at p95, but excludes runtime node diffing and renderer updates. The
+   synthetic 1,000-row array case measures aggregate projection and compilation
+   inside a structural command: 15.8 to 16.9 ms at p50 and 17.1 to 19.6 ms at
+   p95. It does not isolate diffing cost. Keep targeted diffing deferred until a
+   representative application workload shows that its forms routinely need
+   this array size or exceed its interaction latency target.
 
 3. **Validation.** Async validation introduces latency by definition. The
    scheduling strategy (section 8) controls when validation runs. The runtime
    should batch validation requests: if three fields change in quick succession,
    run one validation pass, not three.
 
-4. **Store updates.** Per-node stores mean a value change updates one store, not
-   a global state object. The framework adapter subscribes to that store and
-   re-renders one widget. This is the performance win over RJSF's centralized
-   state (which re-renders the entire form on every keystroke).
+4. **Store updates.** Per-node stores mean a value change updates the affected
+   node store, and the framework adapter subscribes to that store. The current
+   baseline measures Texaryn only. It does not compare render behavior or
+   latency against RJSF.
 
-### Benchmarks to Publish
+### Published Baseline
 
-- Time to first render: schema parse + compile + first framework render
-- Keystroke latency: time from input event to DOM update
-- Array operations: insert/remove/reorder at various array sizes
-- Memory: node count vs memory usage (to detect leaks in signal subscriptions)
-- Validation throughput: validations per second for a representative schema
+The five planned measurements are published in the
+[Performance baseline](apps/docs/src/content/docs/concepts/performance.md):
+schema preparation and React server render, browser input-to-DOM latency,
+individual array commands at three sizes, mounted and retained browser heap,
+and validation throughput. The run records its hardware, Node.js, Chromium,
+sample counts, and base commit. It is a local baseline, not a CI threshold or a
+comparison with another form library.
 
 ### Targeted Recompilation
 
 For schemas with data-dependent conditionals (`if`/`then`/`else` where the `if`
-references a specific field's value), the compiler can track which fields affect
-which conditionals. When a `SetValue` command fires, only the conditionals that
-depend on the changed field are re-evaluated. This is a performance improvement, not a
-requirement for v1, but the compiler should be structured to allow it.
+references a specific field's value), the compiler could track which fields
+affect which conditionals. Keep this optimization deferred. The prepared
+50-field compiler is below its 1 ms target. The synthetic 1,000-row array result
+exceeds 16.7 ms at p95, but needs a representative application profile before
+it justifies a broader invalidation contract. Revisit when a supported workload
+shows repeated structural operations above 16.7 ms at p95.
 
 ## 19. Milestones and First PRs
 
-### Status, 2026-10-11
+### Status, 2026-10-12
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. PR #214
 merged the document runtime, AI kit, visual builder, array reorder, and scalar
@@ -1954,6 +1967,12 @@ published `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2 with npm
 provenance. Main CI run
 [#38174908644](https://github.com/texaryn/texaryn/actions/runs/38174908644)
 verified provenance and created both matching GitHub releases.
+
+Section 18 publishes local baselines for compiler timing, React server render,
+browser input-to-DOM latency, array commands, memory deltas, and validation
+throughput. Cross-framework and competitor performance comparisons remain
+unmeasured. Targeted diffing stays deferred until supported application
+workloads show repeated structural operations above the interaction target.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2379,6 +2398,9 @@ Deferred from MVP:
    from matching application inputs. Do not serialize runtime objects.
 8. Command history complete as a decision in ADR-021. Persistence, replay, and
    undo stay in the host application.
+9. Performance baseline published in Section 18. Revisit targeted diffing when
+   representative application workloads exceed the documented interaction
+   target.
 
 ### Why Not Build on TanStack Form?
 
@@ -2532,7 +2554,9 @@ comparisons and application-specific persistence formats to later evidence.
 5. **Store contract across renderer frameworks.** The shipped React, Vue,
    Angular, Solid, and Svelte adapters consume `getSnapshot` and `subscribe`
    through their native state primitives. This establishes functional
-   compatibility. Performance comparisons remain unmeasured.
+   compatibility. A local React and core baseline is published in
+   [Section 18](#18-performance-model). Cross-framework and competitor
+   performance comparisons remain unmeasured.
 
 6. **Server rendering across processes.** Resolved in
    [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
