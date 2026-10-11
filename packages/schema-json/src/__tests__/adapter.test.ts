@@ -169,11 +169,21 @@ describe('createJsonSchemaAdapter', () => {
     it('validates boolean exclusive bounds and tuple items', async () => {
       const numeric = await createJsonSchemaAdapter({
         $schema: draft04,
+        type: 'number',
         minimum: 5,
         exclusiveMinimum: true,
+        maximum: 10,
+        exclusiveMaximum: true,
       })
       expect((await numeric.validate(5)).valid).toBe(false)
       expect((await numeric.validate(5.1)).valid).toBe(true)
+      expect((await numeric.validate(10)).valid).toBe(false)
+      expect(numeric.project(5.1).nodes.get('' as JsonPointer)?.constraints).toMatchObject({
+        exclusiveMinimum: 5,
+        exclusiveMaximum: 10,
+      })
+      expect(numeric.project(5.1).nodes.get('' as JsonPointer)?.constraints.minimum).toBeUndefined()
+      expect(numeric.project(5.1).nodes.get('' as JsonPointer)?.constraints.maximum).toBeUndefined()
 
       const tuple = await createJsonSchemaAdapter({
         $schema: draft04,
@@ -214,6 +224,25 @@ describe('createJsonSchemaAdapter', () => {
       expect((await adapter.validate({ label: 'ok' })).valid).toBe(true)
       expect((await adapter.validate({ label: 1 })).valid).toBe(false)
     })
+
+    it.each([
+      ['Draft 4', draft04, 'id'],
+      ['Draft 7', 'http://json-schema.org/draft-07/schema#', '$id'],
+    ] as const)(
+      'resolves a pointer to a keyword value with a nested %s identifier',
+      async (_label, $schema, idKeyword) => {
+        const adapter = await createJsonSchemaAdapter({
+          $schema,
+          [idKeyword]: 'https://e.test/root',
+          type: 'object',
+          properties: { value: { $ref: '#/extra' } },
+          extra: { [idKeyword]: 'child', type: 'string' },
+        })
+
+        expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+        expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+      },
+    )
 
     it('ignores $ref siblings while modern dialects apply them', async () => {
       const draft04Adapter = await createJsonSchemaAdapter({

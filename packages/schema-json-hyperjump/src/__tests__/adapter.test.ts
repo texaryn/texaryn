@@ -48,6 +48,68 @@ describe('createHyperjumpAdapter', () => {
       expect((await modern.validate({ value: 1 })).valid).toBe(false)
       expect((await modern.validate({ value: 100 })).valid).toBe(true)
     })
+
+    it('does not project ignored $ref siblings', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        definitions: { value: { type: 'object' } },
+        properties: {
+          value: {
+            $ref: '#/definitions/value',
+            properties: { sibling: { type: 'string', default: 'ignored' } },
+            required: ['sibling'],
+          },
+        },
+      })
+
+      const projection = adapter.project({ value: {} })
+      expect(projection.nodes.has('/value/sibling' as JsonPointer)).toBe(false)
+    })
+
+    it('projects Draft 4 exclusive bounds as numeric constraints', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'number',
+        minimum: 5,
+        exclusiveMinimum: true,
+        maximum: 10,
+        exclusiveMaximum: true,
+      })
+
+      const constraints = adapter.project(6).nodes.get('' as JsonPointer)?.constraints
+      expect(constraints).toMatchObject({ exclusiveMinimum: 5, exclusiveMaximum: 10 })
+      expect(constraints?.minimum).toBeUndefined()
+      expect(constraints?.maximum).toBeUndefined()
+    })
+
+    it('ignores unsupported later-draft keywords during schema walking', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'string',
+        if: { $ref: '#' },
+        then: { $ref: '#' },
+        else: { $ref: '#' },
+        contains: { $ref: '#' },
+        propertyNames: { $ref: '#' },
+        dependentSchemas: { x: { $ref: '#' } },
+      })
+
+      expect((await adapter.validate('accepted')).valid).toBe(true)
+      expect(adapter.project('accepted').nodes.get('' as JsonPointer)?.type).toBe('string')
+    })
+
+    it('does not activate dependentSchemas in Draft 4', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        dependentSchemas: {
+          trigger: { properties: { child: { type: 'string', default: 'ignored' } } },
+        },
+      })
+
+      expect(adapter.project({ trigger: true }).nodes.has('/child' as JsonPointer)).toBe(false)
+    })
   })
 
   describe('flat object projection', () => {

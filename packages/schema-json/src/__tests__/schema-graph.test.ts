@@ -72,6 +72,22 @@ describe('reference keywords by dialect', () => {
   })
 })
 
+it('ignores later-draft keywords when finding Draft 4 schema edges', async () => {
+  const adapter = await createJsonSchemaAdapter(
+    inDialect('draft-04', {
+      type: 'string',
+      if: { $ref: '#' },
+      then: { $ref: '#' },
+      else: { $ref: '#' },
+      contains: { $ref: '#' },
+      propertyNames: { $ref: '#' },
+      dependentSchemas: { x: { $ref: '#' } },
+    }),
+  )
+
+  expect((await adapter.validate('accepted')).valid).toBe(true)
+})
+
 describe('instance edges follow validator dialect support', () => {
   const cases = [
     {
