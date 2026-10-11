@@ -1877,15 +1877,15 @@ dependency on the core.
    schemas with conditionals. The compiler walks the schema tree and produces a
    flat node map. The baseline in
    [Performance](apps/docs/src/content/docs/concepts/performance.md) measured
-   0.0293 ms at p95 for a 50-field compile with a prepared projection, below the
+   0.0635 ms at p95 for a 50-field compile with a prepared projection, below the
    1 ms target.
 
 2. **Diffing.** When the IR is recompiled, the runtime diffs old and new node
    maps to determine which signals to update. A naive diff (iterate all nodes,
    compare) is O(n) where n is node count. The 200-field prepared compile is
-   0.1042 ms at p95, but excludes runtime node diffing and renderer updates. The
+   0.1499 ms at p95, but excludes runtime node diffing and renderer updates. The
    synthetic 1,000-row array case measures aggregate projection and compilation
-   inside a structural command: 16.5 to 16.9 ms at p50 and 18.3 to 19.1 ms at
+   inside a structural command: 15.8 to 16.9 ms at p50 and 17.1 to 19.6 ms at
    p95. It does not isolate diffing cost. Keep targeted diffing deferred until a
    representative application workload shows that its forms routinely need
    this array size or exceed its interaction latency target.

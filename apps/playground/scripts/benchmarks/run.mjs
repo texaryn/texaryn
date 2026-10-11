@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { readFile, stat } from 'node:fs/promises'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
@@ -76,6 +76,49 @@ function summarize(values) {
     p50Ms: Number(percentile(values, 0.5).toFixed(4)),
     p95Ms: Number(percentile(values, 0.95).toFixed(4)),
   }
+}
+
+async function repositoryCommit() {
+  const dotGit = resolve(repoRoot, '.git')
+  const dotGitStat = await stat(dotGit)
+  let gitDir = dotGit
+  let commonDir = dotGit
+
+  if (dotGitStat.isFile()) {
+    const gitDirMatch = (await readFile(dotGit, 'utf8')).trim().match(/^gitdir:\s*(.+)$/)
+    if (!gitDirMatch) throw new Error('Could not resolve the repository Git directory.')
+    gitDir = resolve(repoRoot, gitDirMatch[1])
+    const commonDirValue = await readFile(resolve(gitDir, 'commondir'), 'utf8').catch((error) => {
+      if (error.code === 'ENOENT') return null
+      throw error
+    })
+    if (commonDirValue) commonDir = resolve(gitDir, commonDirValue.trim())
+  }
+
+  const head = (await readFile(resolve(gitDir, 'HEAD'), 'utf8')).trim()
+  const hashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
+  if (hashPattern.test(head)) return head
+
+  const reference = head.match(/^ref:\s*(\S+)$/)?.[1]
+  if (!reference) throw new Error('Could not resolve the repository HEAD revision.')
+
+  for (const directory of new Set([gitDir, commonDir])) {
+    const hash = await readFile(resolve(directory, reference), 'utf8').then((value) => value.trim()).catch((error) => {
+      if (error.code === 'ENOENT') return null
+      throw error
+    })
+    if (hash && hashPattern.test(hash)) return hash
+  }
+
+  const packedRefs = await readFile(resolve(commonDir, 'packed-refs'), 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return ''
+    throw error
+  })
+  const packedRef = packedRefs.split('\n').find((line) => line.endsWith(` ${reference}`))
+  const packedHash = packedRef?.split(' ')[0]
+  if (packedHash && hashPattern.test(packedHash)) return packedHash
+
+  throw new Error(`Could not find the Git hash for ${reference}.`)
 }
 
 async function sampleAsync(fn, count = firstRenderSamples) {
@@ -348,11 +391,11 @@ async function browserBenchmarks() {
 
 async function main() {
   if (typeof globalThis.gc !== 'function') {
-    throw new Error('Run this benchmark with Node --expose-gc so memory measurements can collect garbage.')
+    throw new TypeError('Run this benchmark with Node --expose-gc so memory measurements can collect garbage.')
   }
 
   const results = {
-    commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
+    commit: await repositoryCommit(),
     environment: {
       os: `${os.type()} ${os.release()} ${os.arch()}`,
       cpu: os.cpus()[0]?.model ?? 'unknown',

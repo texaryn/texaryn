@@ -36,9 +36,9 @@ projection. It excludes schema adapter preparation and projection work.
 
 | Schema fields | IR nodes | Compile p50 | Compile p95 |
 | ---: | ---: | ---: | ---: |
-| 10 | 11 | 0.0062 ms | 0.0143 ms |
-| 50 | 51 | 0.0242 ms | 0.0293 ms |
-| 200 | 201 | 0.0526 ms | 0.1042 ms |
+| 10 | 11 | 0.0078 ms | 0.0267 ms |
+| 50 | 51 | 0.0374 ms | 0.0635 ms |
+| 200 | 201 | 0.0495 ms | 0.1499 ms |
 
 The first render measurement includes schema adapter creation, runtime creation,
 and React `renderToString()`. It does not include browser startup, network
@@ -46,9 +46,9 @@ transfer, or a browser paint.
 
 | Schema fields | p50 | p95 |
 | ---: | ---: | ---: |
-| 10 | 2.0509 ms | 3.7809 ms |
-| 50 | 3.4337 ms | 9.6008 ms |
-| 200 | 10.9988 ms | 12.3198 ms |
+| 10 | 2.2505 ms | 3.9232 ms |
+| 50 | 3.1213 ms | 8.9223 ms |
+| 200 | 10.4516 ms | 11.3652 ms |
 
 The 50-field compiler result is below the roadmap target of 1 ms. The end to end
 server render includes substantially more work than `compile()` alone.
@@ -62,7 +62,7 @@ is present or absent as expected.
 
 | Events | p50 | p95 |
 | ---: | ---: | ---: |
-| 200 | 4.7 ms | 6.7 ms |
+| 200 | 4.8 ms | 6.1 ms |
 
 This includes browser frame scheduling and a conditional renderer update. It is
 a single headless Chromium run, not a device-wide user latency guarantee.
@@ -75,24 +75,24 @@ renderer update.
 
 | Rows | Command | p50 | p95 |
 | ---: | --- | ---: | ---: |
-| 10 | Insert | 0.2046 ms | 0.3173 ms |
-| 10 | Remove | 0.1907 ms | 0.2560 ms |
-| 10 | Move | 0.1867 ms | 0.2581 ms |
-| 100 | Insert | 1.7043 ms | 2.3044 ms |
-| 100 | Remove | 1.5449 ms | 2.0184 ms |
-| 100 | Move | 1.6604 ms | 2.4717 ms |
-| 1,000 | Insert | 16.8838 ms | 19.0648 ms |
-| 1,000 | Remove | 16.4632 ms | 18.2936 ms |
-| 1,000 | Move | 16.7814 ms | 18.3409 ms |
+| 10 | Insert | 0.2045 ms | 0.3054 ms |
+| 10 | Remove | 0.1802 ms | 0.2209 ms |
+| 10 | Move | 0.1922 ms | 0.2341 ms |
+| 100 | Insert | 1.5580 ms | 2.1045 ms |
+| 100 | Remove | 1.4502 ms | 1.7402 ms |
+| 100 | Move | 1.4626 ms | 1.8021 ms |
+| 1,000 | Insert | 15.8373 ms | 17.2435 ms |
+| 1,000 | Remove | 15.8612 ms | 17.1364 ms |
+| 1,000 | Move | 16.8661 ms | 19.6340 ms |
 
-The 1,000-row case exceeds one 60 Hz frame per command at p95 on this machine.
+The 1,000-row case exceeds one 60 Hz frame for one command at p95 on this machine.
 This synthetic workload does not show whether applications routinely need
 arrays of this size.
 
 ## Validation throughput
 
 The runner validates the same valid object against a prepared 50-field JSON
-Schema adapter 2,000 times. The measured rate was **68,269 validations per
+Schema adapter 2,000 times. The measured rate was **79,524 validations per
 second**. The schema has scalar string properties without additional
 constraints, so this is a small validation workload.
 
@@ -106,9 +106,9 @@ and rendered React tree.
 
 | IR nodes | Mounted heap delta | After unmount | After 50 cycles |
 | ---: | ---: | ---: | ---: |
-| 13 | +251 KiB | +35 KiB | +196 KiB |
-| 53 | +867 KiB | +6 KiB | +75 KiB |
-| 203 | +2,080 KiB | -178 KiB | -275 KiB |
+| 13 | +251 KiB | +35 KiB | +206 KiB |
+| 53 | +874 KiB | +29 KiB | +94 KiB |
+| 203 | +2,350 KiB | +99 KiB | +356 KiB |
 
 These are single-run heap samples, not process memory or proof that subscriptions
 cannot leak. Garbage collection and runtime warmup affect the residual heap.
