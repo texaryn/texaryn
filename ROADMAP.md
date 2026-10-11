@@ -1897,7 +1897,10 @@ merged the document runtime, AI kit, visual builder, array reorder, and scalar
 collaboration work. Published packages include `@texaryn/core` 0.15.0,
 `@texaryn/schema-json` 0.8.3, `@texaryn/react` 0.7.0,
 `@texaryn/react-bootstrap` 0.6.0, `@texaryn/react-mui` 0.6.0,
-`@texaryn/vue` 0.6.0, and `@texaryn/web-components` 0.6.0.
+`@texaryn/vue` 0.6.0, `@texaryn/web-components` 0.6.0,
+`@texaryn/angular` 0.2.0, `@texaryn/collaboration-yjs` 0.1.0,
+`@texaryn/schema-zod` 0.1.1, `@texaryn/solid` 0.2.0, and
+`@texaryn/svelte` 0.2.0.
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. Source for
 `@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
