@@ -301,6 +301,30 @@ describe('createHyperjumpAdapter', () => {
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
 
+    it('resolves relative IDs once while scanning retained embedded targets', async () => {
+      const rootId = 'https://e.test/root/root.json'
+      const embeddedId = 'https://e.test/root/folder/'
+      const targetId = 'https://e.test/root/other.json'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: rootId,
+        definitions: {
+          sub: { id: 'folder/', contains: { box: { $ref: '../other.json#/if/box' } } },
+        },
+        properties: { value: { $ref: `${embeddedId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          return uri === targetId ? { id: targetId, if: { box: { type: 'string' } } } : undefined
+        },
+      })
+
+      expect(requested).toEqual([targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
     it('loads resources referenced from an explicitly referenced embedded schema', async () => {
       const embeddedId = 'https://e.test/embedded'
       const targetId = 'https://e.test/other'

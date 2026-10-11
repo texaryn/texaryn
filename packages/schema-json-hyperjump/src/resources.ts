@@ -377,10 +377,12 @@ function referencesIn(
 
   visit(document, initialBase, initialPosition, initialResourceRoot, initialResourceRootPosition)
   for (const fragment of entryPointerFragments) {
+    const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
+    const pointerBase = resourceBase(identifier, initialBase, dialect)
     const located = pointerTargetWithContext(
       document,
       fragment,
-      initialBase,
+      pointerBase,
       initialPosition,
       dialect,
       knownResources,
@@ -552,10 +554,12 @@ function declaredResourceIds(
   document: unknown,
   initialBase: string | undefined,
   dialect: Dialect,
-  resourceSchemas?: Map<string, unknown>,
+  resourceSchemas?: Map<string, { schema: unknown; parentBase: string | undefined }>,
 ): Set<string> {
   const ids = new Set<string>()
-  if (initialBase !== undefined && !resourceSchemas?.has(initialBase)) resourceSchemas?.set(initialBase, document)
+  if (initialBase !== undefined && !resourceSchemas?.has(initialBase)) {
+    resourceSchemas?.set(initialBase, { schema: document, parentBase: initialBase })
+  }
   const seen = new WeakMap<object, Set<string | undefined>>()
   const visit = (schema: unknown, parentBase: string | undefined, position: string): void => {
     if (typeof schema !== 'object' || schema === null || seenAtBase(seen, schema, parentBase)) return
@@ -570,7 +574,7 @@ function declaredResourceIds(
     const startsResource = !ignoresSiblings && typeof identifier === 'string' && !(isPre2019Dialect(dialect) && identifier.startsWith('#'))
     if (!ignoresSiblings && typeof identifier === 'string' && base !== undefined) {
       ids.add(base)
-      if (startsResource && !resourceSchemas?.has(base)) resourceSchemas?.set(base, schema)
+      if (startsResource && !resourceSchemas?.has(base)) resourceSchemas?.set(base, { schema, parentBase })
       const embeddedDialect = detectDialect(record, { defaultDialect: dialect })
       if (embeddedDialect !== dialect) {
         throw new SchemaResourceResolutionError(
@@ -875,7 +879,7 @@ export async function loadExternalResources(
   const rootId = typeof identifier === 'string'
     ? resourceBase(identifier, undefined, dialect)
     : undefined
-  const resourceSchemas = new Map<string, unknown>()
+  const resourceSchemas = new Map<string, { schema: unknown; parentBase: string | undefined }>()
   const known = declaredResourceIds(schema, rootId, dialect, resourceSchemas)
   if (rootId) known.add(rootId)
   if (!resolver) {
@@ -948,9 +952,10 @@ export async function loadExternalResources(
         continue
       }
       if (known.has(uri)) {
-        const document = resources.get(uri) ?? documents.get(uri) ?? resourceSchemas.get(uri)
+        const resourceContext = resourceSchemas.get(uri)
+        const document = resources.get(uri) ?? documents.get(uri) ?? resourceContext?.schema
         if (pointerTarget !== undefined && document !== undefined) {
-          queue.push({ document, base: uri, pointerTarget })
+          queue.push({ document, base: resourceContext?.parentBase ?? uri, pointerTarget })
         }
         continue
       }
@@ -975,7 +980,7 @@ export async function loadExternalResources(
         documents.set(id, document)
         known.add(withoutFragment(id))
         const base = withoutFragment(id)
-        if (!resourceSchemas.has(base)) resourceSchemas.set(base, document)
+        if (!resourceSchemas.has(base)) resourceSchemas.set(base, { schema: document, parentBase: base })
       }
       queue.push({
         document: loaded.primary,
