@@ -18,6 +18,7 @@ through ADR-021 close the IR migration, plugin architecture, hydration boundary,
 and command history decisions. Migration code waits for a scheduled breaking
 change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
+ADR-022 closes the schema port review trigger after the Zod adapter shipped.
 Section 18 publishes a local performance baseline, with targeted diffing gated
 on representative workload evidence.
 
@@ -207,14 +208,16 @@ TanStack Form validates this approach with its 100-line adapters.
 
 ### P2: Schema adapter pattern (not hardcoded JSON Schema)
 
-**Verdict: Keep the port, defer the generality.** The uniforms bridge pattern
-(10-method abstract class) proves schema adapters work. But building the
-abstraction before a second adapter exists risks designing for imaginary
-requirements. Ship with a JSON Schema adapter only. Define the port by what that
-adapter needs. Extract the generalization when Zod or TypeBox support actually
-lands. The port is exported from `@texaryn/core` (separate adapter packages
-need the type), but marked experimental before 1.0: its shape is driven by JSON
-Schema needs and may change when a second schema format tests the abstraction.
+**Verdict: Keep the experimental port and JSON Schema projection.** The Zod 4
+adapter now implements `SchemaEvaluationPort`, but it converts its input schema
+to JSON Schema for projection and uses Zod for validation. This tests separate
+validation with the current port. It satisfies the second-adapter review
+trigger, but does not test projection from an independent schema model. No port
+generalization is justified by current integrations. Keep the projection
+contract experimental before 1.0 and revisit it when an integration requires
+projection semantics the current boundary cannot represent faithfully.
+[ADR-022](docs/adr/022-schema-port-after-zod.md) records the evidence and
+decision.
 
 ### P3: Strict separation of domain schema, UI description, and UI implementation
 
@@ -224,9 +227,10 @@ runtime, UI IR. Three suffice. The "normalized domain model" adds a
 representation between the original schema and the compiled IR that nothing
 consumes. JSON Schema with resolved `$ref` and evaluated conditionals
 (`if`/`then`/`else`) compiles directly into IR nodes. Adding an intermediate
-normalized form creates a maintenance surface with no consumer. If a second
-schema adapter someday needs a common intermediate, that is the time to introduce
-it.
+normalized form creates a maintenance surface with no consumer. The Zod adapter
+uses JSON Schema for projection, so it creates no need for a common
+intermediate. Revisit only if an adapter must project directly from another
+schema model.
 
 ### P4: Deterministic core (same inputs produce same state)
 
@@ -1144,10 +1148,11 @@ using the stable identity map.
 
 ### The Port
 
-The schema evaluation port is the boundary between domain description (JSON
-Schema today, potentially Zod or TypeBox later) and the IR compiler. It owns
-two responsibilities: producing a resolved schema projection for current data,
-and validation.
+The schema evaluation port is the boundary between schema description and the
+IR compiler. `@texaryn/schema-json` projects JSON Schema. `@texaryn/schema-zod`
+projects the JSON Schema generated from a Zod input schema and validates with
+Zod. The port owns two responsibilities: producing a resolved projection for
+current data, and validation.
 
 ```typescript
 type MaybePromise<T> = T | Promise<T>
@@ -1526,8 +1531,10 @@ The system has five extension points, ordered from most to least common:
 
 3. **Actions.** Register host-specific action handlers.
 
-4. **Future schema formats.** Implement `SchemaEvaluationPort` for a different
-   schema format (Zod, TypeBox, GraphQL introspection).
+4. **Future schema formats.** Add a direct projection adapter for another
+   schema model only when its required behavior cannot be represented through
+   JSON Schema projection. The Zod adapter currently delegates projection to
+   `@texaryn/schema-json`; ADR-022 records the evidence and revisit trigger.
 
 5. **IR transforms.** Post-compilation transforms that modify the IR before
    the renderer sees it. Use cases: add layout wrappers, inject help text,
@@ -1974,13 +1981,23 @@ provenance. Main CI run
 [#38174908644](https://github.com/texaryn/texaryn/actions/runs/38174908644)
 verified provenance and created both matching GitHub releases.
 
+ADR-022 closes the P2 review trigger after the Zod adapter shipped. The
+adapter uses Zod for validation and generated JSON Schema for projection, so it
+exercises the port without introducing an independent projection model. The
+current port remains experimental. No generalization is planned until an
+integration requires projection semantics the current boundary cannot
+represent faithfully.
+
 Section 18 publishes local baselines for compiler timing, React server render,
 browser input-to-DOM latency, array commands, memory deltas, validation
 throughput, a production comparison of six Texaryn renderer paths, and one
 production RJSF comparison on a conditional form. Other form library
-comparisons remain unmeasured. Targeted diffing stays deferred until supported
-application workloads show repeated structural operations above the
-interaction target.
+comparisons are not planned until a concrete adoption or product decision
+defines comparable workloads. JSON Forms uses a UI Schema and renderer set;
+TanStack Form is headless and does not generate fields from JSON Schema. The
+RJSF figures are one workload baseline, not a ranking across form libraries.
+Targeted diffing stays deferred until supported application workloads show
+repeated structural operations above the interaction target.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2565,8 +2582,10 @@ comparisons and application-specific persistence formats to later evidence.
    compatibility. A local React and core baseline is published in
    [Section 18](#18-performance-model). A local baseline compares six Texaryn
    renderer paths on one conditional form. A separate local comparison covers
-   one Draft 7 workload in Texaryn React and RJSF. Other form library
-   comparisons remain unmeasured.
+   one Draft 7 workload in Texaryn React and RJSF. Defer JSON Forms and
+   TanStack Form measurements until a concrete adoption or product decision
+   defines comparable workloads. Do not treat the RJSF baseline as a ranking
+   across form libraries.
 
 6. **Server rendering across processes.** Resolved in
    [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
