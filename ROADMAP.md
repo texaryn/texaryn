@@ -1911,15 +1911,15 @@ already set `NPM_CONFIG_ACCESS=public`, so that setting alone did not resolve
 the first publish failures. Run [38156158050](https://github.com/texaryn/texaryn/actions/runs/38156158050)
 passed build, test, and typecheck, then failed on those five publishes.
 
-The local branch `fix/restore-public-package-access` retains the OIDC setup and
-public access setting, and adds an optional npm token for first publishes. npm
-requires a package to exist before a trusted publisher can be configured. The
-release workflow can use a temporary token to create the first version, then
-return to OIDC after trusted publishing is configured. Release reconciliation
-checks exact npm versions and uses verified provenance to target each missing
-GitHub release at its source commit. Registry checks confirm the current
-versions of core, schema-json, React, react-bootstrap, react-mui, Vue, and Web
-Components are published but lack matching GitHub releases. The current
+The release workflow retains OIDC and public access, and adds an optional npm
+token to bootstrap first publishes. npm requires a package to exist before a
+trusted publisher can be configured. After each package has a first version
+and trusted publishing is configured, the workflow returns to OIDC. Release
+reconciliation checks exact npm versions and uses verified provenance to
+target each missing GitHub release at its source commit. Registry checks
+confirm the current versions of core, schema-json, React, react-bootstrap,
+react-mui, Vue, and Web Components are published but lack matching GitHub
+releases. The current
 versions of Zod, Angular, Svelte, Solid, and Yjs are not yet on npm.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
