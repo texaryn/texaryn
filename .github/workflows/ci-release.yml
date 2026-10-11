@@ -145,6 +145,7 @@ jobs:
           push-git-tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_ACCESS: public
           NPM_CONFIG_PROVENANCE: true
       # Reconciles GitHub releases with what is published. The action output
       # only describes this execution, so a rerun after npm already succeeded
