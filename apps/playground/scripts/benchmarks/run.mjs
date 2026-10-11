@@ -88,6 +88,7 @@ async function repositoryCommit() {
     const gitDirMatch = (await readFile(dotGit, 'utf8')).trim().match(/^gitdir:\s*(.+)$/)
     if (!gitDirMatch) throw new Error('Could not resolve the repository Git directory.')
     gitDir = resolve(repoRoot, gitDirMatch[1])
+    commonDir = gitDir
     const commonDirValue = await readFile(resolve(gitDir, 'commondir'), 'utf8').catch((error) => {
       if (error.code === 'ENOENT') return null
       throw error
