@@ -16,6 +16,20 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
+The long term JSON Schema engine decision is
+[ADR-011](docs/adr/011-long-term-json-schema-engine.md): production will use a
+Texaryn maintained fork of `json-schema-library` through
+`@texaryn/schema-json`. The published 0.8.1 adapter still pins upstream 11.6.2.
+The private Hyperjump adapter is a CI comparison implementation, not a planned
+production migration.
+
+The source fixes and release setup are merged to the Texaryn fork as
+[PR #1](https://github.com/texaryn/json-schema-library/pull/1), and all GitHub
+checks pass. Package 11.6.6 is not published yet. The local npm CLI is
+unauthenticated, so the release tag waits on npm publishing setup. The
+published adapter remains on upstream 11.6.2 until the fork package is
+available and a new adapter release adopts it.
+
 ## Table of Contents
 
 1. [Problem Statement and Market Gap](#1-problem-statement-and-market-gap)
@@ -395,29 +409,31 @@ Each is a distinct representation with a distinct owner.
 
 ### Package Dependency Graph
 
-```
-schema ───┐
-data ─────┤
-rules ────┼── Texaryn ──> interface
-actions ──┘
+```mermaid
+C4Component
+  title Texaryn JSON Schema engine boundary
 
-@texaryn/core                    (zero deps, IR types, compiler, state,
-    |                             commands, SchemaEvaluationPort interface)
-    |
-    +── @texaryn/schema-json          (JSON Schema evaluation, $ref, conditionals)
-    |       |
-    |       +── @texaryn/schema-json-hyperjump  (backed by @hyperjump/json-schema)
-    |       +── @texaryn/schema-json-ajv        (backed by AJV)
-    |
-    +── @texaryn/react                (React binding, depends on core)
-    |       |
-    |       +── @texaryn/react-bootstrap  (Bootstrap 5 markup and classes)
-    |       +── @texaryn/react-mui        (MUI component integration)
-    +── @texaryn/vue                  (Vue binding, depends on core)
-    +── @texaryn/angular              (Angular binding, depends on core)
-    +── @texaryn/wc                   (Web Component binding, depends on core)
-    |
-    +── @texaryn/test-suite           (renderer conformance tests)
+  System_Ext(currentEngine, "json-schema-library 11.6.2", "Engine in published 0.8.1")
+  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Merged in fork repository, npm publication pending")
+  System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
+
+  Container_Boundary(texaryn, "Texaryn workspace") {
+    Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
+    Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
+    Component(productionAdapter, "@texaryn/schema-json", "Published adapter", "Builds Texaryn projections and validation results")
+    Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
+    Component(renderers, "React, Vue, and Web Components", "Renderer packages", "Consume core runtime state")
+  }
+
+  Rel(core, port, "defines")
+  Rel(productionAdapter, core, "depends on")
+  Rel(comparisonAdapter, core, "depends on")
+  Rel(renderers, core, "depends on")
+  Rel(productionAdapter, port, "implements")
+  Rel(comparisonAdapter, port, "implements for CI comparison")
+  Rel(productionAdapter, currentEngine, "uses today")
+  Rel(productionAdapter, forkEngine, "will use after fork release")
+  Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
 Styling integrations remain separate from framework bindings.
@@ -931,6 +947,10 @@ from the start.
 
 ### Validator Implementations
 
+The comparison below is an exploratory research snapshot from before ADR-002
+and ADR-011. Its recommendations describe the candidates at that time. The
+accepted production engine strategy is recorded in ADR-011.
+
 #### AJV (v8.20.0, 378M weekly downloads, 33KB gzipped)
 
 The most widely used JavaScript JSON Schema validator. Supports 2020-12 natively
@@ -1049,22 +1069,20 @@ to integrate.
 | Last publish | 2026-04 | 2026-08 | 2025-01 | 2026-07 |
 | Status | Stable, slowing | Active | Slow | Active |
 
-#### Validator Choice Decision
+#### Historical Annotation Analysis
 
-The core does not choose a validator. The `SchemaEvaluationPort` owns both
-validation and schema projection, and its implementations wrap whatever library
-the consumer prefers. Validation is one of two responsibilities (alongside
-`project()`), not a separate subsystem.
+The core remains independent of validator APIs. Texaryn's supported JSON Schema
+adapter follows ADR-011. `SchemaEvaluationPort` is the boundary that isolates
+the runtime from that engine; it is not a promise to support arbitrary
+consumer selected engines.
 
-For annotation collection: static extraction (walking the resolved schema tree)
-covers properties, allOf, and simple oneOf where a discriminator property selects
-the branch. Data-dependent annotation resolution (which oneOf/anyOf branch applies
-given current data) requires a validator that exposes annotation results per
-branch. @hyperjump/json-schema implements this through its `annotate()` API
-(currently marked experimental). Adapters backed by AJV or @cfworker degrade to
-static extraction for these edge cases, which means annotations from the
-non-matching branch of a oneOf may be missing. This is acceptable for most forms
-and documented as a known limitation of those adapters.
+The initial research treated formal annotation collection as a possible engine
+responsibility. It is not sufficient by itself for form projection: absent
+properties have no instance location to annotate, and annotation results for
+failing branches do not describe every field an incomplete form must expose.
+Texaryn therefore combines schema structure, data dependent evaluation, and its
+own projection rules. Hyperjump's `annotate()` API remains useful for internal
+comparison, but it is not a required production dependency under ADR-011.
 
 ### Validation Scheduling
 
@@ -1165,20 +1183,23 @@ The IR compiler calls `project()` to build the flat node map.
 The runtime calls `project()` again after data changes to detect whether the
 active projection shifted, and re-compiles affected subtrees if it did.
 
-### json-schema-library as Design Reference
+### Selected JSON Schema Engine
 
-The `json-schema-library` package (v11.6.2, 548K weekly downloads) deserves study
-before implementing the port. Its `getNode(pointer, data)` API resolves a JSON
-Pointer through a compiled schema using current instance data, handling `oneOf` and
-`dependencies` dynamically. Its `getChildSelection()` lists available sub-schema
-options. Its `eachNode()` traverses all schema nodes. These are close to the
-operations `SchemaEvaluationPort.project()` needs. The implementation may be usable
-directly, wrapped behind the port, or its approach replicated.
+`json-schema-library` is the selected long term production engine under
+ADR-011. Its form oriented node reduction and schema traversal APIs fit the
+adapter's projection work. The production adapter remains responsible for
+combining those APIs with Texaryn's rules for missing fields, inactive branches,
+recursion boundaries, and renderer facing projection data. Engine fixes belong
+in the Texaryn maintained fork; Texaryn specific projection policy does not.
 
 ### JSON Schema Adapter
 
-The first (and for v1, only) adapter implements `SchemaEvaluationPort` for JSON
-Schema. Its responsibilities:
+The numbered scope below is the original v1 proposal. Shipped capabilities and
+current limits are recorded in the package support guide and latest status.
+Later implementation work supersedes this initial scope where they differ.
+
+The published `@texaryn/schema-json` adapter implements `SchemaEvaluationPort`
+for JSON Schema using the engine selected by ADR-011. Its responsibilities:
 
 1. **$ref resolution.** Resolve all `$ref` pointers including recursive refs.
    Use `$anchor` and `$dynamicAnchor` from 2020-12. A recursive schema expands
@@ -1216,17 +1237,17 @@ Schema. Its responsibilities:
 ### Adapter Packaging
 
 The schema evaluation port is defined in `@texaryn/core` (interface only).
-Implementations live in their own packages:
+The supported production implementation and the private CI comparison
+implementation live in separate packages:
 
-- `@texaryn/schema-json`: JSON Schema adapter. Depends on a validator library
-  as a peer dependency.
-- `@texaryn/schema-json-hyperjump`: adapter backed by @hyperjump/json-schema
-  (spec-compliant annotation collection, CSP safe).
-- `@texaryn/schema-json-ajv`: adapter backed by AJV (fast, widest ecosystem,
-  no annotation collection, not CSP safe).
+1. `@texaryn/schema-json`: published production adapter. Its current 0.8.1
+   release pins upstream `json-schema-library` 11.6.2. Future releases will use
+   the Texaryn maintained fork selected by ADR-011.
+2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
+   supported production option or a planned migration target.
 
-Texaryn is not a wrapper around any specific validator. The port defines what
-the runtime needs; adapters implement it with whatever library fits.
+The port keeps engine details out of the core runtime. The supported production
+engine is a project decision recorded in ADR-011.
 
 ### UI Hints
 
@@ -1586,6 +1607,9 @@ Additional security constraints for remote IR:
 
 ## 14. Package Structure
 
+The tree below records the original source layout proposal. Current published
+packages and the selected engine are tracked in the status section and ADR-011.
+
 ```
 packages/
   core/               @texaryn/core
@@ -1610,12 +1634,8 @@ packages/
       index.ts
 
   schema-json-hyperjump/  @texaryn/schema-json-hyperjump
-    src/              Adapter backed by @hyperjump/json-schema
-                      (spec-compliant annotation collection)
-
-  schema-json-ajv/    @texaryn/schema-json-ajv
-    src/              Adapter backed by AJV
-                      (fast validation, no annotation collection)
+    src/              Private CI comparison adapter backed by
+                      @hyperjump/json-schema
 
   react/              @texaryn/react
     src/
@@ -1638,14 +1658,13 @@ packages/
 
 ### Dependency Rules
 
-- `core` has zero runtime dependencies.
-- `schema-json` depends on `core` (for IR types and `SchemaEvaluationPort`).
-- `schema-json-hyperjump` depends on `schema-json` and on
-  `@hyperjump/json-schema` as a peer dependency.
-- `schema-json-ajv` depends on `schema-json` and on `ajv` as a peer dependency.
-- Framework packages depend on `core` and on their respective framework as a
-  peer dependency.
-- `test-suite` depends on `core` only.
+1. `core` has zero runtime dependencies.
+2. `schema-json` depends on `core` and its selected JSON Schema engine.
+3. `schema-json-hyperjump` depends on `core` and `@hyperjump/json-schema` as a
+   private CI comparison package.
+4. Framework packages depend on `core` and their respective framework as a
+   peer dependency.
+5. `test-suite` depends on `core` only.
 
 ### Build
 
@@ -1853,13 +1872,19 @@ requirement for v1, but the compiler should be structured to allow it.
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
 
+ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
+will use a Texaryn maintained `json-schema-library` fork. The current published
+package still uses upstream 11.6.2 until the fork is released and adopted.
+Hyperjump remains in CI for comparison only. This is an implementation change
+within the accepted strategy, not a later engine selection phase.
+
 The post-release list, ordered after the Backstage adoption exercise, has 11 items: 8 are complete, 1 is declined, and 2 retain upstream dependencies.
 
 | # | Item | State |
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash | Merged PR #193 packages the local workaround. Upstream issue #124 remains open, with the reviewed fix proposed in [PR #139](https://github.com/sagold/json-schema-library/pull/139). Its upstream CI awaits repository admin approval; the local full suite passed 8,531 tests, with 12 pending. |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Its six test jobs and six report checks pass. Local verification passed 8,756 suite tests and 1,250 unit tests. The published adapter still pins upstream 11.6.2 and uses its packaged workaround until fork 11.6.6 is published and adopted. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1877,17 +1902,17 @@ Shared conformance coverage now includes an inactive `anyOf` branch inside an ar
 
 Projection shape inference now includes unconditional `allOf` members in the schema-json adapter. Shared conformance covers typeless object shapes supplied only by `allOf` and mixed object plus array families across `allOf`; both adapters now produce matching projections and diagnostics.
 
-The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) proposes a fix and remains open without checks. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
+The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1) carries the merged source fix and tests. Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) remains open. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
 Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alternatives imply objects, and marks missing object-only `anyOf` branches active when they accept `{}`. It retains ambiguous families when an alternative's `allOf` members conflict. Shared conformance covers these cases and no longer records these adapter differences.
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
 
-The weekly and manually dispatched compatibility workflow keeps the committed `json-schema-library` pin at 11.6.2. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Keep the 11.6.2 pin and patch until the upstream fix is released and passes this regression. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
+The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Production will move to the Texaryn fork after fork 11.6.6 is published and the adapter removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed locally in main by merged PR #193, which packages the patched ESM runtime from `json-schema-library@11.6.2`. Keep the package workaround until upstream issue [sagold/json-schema-library#124](https://github.com/sagold/json-schema-library/issues/124) is fixed and a published upstream version passes the regression. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+#121 is fixed in the published adapter by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. After fork 11.6.6 is published, the next adapter release should depend on `@texaryn/json-schema-library` and remove the packaged workaround. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
 
 PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
 
@@ -2257,11 +2282,10 @@ solutions. Most forms are simple enough that RJSF's problems do not surface.
 The users who need stable array identity, async validation, and framework
 neutrality simultaneously may be too few to sustain a project. Building a full
 JSON Schema form library (including $ref, conditionals, oneOf/anyOf) is 6-12
-months of focused work before the first stable release. And the annotation
-collection story depends on @hyperjump/json-schema (337K weekly downloads, APIs
-marked experimental), a smaller ecosystem player than AJV (378M downloads). The
-`SchemaEvaluationPort` abstraction insulates against this, but the first adapter
-will lean on Hyperjump's capabilities.
+months of focused work before the first stable release. The original research
+expected the first adapter to lean on Hyperjump. That expectation was superseded
+by ADR-002 and the shipped `json-schema-library` adapter. ADR-011 records the
+long term fork strategy.
 
 **The verdict:** The project is worth starting if and only if the author commits
 to the smallest MVP (section above), ships it within 8 weeks, and measures
