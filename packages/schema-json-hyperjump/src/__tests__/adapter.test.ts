@@ -325,6 +325,37 @@ describe('createHyperjumpAdapter', () => {
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
 
+    it('scans sibling embedded resources with the same parent base independently', async () => {
+      const rootId = 'https://e.test/root/root.json'
+      const firstTargetId = 'https://e.test/root/a/otherA'
+      const secondTargetId = 'https://e.test/root/b/otherB'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: rootId,
+        type: 'object',
+        properties: {
+          first: { $ref: 'https://e.test/root/a/#/contains/box' },
+          second: { $ref: 'https://e.test/root/b/#/contains/box' },
+        },
+        definitions: {
+          first: { id: 'a/', contains: { box: { $ref: 'otherA#/if/box' } } },
+          second: { id: 'b/', contains: { box: { $ref: 'otherB#/if/box' } } },
+        },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === firstTargetId) return { id: firstTargetId, if: { box: { type: 'string' } } }
+          if (uri === secondTargetId) return { id: secondTargetId, if: { box: { type: 'number' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([firstTargetId, secondTargetId])
+      expect((await adapter.validate({ first: 'accepted', second: 1 })).valid).toBe(true)
+      expect((await adapter.validate({ first: 1, second: 'rejected' })).valid).toBe(false)
+    })
+
     it('loads resources referenced from an explicitly referenced embedded schema', async () => {
       const embeddedId = 'https://e.test/embedded'
       const targetId = 'https://e.test/other'

@@ -895,7 +895,7 @@ export async function loadExternalResources(
   const resourceBases = new Map<string, string>()
   const documents = new Map<string, unknown>()
   const scanned = new Set<string>()
-  const queue: { document: unknown; base: string | undefined; pointerTarget?: string }[] = [{ document: schema, base: rootId }]
+  const queue: { document: unknown; base: string | undefined; pointerTarget?: string; resourceIdentity?: string }[] = [{ document: schema, base: rootId }]
   const loading = new Map<string, Promise<NormalizedResource>>()
 
   const load = (uri: string, position: string): Promise<NormalizedResource> => {
@@ -916,7 +916,10 @@ export async function loadExternalResources(
 
   while (queue.length > 0) {
     const current = queue.shift()!
-    const key = `${current.base ?? `anonymous:${scanned.size}`}\n${current.pointerTarget ?? ''}`
+    const key = JSON.stringify([
+      current.resourceIdentity ?? current.base ?? `anonymous:${scanned.size}`,
+      current.pointerTarget ?? '',
+    ])
     if (scanned.has(key)) continue
     scanned.add(key)
     const references = referencesIn(
@@ -947,7 +950,7 @@ export async function loadExternalResources(
       const pointerTarget = fragment !== undefined && decodeUriFragment(fragment).startsWith('/') ? fragment : undefined
       if (resources.has(uri)) {
         if (pointerTarget !== undefined) {
-          queue.push({ document: resources.get(uri), base: resourceBases.get(uri) ?? uri, pointerTarget })
+          queue.push({ document: resources.get(uri), base: resourceBases.get(uri) ?? uri, pointerTarget, resourceIdentity: uri })
         }
         continue
       }
@@ -955,7 +958,7 @@ export async function loadExternalResources(
         const resourceContext = resourceSchemas.get(uri)
         const document = resources.get(uri) ?? documents.get(uri) ?? resourceContext?.schema
         if (pointerTarget !== undefined && document !== undefined) {
-          queue.push({ document, base: resourceContext?.parentBase ?? uri, pointerTarget })
+          queue.push({ document, base: resourceContext?.parentBase ?? uri, pointerTarget, resourceIdentity: uri })
         }
         continue
       }
@@ -985,6 +988,7 @@ export async function loadExternalResources(
       queue.push({
         document: loaded.primary,
         base: loaded.canonicalBase,
+        resourceIdentity: uri,
         ...(pointerTarget === undefined ? {} : { pointerTarget }),
       })
     }
