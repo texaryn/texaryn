@@ -20,5 +20,6 @@ export const publishedPackages = [
   { name: '@texaryn/react-mui', dir: 'packages/react-mui', expectedExport: 'createMuiRegistry' },
   { name: '@texaryn/vue', dir: 'packages/vue', expectedExport: 'provideFormRuntime' },
   { name: '@texaryn/svelte', dir: 'packages/svelte', expectedExport: 'createForm' },
+  { name: '@texaryn/solid', dir: 'packages/solid', expectedExport: 'createForm' },
   { name: '@texaryn/web-components', dir: 'packages/web-components', expectedExport: 'defineTexarynForm' },
 ]

@@ -17,6 +17,7 @@ export const RENDERER_KEYS = [
   'tailwind',
   'vue',
   'svelte',
+  'solid',
   'wc',
 ] as const
 export type RendererKey = (typeof RENDERER_KEYS)[number]

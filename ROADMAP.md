@@ -22,6 +22,12 @@ bindings, a default component registry, package and site documentation,
 playground integration, and shared example conformance coverage. The renderer
 is not released yet.
 
+The `@texaryn/solid` renderer is implemented locally in branch
+`feat/solid-renderer`, stacked on the Svelte renderer. It adds SolidJS bindings,
+a default component registry, package and site documentation, playground
+integration, and cross-framework state sharing coverage. The renderer is not
+released yet.
+
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
@@ -1885,13 +1891,19 @@ requirement for v1, but the compiler should be structured to allow it.
 ### Status, 2026-10-11
 
 The Svelte 5 renderer is implemented in local branch `feat/svelte-renderer`,
-stacked on PR #211, and is not released. `pnpm build`, `pnpm typecheck`,
-`pnpm verify:packages`, `pnpm test:coverage`, and `pnpm site:build` pass. The
-full suite passes 5,491 tests across 152 files. ChatGPT review found a runtime
+stacked on Angular PR #211, and is not released. Its build, typecheck, package
+verification, coverage, and site build passed. ChatGPT review found a runtime
 replacement edge case in `FormRoot`; the binding and teardown behavior now
 follow the active form and a regression test covers replacement. A follow-up
 ChatGPT review confirmed the finding is resolved and reported no remaining
 actionable issues.
+
+The SolidJS renderer is implemented in local branch `feat/solid-renderer`,
+stacked on `feat/svelte-renderer`, and is not released. Build, typecheck, package
+verification, the full test suite, and site build pass. The full suite passes
+5,497 tests across 153 files. ChatGPT review found read-only control state and
+object enum comparison issues. Both fixes have regression coverage, and the
+follow-up review found no remaining actionable issues.
 
 PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
 and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
@@ -2108,7 +2120,7 @@ MUI and custom styling examples are complete. Continue the remaining work in
 this order:
 
 1. Additional schema adapters: Zod in PR #210, then TypeBox
-2. Additional renderers: Angular in PR #211, then Svelte in `feat/svelte-renderer`, then Solid
+2. Additional renderers: Angular in PR #211, Svelte in `feat/svelte-renderer`, and Solid in `feat/solid-renderer`
 3. Non-form node types: tables, lists and layouts
 4. Server-driven UI tooling
 5. AI generation tooling
