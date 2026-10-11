@@ -16,6 +16,12 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
+The `@texaryn/svelte` implementation is complete locally in branch
+`feat/svelte-renderer`, stacked on Angular PR #211. It adds Svelte 5 store
+bindings, a default component registry, package and site documentation,
+playground integration, and shared example conformance coverage. The renderer
+is not released yet.
+
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
@@ -1888,6 +1894,15 @@ support and TypeBox integration; the release workflow has not published the
 Zod package yet. Angular is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211),
 Svelte in [PR #212](https://github.com/texaryn/texaryn/pull/212), and Solid in
 [PR #213](https://github.com/texaryn/texaryn/pull/213).
+
+The Svelte 5 renderer in PR #212 is stacked on #211 and is not released. Its
+earlier build, typecheck, package verification, coverage and site build passed.
+ChatGPT review found a runtime replacement edge case in `FormRoot`; the
+binding and teardown behavior now follow the active form and a regression test
+covers replacement. Follow-up ChatGPT review confirmed the finding is resolved.
+
+PR #211 is being rechecked on its updated base. The Codecov ignore rule is now
+on `main` and the updated upload is pending.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is

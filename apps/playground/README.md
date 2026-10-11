@@ -14,7 +14,7 @@ It exercises the complete pipeline against the executable example catalog:
 @texaryn/core runtime
         |
         v
-@texaryn/react or @texaryn/vue + a renderer registry
+@texaryn/react or a borrowed Vue, Svelte, or Web Components host
         |
         v
 rendered form, live data and the inspector
@@ -54,16 +54,18 @@ schema switches to a custom schema rendered from the editor contents alone.
 
 Changing renderer does not rebuild the form. The runtime belongs to the
 selected example, and the renderer is presentation over it, so switching
-between Default, Bootstrap, Material UI, Vue and Web Components preserves
+between Default, Bootstrap, Material UI, Vue, Svelte and Web Components preserves
 whatever has been typed.
 
-Vue and Web Components are not further React registries. Each is mounted over
+Vue, Svelte and Web Components are not further React registries. Each is mounted over
 the same `FormRuntime` instance the React shell owns, which is why switching
 away and back preserves data without anything copying state: there is one
 runtime and every framework renders it. `VueHost` deliberately does not call
 Vue's `useForm`, because that composable creates and destroys a runtime of its
 own; it uses `provideFormRuntime` with the borrowed one and unmounts only the
-Vue application when the renderer changes. `WcHost` passes the borrowed runtime
+Vue application when the renderer changes. `SvelteHost` bridges the borrowed
+runtime stores and tells `FormRoot` to leave teardown to the React shell.
+`WcHost` passes the borrowed runtime
 to `<texaryn-form>` as its primitive input rather than handing it a port, so
 the element never owns a runtime either.
 
@@ -111,6 +113,7 @@ which redirects paths under the playground mount back to it.
 - `@texaryn/react-bootstrap`
 - `@texaryn/react-mui`
 - `@texaryn/vue`
+- `@texaryn/svelte`
 - `@texaryn/web-components`
 - `@texaryn/examples`
 
@@ -123,6 +126,7 @@ rather than as a reusable package.
 - [`@texaryn/schema-json`](../../packages/schema-json/README.md)
 - [`@texaryn/react`](../../packages/react/README.md)
 - [`@texaryn/vue`](../../packages/vue/README.md)
+- [`@texaryn/svelte`](../../packages/svelte/README.md)
 - [`@texaryn/examples`](../../packages/examples/README.md)
 - [Repository README](../../README.md)
 - [Roadmap](../../ROADMAP.md)
