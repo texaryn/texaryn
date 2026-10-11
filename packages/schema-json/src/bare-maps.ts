@@ -39,7 +39,7 @@ function withBareMaps(draft: Draft): Draft {
   return extendDraft(draft, { keywords })
 }
 
-const draft04Keywords = new Set(['$defs', 'contains', 'deprecated', 'propertyNames'])
+const draft04Keywords = new Set(['contains', 'deprecated', 'propertyNames'])
 const draft04WithoutLaterKeywords: Draft = {
   ...draft04,
   keywords: draft04.keywords.filter((keyword) => !draft04Keywords.has(keyword.keyword)),

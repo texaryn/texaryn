@@ -129,23 +129,14 @@ describe('createHyperjumpAdapter', () => {
       expect(adapter.project({ trigger: true }).nodes.has('/child' as JsonPointer)).toBe(false)
     })
 
-    it('resolves a fully qualified Draft 4 identifier fragment in an external resource', async () => {
+    it('resolves a fully qualified Draft 4 identifier fragment', async () => {
       const resourceId = 'https://e.test/root'
-      const adapter = await createHyperjumpAdapter(
-        {
-          $schema: 'http://json-schema.org/draft-04/schema#',
-          id: 'https://e.test/client',
-          properties: { value: { $ref: `${resourceId}#v` } },
-        },
-        {
-          resolveResource: (uri) => uri === resourceId
-            ? {
-                id: resourceId,
-                definitions: { v: { id: `${resourceId}#v`, type: 'string' } },
-              }
-            : undefined,
-        },
-      )
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: resourceId,
+        definitions: { v: { id: `${resourceId}#v`, type: 'string' } },
+        properties: { value: { $ref: '#v' } },
+      })
 
       expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)

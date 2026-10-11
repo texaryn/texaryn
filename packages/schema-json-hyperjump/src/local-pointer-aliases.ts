@@ -204,6 +204,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   if (!isRecord(document)) return document
 
   const pending: { schema: Record<string, unknown>; position: string; scope: ResourceScope }[] = []
+  const legacyAnchors = new Map<string, { base: string; resourcePosition: string; position: string }>()
   const visited = new WeakMap<object, Set<string>>()
   const recognizedPositions = new Set<string>()
   const scopesByPosition = new Map<string, ResourceScope>()
@@ -281,11 +282,40 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     if (!ignoresSiblings && typeof id === 'string' && !(isPre2019Dialect(dialect) && id.startsWith('#'))) {
       let base = inherited.base
       try {
-        base = base === undefined ? new URL(id).href : new URL(id, base).href
+        const resolved = base === undefined ? new URL(id).href : new URL(id, base).href
+        base = resolved
+        if (isPre2019Dialect(dialect)) {
+          const hash = resolved.indexOf('#')
+          const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+          if (fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+            legacyAnchors.set(resolved, {
+              base: inherited.base ?? withoutFragment(resolved),
+              resourcePosition: inherited.position,
+              position,
+            })
+            if (dialect === 'draft-04' && position !== '#') Reflect.deleteProperty(schema, idKeyword)
+          }
+        }
       } catch {
         base = inherited.base
       }
       scope = newScope(schema, position, base === undefined ? undefined : withoutFragment(base), materialized)
+    }
+    if (!ignoresSiblings && isPre2019Dialect(dialect) && typeof id === 'string' && id.startsWith('#')) {
+      try {
+        const resolved = inherited.base === undefined ? undefined : new URL(id, inherited.base).href
+        const fragment = resolved?.slice(resolved.indexOf('#') + 1)
+        if (resolved !== undefined && fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+          legacyAnchors.set(resolved, {
+            base: inherited.base ?? withoutFragment(resolved),
+            resourcePosition: inherited.position,
+            position,
+          })
+          if (dialect === 'draft-04' && position !== '#') Reflect.deleteProperty(schema, idKeyword)
+        }
+      } catch {
+        // An unresolvable legacy identifier cannot be used to rewrite a reference.
+      }
     }
     if (recognized) {
       if (materialized) {
@@ -314,6 +344,24 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   for (let cursor = 0; cursor < pending.length; cursor += 1) {
     const { schema, position, scope } = pending[cursor]!
     if (typeof schema.$ref !== 'string') continue
+    if (isPre2019Dialect(dialect) && scope.base !== undefined) {
+      try {
+        const resolved = new URL(schema.$ref, scope.base).href
+        const anchor = legacyAnchors.get(resolved)
+        if (anchor !== undefined) {
+          const pointer = anchor.position.startsWith(anchor.resourcePosition)
+            ? anchor.position.slice(anchor.resourcePosition.length)
+            : anchor.position.slice(1)
+          const reference = anchor.base === scope.base && anchor.resourcePosition === scope.position
+            ? `#${pointer}`
+            : `${anchor.base}#${pointer}`
+          setOwn(schema, '$ref', reference)
+          continue
+        }
+      } catch {
+        // Let the ordinary reference handling report malformed references.
+      }
+    }
     const fragment = referenceFragment(schema.$ref, scope.base)
     if (fragment === undefined || !fragment.startsWith('/')) continue
     const targetPosition = pointerPosition(scope.position, fragment)
