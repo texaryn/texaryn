@@ -14,6 +14,7 @@
 export const publishedPackages = [
   { name: '@texaryn/core', dir: 'packages/core', expectedExport: 'createFormRuntime' },
   { name: '@texaryn/schema-json', dir: 'packages/schema-json', expectedExport: 'createJsonSchemaAdapter' },
+  { name: '@texaryn/schema-zod', dir: 'packages/schema-zod', expectedExport: 'createZodAdapter' },
   { name: '@texaryn/react', dir: 'packages/react', expectedExport: 'useForm' },
   { name: '@texaryn/react-bootstrap', dir: 'packages/react-bootstrap', expectedExport: 'createBootstrapRegistry' },
   { name: '@texaryn/react-mui', dir: 'packages/react-mui', expectedExport: 'createMuiRegistry' },

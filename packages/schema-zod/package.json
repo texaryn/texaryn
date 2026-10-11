@@ -1,0 +1,47 @@
+{
+  "name": "@texaryn/schema-zod",
+  "version": "0.1.0",
+  "description": "Zod 4 adapter for Texaryn form projection and validation",
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/schema-zod"
+  },
+  "homepage": "https://texaryn.github.io/texaryn/",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "CHANGELOG.md", "LICENSE"],
+  "dependencies": {
+    "@texaryn/core": "workspace:^",
+    "@texaryn/schema-json": "workspace:^"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "zod": "^4.6.5"
+  }
+}

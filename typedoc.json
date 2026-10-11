@@ -4,6 +4,7 @@
   "entryPoints": [
     "packages/core",
     "packages/schema-json",
+    "packages/schema-zod",
     "packages/react",
     "packages/react-bootstrap",
     "packages/react-mui",

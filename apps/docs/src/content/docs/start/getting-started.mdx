@@ -45,6 +45,10 @@ supported. If `$schema` is missing or unrecognized, the default is Draft 7.
 See [JSON Schema support](/texaryn/guides/json-schema-support/) for dialect
 configuration, supported form capabilities and validation limits.
 
+TypeScript projects can also author schemas with TypeBox and pass the JSON
+Schema output directly to this adapter. Zod 4 projects can use the separate
+[`@texaryn/schema-zod` adapter](/texaryn/guides/schema-adapters/).
+
 ## Create the form
 
 `useForm` creates the runtime and subscribes to its stores:

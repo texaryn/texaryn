@@ -15,6 +15,7 @@ const changelogs = {
   'packages/react/CHANGELOG.md': '# @texaryn/react\n\n## 0.3.0\n\n- react change\n',
   'packages/react-bootstrap/CHANGELOG.md': '# @texaryn/react-bootstrap\n\n## 0.1.1\n\n- bootstrap change\n',
   'packages/react-mui/CHANGELOG.md': '# @texaryn/react-mui\n\n## 0.1.0\n\n- mui first release\n\n## 0.0.0\n\n- placeholder\n',
+  'packages/schema-zod/CHANGELOG.md': '# @texaryn/schema-zod\n\n## 0.1.0\n\nInitial Zod 4 adapter release.\n',
 }
 
 function fakeReadFile(path) {
@@ -130,6 +131,18 @@ describe('planReleases', () => {
     expect(result).toHaveLength(1)
     expect(result[0].tag).toBe('@texaryn/react-bootstrap@0.1.1')
     expect(result[0].notes).toBe('- bootstrap change')
+  })
+
+  it('plans the Zod schema adapter release', () => {
+    const result = plan({
+      publishedPackages: published([{ name: '@texaryn/schema-zod', version: '0.1.0' }]),
+    })
+    expect(result).toEqual([
+      expect.objectContaining({
+        tag: '@texaryn/schema-zod@0.1.0',
+        notes: 'Initial Zod 4 adapter release.',
+      }),
+    ])
   })
 
   it('plans every package when a formerly-fixed one and an independent one publish together', () => {

@@ -10,6 +10,7 @@ const alias = {
     root,
     'packages/schema-json/src/index.ts',
   ),
+  '@texaryn/schema-zod': resolve(root, 'packages/schema-zod/src/index.ts'),
   '@texaryn/schema-json-hyperjump': resolve(
     root,
     'packages/schema-json-hyperjump/src/index.ts',
@@ -32,6 +33,7 @@ export default defineConfig({
       include: [
         'packages/core/src/**',
         'packages/schema-json/src/**',
+        'packages/schema-zod/src/**',
         'packages/schema-json-hyperjump/src/**',
         'packages/react/src/**',
         'packages/react-bootstrap/src/**',
@@ -66,6 +68,14 @@ export default defineConfig({
         test: {
           name: 'schema-json',
           root: 'packages/schema-json',
+          include: ['src/**/*.test.ts'],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'schema-zod',
+          root: 'packages/schema-zod',
           include: ['src/**/*.test.ts'],
         },
       },

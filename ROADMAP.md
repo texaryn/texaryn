@@ -1878,7 +1878,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The other items remain deferred.
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. This schema-adapters change adds Zod support and TypeBox integration through JSON Schema; the public Zod package still needs its release workflow.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2085,10 +2085,11 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. Keep the remaining work deferred
-until the project has users:
+MUI and custom styling examples are complete. This change completes schema
+authoring support: TypeBox supplies JSON Schema to the production adapter, and
+`@texaryn/schema-zod` uses Zod for validation with JSON Schema projection.
+Continue with the remaining roadmap items in this order:
 
-- Additional schema adapters (Zod, TypeBox)
 - Additional renderers (Angular, Svelte, Solid)
 - Non-form node types (tables, lists, layouts)
 - Server-driven UI tooling
@@ -2222,18 +2223,18 @@ Deferred from MVP:
 - `if`/`then`/`else` UI generation (schema evaluation port supports it; UI
   generation from it is deferred)
 
-### What to Defer Until After Product-Market Validation
+### Phase 5+ Execution Order
 
-- Schema adapters for anything other than JSON Schema
-- Renderers beyond React and one proof-of-neutrality renderer
+- Schema authoring: TypeBox via JSON Schema and Zod 4 adapter (completed in this change)
+- Additional renderers: Angular, Svelte, Solid
 - Non-form node types (tables, lists, general layouts)
-- Server-driven UI tooling (the IR supports it by construction; the tooling can wait)
+- Server-driven UI tooling
 - AI generation tooling
 - Visual form builder
-- Drag-and-drop reorder (array add/remove/move via commands is sufficient)
+- Drag-and-drop reorder
 - Draft-04 JSON Schema support
 - Collaborative editing
-- IR migrations (not needed until the IR has shipped and changed)
+- IR migrations
 - Plugin ecosystem
 
 ### Why Not Build on TanStack Form?
