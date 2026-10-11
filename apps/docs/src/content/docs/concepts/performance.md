@@ -3,9 +3,9 @@ title: Performance baseline
 description: Reproducible runtime, renderer, and browser input measurements for Texaryn.
 ---
 
-This page records local baselines for Texaryn's runtime and renderer paths. The
-measurements do not compare Texaryn with other form libraries and are not CI
-thresholds.
+This page records local baselines for Texaryn's runtime and renderer paths,
+plus one workload comparison with RJSF. The measurements are not CI thresholds
+or general library rankings.
 
 The original runtime and React measurements use packages from
 [commit `973dfca`](https://github.com/texaryn/texaryn/commit/973dfcab2498a8997cdb77686531a7ae4577a18d).
@@ -104,9 +104,41 @@ not measure cold bundle transfer or general framework performance. The earlier
 single-run React input measurement above uses the Vite development server, so
 its values are not directly comparable with this production-build comparison.
 
-The comparison measures Texaryn renderer paths over the same core runtime. An
-RJSF comparison remains a separate, unmeasured follow-up because it would also
-change schema evaluation and runtime behavior.
+The comparison measures Texaryn renderer paths over the same core runtime.
+
+## Comparison with RJSF
+
+This production browser comparison uses a 50-field Draft 7 schema with 50
+string controls, an `enabled` checkbox, and an `Extra` field conditional on
+`enabled`. Texaryn uses `@texaryn/schema-json` and its default React registry.
+RJSF uses `@rjsf/core` 5.24.13 and `@rjsf/validator-ajv8` 5.24.13 with its
+default unthemed widgets. The RJSF submit button is omitted and its root element
+is a `div`, matching the Texaryn `FormRoot` boundary. Both paths receive the
+same schema and initial data.
+
+The timer starts before each library's form setup and ends after the harness
+checks the expected controls at the second animation frame. For Texaryn, setup
+creates a new schema adapter and runtime from the Draft 7 schema and data.
+RJSF receives the schema and data in its form component and resolves the visible
+fields while rendering. The RJSF module and AJV validator are loaded before
+timing. Each library gets five randomized fresh-page trials, two warmup mounts
+and three measured setup and mount samples per trial. Each trial also performs
+five conditional warmup cycles and 200 measured input transitions. That gives
+15 setup and mount samples, 500 activation samples, and 500 removal samples per
+library. Input timing starts at the checkbox `input` event and ends at the first
+animation frame where form data and the visible conditional control match.
+
+| Library path | Setup and mount p50 | Setup and mount p95 | Activation p50 | Activation p95 | Removal p50 | Removal p95 | Combined transition p50 | Combined transition p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Texaryn React | 31.1 ms | 32.3 ms | 10.6 ms | 12.4 ms | 10.9 ms | 12.3 ms | 10.7 ms | 12.4 ms |
+| RJSF 5.24.13 | 31.1 ms | 32.6 ms | 11.9 ms | 13.4 ms | 12.0 ms | 13.5 ms | 11.9 ms | 13.4 ms |
+
+This is one workload on one machine, not a general performance ranking. The
+timed setup differs by library: Texaryn creates its schema adapter and runtime,
+while RJSF builds its form from the supplied schema and data. The run used
+macOS 25.6.0 on an Apple M1 Max with Node.js 26.5.1 and headless Chromium
+153.0.8010.12. The benchmark implementation was at commit `0519b3b`. It does
+not measure cold bundle transfer, validation, arrays, or themed renderers.
 
 ## Array operations
 

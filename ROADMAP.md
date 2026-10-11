@@ -1899,7 +1899,8 @@ dependency on the core.
    node store, and the framework adapter subscribes to that store. The
    [cross-renderer baseline](apps/docs/src/content/docs/concepts/performance.md)
    measures six Texaryn renderer paths over the same core runtime and workload.
-   It does not compare behavior or latency against RJSF.
+   A separate Draft 7 comparison measures one Texaryn React and RJSF form
+   workload, including each path's setup and conditional updates.
 
 ### Published Baseline
 
@@ -1910,9 +1911,10 @@ individual array commands at three sizes, mounted and retained browser heap,
 validation throughput, and a production browser comparison of React, Vue,
 Svelte, Solid, Angular, and Web Components. That comparison reports mount,
 conditional activation, and conditional removal for one shared 50-field form.
-The run records its hardware, Node.js, Chromium, sample counts, and base commit.
-It is a local workload baseline, not a CI threshold or a comparison with
-another form library.
+The run records its hardware, Node.js, Chromium, sample counts, and source
+commit. A separate RJSF comparison measures setup, mount, and conditional
+updates for one shared Draft 7 form. Both are local workload baselines, not CI
+thresholds or general performance rankings.
 
 ### Targeted Recompilation
 
@@ -1974,10 +1976,11 @@ verified provenance and created both matching GitHub releases.
 
 Section 18 publishes local baselines for compiler timing, React server render,
 browser input-to-DOM latency, array commands, memory deltas, validation
-throughput, and a production comparison of six Texaryn renderer paths on one
-conditional form. Comparisons with RJSF and other form libraries remain
-unmeasured. Targeted diffing stays deferred until supported application
-workloads show repeated structural operations above the interaction target.
+throughput, a production comparison of six Texaryn renderer paths, and one
+production RJSF comparison on a conditional form. Other form library
+comparisons remain unmeasured. Targeted diffing stays deferred until supported
+application workloads show repeated structural operations above the
+interaction target.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2561,7 +2564,8 @@ comparisons and application-specific persistence formats to later evidence.
    through their native state primitives. This establishes functional
    compatibility. A local React and core baseline is published in
    [Section 18](#18-performance-model). A local baseline compares six Texaryn
-   renderer paths on one conditional form. RJSF and other form library
+   renderer paths on one conditional form. A separate local comparison covers
+   one Draft 7 workload in Texaryn React and RJSF. Other form library
    comparisons remain unmeasured.
 
 6. **Server rendering across processes.** Resolved in

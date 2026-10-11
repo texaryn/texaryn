@@ -438,7 +438,7 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration,
       result: {
         trial,
         [suite === 'library'
-          ? 'schemaAdapterRuntimeAndMountToDomAtSecondAnimationFrame'
+          ? 'setupAndMountToDomAtSecondAnimationFrame'
           : 'mountToDomAtSecondAnimationFrame']: summarize(mountSamples),
         activationToMatchingDomFrame: summarize(activations),
         removalToMatchingDomFrame: summarize(removals),
@@ -452,7 +452,7 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration,
 
 async function rendererComparison(browser, origin, renderers, suite) {
   const mountMetric = suite === 'library'
-    ? 'schemaAdapterRuntimeAndMountToDomAtSecondAnimationFrame'
+    ? 'setupAndMountToDomAtSecondAnimationFrame'
     : 'mountToDomAtSecondAnimationFrame'
   const configuration = {
     trials: 5,
