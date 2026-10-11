@@ -1,0 +1,87 @@
+---
+title: Custom styling
+description: Style the default React widgets with application-owned Emotion or Tailwind CSS.
+---
+
+Texaryn's default React widgets render semantic HTML. Wrap `FormRoot` in your
+own styling scope to change the appearance without replacing the schema
+adapter, form runtime, or widget registry.
+
+```tsx
+<FormProvider value={form.runtime}>
+  <EmotionForm>
+    <FormRoot registry={createDefaultRegistry()} />
+  </EmotionForm>
+</FormProvider>
+```
+
+The wrapper owns styles. The default registry continues to own labels, input
+bindings, validation messages, and array actions. For controls that need
+different markup or behavior, register custom widgets instead.
+
+## Emotion
+
+Use an Emotion styled wrapper and descendant selectors to scope CSS to the
+rendered form:
+
+```tsx
+import styled from '@emotion/styled'
+
+const EmotionForm = styled.div`
+  color: var(--tx-text);
+
+  & label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  & input:not([type='checkbox']), & select, & textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tx-border-strong);
+    border-radius: 0.375rem;
+    background: var(--tx-surface-raised);
+    color: var(--tx-text);
+  }
+`
+```
+
+The playground's Emotion option shows this approach around the default
+registry. Its styles stay inside the rendered form surface.
+
+## Tailwind CSS
+
+In a Vite application, install `tailwindcss` and `@tailwindcss/vite`, add the
+Tailwind plugin, and import its theme and utility layers. Tailwind's Preflight
+resets global element styles, so an existing application can omit that layer
+and avoid changing unrelated renderers. See the [Vite installation
+guide](https://tailwindcss.com/docs/installation/using-vite) and [Preflight
+configuration](https://tailwindcss.com/docs/preflight).
+
+```css
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+```
+
+Put utilities on a wrapper and use arbitrary variants to target the semantic
+elements rendered by Texaryn:
+
+```tsx
+const formClasses = [
+  'space-y-3 font-sans text-sm text-[var(--tx-text)]',
+  '[&_label]:mb-1 [&_label]:block [&_label]:font-medium',
+  '[&_input:not([type=checkbox])]:w-full [&_input:not([type=checkbox])]:rounded-md',
+  '[&_button]:rounded-md [&_button]:bg-[var(--tx-accent)] [&_button]:px-3 [&_button]:py-2',
+].join(' ')
+
+<div className={formClasses}>
+  <FormRoot registry={createDefaultRegistry()} />
+</div>
+```
+
+The playground's Tailwind option uses the same default registry and applies
+generated utilities within a wrapper. Both styling options retain the same
+runtime data, accessible labels, and control behavior when selected.

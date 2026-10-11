@@ -17,21 +17,23 @@ needed to close it.
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
 The long term JSON Schema engine decision is
-[ADR-011](docs/adr/011-long-term-json-schema-engine.md): production will use a
+[ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
-`@texaryn/schema-json`. The published 0.8.1 adapter still pins upstream 11.6.2.
-The private Hyperjump adapter is a CI comparison implementation, not a planned
-production migration.
+`@texaryn/schema-json`. PR #207 merged that dependency change and PR #208
+created the 0.8.2 release. All release checks passed; the publish job is
+waiting for approval in the protected `npm-release` environment. The private
+Hyperjump adapter is a CI comparison implementation, not a planned production
+migration.
 
 The source fixes and release setup are merged to the Texaryn fork as
 [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Version 11.6.6
 is [published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library/v/11.6.6)
 and has a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
-The current integration branch replaces the upstream dependency, removes the
-packaged workaround, and adds a patch changeset for `@texaryn/schema-json`.
-Build, typecheck, the full test suite, and package verification passed. The
-published adapter remains at 0.8.1 on upstream 11.6.2 until this integration is
-merged and its next package release is published.
+Merged PR #207 replaces the upstream dependency, removes the packaged
+workaround, and adds a patch changeset for `@texaryn/schema-json`. Build,
+typecheck, the full test suite, package verification, and main CI passed. The
+published adapter remains at 0.8.1 on upstream 11.6.2 until the 0.8.2 publish
+job completes.
 
 ## Table of Contents
 
@@ -417,13 +419,13 @@ C4Component
   title Texaryn JSON Schema engine boundary
 
   System_Ext(currentEngine, "json-schema-library 11.6.2", "Engine in published adapter 0.8.1")
-  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published fork, adopted by the current integration branch")
+  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published fork, adopted by merged PR #207")
   System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
 
   Container_Boundary(texaryn, "Texaryn workspace") {
     Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
-    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.1, next patch pending", "Workspace integration uses the fork and builds Texaryn projections and validation results")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.1, 0.8.2 publish pending", "Merged adapter source uses the fork and builds Texaryn projections and validation results")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
     Component(renderers, "React, Vue, and Web Components", "Renderer packages", "Consume core runtime state")
   }
@@ -435,7 +437,7 @@ C4Component
   Rel(productionAdapter, port, "implements")
   Rel(comparisonAdapter, port, "implements for CI comparison")
   Rel(productionAdapter, currentEngine, "published 0.8.1 uses")
-  Rel(productionAdapter, forkEngine, "current integration branch uses")
+  Rel(productionAdapter, forkEngine, "merged adapter source uses")
   Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
@@ -449,9 +451,11 @@ Texaryn can integrate with a CSS and markup framework without an intermediate
 component library.
 
 `@texaryn/react-mui` tests a different boundary by wrapping a third-party React
-component system. Emotion and Tailwind remain examples of custom styling rather
-than package dependencies. These targets test three distinct integration modes:
-CSS and markup conventions, component systems, and application-owned styling.
+component system. The playground also demonstrates Emotion and Tailwind as
+application-owned styles around the default widgets, with no styling dependency
+added to a renderer package. These targets test three distinct integration
+modes: CSS and markup conventions, component systems, and application-owned
+styling.
 
 ## 5. IR Design
 
@@ -1243,9 +1247,10 @@ The schema evaluation port is defined in `@texaryn/core` (interface only).
 The supported production implementation and the private CI comparison
 implementation live in separate packages:
 
-1. `@texaryn/schema-json`: published production adapter. Its current 0.8.1
-   release pins upstream `json-schema-library` 11.6.2. Future releases will use
-   the Texaryn maintained fork selected by ADR-011.
+1. `@texaryn/schema-json`: published production adapter. Version 0.8.1 pins
+   upstream `json-schema-library` 11.6.2. Merged PR #207 updates the adapter
+   source to the Texaryn maintained fork. Version 0.8.2 awaits the protected
+   npm publish job.
 2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
    supported production option or a planned migration target.
 
@@ -1873,14 +1878,13 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, the MUI integration has shipped; the rest stays deferred.
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The other items remain deferred.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
-published, and the current integration branch replaces upstream 11.6.2 and its
-packaged workaround. Published `@texaryn/schema-json` 0.8.1 remains on the old
-dependency until the integration branch is merged and its patch release is
-published. Hyperjump remains in CI for comparison only. This is an
+published, and merged PR #207 replaces upstream 11.6.2 and its packaged
+workaround. The 0.8.2 release checks passed; its protected npm publish job is
+awaiting approval. Hyperjump remains in CI for comparison only. This is an
 implementation change within the accepted strategy, not a later engine
 selection phase.
 
@@ -1890,7 +1894,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). The current integration branch replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Build, typecheck, 5,346 tests across 146 files, and package verification passed. Published adapter 0.8.1 remains on upstream until the integration is merged and released. |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 created version 0.8.2; its publish job awaits protected environment approval. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1914,11 +1918,11 @@ Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alte
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
 
-The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Fork 11.6.6 is published. The current integration branch moves the adapter to the fork and removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
+The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Fork 11.6.6 is published. Merged PR #207 moves the adapter source to the fork and removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and the current integration branch changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. The 0.8.2 publish job awaits protected environment approval. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
 
 PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
 
@@ -2081,12 +2085,11 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-Defer until the project has users:
+MUI and custom styling examples are complete. Keep the remaining work deferred
+until the project has users:
+
 - Additional schema adapters (Zod, TypeBox)
 - Additional renderers (Angular, Svelte, Solid)
-- MUI integration through `@texaryn/react-mui` as the third-party React
-  component system test (second consumer of the integration contract below)
-- Emotion and Tailwind examples as custom styling integration tests
 - Non-form node types (tables, lists, layouts)
 - Server-driven UI tooling
 - AI generation tooling

@@ -164,6 +164,7 @@ export default defineConfig({
             },
             { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
             { label: 'Localizing built-in copy', slug: 'guides/localizing-built-in-copy' },
+            { label: 'Custom styling', slug: 'guides/custom-styling' },
           ],
         },
         typeDocSidebarGroup,

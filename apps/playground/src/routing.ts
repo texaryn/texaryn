@@ -9,7 +9,15 @@
 // "playground", so moving the mount is a config change rather than a code
 // change.
 
-export const RENDERER_KEYS = ['default', 'bootstrap', 'mui', 'vue', 'wc'] as const
+export const RENDERER_KEYS = [
+  'default',
+  'bootstrap',
+  'mui',
+  'emotion',
+  'tailwind',
+  'vue',
+  'wc',
+] as const
 export type RendererKey = (typeof RENDERER_KEYS)[number]
 
 export const DEFAULT_RENDERER: RendererKey = 'default'
