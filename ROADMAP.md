@@ -16,11 +16,17 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
-The `@texaryn/svelte` implementation is in
-[PR #212](https://github.com/texaryn/texaryn/pull/212), now based on `main`
-after Angular PR #211 merged. It adds Svelte 5 store bindings, a default
-component registry, package and site documentation, playground integration,
-and shared example conformance coverage. Its checks are running against `main`.
+The `@texaryn/svelte` implementation merged in
+[PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
+bindings, a default component registry, package and site documentation,
+playground integration, and shared example conformance coverage. Its package
+release is pending.
+
+The `@texaryn/solid` renderer is in
+[PR #213](https://github.com/texaryn/texaryn/pull/213), now based on `main`
+after PR #212 merged. It adds SolidJS bindings, a default component registry,
+package and site documentation, playground integration, and cross-framework
+state sharing coverage. Its checks are running against `main`.
 
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
@@ -1885,19 +1891,22 @@ packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
 support and TypeBox integration; the release workflow has not published the
-Zod package yet. Angular source merged in [PR #211](https://github.com/texaryn/texaryn/pull/211).
-Svelte is in [PR #212](https://github.com/texaryn/texaryn/pull/212), retargeted
-to `main` after the Angular merge. Solid is in [PR #213](https://github.com/texaryn/texaryn/pull/213),
-stacked on Svelte.
+Zod package yet. Angular source merged in [PR #211](https://github.com/texaryn/texaryn/pull/211),
+and Svelte source merged in [PR #212](https://github.com/texaryn/texaryn/pull/212).
+Solid is in [PR #213](https://github.com/texaryn/texaryn/pull/213), now based on
+`main`. The document runtime and remaining Phase 5 features are in PR #214,
+stacked on Solid.
 
-The Svelte 5 renderer in PR #212 passed build, typecheck, package verification,
-coverage, and site build before its retarget to `main`. Its checks are running
-again against the merged Angular renderer. ChatGPT review found a runtime
-replacement edge case in `FormRoot`; the binding and teardown behavior now
-follow the active form and a regression test covers replacement. Follow-up
-ChatGPT review confirmed the finding is resolved. The SolidJS renderer in PR
-#213 remains stacked on #212. Its earlier build, typecheck, package
-verification, full suite, and site build passed before the stack update.
+The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
+verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
+found a runtime replacement edge case in `FormRoot`; the binding and teardown
+behavior now follow the active form, with a regression test. Follow-up review
+found no remaining actionable issues. The SolidJS renderer in PR #213 has
+passed build, typecheck, package verification, full test suite, and site build
+on its earlier base. Its checks are running again against the merged Svelte
+renderer. ChatGPT review findings about read-only control state and object enum
+comparison were fixed, and follow-up review found no remaining actionable
+issues.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is

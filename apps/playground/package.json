@@ -18,12 +18,14 @@
     "@texaryn/react-bootstrap": "workspace:*",
     "@texaryn/react-mui": "workspace:*",
     "@texaryn/schema-json": "workspace:*",
+    "@texaryn/solid": "workspace:*",
     "@texaryn/svelte": "workspace:*",
     "@texaryn/vue": "workspace:*",
     "@texaryn/web-components": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "svelte": "^5.57.2",
+    "solid-js": "^1.9.9",
     "vue": "^3.5.0"
   },
   "devDependencies": {

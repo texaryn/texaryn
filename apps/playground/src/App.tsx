@@ -19,6 +19,7 @@ import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
 import { SvelteHost } from './SvelteHost.js'
+import { SolidHost } from './SolidHost.js'
 import { WcHost } from './WcHost.js'
 import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
@@ -35,7 +36,7 @@ const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 // are React and two are not, and a list that says `Material UI` beside `Vue`
 // invites reading the others as the only ones with a framework.
 //
-// Two of these are not React registries at all: they are different render
+// These framework hosts are not React registries: they are different render
 // surfaces over the same runtime, mounted by a host that borrows the runtime
 // rather than by FormRoot. The discriminant says which, so the table stays the
 // one place a renderer is declared and no combination of the two is possible.
@@ -59,6 +60,7 @@ const renderers: Record<RendererKey, RendererSpec> = {
   },
   vue: { kind: 'host', label: 'Vue · Default', Host: VueHost },
   svelte: { kind: 'host', label: 'Svelte · Default', Host: SvelteHost },
+  solid: { kind: 'host', label: 'Solid · Default', Host: SolidHost },
   wc: { kind: 'host', label: 'Web Components · Default', Host: WcHost },
 }
 
