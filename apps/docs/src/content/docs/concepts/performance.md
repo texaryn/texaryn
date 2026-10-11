@@ -1,13 +1,13 @@
 ---
 title: Performance baseline
-description: Reproducible runtime, React, and browser input measurements for Texaryn.
+description: Reproducible runtime, renderer, and browser input measurements for Texaryn.
 ---
 
-This page records a local baseline for the published React form path. The
-measurements are not comparisons with other form libraries and are not CI
+This page records local baselines for Texaryn's runtime and renderer paths. The
+measurements do not compare Texaryn with other form libraries and are not CI
 thresholds.
 
-The measured packages use source from
+The original runtime and React measurements use packages from
 [commit `973dfca`](https://github.com/texaryn/texaryn/commit/973dfcab2498a8997cdb77686531a7ae4577a18d).
 The benchmark runner added with this baseline
 ([source](https://github.com/texaryn/texaryn/blob/main/apps/playground/scripts/benchmarks/run.mjs))
@@ -66,6 +66,47 @@ is present or absent as expected.
 
 This includes browser frame scheduling and a conditional renderer update. It is
 a single headless Chromium run, not a device-wide user latency guarantee.
+
+## Cross-renderer browser comparison
+
+This production-build comparison uses one 50-field JSON Schema form with 50
+string controls, one checkbox, and the conditional `Extra` field. Each renderer
+uses the same schema adapter, core runtime, initial data, and default registry.
+The schema adapter, registries, runtime, and data are ready before timing starts.
+
+Mount timing includes framework mounting and ends after the harness checks the
+expected controls at the second animation frame. It has 15 measured mounts per
+renderer across five randomized trials, with two warmup mounts and three
+measured mounts per trial. Each renderer trial uses a fresh browser page, and
+renderer order is randomized. Each trial also performs five warmup activation
+and removal cycles. Input timing starts at the checkbox `input` event and ends
+at the first animation frame where both runtime data and the visible
+conditional control match the checkbox state. The measured 200 transitions in
+each trial produce 500 activation samples and 500 removal samples per renderer.
+
+| Renderer | Mount p50 | Mount p95 | Activation p50 | Activation p95 | Removal p50 | Removal p95 | Combined p50 | Combined p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| React | 27.7 ms | 29.5 ms | 10.2 ms | 12.6 ms | 10.4 ms | 12.5 ms | 10.3 ms | 12.6 ms |
+| Vue | 27.1 ms | 28.1 ms | 14.6 ms | 15.7 ms | 14.5 ms | 15.7 ms | 14.6 ms | 15.7 ms |
+| Svelte | 27.4 ms | 28.8 ms | 14.7 ms | 15.5 ms | 14.6 ms | 15.7 ms | 14.7 ms | 15.6 ms |
+| Solid | 27.6 ms | 28.5 ms | 14.6 ms | 15.6 ms | 14.5 ms | 15.4 ms | 14.5 ms | 15.6 ms |
+| Web Components | 27.8 ms | 29.1 ms | 14.4 ms | 15.6 ms | 14.5 ms | 15.5 ms | 14.4 ms | 15.6 ms |
+| Angular | 27.1 ms | 28.8 ms | 30.6 ms | 32.0 ms | 30.8 ms | 32.1 ms | 30.7 ms | 32.1 ms |
+
+The run used macOS 25.6.0 on an Apple M1 Max with Node.js 26.5.1 and headless
+Chromium 153.0.8010.12. It used the benchmark source at
+[commit `60ff8ff`](https://github.com/texaryn/texaryn/commit/60ff8ff).
+A frame observation confirms that the DOM update was visible by that point. It
+includes frame scheduling and does not confirm a
+completed paint. Angular development mode is disabled, and the harness asserts
+`isDevMode() === false`. These results cover this form and machine only. They do
+not measure cold bundle transfer or general framework performance. The earlier
+single-run React input measurement above uses the Vite development server, so
+its values are not directly comparable with this production-build comparison.
+
+The comparison measures Texaryn renderer paths over the same core runtime. An
+RJSF comparison remains a separate, unmeasured follow-up because it would also
+change schema evaluation and runtime behavior.
 
 ## Array operations
 

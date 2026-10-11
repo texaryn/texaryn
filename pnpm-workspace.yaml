@@ -3,6 +3,9 @@ packages:
   - 'packages/*'
   - 'tests'
 allowBuilds:
+  '@parcel/watcher': false
   esbuild: true
+  lmdb: false
+  msgpackr-extract: false
 minimumReleaseAgeExclude:
   - '@texaryn/json-schema-library@11.6.6'

@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
+import { transformAsync } from '@babel/core'
+import linkerPlugin from '@angular/compiler-cli/linker/babel'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
@@ -16,6 +18,28 @@ function themeBoot(): Plugin {
     name: 'texaryn-theme-boot',
     transformIndexHtml() {
       return [{ tag: 'script', children: themeBootScript(), injectTo: 'head-prepend' }]
+    },
+  }
+}
+
+function angularPartialLinker(): Plugin {
+  return {
+    name: 'texaryn-angular-partial-linker',
+    enforce: 'pre',
+    async transform(code, id) {
+      const file = id.replaceAll('\\', '/').split('?')[0]
+      const isAngularPackage = /(?:\/packages\/angular|\/node_modules\/@texaryn\/angular)\/dist\//.test(file)
+        || /\/node_modules\/@angular\/.*\.m?js$/.test(file)
+      if (!isAngularPackage || !code.includes('ɵɵngDeclare')) return null
+
+      const result = await transformAsync(code, {
+        filename: file,
+        babelrc: false,
+        configFile: false,
+        plugins: [linkerPlugin],
+      })
+      if (!result?.code) throw new Error(`Angular linker returned no output for ${file}.`)
+      return { code: result.code, map: result.map ?? null }
     },
   }
 }
@@ -38,7 +62,21 @@ function themeBoot(): Plugin {
 // The workspace prerequisite still applies: the internal packages resolve
 // through their compiled dist, so `pnpm build` has to run before the dev
 // server can resolve them.
+function baseForMode(mode: string): string {
+  if (mode === 'pages') return PLAYGROUND_PATH
+  if (mode === 'benchmark') return '/'
+  return '/playground/'
+}
+
 export default defineConfig(({ mode }) => ({
-  base: mode === 'pages' ? PLAYGROUND_PATH : '/playground/',
-  plugins: [themeBoot(), tailwindcss(), svelte(), react()],
+  base: baseForMode(mode),
+  resolve: mode === 'benchmark' ? { mainFields: ['module'] } : undefined,
+  define: mode === 'benchmark' ? { ngDevMode: 'false' } : undefined,
+  plugins: [
+    ...(mode === 'benchmark' ? [angularPartialLinker()] : []),
+    themeBoot(),
+    tailwindcss(),
+    svelte(),
+    react(),
+  ],
 }))

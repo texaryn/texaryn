@@ -1,5 +1,6 @@
-import { readFile, stat } from 'node:fs/promises'
-import os from 'node:os'
+import { randomInt } from 'node:crypto'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import os, { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -9,7 +10,7 @@ import { createFormRuntime, compile } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { FormProvider, FormRoot, createDefaultRegistry } from '@texaryn/react'
 import { chromium } from 'playwright'
-import { createServer } from 'vite'
+import { build, preview } from 'vite'
 
 const appRoot = fileURLToPath(new URL('../..', import.meta.url))
 const repoRoot = resolve(appRoot, '../..')
@@ -268,36 +269,255 @@ async function arrayBenchmarks() {
   return results
 }
 
-async function browserBenchmarks() {
-  const server = await createServer({
-    root: appRoot,
-    configFile: resolve(appRoot, 'vite.config.ts'),
-    logLevel: 'error',
-    server: { host: '127.0.0.1', port: 0, strictPort: false },
-  })
+function shuffle(values) {
+  const result = [...values]
+  for (let index = result.length - 1; index > 0; index--) {
+    const other = randomInt(index + 1)
+    ;[result[index], result[other]] = [result[other], result[index]]
+  }
+  return result
+}
 
-  let browser
+async function openBenchmarkPage(browser, origin, fieldCount) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+  const pageErrors = []
+  const consoleErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+  const response = await page.goto(`${origin}/benchmarks/?fields=${fieldCount}`, { waitUntil: 'load' })
   try {
-    await server.listen()
+    await page.waitForFunction(
+      () => window.__texarynBenchReady === true || window.__texarynBenchError,
+      undefined,
+      { timeout: 20000 },
+    )
+  } catch (error) {
+    throw new Error([
+      `Benchmark page did not initialize (HTTP ${response?.status() ?? 'no response'}).`,
+      ...pageErrors,
+      ...consoleErrors,
+      error instanceof Error ? error.message : String(error),
+    ].join('\n'))
+  }
+  const pageError = await page.evaluate(() => window.__texarynBenchError)
+  if (pageError) throw new Error(pageError)
+  return { page, pageErrors, consoleErrors }
+}
+
+async function prepareRenderer(page, renderer) {
+  await page.evaluate((name) => window.__texarynBench.prepare(name), renderer)
+}
+
+async function mountRenderer(page, renderer) {
+  await prepareRenderer(page, renderer)
+  return page.evaluate(() => window.__texarynBench.mount())
+}
+
+async function unmountRenderer(page) {
+  await page.evaluate(() => window.__texarynBench.unmount())
+}
+
+async function waitForConditionalState(page, enabled) {
+  await page.waitForFunction(
+    (expected) => {
+      const data = window.__texarynBench.data()
+      const extraVisible = Array.from(document.querySelectorAll('#root label'))
+        .some((label) => {
+          const control = label.control
+          return label.textContent?.trim().includes('Extra')
+            && control !== null
+            && label.closest('[hidden]') === null
+            && control.closest('[hidden]') === null
+        })
+      return data?.enabled === expected && extraVisible === expected
+    },
+    enabled,
+    { polling: 'raf', timeout: 10000 },
+  )
+}
+
+async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts) {
+  const samples = []
+
+  for (let cycle = 0; cycle < warmupMounts; cycle++) {
+    await mountRenderer(page, renderer)
+    await unmountRenderer(page)
+  }
+
+  for (let sample = 0; sample < measuredMounts; sample++) {
+    await prepareRenderer(page, renderer)
+    const elapsed = await page.evaluate(async () => {
+      const startedAt = performance.now()
+      await window.__texarynBench.mount()
+      return performance.now() - startedAt
+    })
+    samples.push(elapsed)
+    await unmountRenderer(page)
+  }
+
+  return samples
+}
+
+async function measureRendererTransitions(page, renderer, warmupCycles, transitionCount) {
+  await mountRenderer(page, renderer)
+  const checkbox = page.locator('#root input[type="checkbox"]').first()
+
+  for (let cycle = 0; cycle < warmupCycles; cycle++) {
+    await checkbox.check()
+    await waitForConditionalState(page, true)
+    await checkbox.uncheck()
+    await waitForConditionalState(page, false)
+  }
+
+  await page.evaluate(() => window.__texarynBench.startInputMeasurement())
+  let completed = 0
+  for (let index = 0; index < transitionCount / 2; index++) {
+    await checkbox.check()
+    completed++
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
+    await checkbox.uncheck()
+    completed++
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
+  }
+
+  const input = await page.evaluate(() => ({
+    samples: window.__texarynInputSamples,
+    mismatches: window.__texarynInputMismatches,
+    completed: window.__texarynInputCompleted,
+  }))
+  if (
+    input.mismatches !== 0
+    || input.completed !== transitionCount
+    || input.samples.length !== transitionCount
+  ) {
+    throw new Error(`${renderer} did not produce matching runtime data and conditional DOM for every input event.`)
+  }
+
+  const activations = input.samples.filter((sample) => sample.enabled).map((sample) => sample.elapsedMs)
+  const removals = input.samples.filter((sample) => !sample.enabled).map((sample) => sample.elapsedMs)
+  if (activations.length !== transitionCount / 2 || removals.length !== transitionCount / 2) {
+    throw new Error(`${renderer} did not produce equal activation and removal samples.`)
+  }
+
+  return { activations, removals }
+}
+
+async function runRendererTrial(browser, origin, renderer, trial, configuration) {
+  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50)
+
+  try {
+    const mountSamples = await measureRendererMounts(
+      page,
+      renderer,
+      configuration.mountWarmupsPerTrial,
+      configuration.measuredMountsPerTrial,
+    )
+    const { activations, removals } = await measureRendererTransitions(
+      page,
+      renderer,
+      configuration.inputWarmupCyclesPerTrial,
+      configuration.inputTransitionsPerTrial,
+    )
+    if (pageErrors.length > 0) throw new Error(`${renderer} browser error: ${pageErrors[0]}`)
+
+    return {
+      mountSamples,
+      activations,
+      removals,
+      result: {
+        trial,
+        mountToDomAtSecondAnimationFrame: summarize(mountSamples),
+        activationToMatchingDomFrame: summarize(activations),
+        removalToMatchingDomFrame: summarize(removals),
+      },
+    }
+  } finally {
+    await unmountRenderer(page).catch(() => {})
+    await page.close()
+  }
+}
+
+async function crossRendererBenchmarks(browser, origin) {
+  const renderers = ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular']
+  const configuration = {
+    trials: 5,
+    mountWarmupsPerTrial: 2,
+    measuredMountsPerTrial: 3,
+    inputWarmupCyclesPerTrial: 5,
+    inputTransitionsPerTrial: 200,
+  }
+  const mountSamples = Object.fromEntries(renderers.map((name) => [name, []]))
+  const activationSamples = Object.fromEntries(renderers.map((name) => [name, []]))
+  const removalSamples = Object.fromEntries(renderers.map((name) => [name, []]))
+  const trialResults = Object.fromEntries(renderers.map((name) => [name, []]))
+  const rendererOrders = []
+
+  for (let trial = 0; trial < configuration.trials; trial++) {
+    const order = shuffle(renderers)
+    rendererOrders.push(order)
+
+    for (const renderer of order) {
+      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration)
+      mountSamples[renderer].push(...measurement.mountSamples)
+      activationSamples[renderer].push(...measurement.activations)
+      removalSamples[renderer].push(...measurement.removals)
+      trialResults[renderer].push(measurement.result)
+    }
+  }
+
+  return {
+    fieldCount: 50,
+    conditionalField: 'Extra',
+    ...configuration,
+    rendererOrders,
+    renderers: Object.fromEntries(renderers.map((renderer) => [renderer, {
+      mountToDomAtSecondAnimationFrame: summarize(mountSamples[renderer]),
+      conditionalTransitionToMatchingDomFrame: summarize([
+        ...activationSamples[renderer],
+        ...removalSamples[renderer],
+      ]),
+      activationToMatchingDomFrame: summarize(activationSamples[renderer]),
+      removalToMatchingDomFrame: summarize(removalSamples[renderer]),
+      trials: trialResults[renderer],
+    }])),
+  }
+}
+
+async function browserBenchmarks() {
+  const outDir = await mkdtemp(resolve(tmpdir(), 'texaryn-performance-'))
+  let server
+  let browser
+
+  try {
+    await build({
+      root: appRoot,
+      configFile: resolve(appRoot, 'vite.config.ts'),
+      mode: 'benchmark',
+      build: {
+        outDir,
+        emptyOutDir: true,
+        sourcemap: false,
+        rollupOptions: { input: resolve(appRoot, 'benchmarks/index.html') },
+      },
+    })
+    server = await preview({
+      root: appRoot,
+      configFile: resolve(appRoot, 'vite.config.ts'),
+      mode: 'benchmark',
+      build: { outDir },
+      preview: { host: '127.0.0.1', port: 0, strictPort: false },
+    })
     const address = server.httpServer.address()
-    if (!address || typeof address === 'string') throw new Error('Vite did not open a TCP port.')
+    if (!address || typeof address === 'string') throw new Error('Vite preview did not open a TCP port.')
+    const origin = `http://127.0.0.1:${address.port}`
 
     browser = await chromium.launch({ headless: true, args: ['--js-flags=--expose-gc'] })
 
     const memory = {}
     for (const fieldCount of [10, 50, 200]) {
-      const page = await browser.newPage()
-      await page.goto(`http://127.0.0.1:${address.port}/playground/benchmarks/?fields=${fieldCount}`, {
-        waitUntil: 'domcontentloaded',
-      })
-      await page.waitForFunction(
-        () => window.__texarynBenchReady === true || window.__texarynBenchError,
-        undefined,
-        { timeout: 60000 },
-      )
-      const pageError = await page.evaluate(() => window.__texarynBenchError)
-      if (pageError) throw new Error(pageError)
-
+      const { page } = await openBenchmarkPage(browser, origin, fieldCount)
       const cdp = await page.context().newCDPSession(page)
       await cdp.send('HeapProfiler.enable')
       await cdp.send('Performance.enable')
@@ -310,18 +530,18 @@ async function browserBenchmarks() {
       }
 
       for (let cycle = 0; cycle < 10; cycle++) {
-        await page.evaluate(() => window.__texarynBench.mount())
-        await page.evaluate(() => window.__texarynBench.unmount())
+        await mountRenderer(page, 'react')
+        await unmountRenderer(page)
       }
       const baselineBytes = await heapBytes()
-      const nodeCount = await page.evaluate(() => window.__texarynBench.mount())
+      const nodeCount = await mountRenderer(page, 'react')
       const mountedBytes = await heapBytes()
-      await page.evaluate(() => window.__texarynBench.unmount())
+      await unmountRenderer(page)
       const afterUnmountBytes = await heapBytes()
 
       for (let cycle = 0; cycle < 50; cycle++) {
-        await page.evaluate(() => window.__texarynBench.mount())
-        await page.evaluate(() => window.__texarynBench.unmount())
+        await mountRenderer(page, 'react')
+        await unmountRenderer(page)
       }
       const afterCyclesBytes = await heapBytes()
       memory[fieldCount] = {
@@ -334,59 +554,16 @@ async function browserBenchmarks() {
       await page.close()
     }
 
-    const page = await browser.newPage()
-    await page.goto(`http://127.0.0.1:${address.port}/playground/benchmarks/?fields=50`, {
-      waitUntil: 'domcontentloaded',
-    })
-    await page.waitForFunction(() => window.__texarynBenchReady === true, undefined, { timeout: 60000 })
-    await page.evaluate(() => window.__texarynBench.mount())
-    await page.evaluate(() => {
-      const input = document.querySelector('input[type="checkbox"]')
-      if (!(input instanceof HTMLInputElement)) throw new Error('Benchmark form has no conditional checkbox.')
-      window.__texarynInputSamples = []
-      window.__texarynInputMismatches = 0
-      input.addEventListener('input', (event) => {
-        const started = event.timeStamp
-        const expected = input.checked
-        requestAnimationFrame(() => {
-          const current = window.__texarynBench.data()
-          const extraVisible = Array.from(document.querySelectorAll('label'))
-            .some((label) => label.textContent?.includes('Extra'))
-          if (current?.enabled !== expected || extraVisible !== expected) {
-            window.__texarynInputMismatches++
-            return
-          }
-          window.__texarynInputSamples.push(performance.now() - started)
-        })
-      }, { capture: true })
-    })
-
-    const input = page.locator('input[type="checkbox"]').first()
-    const targetEvents = 200
-    let capturedEvents = 0
-    for (let index = 0; index < targetEvents / 2; index++) {
-      await input.check()
-      capturedEvents++
-      await page.waitForFunction((count) => window.__texarynInputSamples.length >= count, capturedEvents)
-      await input.uncheck()
-      capturedEvents++
-      await page.waitForFunction((count) => window.__texarynInputSamples.length >= count, capturedEvents)
+    return {
+      chromium: browser.version(),
+      buildMode: 'production',
+      memory,
+      crossRenderer: await crossRendererBenchmarks(browser, origin),
     }
-
-    const latency = await page.evaluate(() => ({
-      samples: window.__texarynInputSamples,
-      mismatches: window.__texarynInputMismatches,
-    }))
-    if (latency.mismatches !== 0 || latency.samples.length !== targetEvents) {
-      throw new Error('Input samples did not observe matching runtime data and conditional DOM for every event.')
-    }
-    await page.evaluate(() => window.__texarynBench.unmount())
-    await page.close()
-
-    return { chromium: browser.version(), memory, inputToDomUpdate: summarize(latency.samples) }
   } finally {
     await browser?.close()
-    await server.close()
+    await server?.close()
+    await rm(outDir, { recursive: true, force: true })
   }
 }
 
@@ -409,7 +586,11 @@ async function main() {
       firstRenderSamples,
       arrayDispatchSamples: { 10: 60, 100: 60, 1000: 30 },
       validationIterations: 2000,
-      browserInputEvents: 200,
+      crossRendererTrials: 5,
+      crossRendererInputTransitionsPerTrial: 200,
+      crossRendererMountWarmupsPerTrial: 2,
+      crossRendererMeasuredMountsPerTrial: 3,
+      crossRendererInputWarmupCyclesPerTrial: 5,
       memoryWarmupCycles: 10,
       memoryMeasuredCycles: 50,
     },
