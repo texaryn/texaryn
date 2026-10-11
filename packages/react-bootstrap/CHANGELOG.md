@@ -1,5 +1,19 @@
 # @texaryn/react-bootstrap
 
+## 0.6.0
+
+### Minor Changes
+
+- 2c2786f: Add native drag reorder to every array renderer while retaining the existing accessible move controls.
+
+### Patch Changes
+
+- Updated dependencies [2c2786f]
+- Updated dependencies [2c2786f]
+- Updated dependencies [2c2786f]
+  - @texaryn/core@0.15.0
+  - @texaryn/react@0.7.0
+
 ## 0.5.0
 
 ### Minor Changes

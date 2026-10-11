@@ -1,5 +1,12 @@
 # @texaryn/core
 
+## 0.15.0
+
+### Minor Changes
+
+- 2c2786f: Add a standalone version 2 display document runtime, semantic renderer roots, bounded server update sessions, and validated host action arguments.
+- 2c2786f: Add an optional Yjs adapter for convergent scalar field editing, with runtime mutation observation, command guards, and atomic remote snapshots.
+
 ## 0.14.0
 
 ### Minor Changes
