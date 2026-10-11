@@ -1,0 +1,7 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "form",
+  "schema": { "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "properties": { "name": { "type": "string" } } },
+  "hints": { "/name": { "hidden": true } }
+}

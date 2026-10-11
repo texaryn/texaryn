@@ -4,7 +4,8 @@
 
 A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
-Server-driven and AI-generated interfaces remain later roadmap items.
+Server-driven updates, AI generation, and a visual builder are implemented in
+PR #214; renderer and feature PRs remain in review.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1891,39 +1892,42 @@ packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
 support and TypeBox integration; the release workflow has not published the
-Zod package yet. Angular source merged in [PR #211](https://github.com/texaryn/texaryn/pull/211),
-and Svelte source merged in [PR #212](https://github.com/texaryn/texaryn/pull/212).
-Solid is in [PR #213](https://github.com/texaryn/texaryn/pull/213), now based on
-`main`. The document runtime and remaining Phase 5 features are in PR #214,
+Zod package yet. Angular source merged in PR #211, and Svelte source merged in
+PR #212. Solid is in PR #213, based on `main`. PR #214 contains the document
+runtime, AI kit, visual builder, array reorder, and collaboration work. It is
 stacked on Solid.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
-found a runtime replacement edge case in `FormRoot`; the binding and teardown
-behavior now follow the active form, with a regression test. Follow-up review
-found no remaining actionable issues. The SolidJS renderer in PR #213 passed
-build, typecheck, package verification, full test suite, and site build on its
-earlier base. Its checks are running again against `main`. ChatGPT review
-findings about read-only control state and object enum comparison were fixed,
-and follow-up review found no remaining actionable issues.
+found a runtime replacement edge case in `FormRoot`; binding and teardown now
+follow the active form, with regression coverage. Follow-up review found no
+remaining actionable issues. The SolidJS renderer in PR #213 passed build,
+typecheck, package verification, full test suite, and site build on its earlier
+base. Its checks are running again against `main`. ChatGPT review findings
+about read-only control state and object enum comparison were fixed, and
+follow-up review found no remaining actionable issues.
 
 ADR-012 accepts a standalone, schema independent display document runtime for
 tables, lists, layouts, text, and actions. Its implementation is in PR #214.
-Core runtime support and semantic renderer roots are available in React, Vue,
-Solid, Svelte, Angular, and Web Components. The pre-rebase full suite passed
-5,596 tests across 164 files. ChatGPT reviewed the ADR, runtime, and renderer
-changes and found no remaining actionable issues. Forms remain on version 1
-and `FormRuntime`.
-changes and found no remaining actionable issues. Forms remain on version 1
-and `FormRuntime`.
+Core runtime support and semantic renderer roots cover React, Vue, Solid,
+Svelte, Angular, and Web Components. ChatGPT reviewed the ADR, runtime, and
+renderer changes and found no remaining actionable issues. Forms remain on
+version 1 and `FormRuntime`.
 
 ADR-013 accepts bounded versioned updates for those display documents. Core
 provides snapshot replacement, a restricted patch session, monotonic revisions,
 fixed JSON and collection limits, explicit action argument validators, and
 atomic runtime publication. ChatGPT reviewed the protocol and implementation
-and found no remaining actionable issues. The pre-rebase full suite passed
-5,547 tests across 160 files. Typecheck, build, package verification, and site
-build passed. The work is in PR #214 and unreleased.
+and found no remaining actionable issues.
+
+ADR-014 accepts a provider-neutral AI generation kit. Its versioned output
+contract supports schema-generated version 1 forms and direct version 2 display
+documents. The downloadable schema and instructions, bounded repair example,
+runtime acceptance checks, and deterministic fixtures are in PR #214. The kit
+adds no AI SDK or runtime package. ChatGPT's final code review found no
+remaining actionable findings. ADR-015 accepts a playground-only visual form
+builder that edits simple scalar properties in the existing JSON Schema source,
+while retaining the JSON editor for advanced schemas.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2129,18 +2133,18 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. PR #210 merged Zod and TypeBox
-support. The Zod package awaits publication. Continue the remaining work in this
-order:
+MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
+and TypeBox coverage. The Zod package remains unpublished. Continue the open
+work in this order:
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, then Solid in PR #213.
-2. Non-form nodes: tables, lists, layouts and actions in PR #214 under ADR-012.
-3. Bounded document updates in PR #214 under ADR-013.
-4. Server-driven UI tooling.
-5. AI generation tooling.
-6. Visual form builder.
-7. Drag-and-drop array reorder.
-8. Collaborative scalar editing.
+2. Standalone display documents in PR #214 under ADR-012.
+3. Bounded server-driven document updates in PR #214 under ADR-013.
+4. Provider-neutral AI generation in PR #214 under ADR-014.
+5. The playground visual form builder in PR #214 under ADR-015.
+6. Native array reorder under ADR-016.
+7. Collaborative scalar editing under ADR-017.
+8. Draft-04 JSON Schema support, IR migrations, then the plugin ecosystem.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 
@@ -2269,17 +2273,14 @@ Deferred from MVP:
 
 ### Phase 5+ Execution Order
 
-- Schema authoring: TypeBox via JSON Schema and Zod 4 adapter (completed in this change)
-- Additional renderers: Angular, Svelte, Solid
-- Non-form node types (tables, lists, general layouts)
-- Server-driven UI tooling
-- AI generation tooling
-- Visual form builder
-- Drag-and-drop reorder
-- Draft-04 JSON Schema support
-- Collaborative editing
-- IR migrations
-- Plugin ecosystem
+1. Schema authoring: TypeBox through JSON Schema and the Zod 4 adapter. Zod is
+   merged, and its package release remains pending.
+2. Additional renderers: Angular, Svelte, and Solid in PRs #211 to #213.
+3. Display documents, bounded updates, AI generation, the visual builder, array
+   reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
+4. Draft-04 JSON Schema support.
+5. IR migrations.
+6. Plugin ecosystem.
 
 ### Why Not Build on TanStack Form?
 
