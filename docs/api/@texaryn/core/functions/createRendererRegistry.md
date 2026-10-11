@@ -6,7 +6,7 @@
 
 # Function: createRendererRegistry()
 
-> **createRendererRegistry**\<`T`\>(): [`RendererRegistry`](../interfaces/RendererRegistry.md)\<`T`\>
+> **createRendererRegistry**\<`T`, `Node`\>(): [`RendererRegistry`](../interfaces/RendererRegistry.md)\<`T`, `Node`\>
 
 ## Type Parameters
 
@@ -14,6 +14,10 @@
 
 `T`
 
+### Node
+
+`Node` = [`UINode`](../type-aliases/UINode.md)
+
 ## Returns
 
-[`RendererRegistry`](../interfaces/RendererRegistry.md)\<`T`\>
+[`RendererRegistry`](../interfaces/RendererRegistry.md)\<`T`, `Node`\>

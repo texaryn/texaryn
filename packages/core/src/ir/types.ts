@@ -1,14 +1,75 @@
-import type { NodeId, StableItemId, JsonPointer } from '../types.js'
+import type { JsonPointer, NodeId, StableItemId } from '../types.js'
 import type { IdentityKey } from '../identity/key.js'
 import type { ProjectionBoundary, ProjectionBoundaryTarget } from '../schema/port.js'
 
-export interface UIDocument {
-  version: 1
+export type UIDocumentVersion = 1 | 2
+
+export interface UIDocument<Version extends UIDocumentVersion = 1> {
+  version: Version
   rootId: NodeId
-  nodes: Record<string, UINode>
+  nodes: Record<string, Version extends 1 ? UINode : DocumentNode>
 }
 
+export type UIDocumentV2 = UIDocument<2>
+export type AnyUIDocument = UIDocument<1> | UIDocumentV2
+
 export type UINode = FieldNode | ContainerNode | TextNode | ActionNode
+
+export type DocumentNode =
+  | DisplayContainerNode
+  | DisplayTextNode
+  | DisplayActionNode
+  | ListNode
+  | TableNode
+
+export interface DisplayNodeBase {
+  id: NodeId
+  type: string
+  parentId: NodeId | null
+  annotations: NodeAnnotations
+}
+
+export interface DisplayContainerNode extends DisplayNodeBase {
+  type: 'container'
+  containerType: 'group' | 'layout'
+  children: NodeId[]
+}
+
+export interface DisplayTextNode extends DisplayNodeBase {
+  type: 'text'
+  content: string
+  textRole: 'heading' | 'paragraph' | 'help'
+}
+
+export interface DisplayActionNode extends DisplayNodeBase {
+  type: 'action'
+  actionType: string
+  label: string
+  actionArgs?: import('../types.js').JsonValue
+  buttonRole: 'button'
+}
+
+export interface ListNode extends DisplayNodeBase {
+  type: 'list'
+  collectionId: string
+  dataPointer: JsonPointer
+  valuePointer: JsonPointer
+  rowKeyPointer?: JsonPointer
+}
+
+export interface TableColumn {
+  id: string
+  label: string
+  valuePointer: JsonPointer
+}
+
+export interface TableNode extends DisplayNodeBase {
+  type: 'table'
+  collectionId: string
+  dataPointer: JsonPointer
+  rowKeyPointer?: JsonPointer
+  columns: TableColumn[]
+}
 
 export interface NodeBase {
   id: NodeId

@@ -54,7 +54,7 @@
 
 ### registry
 
-> `readonly` **registry**: `InputSignal`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+> `readonly` **registry**: `InputSignal`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>
 
 #### Implementation of
 

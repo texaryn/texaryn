@@ -3,9 +3,11 @@ import { Component, provideZonelessChangeDetection } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { JsonPipe } from '@angular/common'
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import { createForm, createDefaultRegistry, FormRoot } from '@texaryn/angular'
+import { createDocumentRuntime } from '@texaryn/core'
+import type { JsonPointer, NodeId, UIDocumentV2 } from '@texaryn/core'
+import { createForm, createDefaultRegistry, DocumentRoot, FormRoot } from '@texaryn/angular'
 import type { AngularForm } from '@texaryn/angular'
 import { angularAdapter } from './angular-adapter.js'
 import { rendererDomAccessibilityContract } from '../../../../tests/renderer-conformance/renderer-dom-accessibility-contract.js'
@@ -47,6 +49,37 @@ class AngularReadOnlyHost {
   readonly registry = createDefaultRegistry()
 }
 
+function displayDocument(): UIDocumentV2 {
+  const nodeId = (value: string) => value as NodeId
+  const pointer = (value: string) => value as JsonPointer
+  return {
+    version: 2,
+    rootId: nodeId('root'),
+    nodes: {
+      root: { id: nodeId('root'), type: 'container', parentId: null, annotations: { title: 'People' }, containerType: 'group', children: [nodeId('heading'), nodeId('list'), nodeId('table'), nodeId('action')] },
+      heading: { id: nodeId('heading'), type: 'text', parentId: nodeId('root'), annotations: {}, textRole: 'heading', content: 'Directory' },
+      list: { id: nodeId('list'), type: 'list', parentId: nodeId('root'), annotations: {}, collectionId: 'people-list', dataPointer: pointer('/people'), valuePointer: pointer('/name'), rowKeyPointer: pointer('/id') },
+      table: { id: nodeId('table'), type: 'table', parentId: nodeId('root'), annotations: {}, collectionId: 'people-table', dataPointer: pointer('/people'), rowKeyPointer: pointer('/id'), columns: [{ id: 'name', label: 'Name', valuePointer: pointer('/name') }] },
+      action: { id: nodeId('action'), type: 'action', parentId: nodeId('root'), annotations: {}, actionType: 'refresh', label: 'Refresh', buttonRole: 'button' },
+    },
+  }
+}
+
+const refresh = vi.fn()
+
+@Component({
+  selector: 'texaryn-angular-display-host',
+  standalone: true,
+  imports: [DocumentRoot],
+  template: '<texaryn-document-root [runtime]="runtime" />',
+})
+class AngularDocumentHost {
+  readonly runtime = createDocumentRuntime(displayDocument(), {
+    initialData: { people: [{ id: 'ada', name: 'Ada' }] },
+    actions: { refresh },
+  })
+}
+
 let adapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 let readOnlyAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 
@@ -57,7 +90,7 @@ describe('Angular signal renderer', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [AngularSmokeHost],
+      imports: [AngularSmokeHost, AngularDocumentHost],
       providers: [provideZonelessChangeDetection()],
     })
   })
@@ -141,6 +174,29 @@ describe('Angular signal renderer', () => {
     objectChoice.dispatchEvent(new Event('change', { bubbles: true }))
     await fixture.whenStable()
     expect(fixture.componentInstance.form.data()).toMatchObject({ objectChoice: { code: 2 } })
+
+    fixture.destroy()
+    fixture.nativeElement.remove()
+  })
+
+  it('renders non-form nodes and subscribes to collection stores', async () => {
+    refresh.mockClear()
+    const fixture = TestBed.createComponent(AngularDocumentHost)
+    document.body.append(fixture.nativeElement)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+
+    expect(fixture.nativeElement.querySelector('fieldset legend')?.textContent).toBe('People')
+    expect(fixture.nativeElement.querySelector('h2')?.textContent).toBe('Directory')
+    expect(fixture.nativeElement.querySelector('ul li')?.textContent).toBe('Ada')
+    expect(fixture.nativeElement.querySelector('td')?.textContent).toBe('Ada')
+
+    fixture.componentInstance.runtime.setData({ people: [{ id: 'grace', name: 'Grace' }] })
+    await fixture.whenStable()
+    expect(fixture.nativeElement.querySelector('ul li')?.textContent).toBe('Grace')
+    fixture.nativeElement.querySelector('button')?.click()
+    await fixture.whenStable()
+    expect(refresh).toHaveBeenCalledOnce()
 
     fixture.destroy()
     fixture.nativeElement.remove()

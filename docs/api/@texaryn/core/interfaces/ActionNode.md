@@ -36,7 +36,7 @@
 
 ### buttonRole
 
-> **buttonRole**: `"submit"` \| `"reset"` \| `"button"`
+> **buttonRole**: `"button"` \| `"submit"` \| `"reset"`
 
 ***
 

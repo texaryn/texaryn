@@ -28,4 +28,4 @@
 
 ### registry
 
-> `readonly` **registry**: `Signal`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+> `readonly` **registry**: `Signal`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>

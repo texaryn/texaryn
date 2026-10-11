@@ -2,11 +2,9 @@
 
 *From Latin texere: to weave, construct, compose.*
 
-A framework-neutral, headless runtime for declarative and dynamically generated
-interfaces. Forms are the first domain. The architecture targets general dynamic
-UI (layouts, tables, lists, actions, conditional and repeated content,
-server-driven UI, AI-generated UI) without building any of it until the form
-runtime has shipped and found users.
+A framework-neutral, headless runtime for declarative interfaces. Forms shipped
+first, and the versioned IR now also supports standalone display documents.
+Server-driven and AI-generated interfaces remain later roadmap items.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1906,9 +1904,13 @@ object enum comparison issues. Both fixes have regression coverage, and the
 follow-up review found no remaining actionable issues.
 
 ADR-012 accepts a standalone, schema independent display document runtime for
-tables, lists, layouts, and actions. The first implementation is in progress on
-local branch `feat/non-form-node-types`. ChatGPT reviewed the ADR and found no
-remaining actionable issues. Forms remain on version 1 and `FormRuntime`.
+tables, lists, layouts, text, and actions. The implementation is complete
+locally on branch `feat/non-form-node-types`. Core runtime support and semantic
+renderer roots are available in React, Vue, Solid, Svelte, Angular, and Web
+Components. Build, typecheck, package verification, site validation, and the full
+test suite passed with 5,523 tests across 159 files. ChatGPT reviewed the ADR,
+runtime, and renderer changes and found no remaining actionable issues. This
+work is local and unreleased. Forms remain on version 1 and `FormRuntime`.
 
 PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
 and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
@@ -2127,7 +2129,8 @@ this order:
 1. Additional schema adapters: Zod in PR #210, then TypeBox
 2. Additional renderers: Angular in PR #211, Svelte in `feat/svelte-renderer`, and Solid in `feat/solid-renderer`
 3. Non-form node types: tables, lists and layouts. The design is accepted in
-   [ADR-012](docs/adr/012-non-form-ui-runtime.md); implementation is in progress.
+   [ADR-012](docs/adr/012-non-form-ui-runtime.md); implementation is complete
+   locally on `feat/non-form-node-types` and is unreleased.
 4. Server-driven UI tooling
 5. AI generation tooling
 6. Visual form builder

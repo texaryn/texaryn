@@ -6,7 +6,7 @@
 
 # Function: useRendererRegistry()
 
-> **useRendererRegistry**(): `ComputedRef`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+> **useRendererRegistry**(): `ComputedRef`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>
 
 Provided once by FormRoot rather than per node.
 
@@ -18,4 +18,4 @@ an injection scope per node for no gain.
 
 ## Returns
 
-`ComputedRef`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+`ComputedRef`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>
