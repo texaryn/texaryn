@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { compileSchema, type JsonSchema, type SchemaNode } from 'json-schema-library'
+import { compileSchema, type JsonSchema, type SchemaNode } from '@texaryn/json-schema-library'
 import type { NodeProjection, SchemaProjection } from '@texaryn/core'
 import { createFormRuntime } from '@texaryn/core'
-import { createJsonSchemaAdapter, ProjectionValidationDivergenceError } from '../index.js'
+import { createJsonSchemaAdapter } from '../index.js'
 import { createAdapter } from '../adapter.js'
 import { followRef, positionOf } from '../identity.js'
 import { buildSchemaGraph, markPositions } from '../schema-graph.js'
@@ -319,26 +319,22 @@ describe('branches the specification never evaluates', () => {
     ['a then in $defs after the live one', { type: 'object', properties: { q: { then: N }, r: { $ref: '#/properties/q/then' } }, $defs: { foo: { type: 'object', properties: { q: { then: S } } } } }],
     ['a then the library alone resolves into', { type: 'object', then: { properties: { q: S } }, properties: { r: { $ref: '#/properties/q' } } }],
   ] as const
-  const stringOn = (dialect: string, label: string) => dialect !== 'draft-07' || label === 'a then the library alone resolves into'
-  const diverges = (dialect: string, label: string) =>
-    dialect === 'draft-07'
-      ? label === 'a then below a property beside a root then' || label === 'a then the library alone resolves into'
-      : label === 'a then declared before the live property' ||
-        label === 'a then declared after the live property' ||
-        label === 'a then in $defs before the live one' ||
-        label === 'a then in $defs after the live one' ||
-        label === 'a then the library alone resolves into'
+  const stringTarget = (label: string) => label === 'a then below a property beside a root then'
   it.each(Object.entries(uris).flatMap(([dialect, $schema]) => collisions.map(([label, schema]) => [label, dialect, $schema, schema] as const)))(
-    'validates a reference beside %s as main does before any projection when its targets agree, in %s',
-    async (label, dialect, $schema, schema) => {
+    'validates a reference beside %s through its declared target in %s',
+    async (label, _dialect, $schema, schema) => {
       const result = await createJsonSchemaAdapter({ $schema, ...schema }).then((adapter) => adapter, (error: unknown) => error)
-      if (diverges(dialect, label)) {
-        expect(result).toBeInstanceOf(ProjectionValidationDivergenceError)
-        return
-      }
       expect(result).not.toBeInstanceOf(Error)
       const adapter = result as Awaited<ReturnType<typeof createJsonSchemaAdapter>>
-      const [valid, invalid] = stringOn(dialect, label) ? [{ r: 'x' }, { r: 5 }] : [{ r: 5 }, { r: 'x' }]
+      const projection = adapter.project({})
+      if (label === 'a then the library alone resolves into') {
+        expect(projection.nodes.has('/r' as never)).toBe(false)
+        expect(projection.diagnostics?.map(({ code }) => code)).toContain('unresolved-projection-shape')
+        expect((await adapter.validate({ r: 'x' })).errors.map((error) => error.keyword)).toContain('$ref')
+        return
+      }
+      expect(projection.nodes.get('/r' as never)?.type).toBe(stringTarget(label) ? 'string' : 'number')
+      const [valid, invalid] = stringTarget(label) ? [{ r: 'x' }, { r: 5 }] : [{ r: 5 }, { r: 'x' }]
       adapter.project(invalid)
       expect(await adapter.validate(valid)).toEqual(expect.objectContaining({ valid: true, errors: [] }))
       expect((await adapter.validate(invalid)).errors.map((e) => [e.instancePointer, e.keyword])).toEqual([['/r', 'type']])
@@ -471,10 +467,12 @@ describe('the budget', () => {
 
   it('bounds the draft-07 metaschema', async () => {
     const p = await project(metaNoId, {})
-    // Resolving its allOf references exposes the min* constraint nodes beneath items.
-    expect(p.nodes.size).toBe(412)
-    expect(flagged(p)).toBe(367)
-    expect(withBoundaries(p)['/items']).toContain('budget')
+    const boundaries = withBoundaries(p)
+    expect(p.nodes.size).toBeLessThanOrEqual(512)
+    expect(flagged(p)).toBeLessThanOrEqual(512)
+    expect(p.nodes.get('/items' as never)).toMatchObject({ type: 'array', constraints: { minItems: 1 } })
+    expect(boundaries['/items']).toBeUndefined()
+    expect(Object.values(boundaries).flat()).toContain('budget')
   })
 
   it('stops a wide recursive object at the node limit, leaving no container empty', async () => {

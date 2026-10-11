@@ -18,7 +18,7 @@ import { registerSchema as registerSchema07 } from '@hyperjump/json-schema/draft
 import { compile, interpret, getSchema } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 
-import { compileSchema } from 'json-schema-library'
+import { compileSchema } from '@texaryn/json-schema-library'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEST_SUITE_DIR = join(__dirname, 'test-suite', 'tests')

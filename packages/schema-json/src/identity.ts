@@ -1,4 +1,4 @@
-import { isSchemaNode, settings, type SchemaNode } from 'json-schema-library'
+import { isSchemaNode, settings, type SchemaNode } from '@texaryn/json-schema-library'
 import type { Dialect } from './dialect.js'
 import { POSITION, escape } from './schema-graph.js'
 

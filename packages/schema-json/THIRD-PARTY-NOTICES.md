@@ -2,8 +2,9 @@
 
 ## json-schema-library
 
-The ESM runtime at `dist/vendor/json-schema-library/` is adapted from
-`json-schema-library` 11.6.2 by Sascha Goldhofer and is distributed under the
+The ESM runtime at `dist/vendor/json-schema-library/` comes from
+`@texaryn/json-schema-library` 11.6.6, a Texaryn maintained fork of upstream
+`json-schema-library` 11.6.5 by Sascha Goldhofer. It is distributed under the
 MIT License. Its full license is included at
 `dist/vendor/json-schema-library/LICENSE.md`.
 

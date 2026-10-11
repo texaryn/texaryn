@@ -1,4 +1,4 @@
-import { isSchemaNode, type SchemaNode } from 'json-schema-library'
+import { isSchemaNode, type SchemaNode } from '@texaryn/json-schema-library'
 import type { Dialect } from './dialect.js'
 import { withoutUnreachableBranches } from './normalize.js'
 

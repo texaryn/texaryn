@@ -43,8 +43,7 @@
     "@texaryn/core": "workspace:^",
     "fast-copy": "^4.0.4",
     "fast-deep-equal": "^3.1.3",
-    "json-schema-library": "11.6.2",
-    "uri-js": "^4.4.1",
+    "@texaryn/json-schema-library": "^11.6.6",
     "valid-url": "^1.0.9"
   },
   "scripts": {

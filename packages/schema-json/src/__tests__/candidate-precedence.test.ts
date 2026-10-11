@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { compileSchema } from 'json-schema-library'
+import { compileSchema } from '@texaryn/json-schema-library'
 import { createJsonSchemaAdapter, SameLocationCycleError } from '../index.js'
 import type { JsonPointer } from '@texaryn/core'
 

@@ -1,4 +1,4 @@
-import { mergeNode, isSchemaNode, type SchemaNode, type ValidationPath } from 'json-schema-library'
+import { mergeNode, isSchemaNode, type SchemaNode, type ValidationPath } from '@texaryn/json-schema-library'
 import type {
   SchemaProjection,
   NodeProjection,

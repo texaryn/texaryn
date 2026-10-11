@@ -1,4 +1,4 @@
-import { draft04, draft06, draft07, draft2019, draft2020, extendDraft, type Draft, type SchemaNode } from 'json-schema-library'
+import { draft04, draft06, draft07, draft2019, draft2020, extendDraft, type Draft, type SchemaNode } from '@texaryn/json-schema-library'
 
 const MAPS_BY_KEYWORD: Record<string, string[]> = {
   properties: ['properties'],
