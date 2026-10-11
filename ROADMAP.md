@@ -1896,19 +1896,23 @@ dependency on the core.
    run one validation pass, not three.
 
 4. **Store updates.** Per-node stores mean a value change updates the affected
-   node store, and the framework adapter subscribes to that store. The current
-   baseline measures Texaryn only. It does not compare render behavior or
-   latency against RJSF.
+   node store, and the framework adapter subscribes to that store. The
+   [cross-renderer baseline](apps/docs/src/content/docs/concepts/performance.md)
+   measures six Texaryn renderer paths over the same core runtime and workload.
+   It does not compare behavior or latency against RJSF.
 
 ### Published Baseline
 
-The five planned measurements are published in the
+The core, React, and browser measurements are published in the
 [Performance baseline](apps/docs/src/content/docs/concepts/performance.md):
 schema preparation and React server render, browser input-to-DOM latency,
 individual array commands at three sizes, mounted and retained browser heap,
-and validation throughput. The run records its hardware, Node.js, Chromium,
-sample counts, and base commit. It is a local baseline, not a CI threshold or a
-comparison with another form library.
+validation throughput, and a production browser comparison of React, Vue,
+Svelte, Solid, Angular, and Web Components. That comparison reports mount,
+conditional activation, and conditional removal for one shared 50-field form.
+The run records its hardware, Node.js, Chromium, sample counts, and base commit.
+It is a local workload baseline, not a CI threshold or a comparison with
+another form library.
 
 ### Targeted Recompilation
 
@@ -1969,8 +1973,9 @@ provenance. Main CI run
 verified provenance and created both matching GitHub releases.
 
 Section 18 publishes local baselines for compiler timing, React server render,
-browser input-to-DOM latency, array commands, memory deltas, and validation
-throughput. Cross-framework and competitor performance comparisons remain
+browser input-to-DOM latency, array commands, memory deltas, validation
+throughput, and a production comparison of six Texaryn renderer paths on one
+conditional form. Comparisons with RJSF and other form libraries remain
 unmeasured. Targeted diffing stays deferred until supported application
 workloads show repeated structural operations above the interaction target.
 
@@ -2555,8 +2560,9 @@ comparisons and application-specific persistence formats to later evidence.
    Angular, Solid, and Svelte adapters consume `getSnapshot` and `subscribe`
    through their native state primitives. This establishes functional
    compatibility. A local React and core baseline is published in
-   [Section 18](#18-performance-model). Cross-framework and competitor
-   performance comparisons remain unmeasured.
+   [Section 18](#18-performance-model). A local baseline compares six Texaryn
+   renderer paths on one conditional form. RJSF and other form library
+   comparisons remain unmeasured.
 
 6. **Server rendering across processes.** Resolved in
    [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
