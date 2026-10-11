@@ -2,7 +2,7 @@
 // Pages it is `/texaryn/playground/`, because the docs site owns the root and
 // the playground owns that subtree.
 import { describe, it, expect } from 'vitest'
-import { docsHref, formatLocation, parseLocation } from '../routing.js'
+import { docsHref, formatLocation, parseLocation, RENDERER_KEYS } from '../routing.js'
 
 describe('docsHref', () => {
   it('points at the parent of the mount in development', () => {
@@ -61,7 +61,7 @@ describe('parseLocation', () => {
   })
 
   it('falls back for an unknown renderer rather than breaking', () => {
-    expect(parseLocation('/playground/x', '?renderer=svelte', DEV).renderer).toBe('default')
+    expect(parseLocation('/playground/x', '?renderer=solid', DEV).renderer).toBe('default')
     expect(parseLocation('/playground/x', '?renderer=', DEV).renderer).toBe('default')
   })
 
@@ -102,7 +102,7 @@ describe('formatLocation', () => {
   })
 
   it('round-trips every renderer at the Pages mount', () => {
-    for (const renderer of ['default', 'bootstrap', 'mui'] as const) {
+    for (const renderer of RENDERER_KEYS) {
       const url = formatLocation({ exampleId: 'basics-string', renderer }, PAGES)
       const [path, search] = url.split('?')
       expect(parseLocation(path, search ? `?${search}` : '', PAGES)).toEqual({

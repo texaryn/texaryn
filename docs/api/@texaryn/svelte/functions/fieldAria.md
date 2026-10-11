@@ -1,0 +1,41 @@
+[**Documentation**](../../../README.md)
+
+***
+
+[Documentation](../../../README.md) / [@texaryn/svelte](../README.md) / fieldAria
+
+# Function: fieldAria()
+
+> **fieldAria**(`node`, `state`, `idPrefix`, `nativeReadOnly?`): [`FieldAria`](../interfaces/FieldAria.md)
+
+## Parameters
+
+### node
+
+[`FieldNode`](../../core/interfaces/FieldNode.md)
+
+### state
+
+#### disabled
+
+`boolean`
+
+#### errors
+
+readonly [`ValidationError`](../../core/interfaces/ValidationError.md)[]
+
+#### showErrors
+
+`boolean`
+
+### idPrefix
+
+`string`
+
+### nativeReadOnly?
+
+`boolean` = `true`
+
+## Returns
+
+[`FieldAria`](../interfaces/FieldAria.md)

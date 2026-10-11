@@ -1,5 +1,5 @@
 // The playground is a React shell around a form subtree that a chosen
-// renderer owns. Selecting Vue switches that subtree and nothing else, which
+// renderer owns. Selecting another framework switches that subtree and nothing else, which
 // is deliberate and is the architectural claim the app exists to demonstrate.
 //
 // A screenshot of the old layout could not tell the two apart: the shell's own
@@ -58,7 +58,7 @@ describe('the renderer-owned region', () => {
     }
   })
 
-  // Three of the five surfaces are React and two are not. A list reading
+  // Three of the offered surfaces are React and three are hosted frameworks. A list reading
   // "Material UI" beside "Vue" invites reading the others as the only ones
   // with a framework, which is the confusion the boxed region exists to
   // remove. The list of technologies is written out rather than matched
@@ -72,7 +72,7 @@ describe('the renderer-owned region', () => {
     expect(offered.length).toBeGreaterThan(1)
     for (const { label } of offered) {
       expect(label, `"${label}" does not say what renders it`).toMatch(
-        /^(React|Vue|Web Components) · .+/,
+        /^(React|Vue|Svelte|Web Components) · .+/,
       )
     }
   })

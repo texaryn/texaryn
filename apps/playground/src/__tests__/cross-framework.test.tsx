@@ -12,6 +12,7 @@ import {
 import { createMuiRegistry } from '@texaryn/react-mui'
 import { getExample } from '@texaryn/examples'
 import { VueHost } from '../VueHost.js'
+import { SvelteHost } from '../SvelteHost.js'
 import { WcHost } from '../WcHost.js'
 
 const registries = {
@@ -20,12 +21,12 @@ const registries = {
 }
 
 type ReactSurface = 'default' | 'mui'
-type Surface = ReactSurface | 'vue' | 'wc'
+type Surface = ReactSurface | 'vue' | 'svelte' | 'wc'
 
-const hosts = { vue: VueHost, wc: WcHost }
+const hosts = { vue: VueHost, svelte: SvelteHost, wc: WcHost }
 
-function isHosted(surface: Surface): surface is 'vue' | 'wc' {
-  return surface === 'vue' || surface === 'wc'
+function isHosted(surface: Surface): surface is 'vue' | 'svelte' | 'wc' {
+  return surface === 'vue' || surface === 'svelte' || surface === 'wc'
 }
 
 /**
@@ -80,6 +81,7 @@ function Harness({
       <button type="button" onClick={() => setSurface('default')}>to default</button>
       <button type="button" onClick={() => setSurface('mui')}>to mui</button>
       <button type="button" onClick={() => setSurface('vue')}>to vue</button>
+      <button type="button" onClick={() => setSurface('svelte')}>to svelte</button>
       <button type="button" onClick={() => setSurface('wc')}>to wc</button>
       <Shell port={port} initialData={initialData} surface={surface} onRuntime={onRuntime} />
     </>
@@ -344,5 +346,47 @@ describe('one runtime, several framework render surfaces', () => {
     await waitFor(() =>
       expect(runtime.data.getSnapshot()).toMatchObject({ name: 'still works' }),
     )
+  })
+
+  it('carries data through Svelte without creating or destroying a runtime', async () => {
+    const example = getExample('basics-string')!
+    const port = await createJsonSchemaAdapter(example.schema, {})
+    const seen: FormRuntime[] = []
+
+    const { container, getByText, getByTestId } = render(
+      <Harness
+        port={port}
+        initialData={example.initialData}
+        onRuntime={(runtime) => { if (!seen.includes(runtime)) seen.push(runtime) }}
+      />,
+    )
+    await waitFor(() => expect(seen).toHaveLength(1))
+    const runtime = seen[0]
+
+    fireEvent.change(textInput(container), { target: { value: 'Ada' } })
+    await waitFor(() => expect(inspector(getByTestId)).toMatchObject({ name: 'Ada' }))
+    fireEvent.click(getByText('to svelte'))
+
+    const svelteInput = (): HTMLInputElement => {
+      const input = container.querySelector('[data-testid="svelte-host"] input')
+      if (!input) throw new Error('Svelte input has not mounted')
+      return input as HTMLInputElement
+    }
+    await waitFor(() => expect(svelteInput().value).toBe('Ada'))
+
+    fireEvent.input(svelteInput(), { target: { value: 'Grace' } })
+    await waitFor(() => expect(inspector(getByTestId)).toMatchObject({ name: 'Grace' }))
+
+    const document_ = runtime.document.getSnapshot()
+    const nameId = (document_.nodes[document_.rootId] as { children: string[] }).children[0]
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId as never, value: 'Hopper' })
+    await waitFor(() => expect(svelteInput().value).toBe('Hopper'))
+
+    fireEvent.click(getByText('to default'))
+    await waitFor(() => expect(container.querySelector('[data-testid="svelte-host"]')).toBeNull())
+    expect(runtime.getNodeState(nameId as never)).toBeDefined()
+    fireEvent.change(textInput(container), { target: { value: 'still works' } })
+    await waitFor(() => expect(runtime.data.getSnapshot()).toMatchObject({ name: 'still works' }))
+    expect(seen).toEqual([runtime])
   })
 })
