@@ -62,11 +62,12 @@ function transfer(): DataTransfer {
   } as DataTransfer
 }
 
-function drag(type: string, target: Element, dataTransfer: DataTransfer, clientY?: number): void {
+function drag(type: string, target: Element, dataTransfer: DataTransfer, clientY?: number): Event {
   const event = new Event(type, { bubbles: true, cancelable: true })
   Object.defineProperty(event, 'dataTransfer', { value: dataTransfer })
   if (clientY !== undefined) Object.defineProperty(event, 'clientY', { value: clientY })
   target.dispatchEvent(event)
+  return event
 }
 
 afterEach(() => {
@@ -113,6 +114,28 @@ describe('array drag reorder', () => {
     drag('drop', target, dataTransfer, 75)
 
     expect(form.data.getSnapshot()).toEqual({ items: ['A', 'B'], other: ['X', 'Y'] })
+  })
+
+  it('ignores missing payloads and clears rows when a drag session is stale', async () => {
+    await mount({ items: ['A', 'B'], other: [] })
+    const root = arrayRoot()
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const emptyTransfer = transfer()
+    expect(drag('dragover', rows[1]!, emptyTransfer, 10).defaultPrevented).toBe(false)
+    expect(drag('drop', rows[1]!, emptyTransfer, 10).defaultPrevented).toBe(false)
+
+    const staleTransfer = transfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    root.setAttribute('data-array-drag-active', '')
+    rows[0]!.setAttribute('data-dragging', '')
+    rows[1]!.setAttribute('data-drop-target', '')
+    expect(drag('dragover', rows[1]!, staleTransfer, 10).defaultPrevented).toBe(false)
+    drag('dragleave', rows[1]!, staleTransfer)
+    drag('drop', rows[1]!, staleTransfer, 10)
+
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
+    expect(rows[0]!.hasAttribute('data-dragging')).toBe(false)
+    expect(rows[1]!.hasAttribute('data-drop-target')).toBe(false)
   })
 
   it('clears the drag session before a committed move notifies a throwing subscriber', async () => {

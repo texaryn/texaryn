@@ -252,6 +252,41 @@ describe('DocumentRuntime', () => {
     expect(Object.isFrozen(handler.mock.calls[0]![0])).toBe(true)
   })
 
+  it('accepts actions without arguments and validator results that omit arguments', async () => {
+    const noArguments = document()
+    const action = noArguments.nodes.action
+    if (action.type !== 'action') throw new Error('expected action node')
+    delete (action as { actionArgs?: unknown }).actionArgs
+    const handler = vi.fn()
+    const runtime = createDocumentRuntime(noArguments, { actions: { 'open-item': handler } })
+    await runtime.invokeAction(id('action'))
+    expect(handler).toHaveBeenCalledWith(undefined, expect.objectContaining({ nodeId: id('action') }))
+
+    const validatesToNothing = createDocumentRuntime(document(), {
+      actions: { 'open-item': { handler, validateArgs: () => undefined } },
+    })
+    await validatesToNothing.invokeAction(id('action'))
+    expect(handler).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ nodeId: id('action') }))
+  })
+
+  it('rejects invalid action registrations', () => {
+    expect(() => createDocumentRuntime(document(), {
+      actions: { '': vi.fn() },
+    })).toThrow(/nonempty names/)
+    expect(() => createDocumentRuntime(document(), {
+      actions: { 'open-item': 1 as never },
+    })).toThrow(/must be a handler or registration object/)
+    expect(() => createDocumentRuntime(document(), {
+      actions: { 'open-item': { handler: 1 } as never },
+    })).toThrow(/handler must be a function/)
+    expect(() => createDocumentRuntime(document(), {
+      actions: { 'open-item': { handler: vi.fn(), validateArgs: 1 } as never },
+    })).toThrow(/validateArgs must be a function/)
+    expect(() => createDocumentRuntime(document(), {
+      actions: { 'open-item': { handler: vi.fn(), extra: true } as never },
+    })).toThrow(/extra is not supported/)
+  })
+
   it('replaces document and data as one atomic snapshot', () => {
     const runtime = createDocumentRuntime(document(), { initialData: initialData() })
     const nextDocument = document()
@@ -389,6 +424,37 @@ describe('DocumentRuntime', () => {
         textRole: 'paragraph',
       }
     }, /contains unreachable nodes/],
+    ['a non-string parent ID', (value: UIDocumentV2) => {
+      ;(value.nodes.action as unknown as Record<string, unknown>).parentId = 1
+    }, /parentId must be null or a node ID/],
+    ['an unsupported container kind', (value: UIDocumentV2) => {
+      ;(value.nodes.root as unknown as Record<string, unknown>).containerType = 'array'
+    }, /containerType must be group or layout/],
+    ['invalid child IDs', (value: UIDocumentV2) => {
+      ;(value.nodes.root as unknown as Record<string, unknown>).children = ['list', 1]
+    }, /children must be an array of node IDs/],
+    ['a root that names a missing node', (value: UIDocumentV2) => {
+      value.rootId = id('missing')
+    }, /does not name a node/],
+    ['a root with a parent', (value: UIDocumentV2) => {
+      ;(value.nodes.root as unknown as Record<string, unknown>).parentId = 'action'
+    }, /must be null for the root/],
+    ['a child whose second owner disagrees with its parent ID', (value: UIDocumentV2) => {
+      const root = value.nodes.root!
+      const table = value.nodes.table!
+      if (root.type !== 'container' || table.type !== 'table') throw new Error('expected containers')
+      const groupId = id('group')
+      root.children.push(groupId)
+      value.nodes[groupId] = {
+        id: groupId,
+        type: 'container',
+        parentId: id('root'),
+        annotations: { title: 'Nested' },
+        containerType: 'group',
+        children: [id('action')],
+      }
+      table.parentId = groupId
+    }, /does not agree with its parent/],
   ])('rejects %s', (_name, change, error) => {
     const input = document()
     change(input)
@@ -421,6 +487,26 @@ describe('DocumentRuntime', () => {
     if (listCollection.type !== 'list') throw new Error('expected list node')
     listCollection.dataPointer = pointer('/not-present')
     expect(() => createDocumentRuntime(table, { initialData: initialData([1]) })).toThrow(/table row/)
+  })
+
+  it('rejects malformed collection sources and table columns', () => {
+    expect(() => createDocumentRuntime(document(), { initialData: initialData({}) })).toThrow(/source must be an array/)
+
+    const invalidColumns = document()
+    ;(invalidColumns.nodes.table as unknown as Record<string, unknown>).columns = null
+    expect(() => createDocumentRuntime(invalidColumns)).toThrow(/columns must be an array/)
+
+    const invalidColumn = document()
+    const table = invalidColumn.nodes.table
+    if (table.type !== 'table') throw new Error('expected table node')
+    table.columns[0] = null as never
+    expect(() => createDocumentRuntime(invalidColumn)).toThrow(/columns\[0\] must be an object/)
+
+    const invalidLabel = document()
+    const labelTable = invalidLabel.nodes.table
+    if (labelTable.type !== 'table') throw new Error('expected table node')
+    labelTable.columns[0] = { ...labelTable.columns[0]!, label: 42 as unknown as string }
+    expect(() => createDocumentRuntime(invalidLabel)).toThrow(/label must be a string/)
   })
 
   it('bounds aggregate rows and table cells across collections', () => {

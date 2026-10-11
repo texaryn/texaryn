@@ -51,6 +51,29 @@ describe('mountDocument', () => {
     expect(runtime.data.getSnapshot()).toEqual({ people: [{ id: 'ada', name: 'Grace' }] })
   })
 
+  it('removes collection rows, headers, and cells after document updates', () => {
+    const runtime = createDocumentRuntime(fixture(), {
+      initialData: { people: [{ id: 'ada', name: 'Ada' }, { id: 'grace', name: 'Grace' }] },
+    })
+    const host = document.createElement('main')
+    const mounted = mountDocument(host, runtime)
+    expect(host.querySelectorAll('li')).toHaveLength(2)
+    expect(host.querySelectorAll('th')).toHaveLength(1)
+    expect(host.querySelectorAll('td')).toHaveLength(2)
+
+    runtime.setData({ people: [] })
+    expect(host.querySelectorAll('li')).toHaveLength(0)
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(0)
+
+    const next = fixture()
+    const table = next.nodes.table
+    if (table.type !== 'table') throw new Error('expected table node')
+    table.columns = []
+    runtime.replaceDocument(next)
+    expect(host.querySelectorAll('th, td')).toHaveLength(0)
+    mounted.unmount()
+  })
+
   it('reports action errors and replaces the document after full replacement', async () => {
     const error = new Error('request failed')
     const onActionError = vi.fn()
@@ -116,6 +139,57 @@ describe('mountDocument', () => {
     expect(host.textContent).not.toContain('Directory')
     mounted.unmount()
     expect(destroy).toHaveBeenCalledOnce()
+  })
+
+  it('destroys registry mounted children when replacing a custom parent widget', () => {
+    const runtime = createDocumentRuntime(fixture(), { initialData: { people: [] } })
+    const registry = createRendererRegistry<DocumentWidgetFactory, DocumentNode>()
+    const parentDestroy = vi.fn()
+    const childDestroy = vi.fn()
+    registry.register({ rank: 1, test: (node) => node.id === 'root' }, (_node, context) => {
+      const childNode = context.runtime.document.getSnapshot().nodes.heading!
+      const child = context.mountChild(childNode)
+      const element = document.createElement('section')
+      element.append(child.element)
+      return { element, destroy: parentDestroy }
+    })
+    registry.register({ rank: 1, test: (node) => node.id === 'heading' }, () => {
+      const element = document.createElement('strong')
+      return { element, destroy: childDestroy }
+    })
+    const host = document.createElement('main')
+    const mounted = mountDocument(host, runtime, { registry })
+    expect(host.querySelector('section strong')).not.toBeNull()
+
+    runtime.replaceDocument(fixture())
+    expect(parentDestroy).toHaveBeenCalledOnce()
+    expect(childDestroy).toHaveBeenCalledOnce()
+    mounted.unmount()
+    expect(parentDestroy).toHaveBeenCalledTimes(2)
+    expect(childDestroy).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders layout containers and updates their title metadata', () => {
+    const initial = fixture()
+    const root = initial.nodes.root
+    if (root.type !== 'container') throw new Error('expected root container')
+    root.containerType = 'layout'
+    const runtime = createDocumentRuntime(initial, { initialData: { people: [] } })
+    const host = document.createElement('main')
+    const mounted = mountDocument(host, runtime)
+    const layout = host.querySelector('[data-texaryn-layout]')
+    expect(layout).not.toBeNull()
+
+    const next = fixture()
+    const nextRoot = next.nodes.root
+    if (nextRoot.type !== 'container') throw new Error('expected root container')
+    nextRoot.containerType = 'layout'
+    nextRoot.annotations.title = 'Updated layout'
+    runtime.replaceDocument(next)
+    expect(host.querySelector('[data-texaryn-layout]')).toBe(layout)
+    expect(host.querySelector('[data-texaryn-layout]')?.getAttribute('data-texaryn-layout')).toBe('')
+    mounted.unmount()
+    mounted.unmount()
   })
 
   it('rebinds an action when the root action ID changes', async () => {

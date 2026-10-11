@@ -377,6 +377,30 @@ describe('Angular signal renderer', () => {
     fixture.nativeElement.remove()
   })
 
+  it('ignores missing payloads and stale targets without a drag session', async () => {
+    const fixture = TestBed.createComponent(AngularArrayHost)
+    document.body.append(fixture.nativeElement)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+    const root = fixture.nativeElement.querySelector('[data-array-container]') as HTMLElement
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const emptyTransfer = createArrayDragTransfer()
+    dispatchArrayDrag('dragover', rows[0]!, emptyTransfer)
+    dispatchArrayDrag('drop', rows[0]!, emptyTransfer)
+
+    const staleTransfer = createArrayDragTransfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    dispatchArrayDrag('dragover', rows[0]!, staleTransfer)
+    expect(rows[0]!.hasAttribute('data-drop-target')).toBe(false)
+    rows[0]!.setAttribute('data-drop-target', '')
+    dispatchArrayDrag('dragleave', rows[0]!, staleTransfer)
+    expect(rows[0]!.hasAttribute('data-drop-target')).toBe(false)
+    dispatchArrayDrag('drop', rows[0]!, staleTransfer)
+
+    fixture.destroy()
+    fixture.nativeElement.remove()
+  })
+
   it('shows and focuses the error summary after an invalid submit', async () => {
     const fixture = TestBed.createComponent(AngularCoverageHost)
     document.body.append(fixture.nativeElement)

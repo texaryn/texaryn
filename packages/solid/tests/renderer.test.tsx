@@ -287,4 +287,29 @@ describe('Solid renderer', () => {
 
     await waitFor(() => expect(form.data.getSnapshot()).toEqual({ people: ['Grace', 'Ada', 'Lin'] }))
   })
+
+  it('ignores missing payloads and clears stale drops without a session', async () => {
+    await renderForm({
+      type: 'object',
+      properties: { people: { type: 'array', items: { type: 'string' } } },
+    }, { people: ['Ada', 'Grace', 'Lin'] }, { '/people': { canReorder: true } })
+    const root = document.querySelector<HTMLElement>('[data-array-container]')!
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const emptyTransfer = createArrayDragTransfer()
+    dispatchArrayDrag('dragover', rows[0]!, emptyTransfer)
+    dispatchArrayDrag('drop', rows[0]!, emptyTransfer)
+
+    const staleTransfer = createArrayDragTransfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    root.setAttribute('data-array-drag-active', '')
+    rows[0]!.setAttribute('data-dragging', '')
+    rows[1]!.setAttribute('data-drop-target', '')
+    dispatchArrayDrag('dragover', rows[1]!, staleTransfer)
+    dispatchArrayDrag('dragleave', rows[1]!, staleTransfer)
+    dispatchArrayDrag('drop', rows[1]!, staleTransfer)
+
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
+    expect(rows[0]!.hasAttribute('data-dragging')).toBe(false)
+    expect(rows[1]!.hasAttribute('data-drop-target')).toBe(false)
+  })
 })

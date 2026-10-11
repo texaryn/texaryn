@@ -209,8 +209,21 @@ describe('DocumentUpdateSession', () => {
   })
 
   it('supports object replacement and array insertion with strict patch paths', () => {
-    const { runtime, session } = makeSession()
-    session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document: document(), data: data() })
+    const current = document()
+    const rootNode = current.nodes.root
+    if (rootNode.type !== 'container') throw new Error('expected root container')
+    rootNode.children.push(id('table'))
+    current.nodes.table = {
+      id: id('table'),
+      type: 'table',
+      parentId: id('root'),
+      annotations: {},
+      collectionId: 'people-table',
+      dataPointer: pointer('/items'),
+      columns: [{ id: 'label', label: 'Name', valuePointer: pointer('/label') }],
+    }
+    const { runtime, session } = makeSession(createDocumentRuntime(current, { initialData: data() }))
+    session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document: current, data: data() })
     const addedNode = {
       id: 'caption',
       type: 'text',
@@ -226,14 +239,18 @@ describe('DocumentUpdateSession', () => {
       patch: [
         { op: 'add', path: '/nodes/caption', value: addedNode },
         { op: 'add', path: '/nodes/root/children/1', value: 'caption' },
+        { op: 'replace', path: '/nodes/table/columns/0/label', value: 'Display name' },
         { op: 'add', path: '/nodes/root/annotations/title', value: 'Updated directory' },
         { op: 'remove', path: '/nodes/items' },
         { op: 'remove', path: '/nodes/root/children/2' },
       ],
     })
     const root = runtime.document.getSnapshot().nodes.root
-    expect(root.type === 'container' ? root.children : []).toEqual(['title', 'caption'])
+    expect(root.type === 'container' ? root.children : []).toEqual(['title', 'caption', 'table'])
     expect(root.annotations.title).toBe('Updated directory')
+    expect(runtime.document.getSnapshot().nodes.table).toMatchObject({
+      columns: [{ label: 'Display name' }],
+    })
 
     for (const path of ['/nodes', '/nodes/title/content/~2bad', '/nodes/title/content/child']) {
       expect(() => session.apply({
@@ -243,6 +260,33 @@ describe('DocumentUpdateSession', () => {
         patch: [{ op: 'replace', path, value: 'bad' }],
       })).toThrow()
     }
+    expect(session.getRevision()).toBe(1)
+  })
+
+  it('appends and replaces array values within a document patch', () => {
+    const { runtime, session } = makeSession()
+    session.apply({ protocol: 1, kind: 'snapshot', revision: 0, document: document(), data: data() })
+    const tail = {
+      id: 'tail',
+      type: 'text',
+      parentId: 'root',
+      annotations: {},
+      content: 'Tail',
+      textRole: 'paragraph',
+    }
+    session.apply({
+      protocol: 1,
+      kind: 'update',
+      revision: 1,
+      patch: [
+        { op: 'add', path: '/nodes/tail', value: tail },
+        { op: 'add', path: '/nodes/root/children/-', value: 'tail' },
+        { op: 'replace', path: '/nodes/root/children/0', value: 'title' },
+      ],
+    })
+
+    const root = runtime.document.getSnapshot().nodes.root
+    expect(root.type === 'container' ? root.children : []).toEqual(['title', 'items', 'tail'])
     expect(session.getRevision()).toBe(1)
   })
 

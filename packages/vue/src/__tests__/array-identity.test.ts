@@ -294,4 +294,28 @@ describe('native array drag reorder', () => {
     })
     expect(root.hasAttribute('data-array-drag-active')).toBe(false)
   })
+
+  it('ignores missing payloads and clears invalid drops', async () => {
+    const { wrapper } = await mountExample('ui-hint-array')
+    const root = (wrapper.element as HTMLElement).querySelector<HTMLElement>('[data-array-container]')!
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const emptyTransfer = createArrayDragTransfer()
+    dispatchArrayDrag('dragover', rows[1]!, emptyTransfer)
+    dispatchArrayDrag('drop', rows[1]!, emptyTransfer)
+
+    const staleTransfer = createArrayDragTransfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    root.setAttribute('data-array-drag-active', '')
+    rows[0]!.setAttribute('data-dragging', '')
+    rows[1]!.setAttribute('data-drop-target', '')
+    dispatchArrayDrag('dragover', rows[1]!, staleTransfer)
+    dispatchArrayDrag('dragleave', rows[1]!, staleTransfer)
+    dispatchArrayDrag('drop', rows[1]!, staleTransfer)
+    await settle()
+
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
+    expect(rows[0]!.hasAttribute('data-dragging')).toBe(false)
+    expect(rows[1]!.hasAttribute('data-drop-target')).toBe(false)
+    wrapper.unmount()
+  })
 })

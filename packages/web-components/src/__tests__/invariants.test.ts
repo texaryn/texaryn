@@ -355,4 +355,27 @@ describe('native array drag reorder', () => {
     expect(rowsOf(root)[2]!.dataset.itemId).toBe(sourceId)
     expect(root.hasAttribute('data-array-drag-active')).toBe(false)
   })
+
+  it('ignores missing payloads and clears stale drops without a session', async () => {
+    await mount(listSchema, items, { '/items': { canReorder: true } })
+    const root = outerArray()
+    const rows = rowsOf(root)
+    const emptyTransfer = createArrayDragTransfer()
+    dispatchArrayDrag('dragover', rows[0]!, emptyTransfer)
+    dispatchArrayDrag('drop', rows[0]!, emptyTransfer)
+
+    const staleTransfer = createArrayDragTransfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    root.setAttribute('data-array-drag-active', '')
+    rows[0]!.setAttribute('data-dragging', '')
+    rows[1]!.setAttribute('data-drop-target', '')
+    dispatchArrayDrag('dragover', rows[1]!, staleTransfer)
+    dispatchArrayDrag('dragleave', rows[1]!, staleTransfer)
+    dispatchArrayDrag('drop', rows[1]!, staleTransfer)
+    await flush()
+
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
+    expect(rows[0]!.hasAttribute('data-dragging')).toBe(false)
+    expect(rows[1]!.hasAttribute('data-drop-target')).toBe(false)
+  })
 })

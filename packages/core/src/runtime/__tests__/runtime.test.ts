@@ -464,11 +464,60 @@ describe('remote snapshots and runtime hooks', () => {
     withSymbol.items[Symbol('extra')] = true
     const withAccessor = { name: 'Alice', age: 30, items: ['a', 'b'] }
     Object.defineProperty(withAccessor.items, '0', { enumerable: true, get: () => 'a' })
+    const withSparseArray = { name: 'Alice', age: 30, items: new Array<string>(2) }
 
     expect(() => runtime.applyRemoteSnapshot(short)).toThrow(/array shape/)
     expect(() => runtime.applyRemoteSnapshot(withExtra)).toThrow(/non-JSON array properties/)
     expect(() => runtime.applyRemoteSnapshot(withSymbol)).toThrow(/non-JSON array properties/)
     expect(() => runtime.applyRemoteSnapshot(withAccessor)).toThrow(/accessor/)
+    expect(() => runtime.applyRemoteSnapshot(withSparseArray)).toThrow(/non-JSON array properties/)
+    runtime.destroy()
+  })
+
+  it('compares arrays by value and reports changed scalar pointers within them', () => {
+    const runtime = createFormRuntime(makeArrayPort(), {
+      initialization: 'none',
+      initialData: { tags: ['a', 'b'] },
+    })
+    const listener = vi.fn()
+    runtime.subscribeMutations(listener, vi.fn())
+
+    runtime.applyRemoteSnapshot({ tags: ['a', 'c'] })
+    expect(listener.mock.calls[0]![0].changedPointers).toEqual(['/tags/1'])
+    const committed = runtime.data.getSnapshot()
+    runtime.applyRemoteSnapshot({ tags: ['a', 'c'] })
+    expect(runtime.data.getSnapshot()).toBe(committed)
+    expect(listener).toHaveBeenCalledOnce()
+    runtime.destroy()
+  })
+
+  it('creates node stores for fields introduced by a remote snapshot projection', () => {
+    const port = makePort((data) => {
+      const showExtra = (data as { showExtra: boolean }).showExtra
+      const entries: Array<[string, Partial<NodeProjection> & { children?: ChildProjection[] }]> = [
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: toPointer('/name'), key: 'name', required: false },
+            { pointer: toPointer('/showExtra'), key: 'showExtra', required: false },
+            ...(showExtra ? [{ pointer: toPointer('/extra'), key: 'extra', required: false }] : []),
+          ],
+        }],
+        ['/name', { type: 'string' }],
+        ['/showExtra', { type: 'boolean' }],
+      ]
+      if (showExtra) entries.push(['/extra', { type: 'string' }])
+      return makeProjection(entries)
+    })
+    const runtime = createFormRuntime(port, {
+      initialization: 'none',
+      initialData: { name: 'Ada', showExtra: false, extra: 'Hidden' },
+    })
+    runtime.applyRemoteSnapshot({ name: 'Ada', showExtra: true, extra: 'Visible' })
+
+    const extraId = findFieldNode(runtime, '/extra')
+    expect(runtime.getNodeState(extraId)?.value.getSnapshot()).toBe('Visible')
+    expect(runtime.getNodeState(extraId)?.dirty.getSnapshot()).toBe(false)
     runtime.destroy()
   })
 
@@ -495,6 +544,12 @@ describe('remote snapshots and runtime hooks', () => {
     const oversizedRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: oversizedBefore })
     expect(() => oversizedRuntime.applyRemoteSnapshot({ name: 'x'.repeat(1_000_001), age: 30 })).toThrow(/string size/)
     oversizedRuntime.destroy()
+
+    const longKey = 'k'.repeat(1_000_001)
+    const longKeyData = { name: 'Alice', age: 30, [longKey]: true }
+    const keyRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: longKeyData })
+    expect(() => keyRuntime.applyRemoteSnapshot({ ...longKeyData, name: 'Bob' })).toThrow(/string size/)
+    keyRuntime.destroy()
   })
 
   it('requires initialization to be disabled for remote snapshots', () => {
@@ -557,6 +612,20 @@ describe('remote snapshots and runtime hooks', () => {
     secondRelease()
     expect(arrayNode()).toMatchObject({ arrayMeta: { canAdd: true, canRemove: true, canReorder: false } })
     secondRelease()
+    runtime.destroy()
+  })
+
+  it('restores the array lock count when document publication throws', () => {
+    const runtime = createFormRuntime(makeArrayPort(), { initialData: { tags: ['a', 'b'] } })
+    const unsubscribe = runtime.document.subscribe(() => { throw new Error('publication failed') })
+    expect(() => runtime.lockArrayStructure()).toThrow(/publication failed/)
+    unsubscribe()
+
+    const release = runtime.lockArrayStructure()
+    expect(runtime.document.getSnapshot().nodes[findArrayContainerId(runtime) as string]).toMatchObject({
+      arrayMeta: { canAdd: false, canRemove: false },
+    })
+    release()
     runtime.destroy()
   })
 
