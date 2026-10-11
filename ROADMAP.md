@@ -1885,8 +1885,9 @@ packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
 support and TypeBox integration; the release workflow has not published the
-Zod package yet. The Angular renderer is implemented on this branch and remains
-unreleased.
+Zod package yet. Angular is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211),
+Svelte in [PR #212](https://github.com/texaryn/texaryn/pull/212), and Solid in
+[PR #213](https://github.com/texaryn/texaryn/pull/213).
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2092,16 +2093,16 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. PR #210 merged Zod and TypeBox
-support. The Zod package awaits publication. The remaining roadmap items are:
+MUI and custom styling examples are complete. Continue the remaining work in
+this order:
 
-1. Additional renderers: Angular, Svelte and Solid.
-2. Non-form node types: tables, lists and layouts.
+1. Additional renderers: Angular in PR #211, Svelte in PR #212, then Solid in PR #213.
+2. Non-form nodes: tables, lists, layouts and actions.
 3. Server-driven UI tooling.
 4. AI generation tooling.
 5. Visual form builder.
 6. Drag-and-drop array reorder.
-7. Collaborative editing.
+7. Collaborative scalar editing.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 
