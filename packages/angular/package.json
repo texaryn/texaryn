@@ -59,7 +59,7 @@
     "typescript": "~5.8.0"
   },
   "scripts": {
-    "build": "ngc -p tsconfig.json",
-    "typecheck": "ngc --noEmit -p tsconfig.typecheck.json"
+    "build": "pnpm --filter @texaryn/core build && ngc -p tsconfig.json",
+    "typecheck": "pnpm --filter @texaryn/core build && ngc --noEmit -p tsconfig.typecheck.json"
   }
 }
