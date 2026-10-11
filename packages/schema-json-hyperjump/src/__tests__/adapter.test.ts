@@ -117,6 +117,24 @@ describe('createHyperjumpAdapter', () => {
       expect(adapter.project('accepted').nodes.get('' as JsonPointer)?.type).toBe('string')
     })
 
+    it('ignores unreferenced Draft 4 keyword cycles and keeps explicitly referenced schemas', async () => {
+      const ignored = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'array',
+        contains: { $ref: '#/contains' },
+      })
+      const referenced = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        properties: { value: { $ref: '#/contains' } },
+        contains: { type: 'string' },
+      })
+
+      expect((await ignored.validate([])).valid).toBe(true)
+      expect((await referenced.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await referenced.validate({ value: 1 })).valid).toBe(false)
+    })
+
     it('does not activate dependentSchemas in Draft 4', async () => {
       const adapter = await createHyperjumpAdapter({
         $schema: 'http://json-schema.org/draft-04/schema#',
@@ -140,6 +158,33 @@ describe('createHyperjumpAdapter', () => {
 
       expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('preserves the base of a nested Draft 4 fragment identifier', async () => {
+      const resourceId = 'https://e.test/sub/anchor.json'
+      const childId = 'https://e.test/sub/child.json'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/root.json',
+        definitions: {
+          value: {
+            id: `${resourceId}#v`,
+            type: 'object',
+            properties: { child: { $ref: 'child.json' } },
+          },
+        },
+        properties: { value: { $ref: `${resourceId}#v` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          return uri === childId ? { id: childId, type: 'string' } : undefined
+        },
+      })
+
+      expect(requested).toContain(childId)
+      expect((await adapter.validate({ value: { child: 'accepted' } })).valid).toBe(true)
+      expect((await adapter.validate({ value: { child: 1 } })).valid).toBe(false)
     })
   })
 

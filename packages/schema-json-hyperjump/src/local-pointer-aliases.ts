@@ -18,6 +18,20 @@ const MAP: Record<Dialect, ReadonlySet<string>> = {
   '2019-09': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
   '2020-12': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
 }
+const DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS = [
+  '$defs',
+  'contains',
+  'contentSchema',
+  'dependentRequired',
+  'dependentSchemas',
+  'else',
+  'if',
+  'prefixItems',
+  'propertyNames',
+  'then',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -174,6 +188,13 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
   return found
 }
 
+function stripDraft04UnknownSchemaKeywords(schema: unknown, visited = new WeakSet<object>()): void {
+  if (!isRecord(schema) || visited.has(schema)) return
+  visited.add(schema)
+  for (const keyword of DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS) Reflect.deleteProperty(schema, keyword)
+  for (const child of children(schema, '#', 'draft-04')) stripDraft04UnknownSchemaKeywords(child.schema, visited)
+}
+
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
   if (reference.startsWith('#')) return reference.slice(1)
   if (base === undefined) return undefined
@@ -288,12 +309,17 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
           const hash = resolved.indexOf('#')
           const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
           if (fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+            const resourceBase = withoutFragment(resolved)
+            const sameResource = inherited.base === resourceBase
             legacyAnchors.set(resolved, {
-              base: inherited.base ?? withoutFragment(resolved),
-              resourcePosition: inherited.position,
+              base: resourceBase,
+              resourcePosition: sameResource ? inherited.position : position,
               position,
             })
-            if (dialect === 'draft-04' && position !== '#') Reflect.deleteProperty(schema, idKeyword)
+            if (dialect === 'draft-04' && position !== '#') {
+              if (sameResource) Reflect.deleteProperty(schema, idKeyword)
+              else setOwn(schema, idKeyword, resourceBase)
+            }
           }
         }
       } catch {
@@ -441,6 +467,8 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
       : `${targetScope.base ?? ''}#/${keyword}/${alias}`
     setOwn(schema, '$ref', reference)
   }
+
+  if (dialect === 'draft-04') stripDraft04UnknownSchemaKeywords(document)
 
   return document
 }
