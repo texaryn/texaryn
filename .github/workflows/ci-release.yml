@@ -59,6 +59,33 @@ jobs:
           use_oidc: true
           files: ./coverage/lcov.info
           fail_ci_if_error: true
+      - if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          retention-days: 1
+
+  # Outside the CI Gate: SonarQube Cloud reports its quality gate as its own
+  # check, and an outage there should not block merges.
+  sonar:
+    name: SonarQube Cloud
+    needs: test
+    # Fork pull requests receive no secrets either.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage
+          path: coverage
+      - uses: SonarSource/sonarqube-scan-action@v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   changeset:
     name: Changeset
