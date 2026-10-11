@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldNode, ValidationError } from '@texaryn/core'
-import { coerce, displayValue, fieldKind } from '../use-field-widget.js'
-import { fieldAria, fieldLabel } from '../field-props.js'
+import { coerce, displayValue, fieldKind } from '../../dist/use-field-widget.js'
+import { fieldAria, fieldLabel } from '../../dist/field-props.js'
 
 function node(overrides: Partial<FieldNode> = {}): FieldNode {
   return {
