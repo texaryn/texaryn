@@ -7,8 +7,10 @@ first, and the versioned IR now also supports standalone display documents.
 Server-driven updates, AI generation, a visual builder, native array reorder,
 and collaborative scalar editing merged in PR #214. Angular, Svelte, and Solid
 renderers merged in PRs #211 to #213. Five new npm packages and their GitHub
-releases are published. Trusted publisher configuration is in progress.
-Remaining roadmap work centers on Draft-04 JSON Schema support.
+releases are published. Trusted publishers are configured for all five packages.
+Run [#220](https://github.com/texaryn/texaryn/actions/runs/38164624614) reconciled
+seven previously published versions that lacked GitHub releases. Remaining
+roadmap work centers on Draft-04 JSON Schema support.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1919,10 +1921,15 @@ The five packages were published locally through npm's 2FA flow. Their registry
 signatures are present, and their packed files match the checkout. npm rewrote
 workspace dependency ranges in each package.json to published version ranges.
 These first versions have no build provenance. Matching GitHub releases target the `main`
-commit containing those exact package versions. The release workflow uses OIDC
-and verifies provenance for versions that still need GitHub releases. Trusted
-publisher configuration and recovery of seven previously published package
-releases remain outstanding.
+commit containing those exact package versions. npm trusted publishers now bind
+all five packages to the `texaryn/texaryn` `ci-release.yml` workflow in the
+`npm-release` environment for future OIDC publishing. Main CI run
+[38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
+verified provenance and source commits for seven earlier published versions,
+then created their missing GitHub releases: `@texaryn/core` 0.15.0,
+`@texaryn/react` 0.7.0, `@texaryn/react-bootstrap` 0.6.0,
+`@texaryn/react-mui` 0.6.0, `@texaryn/schema-json` 0.8.3, `@texaryn/vue` 0.6.0,
+and `@texaryn/web-components` 0.6.0. Release recovery is complete.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2177,8 +2184,8 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 ### Phase 5+: Post-Validation
 
 MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
-and TypeBox coverage. The Zod package remains unpublished. The additional
-renderer phase is complete. Continue the open work in this order:
+and TypeBox coverage, and `@texaryn/schema-zod` 0.1.1 is published. The
+additional renderer phase is complete. Continue the open work in this order:
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, and Solid in PR #213. Complete.
 2. Standalone display documents in PR #214 under ADR-012.
@@ -2194,10 +2201,11 @@ renderer phase is complete. Continue the open work in this order:
    IRs remain separate families.
 10. The plugin ecosystem decision is recorded in ADR-019. Core has no shared
     plugin container or transform pipeline.
-11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs through
-    local npm 2FA. First versions and their GitHub releases are published.
-    Configure trusted publishing for each package and recover seven existing
-    published versions with missing GitHub releases.
+11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs; configure
+    trusted publishing for each package; and recover seven existing published
+    versions with missing GitHub releases. Complete. The five package releases
+    are published, trusted publishers are configured, and run #220 recovered the
+    seven earlier releases.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 
@@ -2327,7 +2335,7 @@ Deferred from MVP:
 ### Phase 5+ Execution Order
 
 1. Schema authoring: TypeBox through JSON Schema and the Zod 4 adapter. Zod is
-   merged, and its package release remains pending.
+   merged, and `@texaryn/schema-zod` 0.1.1 is published.
 2. Additional renderers: Angular, Svelte, and Solid in PRs #211 to #213.
 3. Display documents, bounded updates, AI generation, the visual builder, array
    reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
