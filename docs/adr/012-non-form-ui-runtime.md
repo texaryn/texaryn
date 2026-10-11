@@ -126,4 +126,3 @@ layouts, lists, tables, and actions across every maintained renderer. Table and
 list nodes are display only; editing remains the responsibility of
 `FieldNode` and array form controls. Repeated row subtrees, editable fields
 without a schema adapter, and partial document updates remain later decisions.
-
