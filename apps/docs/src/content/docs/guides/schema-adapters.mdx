@@ -61,14 +61,14 @@ field is acceptable; Zod still enforces the original schema during validation.
 
 ```mermaid
 flowchart LR
-  TypeBox[TypeBox schema] -->|JSON Schema object| JSONAdapter[@texaryn/schema-json]
+  TypeBox[TypeBox schema] -->|JSON Schema object| JSONAdapter["@texaryn/schema-json"]
   JSON[JSON Schema] --> JSONAdapter
-  Zod[Zod 4 schema] -->|input schema to JSON Schema| ZodAdapter[@texaryn/schema-zod]
+  Zod[Zod 4 schema] -->|input schema to JSON Schema| ZodAdapter["@texaryn/schema-zod"]
   ZodAdapter -->|project| JSONAdapter
   ZodAdapter -->|validate| ZodValidator[Zod parser]
   JSONAdapter --> Port[SchemaEvaluationPort]
   Port --> Core[Texaryn core runtime]
-  Core --> Renderer[React, Vue, Web Components]
+  Core --> Renderer["React, Angular, Vue, Svelte, Solid, Web Components"]
 ```
 
 Use JSON Schema directly when schemas must be exchanged between services or

@@ -12,7 +12,7 @@ one can be understood without reading the others.
 | --- | --- |
 | `@texaryn/core` | The framework-neutral runtime: versioned UI documents, form commands, validation and submission lifecycle |
 | `@texaryn/collaboration-yjs` | Optional Yjs binding for shared scalar field values; the host supplies the document and provider |
-| `@texaryn/schema-json` | JSON Schema evaluation behind the schema port, across three dialects |
+| `@texaryn/schema-json` | JSON Schema evaluation behind the schema port, across four dialects |
 | `@texaryn/schema-zod` | Zod 4 validation with projection through JSON Schema |
 | `@texaryn/react` | The React binding: form hooks, display documents and the default widgets |
 | `@texaryn/angular` | The Angular binding: signals, standalone form and display components |
@@ -43,7 +43,7 @@ this package's contract.
 ```mermaid
 flowchart LR
   App[Host application] --> Runtime[FormRuntime]
-  Runtime -->|committed scalar edits| Adapter[@texaryn/collaboration-yjs]
+  Runtime -->|committed scalar edits| Adapter["@texaryn/collaboration-yjs"]
   Adapter <-->|baseline and pointer overrides| Doc[Y.Doc]
   App --> Provider[Host selected provider]
   Provider <-->|Yjs updates| Doc

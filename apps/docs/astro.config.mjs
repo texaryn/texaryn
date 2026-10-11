@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import mermaid from 'astro-mermaid'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightLlmsTxt from 'starlight-llms-txt'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
@@ -42,6 +43,9 @@ export default defineConfig({
   site: 'https://texaryn.github.io',
   base: BASE,
   integrations: [
+    // Before Starlight, so the Mermaid fences are claimed before Expressive
+    // Code renders them as code blocks.
+    mermaid({ autoTheme: true }),
     starlight({
       title: 'Texaryn',
       // Both halves of the theme, because they have to agree on where the
