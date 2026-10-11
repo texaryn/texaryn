@@ -420,6 +420,32 @@ function referencesIn(
   return [...references.values()]
 }
 
+export function referencedPointerTargets(documents: readonly unknown[], dialect: Dialect): Map<string, ReadonlySet<string>> {
+  const targets = new Map<string, Set<string>>()
+  for (const document of documents) {
+    const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
+    const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, dialect) : undefined
+    for (const { base: referenceBase, reference } of referencesIn(document, base, dialect)) {
+      const resolved = absoluteUri(reference, referenceBase)
+      if (resolved === undefined) continue
+      const hash = resolved.indexOf('#')
+      if (hash === -1) continue
+      let fragment = resolved.slice(hash + 1)
+      try {
+        fragment = decodeURIComponent(fragment)
+      } catch {
+        // Keep malformed URI escapes as authored so the validator can report them.
+      }
+      if (!fragment.startsWith('/')) continue
+      const resource = withoutFragment(resolved)
+      const pointers = targets.get(resource) ?? new Set<string>()
+      pointers.add(`#${fragment}`)
+      targets.set(resource, pointers)
+    }
+  }
+  return targets
+}
+
 function declaredResourceIds(document: unknown, initialBase: string | undefined, dialect: Dialect): Set<string> {
   const ids = new Set<string>()
   const seen = new WeakMap<object, Set<string | undefined>>()

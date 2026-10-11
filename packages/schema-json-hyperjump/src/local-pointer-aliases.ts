@@ -188,11 +188,33 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
   return found
 }
 
-function stripDraft04UnknownSchemaKeywords(schema: unknown, visited = new WeakSet<object>()): void {
-  if (!isRecord(schema) || visited.has(schema)) return
-  visited.add(schema)
-  for (const keyword of DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS) Reflect.deleteProperty(schema, keyword)
-  for (const child of children(schema, '#', 'draft-04')) stripDraft04UnknownSchemaKeywords(child.schema, visited)
+function stripDraft04UnknownSchemaKeywords(
+  schema: unknown,
+  position: string,
+  preservedPointers: ReadonlySet<string>,
+  visited = new WeakMap<object, Set<string>>(),
+): void {
+  if (Array.isArray(schema)) {
+    schema.forEach((child, index) => stripDraft04UnknownSchemaKeywords(child, `${position}/${index}`, preservedPointers, visited))
+    return
+  }
+  if (!isRecord(schema)) return
+  const positions = visited.get(schema) ?? new Set<string>()
+  if (positions.has(position)) return
+  positions.add(position)
+  visited.set(schema, positions)
+  for (const keyword of DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS) {
+    const childPosition = `${position}/${keyword}`
+    const preserve = [...preservedPointers].some((pointer) => pointer === childPosition || pointer.startsWith(`${childPosition}/`))
+    if (!preserve) {
+      Reflect.deleteProperty(schema, keyword)
+    } else {
+      stripDraft04UnknownSchemaKeywords(schema[keyword], childPosition, preservedPointers, visited)
+    }
+  }
+  for (const child of children(schema, position, 'draft-04')) {
+    stripDraft04UnknownSchemaKeywords(child.schema, child.position, preservedPointers, visited)
+  }
 }
 
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
@@ -220,7 +242,12 @@ function ancestorAlias(
 }
 
 /** Gives the validator an indexed schema location for a pointer into non-schema JSON. */
-export function materializeLocalPointerAliases(input: unknown, dialect: Dialect, preserveRootId = false): unknown {
+export function materializeLocalPointerAliases(
+  input: unknown,
+  dialect: Dialect,
+  preserveRootId = false,
+  preservedUnknownPointers: ReadonlySet<string> = new Set(),
+): unknown {
   const document = clone(input)
   if (!isRecord(document)) return document
 
@@ -468,7 +495,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     setOwn(schema, '$ref', reference)
   }
 
-  if (dialect === 'draft-04') stripDraft04UnknownSchemaKeywords(document)
+  if (dialect === 'draft-04') stripDraft04UnknownSchemaKeywords(document, '#', preservedUnknownPointers)
 
   return document
 }

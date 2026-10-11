@@ -6,13 +6,13 @@ import { buildSchemaDocument, compile, getSchema, interpret, BASIC } from '@hype
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { Output } from '@hyperjump/json-schema'
 import type { ProjectionOptions, SchemaProjection, ValidationResult } from '@texaryn/core'
-import { detectDialect, type Dialect } from './dialect.js'
+import { detectDialect, schemaIdentifier, type Dialect } from './dialect.js'
 import { buildProjection, DEFAULT_LIMITS } from './projection.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
 import { newProjectionCache, type ProjectionLimits } from './static-walk.js'
 import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
-import { loadExternalResources } from './resources.js'
+import { loadExternalResources, referencedPointerTargets } from './resources.js'
 import { materializeLocalPointerAliases } from './local-pointer-aliases.js'
 import { setSchemaDocumentContext } from './pointer-utils.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
@@ -144,7 +144,16 @@ export async function createAdapter(
   const externalRemotes = await loadExternalResources(schema, dialect, config)
   const sourceSchema = externalRemotes.length === 0 ? schema : ownRoot(schema)
   const adapterSchema = materializeLocalPointerAliases(sourceSchema, dialect)
-  const adapterRemotes = externalRemotes.map((remote) => materializeLocalPointerAliases(remote, dialect, true))
+  const externalPointerTargets = dialect === 'draft-04'
+    ? referencedPointerTargets([schema, ...externalRemotes], dialect)
+    : new Map<string, ReadonlySet<string>>()
+  const adapterRemotes = externalRemotes.map((remote) => {
+    const identifier = typeof remote === 'object' && remote !== null && !Array.isArray(remote)
+      ? schemaIdentifier(remote as Record<string, unknown>, dialect)
+      : undefined
+    const resource = typeof identifier === 'string' ? identifier.split('#', 1)[0]! : ''
+    return materializeLocalPointerAliases(remote, dialect, true, externalPointerTargets.get(resource))
+  })
   const graph = buildSchemaGraph(adapterSchema, dialect, adapterRemotes)
   rejectSameLocationCycles(graph)
   if (typeof adapterSchema === 'object' && adapterSchema !== null) {
