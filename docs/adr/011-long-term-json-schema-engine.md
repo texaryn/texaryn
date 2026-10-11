@@ -16,6 +16,11 @@ The published `@texaryn/schema-json` package is version 0.8.1 and pins
 and a patched 11.6.2 runtime. A Texaryn fork can correct those defects at their
 source while keeping Texaryn specific projection behavior in the adapter.
 
+The fork now contains the reference registry and nested reduction fixes in
+[PR #1](https://github.com/texaryn/json-schema-library/pull/1). Its GitHub test
+jobs pass. Version 11.6.6 is prepared but not on npm yet, and the published
+adapter has not adopted it.
+
 The repository also contains a private Hyperjump adapter. It is useful for
 cross implementation conformance checks, but it has different compilation and
 registry lifecycle requirements, uses experimental evaluation APIs, and still

@@ -23,6 +23,13 @@ Texaryn maintained fork of `json-schema-library` through
 The private Hyperjump adapter is a CI comparison implementation, not a planned
 production migration.
 
+The source fixes and release setup are merged to the Texaryn fork as
+[PR #1](https://github.com/texaryn/json-schema-library/pull/1), and all GitHub
+checks pass. Package 11.6.6 is not published yet. The local npm CLI is
+unauthenticated, so the release tag waits on npm publishing setup. The
+published adapter remains on upstream 11.6.2 until the fork package is
+available and a new adapter release adopts it.
+
 ## Table of Contents
 
 1. [Problem Statement and Market Gap](#1-problem-statement-and-market-gap)
@@ -407,7 +414,7 @@ C4Component
   title Texaryn JSON Schema engine boundary
 
   System_Ext(currentEngine, "json-schema-library 11.6.2", "Engine in published 0.8.1")
-  System_Ext(forkEngine, "Texaryn maintained json-schema-library fork", "Selected long term engine")
+  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Merged in fork repository, npm publication pending")
   System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
 
   Container_Boundary(texaryn, "Texaryn workspace") {
@@ -1877,7 +1884,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Local verification passed 8,756 suite tests and 1,250 unit tests. GitHub checks are pending. The published adapter still pins upstream 11.6.2 and uses its packaged workaround until fork 11.6.6 is released and adopted. |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Its six test jobs and six report checks pass. Local verification passed 8,756 suite tests and 1,250 unit tests. The published adapter still pins upstream 11.6.2 and uses its packaged workaround until fork 11.6.6 is published and adopted. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -1895,17 +1902,17 @@ Shared conformance coverage now includes an inactive `anyOf` branch inside an ar
 
 Projection shape inference now includes unconditional `allOf` members in the schema-json adapter. Shared conformance covers typeless object shapes supplied only by `allOf` and mixed object plus array families across `allOf`; both adapters now produce matching projections and diagnostics.
 
-The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1) carries the source fix and tests. Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) remains open. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
+The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1) carries the merged source fix and tests. Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) remains open. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
 
 Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alternatives imply objects, and marks missing object-only `anyOf` branches active when they accept `{}`. It retains ambiguous families when an alternative's `allOf` members conflict. Shared conformance covers these cases and no longer records these adapter differences.
 
 PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
 
-The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Production will move to the Texaryn fork after PR #1 merges, fork 11.6.6 is published, and the adapter removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
+The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Production will move to the Texaryn fork after fork 11.6.6 is published and the adapter removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed in the published adapter by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. After the fork package is published, the next adapter release should depend on `@texaryn/json-schema-library` and remove the packaged workaround. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+#121 is fixed in the published adapter by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. After fork 11.6.6 is published, the next adapter release should depend on `@texaryn/json-schema-library` and remove the packaged workaround. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
 
 PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
 
