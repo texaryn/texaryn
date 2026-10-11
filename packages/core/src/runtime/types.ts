@@ -32,17 +32,56 @@ export type DocumentActionHandler = (
   context: DocumentActionContext,
 ) => MaybePromise<void>
 
+export type DocumentActionArgumentValidator = (
+  args: JsonValue | undefined,
+) => JsonValue | undefined
+
+export interface DocumentActionRegistration {
+  handler: DocumentActionHandler
+  validateArgs?: DocumentActionArgumentValidator
+}
+
+export type DocumentAction = DocumentActionHandler | DocumentActionRegistration
+
+export interface DocumentRuntimeLimits {
+  maxJsonDepth: number
+  maxJsonValues: number
+  maxArrayItems: number
+  maxStringLength: number
+  maxTotalStringLength: number
+  maxDocumentNodes: number
+  maxDocumentTreeDepth: number
+  maxRowsPerCollection: number
+  maxCollectionRows: number
+  maxTableCells: number
+}
+
 export interface DocumentRuntimeOptions {
   initialData?: unknown
-  actions?: Readonly<Record<string, DocumentActionHandler>>
+  actions?: Readonly<Record<string, DocumentAction>>
+  limits?: Partial<DocumentRuntimeLimits>
 }
 
 export interface DocumentRuntime extends UIDocumentRuntime<UIDocumentV2, JsonValue> {
   replaceDocument(document: unknown): void
   setData(data: unknown): void
+  replaceSnapshot(document: unknown, data: unknown): void
   getCollection(nodeId: NodeId): Store<readonly DocumentCollectionRow[]> | undefined
   hasActionHandler(actionType: string): boolean
   invokeAction(nodeId: NodeId): Promise<void>
+}
+
+export interface DocumentUpdateSessionOptions {
+  maxMessagesPerSecond?: number
+  maxPatchOperations?: number
+  now?: () => number
+  onNotificationError: (error: unknown) => void
+}
+
+export interface DocumentUpdateSession {
+  apply(message: unknown): void
+  getRevision(): number | undefined
+  destroy(): void
 }
 
 /**

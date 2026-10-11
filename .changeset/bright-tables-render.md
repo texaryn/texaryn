@@ -8,4 +8,4 @@
 '@texaryn/web-components': minor
 ---
 
-Add a standalone version 2 display document runtime and semantic renderer roots for lists, tables, layouts, text, and host actions.
+Add a standalone version 2 display document runtime, semantic renderer roots, bounded server update sessions, and validated host action arguments.
