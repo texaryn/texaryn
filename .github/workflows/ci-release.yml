@@ -129,8 +129,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-        with:
-          registry-url: https://registry.npmjs.org
+      # Keep setup-node from writing an empty NODE_AUTH_TOKEN entry. npm needs
+      # to detect the GitHub OIDC environment for trusted publishing.
       # .nvmrc pins only the Node major, so the bundled npm drifts with the
       # runner image. Trusted publishing needs npm 11.5.1 or later; npm 12
       # changes publish behaviour and is not adopted implicitly.
@@ -145,7 +145,6 @@ jobs:
           push-git-tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_ACCESS: public
           NPM_CONFIG_PROVENANCE: true
       # Reconciles GitHub releases with what is published. The action output
       # only describes this execution, so a rerun after npm already succeeded
