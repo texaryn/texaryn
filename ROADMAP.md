@@ -1901,12 +1901,16 @@ The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
 found a runtime replacement edge case in `FormRoot`; the binding and teardown
 behavior now follow the active form, with a regression test. Follow-up review
-found no remaining actionable issues. The SolidJS renderer in PR #213 has
-passed build, typecheck, package verification, full test suite, and site build
-on its earlier base. Its checks are running again against the merged Svelte
-renderer. ChatGPT review findings about read-only control state and object enum
-comparison were fixed, and follow-up review found no remaining actionable
-issues.
+found no remaining actionable issues. The SolidJS renderer in PR #213 passed
+build, typecheck, package verification, full test suite, and site build on its
+earlier base. Its checks are running again against `main`. ChatGPT review
+findings about read-only control state and object enum comparison were fixed,
+and follow-up review found no remaining actionable issues.
+
+ADR-012 accepts a standalone, schema independent display document runtime for
+tables, lists, layouts, text, and actions. Its implementation is in PR #214.
+ChatGPT reviewed the ADR and found no remaining actionable issues. Forms remain
+on version 1 and `FormRuntime`.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2116,7 +2120,7 @@ MUI and custom styling examples are complete. Continue the remaining work in
 this order:
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, then Solid in PR #213.
-2. Non-form nodes: tables, lists, layouts and actions.
+2. Non-form nodes: tables, lists, layouts and actions, as accepted in ADR-012.
 3. Server-driven UI tooling.
 4. AI generation tooling.
 5. Visual form builder.
@@ -2390,11 +2394,9 @@ These questions are not resolved by the research and require implementation
 experience or user feedback to answer:
 
 1. **Should the IR support layout hints (grid columns, flex direction) or leave
-   all layout to the renderer?** The research is split: A2UI includes layout;
-   DivKit includes layout; Adaptive Cards includes layout. But all three are
-   server-driven UI systems where the server controls layout. For a form
-   library, the question is whether layout hints in the IR are a feature or a
-   maintenance burden.
+   all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
+   the IR carries semantic layout containers, while each renderer chooses its
+   markup and spacing. Grid and flex hints remain deferred.
 
 2. **Should the validator port include a "resolve applicable sub-schema"
    method?** For oneOf/anyOf discrimination, the adapter needs to know which
