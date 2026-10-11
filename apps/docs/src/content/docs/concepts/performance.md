@@ -86,16 +86,18 @@ each trial produce 500 activation samples and 500 removal samples per renderer.
 
 | Renderer | Mount p50 | Mount p95 | Activation p50 | Activation p95 | Removal p50 | Removal p95 | Combined p50 | Combined p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| React | 27.9 ms | 29.1 ms | 10.8 ms | 13.0 ms | 10.7 ms | 12.9 ms | 10.8 ms | 13.0 ms |
-| Vue | 27.7 ms | 28.8 ms | 14.6 ms | 15.8 ms | 14.6 ms | 15.8 ms | 14.6 ms | 15.8 ms |
-| Svelte | 27.7 ms | 29.4 ms | 14.7 ms | 15.8 ms | 14.6 ms | 15.6 ms | 14.7 ms | 15.7 ms |
-| Solid | 27.6 ms | 29.3 ms | 14.6 ms | 15.5 ms | 14.7 ms | 15.7 ms | 14.6 ms | 15.7 ms |
-| Web Components | 27.8 ms | 29.7 ms | 14.6 ms | 15.6 ms | 14.6 ms | 15.7 ms | 14.6 ms | 15.7 ms |
-| Angular | 26.3 ms | 28.9 ms | 30.9 ms | 32.1 ms | 30.9 ms | 32.1 ms | 30.9 ms | 32.1 ms |
+| React | 27.7 ms | 29.5 ms | 10.2 ms | 12.6 ms | 10.4 ms | 12.5 ms | 10.3 ms | 12.6 ms |
+| Vue | 27.1 ms | 28.1 ms | 14.6 ms | 15.7 ms | 14.5 ms | 15.7 ms | 14.6 ms | 15.7 ms |
+| Svelte | 27.4 ms | 28.8 ms | 14.7 ms | 15.5 ms | 14.6 ms | 15.7 ms | 14.7 ms | 15.6 ms |
+| Solid | 27.6 ms | 28.5 ms | 14.6 ms | 15.6 ms | 14.5 ms | 15.4 ms | 14.5 ms | 15.6 ms |
+| Web Components | 27.8 ms | 29.1 ms | 14.4 ms | 15.6 ms | 14.5 ms | 15.5 ms | 14.4 ms | 15.6 ms |
+| Angular | 27.1 ms | 28.8 ms | 30.6 ms | 32.0 ms | 30.8 ms | 32.1 ms | 30.7 ms | 32.1 ms |
 
 The run used macOS 25.6.0 on an Apple M1 Max with Node.js 26.5.1 and headless
-Chromium 153.0.8010.12. A frame observation confirms that the DOM update was
-visible by that point. It includes frame scheduling and does not confirm a
+Chromium 153.0.8010.12. It used the benchmark source at
+[commit `60ff8ff`](https://github.com/texaryn/texaryn/commit/60ff8ff).
+A frame observation confirms that the DOM update was visible by that point. It
+includes frame scheduling and does not confirm a
 completed paint. Angular development mode is disabled, and the harness asserts
 `isDevMode() === false`. These results cover this form and machine only. They do
 not measure cold bundle transfer or general framework performance. The earlier
