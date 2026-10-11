@@ -205,9 +205,29 @@ function stripDraft04UnknownSchemaKeywords(
   visited.set(schema, positions)
   for (const keyword of DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS) {
     const childPosition = `${position}/${keyword}`
-    const preserve = [...preservedPointers].some((pointer) => pointer === childPosition || pointer.startsWith(`${childPosition}/`))
+    const preserve = hasPreservedTarget(childPosition, preservedPointers)
     if (!preserve) {
       Reflect.deleteProperty(schema, keyword)
+    } else if ((keyword === '$defs' || keyword === 'dependentSchemas') && isRecord(schema[keyword])) {
+      const map = schema[keyword] as Record<string, unknown>
+      for (const [name, child] of Object.entries(map)) {
+        const childPosition = `${position}/${keyword}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`
+        if (hasPreservedTarget(childPosition, preservedPointers)) {
+          stripDraft04UnknownSchemaKeywords(child, childPosition, preservedPointers, visited)
+        } else {
+          Reflect.deleteProperty(map, name)
+        }
+      }
+    } else if (keyword === 'prefixItems' && Array.isArray(schema[keyword])) {
+      const items = schema[keyword] as unknown[]
+      for (const [index, child] of items.entries()) {
+        const itemPosition = `${childPosition}/${index}`
+        if (hasPreservedTarget(itemPosition, preservedPointers)) {
+          stripDraft04UnknownSchemaKeywords(child, itemPosition, preservedPointers, visited)
+        } else {
+          items[index] = {}
+        }
+      }
     } else {
       stripDraft04UnknownSchemaKeywords(schema[keyword], childPosition, preservedPointers, visited)
     }
@@ -215,6 +235,13 @@ function stripDraft04UnknownSchemaKeywords(
   for (const child of children(schema, position, 'draft-04')) {
     stripDraft04UnknownSchemaKeywords(child.schema, child.position, preservedPointers, visited)
   }
+}
+
+function hasPreservedTarget(position: string, preservedPointers: ReadonlySet<string>): boolean {
+  for (const pointer of preservedPointers) {
+    if (pointer === position || pointer.startsWith(`${position}/`)) return true
+  }
+  return false
 }
 
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
