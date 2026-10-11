@@ -13,8 +13,8 @@ seven previously published versions that lacked GitHub releases. Draft-04 JSON
 Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
 and its minor package release was published through
 [PR #223](https://github.com/texaryn/texaryn/pull/223).
-This completes the implementation work through Phase 5+. The remaining roadmap
-subjects are IR migrations and the plugin ecosystem.
+This completes the current implementation sequence through Draft-04. The next
+roadmap subjects are IR migrations and the plugin ecosystem.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
