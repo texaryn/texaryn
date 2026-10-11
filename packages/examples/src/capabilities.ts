@@ -65,6 +65,13 @@ export interface CapabilityDefinition {
   exampleExemptionReason?: string
 }
 
+const referenceKeywordsByDialect: Partial<Record<Dialect, readonly string[]>> = {
+  'draft-04': ['$ref', 'definitions'],
+  'draft-07': ['$ref', 'definitions'],
+  '2019-09': ['$ref', '$defs'],
+  '2020-12': ['$ref', '$defs'],
+}
+
 export const capabilities = {
   'schema.type.string': {
     title: 'String fields',
@@ -197,24 +204,14 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-04': ['$ref', 'definitions'],
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
   'schema.reference.reused-fragment': {
     title: 'A $defs fragment reused by several properties',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-04': ['$ref', 'definitions'],
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
 
   'schema.reference.recursive': {
@@ -222,12 +219,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-04': ['$ref', 'definitions'],
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
 
   'schema.conditional.if-then-else': {

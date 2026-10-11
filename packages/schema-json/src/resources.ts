@@ -1,5 +1,6 @@
 import type { MaybePromise } from '@texaryn/core'
 import { detectDialect, identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
+import { DEFINITION_KEYS, LIST, MAP, SINGLE } from './schema-keywords.js'
 
 /** Resolves one absolute resource URI without its fragment. The adapter never fetches it itself. */
 export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown | undefined>
@@ -13,65 +14,6 @@ export interface SchemaResourceOptions {
 
 export const DEFAULT_MAX_EXTERNAL_RESOURCES = 128
 
-const SINGLE: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['additionalItems', 'additionalProperties', 'items', 'not']),
-  'draft-07': new Set([
-    'additionalItems',
-    'additionalProperties',
-    'contains',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-  ]),
-  '2019-09': new Set([
-    'additionalItems',
-    'additionalProperties',
-    'contains',
-    'contentSchema',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-    'unevaluatedItems',
-    'unevaluatedProperties',
-  ]),
-  '2020-12': new Set([
-    'additionalProperties',
-    'contains',
-    'contentSchema',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-    'unevaluatedItems',
-    'unevaluatedProperties',
-  ]),
-}
-const LIST: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['allOf', 'anyOf', 'items', 'oneOf']),
-  'draft-07': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2019-09': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2020-12': new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']),
-}
-const MAP: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['definitions', 'dependencies', 'patternProperties', 'properties']),
-  'draft-07': new Set(['$defs', 'definitions', 'dependencies', 'patternProperties', 'properties']),
-  '2019-09': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-  '2020-12': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-}
-const DEFINITION_KEYS: Record<Dialect, readonly string[]> = {
-  'draft-04': ['definitions'],
-  'draft-07': ['$defs', 'definitions'],
-  '2019-09': ['definitions', '$defs'],
-  '2020-12': ['definitions', '$defs'],
-}
 const META_URIS = new Set([
   'http://json-schema.org/draft-04/schema',
   'https://json-schema.org/draft-04/schema',

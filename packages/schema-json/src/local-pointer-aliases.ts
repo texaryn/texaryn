@@ -1,23 +1,5 @@
 import { identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
-
-const SINGLE: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['additionalItems', 'additionalProperties', 'items', 'not']),
-  'draft-07': new Set(['additionalItems', 'additionalProperties', 'contains', 'else', 'if', 'items', 'not', 'propertyNames', 'then']),
-  '2019-09': new Set(['additionalItems', 'additionalProperties', 'contains', 'contentSchema', 'else', 'if', 'items', 'not', 'propertyNames', 'then', 'unevaluatedItems', 'unevaluatedProperties']),
-  '2020-12': new Set(['additionalProperties', 'contains', 'contentSchema', 'else', 'if', 'items', 'not', 'propertyNames', 'then', 'unevaluatedItems', 'unevaluatedProperties']),
-}
-const LIST: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['allOf', 'anyOf', 'items', 'oneOf']),
-  'draft-07': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2019-09': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2020-12': new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']),
-}
-const MAP: Record<Dialect, ReadonlySet<string>> = {
-  'draft-04': new Set(['definitions', 'dependencies', 'patternProperties', 'properties']),
-  'draft-07': new Set(['$defs', 'definitions', 'dependencies', 'patternProperties', 'properties']),
-  '2019-09': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-  '2020-12': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-}
+import { LIST, MAP, SINGLE } from './schema-keywords.js'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
