@@ -83,6 +83,24 @@ describe('createHyperjumpAdapter', () => {
       expect(constraints?.maximum).toBeUndefined()
     })
 
+    it('normalizes evaluated Draft 4 bounds from allOf', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        properties: {
+          value: {
+            type: 'number',
+            allOf: [{ minimum: 5, exclusiveMinimum: true, maximum: 10, exclusiveMaximum: true }],
+          },
+        },
+      })
+
+      const constraints = adapter.project({ value: 6 }).nodes.get('/value' as JsonPointer)?.constraints
+      expect(constraints).toMatchObject({ exclusiveMinimum: 5, exclusiveMaximum: 10 })
+      expect(constraints?.minimum).toBeUndefined()
+      expect(constraints?.maximum).toBeUndefined()
+    })
+
     it('ignores unsupported later-draft keywords during schema walking', async () => {
       const adapter = await createHyperjumpAdapter({
         $schema: 'http://json-schema.org/draft-04/schema#',
@@ -109,6 +127,28 @@ describe('createHyperjumpAdapter', () => {
       })
 
       expect(adapter.project({ trigger: true }).nodes.has('/child' as JsonPointer)).toBe(false)
+    })
+
+    it('resolves a fully qualified Draft 4 identifier fragment in an external resource', async () => {
+      const resourceId = 'https://e.test/root'
+      const adapter = await createHyperjumpAdapter(
+        {
+          $schema: 'http://json-schema.org/draft-04/schema#',
+          id: 'https://e.test/client',
+          properties: { value: { $ref: `${resourceId}#v` } },
+        },
+        {
+          resolveResource: (uri) => uri === resourceId
+            ? {
+                id: resourceId,
+                definitions: { v: { id: `${resourceId}#v`, type: 'string' } },
+              }
+            : undefined,
+        },
+      )
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
   })
 

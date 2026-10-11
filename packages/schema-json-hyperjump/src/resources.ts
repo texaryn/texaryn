@@ -543,7 +543,15 @@ function legacyAnchorTargets(source: unknown, retrievalUri: string, dialect: Dia
     let anchorPosition = resourcePosition
     if (!ignoresSiblings && typeof identifier === 'string') {
       const resolved = absoluteUri(identifier, parentBase)
-      if (resolved !== undefined && identifier.startsWith('#')) {
+      const hashIndex = resolved?.indexOf('#') ?? -1
+      const fragment = hashIndex === -1 ? undefined : resolved!.slice(hashIndex + 1)
+      const namedAbsoluteFragment =
+        resolved !== undefined &&
+        !identifier.startsWith('#') &&
+        fragment !== undefined &&
+        fragment !== '' &&
+        !fragment.startsWith('/')
+      if (resolved !== undefined && (identifier.startsWith('#') || namedAbsoluteFragment)) {
         const pointer = position.startsWith(resourcePosition) ? position.slice(resourcePosition.length) : position.slice(1)
         targets.set(resolved, { base: resourceBase, pointer })
       } else if (resolved !== undefined) {

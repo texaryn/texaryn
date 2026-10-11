@@ -195,6 +195,30 @@ describe('createJsonSchemaAdapter', () => {
       expect((await tuple.validate([1, 'ok', true])).valid).toBe(false)
     })
 
+    it('ignores later-draft validation keywords but preserves explicitly referenced schemas', async () => {
+      const array = await createJsonSchemaAdapter({
+        $schema: draft04,
+        type: 'array',
+        contains: { type: 'number' },
+      })
+      const object = await createJsonSchemaAdapter({
+        $schema: draft04,
+        type: 'object',
+        propertyNames: { pattern: '^a' },
+      })
+      const reference = await createJsonSchemaAdapter({
+        $schema: draft04,
+        type: 'object',
+        properties: { value: { $ref: '#/contains' } },
+        contains: { type: 'string' },
+      })
+
+      expect((await array.validate(['ok'])).valid).toBe(true)
+      expect((await object.validate({ b: 1 })).valid).toBe(true)
+      expect((await reference.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await reference.validate({ value: 1 })).valid).toBe(false)
+    })
+
     it('resolves definitions and legacy nested id values', async () => {
       const adapter = await createJsonSchemaAdapter({
         $schema: draft04,

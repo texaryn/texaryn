@@ -156,7 +156,14 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
         const resolved = resolveUri(identifier, parentBase)
         if (resolved) {
           base = withoutFragment(resolved)
-          index.resources.set(base, position)
+          if (isPre2019Dialect(dialect)) {
+            const hash = resolved.indexOf('#')
+            const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+            if (fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+              index.anchors.set(resolved, position)
+            }
+          }
+          if (!index.resources.has(base)) index.resources.set(base, position)
         }
       }
     }

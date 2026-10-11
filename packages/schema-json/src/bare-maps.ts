@@ -39,4 +39,10 @@ function withBareMaps(draft: Draft): Draft {
   return extendDraft(draft, { keywords })
 }
 
-export const DRAFTS: Draft[] = [draft04, draft06, draft07, draft2019, draft2020].map(withBareMaps)
+const draft04Keywords = new Set(['$defs', 'contains', 'deprecated', 'propertyNames'])
+const draft04WithoutLaterKeywords: Draft = {
+  ...draft04,
+  keywords: draft04.keywords.filter((keyword) => !draft04Keywords.has(keyword.keyword)),
+}
+
+export const DRAFTS: Draft[] = [draft04WithoutLaterKeywords, draft06, draft07, draft2019, draft2020].map(withBareMaps)
