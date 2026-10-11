@@ -46,6 +46,16 @@ const renderers: Record<RendererKey, RendererSpec> = {
   default: { kind: 'react', label: 'React · Default', registry: createDefaultRegistry() },
   bootstrap: { kind: 'react', label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
   mui: { kind: 'react', label: 'React · Material UI', registry: createMuiRegistry() },
+  emotion: {
+    kind: 'react',
+    label: 'React · Emotion styles',
+    registry: createDefaultRegistry(),
+  },
+  tailwind: {
+    kind: 'react',
+    label: 'React · Tailwind CSS',
+    registry: createDefaultRegistry(),
+  },
   vue: { kind: 'host', label: 'Vue · Default', Host: VueHost },
   wc: { kind: 'host', label: 'Web Components · Default', Host: WcHost },
 }

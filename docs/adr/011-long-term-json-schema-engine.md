@@ -20,9 +20,11 @@ The fork now contains the reference registry and nested reduction fixes in
 [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Its GitHub test
 jobs pass. Version [11.6.6 is published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library/v/11.6.6)
 with a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
-The current monorepo integration branch replaces upstream 11.6.2 and removes
-the adapter's packaged workaround. Published `@texaryn/schema-json` 0.8.1 stays
-on upstream until that integration is merged and released.
+Merged monorepo PR #207 replaces upstream 11.6.2 and removes the adapter's
+packaged workaround. PR #208 created `@texaryn/schema-json` 0.8.2. All release
+checks passed, and its publish job awaits approval in the protected
+`npm-release` environment. Published version 0.8.1 remains on the old
+dependency until publishing completes.
 
 The repository also contains a private Hyperjump adapter. It is useful for
 cross implementation conformance checks, but it has different compilation and
