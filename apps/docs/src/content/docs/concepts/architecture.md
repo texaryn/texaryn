@@ -42,6 +42,8 @@ this package's contract.
 
 ```mermaid
 flowchart LR
+  accTitle: Collaborative scalar edits
+  accDescr: FormRuntime sends committed scalar edits to the Yjs adapter, which keeps a baseline and pointer overrides in a Y.Doc that the host provider syncs.
   App[Host application] --> Runtime[FormRuntime]
   Runtime -->|committed scalar edits| Adapter["@texaryn/collaboration-yjs"]
   Adapter <-->|baseline and pointer overrides| Doc[Y.Doc]

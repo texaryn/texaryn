@@ -61,6 +61,8 @@ field is acceptable; Zod still enforces the original schema during validation.
 
 ```mermaid
 flowchart LR
+  accTitle: Schema adapters
+  accDescr: TypeBox and JSON Schema go straight to the JSON Schema adapter. The Zod adapter validates with Zod and projects through the JSON Schema adapter, which feeds the core runtime and every renderer.
   TypeBox[TypeBox schema] -->|JSON Schema object| JSONAdapter["@texaryn/schema-json"]
   JSON[JSON Schema] --> JSONAdapter
   Zod[Zod 4 schema] -->|input schema to JSON Schema| ZodAdapter["@texaryn/schema-zod"]

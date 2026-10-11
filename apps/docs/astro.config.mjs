@@ -45,7 +45,7 @@ export default defineConfig({
   integrations: [
     // Before Starlight, so the Mermaid fences are claimed before Expressive
     // Code renders them as code blocks.
-    mermaid({ autoTheme: true }),
+    mermaid({ autoTheme: true, enableLog: false }),
     starlight({
       title: 'Texaryn',
       // Both halves of the theme, because they have to agree on where the
