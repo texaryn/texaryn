@@ -33,15 +33,20 @@ The package is marked `private: true`, so there is intentionally no npm installa
 
 ## JSON Schema dialect support
 
-| Dialect   | Support           |
-| --------- | ----------------- |
-| Draft 4   | Not yet supported |
-| Draft 6   | Not yet supported |
-| Draft 7   | Supported         |
-| 2019-09   | Supported         |
-| 2020-12   | Supported         |
+| Dialect   | Support       |
+| --------- | ------------- |
+| Draft 4   | Supported     |
+| Draft 6   | Not supported |
+| Draft 7   | Supported     |
+| 2019-09   | Supported     |
+| 2020-12   | Supported     |
 
 Dialect detection uses `$schema`, with Draft 7 as the default fallback.
+
+External resources must use the root schema's dialect. This private comparison
+adapter does not support arbitrary custom dialects or vocabularies. Its ten
+custom vocabulary compilation deviations are listed with exact case IDs in the
+JSON Schema conformance report.
 
 ```ts
 const adapter = await createHyperjumpAdapter(schema, {
@@ -131,7 +136,7 @@ Asynchronously prepares a Hyperjump-backed `SchemaEvaluationPort` implementation
 
 ```ts
 interface HyperjumpAdapterConfig {
-  defaultDialect?: 'draft-07' | '2019-09' | '2020-12'
+  defaultDialect?: 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 }
 ```
 

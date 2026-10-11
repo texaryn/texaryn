@@ -17,7 +17,7 @@ import { writeFileSync } from 'node:fs'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { createHyperjumpAdapter } from '@texaryn/schema-json-hyperjump'
 import type { SchemaEvaluationPort } from '@texaryn/core'
-import { loadSuite, suiteDialects, suiteRevision, testId } from './runner.js'
+import { loadSuite, loadSuiteResource, suiteDialects, suiteRevision, testId } from './runner.js'
 import type { SuiteDialect } from './runner.js'
 import { baselinePath, baselineProblems, readBaseline } from './baseline.js'
 import type { Baseline, DialectBaseline, FailureOutcome } from './baseline.js'
@@ -31,9 +31,9 @@ type AdapterFactory = (schema: unknown, dialect: SuiteDialect) => Promise<Schema
 // default, and schema-json-hyperjump is a private reference implementation kept
 // to check the port contract is not shaped around one validator.
 const adapters: Record<string, AdapterFactory> = {
-  'schema-json': (schema, dialect) => createJsonSchemaAdapter(schema, { defaultDialect: dialect }),
+  'schema-json': (schema, dialect) => createJsonSchemaAdapter(schema, { defaultDialect: dialect, resolveResource: loadSuiteResource }),
   'schema-json-hyperjump': (schema, dialect) =>
-    createHyperjumpAdapter(schema, { defaultDialect: dialect }),
+    createHyperjumpAdapter(schema, { defaultDialect: dialect, resolveResource: loadSuiteResource }),
 }
 
 interface Observed {

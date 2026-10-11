@@ -163,12 +163,17 @@ describe('published support matrix', () => {
 
   it('resolves keywords per dialect, including where the spelling differs', () => {
     const references = formProjectionSupport.find((row) => row.title === 'Local references')!
+    expect(rowKeywords(references, 'draft-04')).toContain('definitions')
     expect(rowKeywords(references, 'draft-07')).toContain('definitions')
     expect(rowKeywords(references, '2020-12')).toContain('$defs')
 
     // deprecated arrived in 2019-09, so the draft-07 column must not claim it.
     const annotations = formProjectionSupport.find((row) => row.title === 'Field annotations')!
+    expect(rowKeywords(annotations, 'draft-04')).not.toContain('deprecated')
     expect(rowKeywords(annotations, 'draft-07')).not.toContain('deprecated')
     expect(rowKeywords(annotations, '2019-09')).toContain('deprecated')
+
+    const conditionals = formProjectionSupport.find((row) => row.title === 'Conditionals')!
+    expect(rowKeywords(conditionals, 'draft-04')).toEqual([])
   })
 })

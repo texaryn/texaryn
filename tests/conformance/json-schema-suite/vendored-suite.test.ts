@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { suiteFiles, suiteRoot } from './runner.js'
+import { loadSuiteResource, suiteFiles, suiteRoot } from './runner.js'
 
 const manifest = JSON.parse(
   readFileSync(join(suiteRoot, 'SHA256SUMS.json'), 'utf8'),
@@ -40,5 +40,12 @@ describe('vendored JSON Schema Test Suite', () => {
       changed,
       `these vendored files no longer match their recorded digest, so the pinned revision no longer describes them:\n${changed.join('\n')}`,
     ).toEqual([])
+  })
+
+  it('loads only exact localhost fixture URIs from the vendored remotes', () => {
+    expect(loadSuiteResource('http://localhost:1234/draft4/subSchemas.json')).toBeDefined()
+    expect(loadSuiteResource('http://example.test:1234/draft4/subSchemas.json')).toBeUndefined()
+    expect(loadSuiteResource('https://localhost:1234/draft4/subSchemas.json')).toBeUndefined()
+    expect(loadSuiteResource('http://localhost:1234/draft4/%2e%2e/LICENSE')).toBeUndefined()
   })
 })

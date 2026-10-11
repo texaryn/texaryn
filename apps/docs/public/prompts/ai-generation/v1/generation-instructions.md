@@ -8,7 +8,7 @@ you the output schema and chooses `kind` as `form` or `display`.
 
 Return `kind: "form"` with a JSON Schema object and optional `hints`.
 
-- Set `$schema` to Draft 7, 2019-09, or 2020-12 explicitly.
+- Set `$schema` to Draft 4, Draft 7, 2019-09, or 2020-12 explicitly.
 - Declare the root as an object and give every form field an explicit `type`.
 - Declare at least one editable field under `properties`. Use homogeneous
   arrays with a schema-valued `items` member.

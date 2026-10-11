@@ -26,7 +26,7 @@ export interface SupportRow {
   formBehavior: string
 }
 
-export const dialects: readonly Dialect[] = ['draft-07', '2019-09', '2020-12']
+export const dialects: readonly Dialect[] = ['draft-04', 'draft-07', '2019-09', '2020-12']
 
 export const formProjectionSupport: readonly SupportRow[] = [
   {
@@ -62,7 +62,7 @@ export const formProjectionSupport: readonly SupportRow[] = [
   {
     title: 'Dependencies',
     capabilities: [
-      'schema.dependency.draft07-dependencies',
+      'schema.dependency.pre2019-dependencies',
       'schema.dependency.dependentSchemas',
       'schema.dependency.dependentRequired',
     ],

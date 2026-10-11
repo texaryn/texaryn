@@ -6,4 +6,4 @@
 
 # Type Alias: Dialect
 
-> **Dialect** = `"draft-07"` \| `"2019-09"` \| `"2020-12"`
+> **Dialect** = `"draft-04"` \| `"draft-07"` \| `"2019-09"` \| `"2020-12"`

@@ -41,13 +41,13 @@ The returned object implements `SchemaEvaluationPort` from `@texaryn/core`.
 
 ## JSON Schema dialect support
 
-| Dialect   | Support           |
-| --------- | ----------------- |
-| Draft 4   | Not yet supported |
-| Draft 6   | Not yet supported |
-| Draft 7   | Supported         |
-| 2019-09   | Supported         |
-| 2020-12   | Supported         |
+| Dialect   | Support       |
+| --------- | ------------- |
+| Draft 4   | Supported     |
+| Draft 6   | Not supported |
+| Draft 7   | Supported     |
+| 2019-09   | Supported     |
+| 2020-12   | Supported     |
 
 Dialect support does not mean every keyword generates a form control or that Texaryn provides full specification compliance. See the [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/) for the capability matrix, projection limits and validation behavior.
 
@@ -59,7 +59,11 @@ const adapter = await createJsonSchemaAdapter(schema, {
 })
 ```
 
-The detected dialect alone decides whether the schema's own `format` keywords are asserted. Draft 7 asserts them, and so does a schema whose `$schema` is absent or unrecognized while the fallback is `draft-07`; 2019-09 and 2020-12 never do, even when the format-assertion vocabulary is declared, and the adapter has no option that changes that. The `format` keywords inside a published metaschema reached through `$ref` are asserted in every dialect.
+Draft 4 and Draft 7 use the `id` keyword, `definitions`, boolean `exclusiveMinimum` and `exclusiveMaximum`, tuple-valued `items`, and ignore `$ref` siblings. Draft 4 does not recognize Draft 7 conditionals. Draft 6 is not supported.
+
+The external resources returned by `resolveResource` must use the root schema's dialect. The adapter rejects external resources that declare another supported dialect. Custom dialects and user-defined vocabularies are not supported; the adapter uses built-in validation keywords even when a custom metaschema omits the validation vocabulary, and does not guarantee rejection of every unknown required vocabulary.
+
+The detected dialect alone decides whether the schema's own `format` keywords are asserted. Draft 4 and Draft 7 assert them, and so does a schema whose `$schema` is absent or unrecognized while the fallback is `draft-07`; 2019-09 and 2020-12 never do, even when the format-assertion vocabulary is declared, and the adapter has no option that changes that. The `format` keywords inside a published metaschema reached through `$ref` are asserted in every dialect.
 
 ## Projection
 
@@ -91,7 +95,7 @@ The adapter currently handles the schema features required by Texaryn's runtime 
 - `anyOf`
 - `dependentSchemas`
 - `dependentRequired`
-- Draft 7 `dependencies`
+- Draft 4 and Draft 7 `dependencies`
 - annotations and field constraints
 
 Inactive conditional fields remain represented in the projection with `active: false`, allowing the runtime and renderer to preserve a deterministic UI structure across branch changes. A branch the specification never evaluates (a `then` or `else` without `if`, a `then` under `if: false`, an `else` under `if: true`) contributes no fields unless a reference points into it or a schema inside it declares an `$id`, `$anchor` or `$dynamicAnchor`.
@@ -206,7 +210,7 @@ interface AdapterConfig {
 The union of dialect identifiers the adapter recognizes:
 
 ```ts
-type Dialect = 'draft-07' | '2019-09' | '2020-12'
+type Dialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 ```
 
 ### `SameLocationCycleError`

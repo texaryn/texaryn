@@ -28,6 +28,481 @@ import {
 } from './fixtures.js'
 
 describe('createHyperjumpAdapter', () => {
+  describe('draft-04 $ref semantics', () => {
+    it('ignores siblings in Draft 4 and applies them in 2020-12', async () => {
+      const draft04 = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        definitions: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/definitions/value', minimum: 100 } },
+      })
+      expect((await draft04.validate({ value: 1 })).valid).toBe(true)
+      expect((await draft04.validate({ value: 'wrong type' })).valid).toBe(false)
+
+      const modern = await createHyperjumpAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        $defs: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/$defs/value', minimum: 100 } },
+      })
+      expect((await modern.validate({ value: 1 })).valid).toBe(false)
+      expect((await modern.validate({ value: 100 })).valid).toBe(true)
+    })
+
+    it('does not project ignored $ref siblings', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        definitions: { value: { type: 'object' } },
+        properties: {
+          value: {
+            $ref: '#/definitions/value',
+            properties: { sibling: { type: 'string', default: 'ignored' } },
+            required: ['sibling'],
+          },
+        },
+      })
+
+      const projection = adapter.project({ value: {} })
+      expect(projection.nodes.has('/value/sibling' as JsonPointer)).toBe(false)
+    })
+
+    it('projects Draft 4 exclusive bounds as numeric constraints', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'number',
+        minimum: 5,
+        exclusiveMinimum: true,
+        maximum: 10,
+        exclusiveMaximum: true,
+      })
+
+      const constraints = adapter.project(6).nodes.get('' as JsonPointer)?.constraints
+      expect(constraints).toMatchObject({ exclusiveMinimum: 5, exclusiveMaximum: 10 })
+      expect(constraints?.minimum).toBeUndefined()
+      expect(constraints?.maximum).toBeUndefined()
+    })
+
+    it('normalizes evaluated Draft 4 bounds from allOf', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        properties: {
+          value: {
+            type: 'number',
+            allOf: [{ minimum: 5, exclusiveMinimum: true, maximum: 10, exclusiveMaximum: true }],
+          },
+        },
+      })
+
+      const constraints = adapter.project({ value: 6 }).nodes.get('/value' as JsonPointer)?.constraints
+      expect(constraints).toMatchObject({ exclusiveMinimum: 5, exclusiveMaximum: 10 })
+      expect(constraints?.minimum).toBeUndefined()
+      expect(constraints?.maximum).toBeUndefined()
+    })
+
+    it('ignores unsupported later-draft keywords during schema walking', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'string',
+        if: { $ref: '#' },
+        then: { $ref: '#' },
+        else: { $ref: '#' },
+        contains: { $ref: '#' },
+        propertyNames: { $ref: '#' },
+        dependentSchemas: { x: { $ref: '#' } },
+      })
+
+      expect((await adapter.validate('accepted')).valid).toBe(true)
+      expect(adapter.project('accepted').nodes.get('' as JsonPointer)?.type).toBe('string')
+    })
+
+    it('ignores unreferenced Draft 4 keyword cycles and keeps explicitly referenced schemas', async () => {
+      const ignored = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'array',
+        contains: { $ref: '#/contains' },
+      })
+      const referenced = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        properties: { value: { $ref: '#/contains' } },
+        contains: { type: 'string' },
+      })
+
+      expect((await ignored.validate([])).valid).toBe(true)
+      expect((await referenced.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await referenced.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('keeps an external Draft 4 unknown-keyword target when another resource references it', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? { id: resourceId, contains: { type: 'string' } }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('keeps an unknown-keyword target inside an embedded Draft 4 resource', async () => {
+      const remoteId = 'https://e.test/remote'
+      const embeddedId = 'https://e.test/sub'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: {
+          embedded: { $ref: `${remoteId}#/definitions/sub` },
+          value: { $ref: `${embeddedId}#/contains` },
+        },
+      }, {
+        resolveResource: (uri) => uri === remoteId
+          ? {
+              id: remoteId,
+              definitions: {
+                sub: { id: embeddedId, type: 'object', contains: { type: 'string' } },
+              },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ embedded: {}, value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ embedded: {}, value: 1 })).valid).toBe(false)
+    })
+
+    it('sanitizes explicitly referenced Draft 4 targets inside unknown schema maps', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/$defs/v` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              $defs: {
+                v: { type: 'string', contains: { $ref: '#/$defs/v/contains' } },
+                unused: { type: 'number' },
+              },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('sanitizes an explicitly referenced Draft 4 schema below an arbitrary unknown member', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              contains: {
+                box: { type: 'string', contains: { $ref: '#/contains/box/contains' } },
+              },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('preserves targets referenced by an explicitly referenced unknown schema', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              contains: { box: { $ref: '#/if/box' } },
+              if: { box: { type: 'string' } },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('loads external resources referenced by an explicitly referenced unknown schema', async () => {
+      const resourceId = 'https://e.test/remote'
+      const targetId = 'https://e.test/other'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#%2Fcontains%2Fbox` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === resourceId) {
+            return { id: resourceId, contains: { box: { $ref: `${targetId}#/if/box` } } }
+          }
+          if (uri === targetId) return { id: targetId, if: { box: { type: 'string' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([resourceId, targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('loads resources referenced by a pointer through an embedded resource ID', async () => {
+      const resourceId = 'https://e.test/remote'
+      const embeddedId = 'https://e.test/embedded'
+      const targetId = 'https://e.test/other'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: {
+          nested: { $ref: `${resourceId}#/definitions/sub` },
+          value: { $ref: `${embeddedId}#/contains/box` },
+        },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === resourceId) {
+            return {
+              id: resourceId,
+              definitions: { sub: { id: embeddedId, contains: { box: { $ref: `${targetId}#/if/box` } } } },
+            }
+          }
+          if (uri === targetId) return { id: targetId, if: { box: { type: 'string' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([resourceId, targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('resolves relative IDs once while scanning retained embedded targets', async () => {
+      const rootId = 'https://e.test/root/root.json'
+      const embeddedId = 'https://e.test/root/folder/'
+      const targetId = 'https://e.test/root/other.json'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: rootId,
+        definitions: {
+          sub: { id: 'folder/', contains: { box: { $ref: '../other.json#/if/box' } } },
+        },
+        properties: { value: { $ref: `${embeddedId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          return uri === targetId ? { id: targetId, if: { box: { type: 'string' } } } : undefined
+        },
+      })
+
+      expect(requested).toEqual([targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('scans sibling embedded resources with the same parent base independently', async () => {
+      const rootId = 'https://e.test/root/root.json'
+      const firstTargetId = 'https://e.test/root/a/otherA'
+      const secondTargetId = 'https://e.test/root/b/otherB'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: rootId,
+        type: 'object',
+        properties: {
+          first: { $ref: 'https://e.test/root/a/#/contains/box' },
+          second: { $ref: 'https://e.test/root/b/#/contains/box' },
+        },
+        definitions: {
+          first: { id: 'a/', contains: { box: { $ref: 'otherA#/if/box' } } },
+          second: { id: 'b/', contains: { box: { $ref: 'otherB#/if/box' } } },
+        },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === firstTargetId) return { id: firstTargetId, if: { box: { type: 'string' } } }
+          if (uri === secondTargetId) return { id: secondTargetId, if: { box: { type: 'number' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([firstTargetId, secondTargetId])
+      expect((await adapter.validate({ first: 'accepted', second: 1 })).valid).toBe(true)
+      expect((await adapter.validate({ first: 1, second: 'rejected' })).valid).toBe(false)
+    })
+
+    it('loads resources referenced from an explicitly referenced embedded schema', async () => {
+      const embeddedId = 'https://e.test/embedded'
+      const targetId = 'https://e.test/other'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        definitions: {
+          embedded: { id: embeddedId, contains: { box: { $ref: `${targetId}#/if/box` } } },
+        },
+        properties: { value: { $ref: `${embeddedId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          return uri === targetId ? { id: targetId, if: { box: { type: 'string' } } } : undefined
+        },
+      })
+
+      expect(requested).toEqual([targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('sanitizes pointer targets whose member names contain percent escapes', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/box%252F` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              contains: {
+                'box%2F': {
+                  type: 'string',
+                  contains: { $ref: '#/contains/box%252F/contains' },
+                },
+              },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('sanitizes an explicitly referenced schema inside an unknown keyword array', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/1` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              contains: [
+                { type: 'number', contains: { const: 'ignored' } },
+                { type: 'string', contains: { const: 'ignored' } },
+              ],
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('keeps only explicitly referenced members of an unknown prefixItems array', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/prefixItems/0` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              prefixItems: [
+                { type: 'string', contains: { const: 'ignored' } },
+                { type: 'number' },
+              ],
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('does not activate dependentSchemas in Draft 4', async () => {
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        dependentSchemas: {
+          trigger: { properties: { child: { type: 'string', default: 'ignored' } } },
+        },
+      })
+
+      expect(adapter.project({ trigger: true }).nodes.has('/child' as JsonPointer)).toBe(false)
+    })
+
+    it('resolves a fully qualified Draft 4 identifier fragment', async () => {
+      const resourceId = 'https://e.test/root'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: resourceId,
+        definitions: { v: { id: `${resourceId}#v`, type: 'string' } },
+        properties: { value: { $ref: '#v' } },
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('preserves the base of a nested Draft 4 fragment identifier', async () => {
+      const resourceId = 'https://e.test/sub/anchor.json'
+      const childId = 'https://e.test/sub/child.json'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/root.json',
+        definitions: {
+          value: {
+            id: `${resourceId}#v`,
+            type: 'object',
+            properties: { child: { $ref: 'child.json' } },
+          },
+        },
+        properties: { value: { $ref: `${resourceId}#v` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          return uri === childId ? { id: childId, type: 'string' } : undefined
+        },
+      })
+
+      expect(requested).toContain(childId)
+      expect((await adapter.validate({ value: { child: 'accepted' } })).valid).toBe(true)
+      expect((await adapter.validate({ value: { child: 1 } })).valid).toBe(false)
+    })
+  })
+
   describe('flat object projection', () => {
     it('produces root node at empty pointer', async () => {
       const adapter = await createHyperjumpAdapter(flatObjectSchema)

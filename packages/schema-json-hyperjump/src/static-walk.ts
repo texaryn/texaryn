@@ -11,7 +11,7 @@ import type {
   ProjectionOptions,
   ProjectionDiagnostic,
 } from '@texaryn/core'
-import type { Dialect } from './dialect.js'
+import { isPre2019Dialect, type Dialect } from './dialect.js'
 import {
   projectionTypeFamilies,
   shapeDiagnostic,
@@ -160,7 +160,7 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
     if (!isRecord(current.schema)) continue
     const record = current.schema
     const targets = refTargets(record, rootSchema, current.position, dialect)
-    if (targets.length > 0 && dialect === 'draft-07') {
+    if (targets.length > 0 && isPre2019Dialect(dialect)) {
       for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
       continue
     }
@@ -190,12 +190,15 @@ function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, d
         )
       }
     }
-    if (isRecord(record.if)) {
+    if (dialect !== 'draft-04' && isRecord(record.if)) {
       for (const keyword of ['then', 'else'] as const) {
         enqueue(record[keyword], current.position === undefined ? undefined : `${current.position}/${keyword}`)
       }
     }
-    for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
+    const dependencyKeywords = isPre2019Dialect(dialect)
+      ? (['dependencies'] as const)
+      : (['dependentSchemas', 'dependencies'] as const)
+    for (const keyword of dependencyKeywords) {
       const map = record[keyword]
       if (!isRecord(map)) continue
       for (const [key, branch] of Object.entries(map)) {
@@ -299,8 +302,8 @@ const refTargets = (
   return typeof ref === 'string' && ref.startsWith('#') ? [`#${schemaFragment(ref)}`] : []
 }
 
-// Draft 7 ignores a `$ref` site's siblings, so the site adds nothing to an
-// identity; from 2019-09 it adds itself when a sibling keyword applies.
+// Draft 4 and Draft 7 ignore a `$ref` site's siblings, so the site adds nothing
+// to an identity; from 2019-09 it adds itself when a sibling keyword applies.
 function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache, stack: Set<string>): readonly string[] {
   const cached = cache.closure.get(position)
   if (cached) return cached
@@ -320,7 +323,7 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
       out.add(position)
       addAllOf(schema)
     } else {
-      if (cache.dialect !== 'draft-07') {
+      if (!isPre2019Dialect(cache.dialect)) {
         if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
         addAllOf(schema)
       }
@@ -364,11 +367,12 @@ export function locationInfo(
     stack.add(position)
     const targets = refTargets(schema, rootSchema, position, cache.dialect)
     for (const target of targets) visitAll(target, stack)
-    if (targets.length > 0 && cache.dialect === 'draft-07' && isRecord(at(targets[0]!))) {
+    if (targets.length > 0 && isPre2019Dialect(cache.dialect) && isRecord(at(targets[0]!))) {
       stack.delete(position)
       return
     }
-    for (const keyword of IN_PLACE_BRANCHES) {
+    const inPlaceBranches = cache.dialect === 'draft-04' ? [] : IN_PLACE_BRANCHES
+    for (const keyword of inPlaceBranches) {
       const trivial =
         (keyword === 'then' && (!('if' in schema) || schema.if === false)) ||
         (keyword === 'else' && (!('if' in schema) || schema.if === true))
@@ -378,7 +382,10 @@ export function locationInfo(
       const branches = schema[keyword]
       if (Array.isArray(branches)) branches.forEach((_: unknown, index: number) => visitAll(`${position}/${keyword}/${index}`, stack))
     }
-    for (const keyword of cache.dialect === 'draft-07' ? (['dependencies'] as const) : (['dependentSchemas', 'dependencies'] as const)) {
+    const dependencyKeywords = isPre2019Dialect(cache.dialect)
+      ? (['dependencies'] as const)
+      : (['dependentSchemas', 'dependencies'] as const)
+    for (const keyword of dependencyKeywords) {
       const map = schema[keyword]
       if (!isRecord(map)) continue
       for (const [key, branch] of Object.entries(map)) {
@@ -762,6 +769,7 @@ function applyStaticStructure(
   exposed: boolean,
   conditional: boolean,
   referenceHasNoShape: boolean,
+  dialect: Dialect,
 ): void {
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) {
@@ -773,8 +781,24 @@ function applyStaticStructure(
     for (const family of projectionTypeFamilies(schema)) families.add(family)
   }
   if (typeof schema.format === 'string' && node.format === undefined) node.format = schema.format
+  const draft04 = dialect === 'draft-04'
   for (const key of CONSTRAINT_KEYS) {
     const value = schema[key]
+    if (
+      draft04 &&
+      ((key === 'minimum' && schema.exclusiveMinimum === true) || (key === 'maximum' && schema.exclusiveMaximum === true))
+    ) continue
+    if (draft04 && (key === 'exclusiveMinimum' || key === 'exclusiveMaximum')) {
+      const bound = key === 'exclusiveMinimum' ? schema.minimum : schema.maximum
+      if (
+        value === true &&
+        typeof bound === 'number' &&
+        (node.constraints as Record<string, unknown>)[key] === undefined
+      ) {
+        ;(node.constraints as Record<string, unknown>)[key] = bound
+      }
+      continue
+    }
     if (value !== undefined && (node.constraints as Record<string, unknown>)[key] === undefined) {
       ;(node.constraints as Record<string, unknown>)[key] = value
     }
@@ -901,7 +925,7 @@ export function staticWalk(
     ? undefined
     : schemaAtPosition(rootSchema, referencePosition)
   const referenceToBoolean = typeof referenceTarget === 'boolean'
-  if (referenceTarget === false && recursion.cache.dialect === 'draft-07') return
+  if (referenceTarget === false && isPre2019Dialect(recursion.cache.dialect)) return
 
   const referenceHasNoShape =
     referenceToBoolean && Object.keys(schema).every((key) => REFERENCE_METADATA_KEYS.has(key))
@@ -934,7 +958,7 @@ export function staticWalk(
       inactiveConditionalRetained,
     )
     visited.delete(cycleKey)
-    if (recursion.cache.dialect === 'draft-07') return
+    if (isPre2019Dialect(recursion.cache.dialect)) return
   }
 
   // When an inactive branch encounters a node the base or active branch already
@@ -951,7 +975,7 @@ export function staticWalk(
   // contaminating what it wrote.
   const exposed = active || provisional
   if (exposed || !existed) {
-    applyStaticStructure(node, schema, exposed, conditional, referenceHasNoShape)
+    applyStaticStructure(node, schema, exposed, conditional, referenceHasNoShape, recursion.cache.dialect)
     if (
       exposed &&
       !Array.isArray(schema.oneOf) &&
@@ -1081,7 +1105,7 @@ export function staticWalk(
       )
     })
   }
-  const live = liveBranch(schema)
+  const live = recursion.cache.dialect === 'draft-04' ? undefined : liveBranch(schema)
   if (live !== undefined && !suppressNestedInactiveBranches) {
     staticWalk(
       schema[live],
@@ -1169,7 +1193,11 @@ export function staticWalk(
     conditional: boolean
   }> = []
 
-  if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
+  if (
+    recursion.cache.dialect !== 'draft-04' &&
+    isRecord(schema.if) &&
+    (isRecord(schema.then) || isRecord(schema.else))
+  ) {
     // The local fact is which branch the *if* scope selects, which is
     // independent of whether this node is active. Reading it separately is what
     // keeps an exposed ancestor from exposing both branches: inheriting
@@ -1243,7 +1271,7 @@ export function staticWalk(
     })
   }
 
-  if (recursion.cache.dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
+  if (!isPre2019Dialect(recursion.cache.dialect) && isRecord(schema.dependentSchemas)) {
     for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
       const keyPresent = isRecord(data) && key in data
       dynamicBranches.push({

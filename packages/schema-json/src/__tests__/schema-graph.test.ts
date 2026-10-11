@@ -7,6 +7,7 @@ import { buildSchemaGraph, cyclicPositions, rejectSameLocationCycles } from '../
 import type { Dialect } from '../dialect.js'
 
 const DIALECT_URI: Record<Dialect, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-07': 'http://json-schema.org/draft-07/schema#',
   '2019-09': 'https://json-schema.org/draft/2019-09/schema',
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
@@ -69,6 +70,22 @@ describe('reference keywords by dialect', () => {
       createJsonSchemaAdapter(inDialect('2020-12', { dependencies: { a: { $ref: '#' } } })),
     ).rejects.toBeInstanceOf(SameLocationCycleError)
   })
+})
+
+it('ignores later-draft keywords when finding Draft 4 schema edges', async () => {
+  const adapter = await createJsonSchemaAdapter(
+    inDialect('draft-04', {
+      type: 'string',
+      if: { $ref: '#' },
+      then: { $ref: '#' },
+      else: { $ref: '#' },
+      contains: { $ref: '#' },
+      propertyNames: { $ref: '#' },
+      dependentSchemas: { x: { $ref: '#' } },
+    }),
+  )
+
+  expect((await adapter.validate('accepted')).valid).toBe(true)
 })
 
 describe('instance edges follow validator dialect support', () => {

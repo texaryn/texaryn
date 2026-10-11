@@ -2,19 +2,144 @@
   "suiteRevision": "f6fd52a0a95472e079cbfc6ef7f089702b80e045",
   "adapters": {
     "schema-json": {
+      "draft-04": {
+        "mandatory": {
+          "total": 618,
+          "passed": 618
+        },
+        "optional": {
+          "total": 391,
+          "passed": 280,
+          "failures": [
+            "optional/float-overflow.json :: all integers are multiples of 0.5, if overflow is handled :: valid if optional overflow handling is implemented",
+            "optional/format/date-time.json :: validation of date-time strings :: a numeric offset without minutes is invalid",
+            "optional/format/email.json :: validation of e-mail addresses :: a lowercase IPv6 tag in an address literal is valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a quoted pair in the local part is valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a quoted string containing only a space in the local part is valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an empty quoted string in the local part is valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an empty string is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an escaped backslash in the local part is valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an escaped double quote in the local part is valid",
+            "optional/format/hostname.json :: validation of host names :: IDN label separator",
+            "optional/format/hostname.json :: validation of host names :: a host name containing illegal characters",
+            "optional/format/hostname.json :: validation of host names :: a host name starting with an illegal character",
+            "optional/format/hostname.json :: validation of host names :: a host name with a component too long",
+            "optional/format/hostname.json :: validation of host names :: contains underscore",
+            "optional/format/hostname.json :: validation of host names :: empty string",
+            "optional/format/hostname.json :: validation of host names :: ends with hyphen",
+            "optional/format/hostname.json :: validation of host names :: ends with underscore",
+            "optional/format/hostname.json :: validation of host names :: exceeds maximum label length",
+            "optional/format/hostname.json :: validation of host names :: exceeds maximum overall length (256)",
+            "optional/format/hostname.json :: validation of host names :: invalid non-ASCII KELVIN SIGN (U+212A)",
+            "optional/format/hostname.json :: validation of host names :: leading dot",
+            "optional/format/hostname.json :: validation of host names :: single dot",
+            "optional/format/hostname.json :: validation of host names :: starts with hyphen",
+            "optional/format/hostname.json :: validation of host names :: starts with underscore",
+            "optional/format/hostname.json :: validation of host names :: trailing dot",
+            "optional/format/hostname.json :: validation of host names :: trailing newline is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: a 2-part address resolving to a routable IP (inet_aton shorthand)",
+            "optional/format/ipv4.json :: validation of IP addresses :: a 3-part address resolving to a routable IP (inet_aton shorthand)",
+            "optional/format/ipv4.json :: validation of IP addresses :: additional content after an embedded NUL byte",
+            "optional/format/ipv4.json :: validation of IP addresses :: alpha characters are invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address as an integer",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address as an integer (decimal)",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address with out-of-range values",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address with too many components",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address without 4 components",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IPv4-mapped IPv6 address is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: empty part (double dot) is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: empty string is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: exponential notation is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: hexadecimal notation is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: netmask is not a part of ipv4 address",
+            "optional/format/ipv4.json :: validation of IP addresses :: octal notation explicit is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: plus sign is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: single octet out of range in last position",
+            "optional/format/ipv4.json :: validation of IP addresses :: tab character is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing dot is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing newline is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: with port number is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a bracketed address is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a group with 5 hex digits is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a leading zero in the last IPv4 octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a long invalid ipv6, below length limit, first",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a long invalid ipv6, below length limit, second",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an IPv6 address containing illegal characters",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an IPv6 address with too many components",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing leading octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing leading octet with omitted octets later",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing trailing octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: mixed format with ipv4 section with a hex octet",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: mixed format with ipv4 section with octet out of range",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: netmask is not a part of ipv6 address",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: no colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing 5 hex symbols is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing newline is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing whitespace is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: triple colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: two sets of double colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: zone id is not a part of ipv6 address",
+            "optional/format/uri.json :: validation of URIs :: a trailing newline after a valid URI is invalid",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI though valid URI reference",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with comma in scheme",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with spaces",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with spaces and missing scheme",
+            "optional/format/uri.json :: validation of URIs :: an invalid protocol-relative URI Reference",
+            "optional/format/uri.json :: validation of URIs :: an invalid relative URI Reference",
+            "optional/format/uri.json :: validation of URIs :: incomplete percent-encoding triplet",
+            "optional/format/uri.json :: validation of URIs :: invalid \" character",
+            "optional/format/uri.json :: validation of URIs :: invalid <> characters",
+            "optional/format/uri.json :: validation of URIs :: invalid SPACE character",
+            "optional/format/uri.json :: validation of URIs :: invalid ^ character",
+            "optional/format/uri.json :: validation of URIs :: invalid ` character",
+            "optional/format/uri.json :: validation of URIs :: invalid backslash character",
+            "optional/format/uri.json :: validation of URIs :: invalid character in scheme",
+            "optional/format/uri.json :: validation of URIs :: invalid percent-encoding with non-hex digits",
+            "optional/format/uri.json :: validation of URIs :: invalid userinfo",
+            "optional/format/uri.json :: validation of URIs :: invalid {} characters",
+            "optional/format/uri.json :: validation of URIs :: invalid | character",
+            "optional/format/uri.json :: validation of URIs :: leading zero in an embedded IPv4 address is invalid",
+            "optional/format/uri.json :: validation of URIs :: lone percent sign is invalid",
+            "optional/format/uri.json :: validation of URIs :: non-numeric port is invalid",
+            "optional/format/uri.json :: validation of URIs :: scheme must start with a letter",
+            "optional/format/uri.json :: validation of URIs :: square brackets are not allowed in a path segment",
+            "optional/format/uri.json :: validation of URIs :: unescaped non US-ASCII characters",
+            "optional/zeroTerminatedFloats.json :: some languages do not distinguish between different types of numeric value :: a float is not an integer even without fractional part"
+          ]
+        },
+        "deviations": {}
+      },
       "draft-07": {
         "mandatory": {
           "total": 929,
-          "passed": 917
+          "passed": 929
         },
         "optional": {
           "total": 898,
-          "passed": 661,
+          "passed": 660,
           "failures": [
             "optional/content.json :: validation of binary string-encoding :: an invalid base64 string (% is not a valid character)",
             "optional/content.json :: validation of binary-encoded media type documents :: a validly-encoded invalid JSON document",
             "optional/content.json :: validation of binary-encoded media type documents :: an invalid base64 string that is valid JSON",
             "optional/content.json :: validation of string-encoded content based on media type :: an invalid JSON document",
+            "optional/cross-draft.json :: refs to future drafts are processed as future drafts :: missing bar is invalid",
             "optional/cross-draft.json :: refs to future drafts are processed as future drafts :: present bar is valid",
             "optional/float-overflow.json :: all integers are multiples of 0.5, if overflow is handled :: valid if optional overflow handling is implemented",
             "optional/format/date-time.json :: validation of date-time strings :: a numeric offset without minutes is invalid",
@@ -135,7 +260,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -158,8 +283,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -250,115 +375,19 @@
             "optional/format/uri.json :: validation of URIs :: unescaped non US-ASCII characters"
           ]
         },
-        "deviations": {
-          "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref with ref to definitions :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          }
-        }
+        "deviations": {}
       },
       "2019-09": {
         "mandatory": {
           "total": 1261,
-          "passed": 1244
+          "passed": 1260
         },
         "optional": {
           "total": 1019,
-          "passed": 563,
+          "passed": 562,
           "failures": [
             "optional/cross-draft.json :: refs to future drafts are processed as future drafts :: first item is a string is valid",
+            "optional/cross-draft.json :: refs to future drafts are processed as future drafts :: first item not a string is invalid",
             "optional/cross-draft.json :: refs to historic drafts are processed as historic drafts :: missing bar is valid",
             "optional/float-overflow.json :: all integers are multiples of 0.5, if overflow is handled :: valid if optional overflow handling is implemented",
             "optional/format/date-time.json :: validation of date-time strings :: 2021 is not a leap year",
@@ -382,8 +411,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -409,7 +438,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -457,7 +486,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -629,7 +658,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -652,8 +681,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -733,7 +762,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -808,7 +837,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -817,148 +846,21 @@
           ]
         },
         "deviations": {
-          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "suite-known-issue",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "The adapter applies its built-in validation keyword even though this custom metaschema omits that vocabulary. Upstream issue #574 questions the expected-valid assertion because implementations may support known keywords independently of the vocabulary declaration.",
+            "issue": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/issues/574"
           }
         }
       },
       "2020-12": {
         "mandatory": {
           "total": 1301,
-          "passed": 1279
+          "passed": 1300
         },
         "optional": {
           "total": 1023,
@@ -989,8 +891,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1016,7 +918,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1064,7 +966,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -1236,7 +1138,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1259,8 +1161,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1340,7 +1242,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -1415,7 +1317,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -1424,190 +1326,210 @@
           ]
         },
         "deviations": {
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite runner supplies no resolver for tree.json at http://localhost:1234. The correct instance therefore remains invalid, while the misspelled instance happens to match its expected invalid result."
-          },
-          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "wrong-validity",
-              "actual": false
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. The referenced document remains unavailable; adjacent schema constraints can still affect the validation result."
-          },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "suite-known-issue",
             "outcome": {
               "kind": "wrong-validity",
               "actual": false
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "The adapter applies its built-in validation keyword even though this custom metaschema omits that vocabulary. Upstream issue #574 questions the expected-valid assertion because implementations may support known keywords independently of the vocabulary declaration.",
+            "issue": "https://github.com/json-schema-org/JSON-Schema-Test-Suite/issues/574"
           }
         }
       }
     },
     "schema-json-hyperjump": {
+      "draft-04": {
+        "mandatory": {
+          "total": 618,
+          "passed": 618
+        },
+        "optional": {
+          "total": 391,
+          "passed": 217,
+          "failures": [
+            "optional/format/date-time.json :: validation of date-time strings :: 2021 is not a leap year",
+            "optional/format/date-time.json :: validation of date-time strings :: a numeric offset without minutes is invalid",
+            "optional/format/date-time.json :: validation of date-time strings :: a trailing newline is invalid",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid closing Z after time-zone offset",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time past leap second, UTC",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time string with 30 days in February (leap)",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time string with trailing content after the offset",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time string without seconds",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time with leap second on a wrong hour, UTC",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid date-time with leap second on a wrong minute, UTC",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid day in date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid hour in date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid minute in date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid minute in date-time string, with a numeric offset",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid offset in date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: an invalid offset minute in date-time string",
+            "optional/format/date-time.json :: validation of date-time strings :: century year 0100 is not a leap year",
+            "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
+            "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
+            "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a backslash-escaped @ in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a colon in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a comma in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a delete character in the local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a domain ending with a dot is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a domain label before the opening bracket is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a domain label ending with a hyphen is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a domain label starting with a hyphen is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a domain starting with a dot is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a fullwidth commercial at is not a valid separator",
+            "optional/format/email.json :: validation of e-mail addresses :: a leading space is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a non-ASCII character in a quoted pair is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a non-ASCII character in the domain is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a non-ASCII character in the local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a parenthesis in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a parenthesis in the domain is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a semicolon in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a tab in the local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a trailing carriage return is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a trailing line feed is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: a trailing space is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an IPv4-address-literal with five octets is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an IPv4-address-literal with three octets is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an address literal in the local part position is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an empty string is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an invalid IPv4-address-literal",
+            "optional/format/email.json :: validation of e-mail addresses :: an invalid domain",
+            "optional/format/email.json :: validation of e-mail addresses :: an invalid e-mail address",
+            "optional/format/email.json :: validation of e-mail addresses :: an unclosed address literal is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an unclosed double quote in the local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: an unescaped double quote in an unquoted local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: bracketed content that is not an address is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: domain is required",
+            "optional/format/email.json :: validation of e-mail addresses :: dot after local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: dot before local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: empty brackets after the @ are not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: full \"From\" header is invalid",
+            "optional/format/email.json :: validation of e-mail addresses :: local part is required",
+            "optional/format/email.json :: validation of e-mail addresses :: text after the closing double quote in the local part is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: two email addresses is not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: two subsequent dots inside local part are not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: two subsequent dots inside the domain are not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: two unquoted @ signs are not valid",
+            "optional/format/email.json :: validation of e-mail addresses :: unquoted space in local part is invalid",
+            "optional/format/hostname.json :: validation of host names :: IDN label separator",
+            "optional/format/hostname.json :: validation of host names :: a host name containing illegal characters",
+            "optional/format/hostname.json :: validation of host names :: a host name starting with an illegal character",
+            "optional/format/hostname.json :: validation of host names :: a host name with a component too long",
+            "optional/format/hostname.json :: validation of host names :: contains underscore",
+            "optional/format/hostname.json :: validation of host names :: empty string",
+            "optional/format/hostname.json :: validation of host names :: ends with hyphen",
+            "optional/format/hostname.json :: validation of host names :: ends with underscore",
+            "optional/format/hostname.json :: validation of host names :: exceeds maximum label length",
+            "optional/format/hostname.json :: validation of host names :: exceeds maximum overall length (256)",
+            "optional/format/hostname.json :: validation of host names :: invalid non-ASCII KELVIN SIGN (U+212A)",
+            "optional/format/hostname.json :: validation of host names :: leading dot",
+            "optional/format/hostname.json :: validation of host names :: single dot",
+            "optional/format/hostname.json :: validation of host names :: starts with hyphen",
+            "optional/format/hostname.json :: validation of host names :: starts with underscore",
+            "optional/format/hostname.json :: validation of host names :: trailing dot",
+            "optional/format/hostname.json :: validation of host names :: trailing newline is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: a 2-part address resolving to a routable IP (inet_aton shorthand)",
+            "optional/format/ipv4.json :: validation of IP addresses :: a 3-part address resolving to a routable IP (inet_aton shorthand)",
+            "optional/format/ipv4.json :: validation of IP addresses :: additional content after an embedded NUL byte",
+            "optional/format/ipv4.json :: validation of IP addresses :: alpha characters are invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address as an integer",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address as an integer (decimal)",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address with out-of-range values",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address with too many components",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IP address without 4 components",
+            "optional/format/ipv4.json :: validation of IP addresses :: an IPv4-mapped IPv6 address is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: empty part (double dot) is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: empty string is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: exponential notation is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: hexadecimal notation is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: netmask is not a part of ipv4 address",
+            "optional/format/ipv4.json :: validation of IP addresses :: octal notation explicit is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: plus sign is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: single octet out of range in last position",
+            "optional/format/ipv4.json :: validation of IP addresses :: tab character is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing dot is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing newline is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: trailing whitespace is invalid",
+            "optional/format/ipv4.json :: validation of IP addresses :: with port number is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a bracketed address is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a group with 5 hex digits is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a leading zero in the last IPv4 octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a long invalid ipv6, below length limit, first",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: a long invalid ipv6, below length limit, second",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an IPv6 address containing illegal characters",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an IPv6 address with too many components",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing leading octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing leading octet with omitted octets later",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: missing trailing octet is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: mixed format with ipv4 section with a hex octet",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: mixed format with ipv4 section with octet out of range",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: netmask is not a part of ipv6 address",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: no colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing 5 hex symbols is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing newline is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: trailing whitespace is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: triple colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: two sets of double colons is invalid",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: zone id is not a part of ipv6 address",
+            "optional/format/uri.json :: validation of URIs :: a trailing newline after a valid URI is invalid",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI though valid URI reference",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with comma in scheme",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with spaces",
+            "optional/format/uri.json :: validation of URIs :: an invalid URI with spaces and missing scheme",
+            "optional/format/uri.json :: validation of URIs :: an invalid protocol-relative URI Reference",
+            "optional/format/uri.json :: validation of URIs :: an invalid relative URI Reference",
+            "optional/format/uri.json :: validation of URIs :: incomplete percent-encoding triplet",
+            "optional/format/uri.json :: validation of URIs :: invalid \" character",
+            "optional/format/uri.json :: validation of URIs :: invalid <> characters",
+            "optional/format/uri.json :: validation of URIs :: invalid SPACE character",
+            "optional/format/uri.json :: validation of URIs :: invalid ^ character",
+            "optional/format/uri.json :: validation of URIs :: invalid ` character",
+            "optional/format/uri.json :: validation of URIs :: invalid backslash character",
+            "optional/format/uri.json :: validation of URIs :: invalid character in scheme",
+            "optional/format/uri.json :: validation of URIs :: invalid percent-encoding with non-hex digits",
+            "optional/format/uri.json :: validation of URIs :: invalid userinfo",
+            "optional/format/uri.json :: validation of URIs :: invalid {} characters",
+            "optional/format/uri.json :: validation of URIs :: invalid | character",
+            "optional/format/uri.json :: validation of URIs :: leading zero in an embedded IPv4 address is invalid",
+            "optional/format/uri.json :: validation of URIs :: lone percent sign is invalid",
+            "optional/format/uri.json :: validation of URIs :: non-numeric port is invalid",
+            "optional/format/uri.json :: validation of URIs :: scheme must start with a letter",
+            "optional/format/uri.json :: validation of URIs :: square brackets are not allowed in a path segment",
+            "optional/format/uri.json :: validation of URIs :: unescaped non US-ASCII characters",
+            "optional/id.json :: id inside an enum is not a real identifier :: exact match to enum, and type matches",
+            "optional/id.json :: id inside an enum is not a real identifier :: match $ref to id",
+            "optional/zeroTerminatedFloats.json :: some languages do not distinguish between different types of numeric value :: a float is not an integer even without fractional part"
+          ]
+        },
+        "deviations": {}
+      },
       "draft-07": {
         "mandatory": {
           "total": 929,
-          "passed": 902
+          "passed": 929
         },
         "optional": {
           "total": 898,
@@ -1640,8 +1562,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -1667,7 +1589,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -1862,7 +1784,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -1885,8 +1807,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -1966,7 +1888,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2039,233 +1961,12 @@
             "optional/unknownKeyword.json :: $id inside an unknown keyword is not a real identifier :: type matches second anyOf, which has a real schema in it"
           ]
         },
-        "deviations": {
-          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "refRemote.json :: $ref to $ref finds location-independent $id :: non-number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: $ref to $ref finds location-independent $id :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "TypeError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json. Hyperjump raises TypeError while compiling that unresolved nested reference."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "TypeError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json. Hyperjump raises TypeError while compiling that unresolved nested reference."
-          },
-          "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to definitions :: invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to definitions :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          }
-        }
+        "deviations": {}
       },
       "2019-09": {
         "mandatory": {
           "total": 1261,
-          "passed": 1221
+          "passed": 1256
         },
         "optional": {
           "total": 1019,
@@ -2312,8 +2013,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -2339,7 +2040,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -2387,7 +2088,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -2559,7 +2260,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -2582,8 +2283,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -2663,7 +2364,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -2738,7 +2439,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -2751,336 +2452,52 @@
           ]
         },
         "deviations": {
-          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to defs :: invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom dialect that declares an unknown optional vocabulary. The suite expects processing to continue when an unknown vocabulary is marked optional."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom dialect that declares an unknown optional vocabulary. The suite expects processing to continue when an unknown vocabulary is marked optional."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that declares core and applicator vocabularies, before evaluating this assertion."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that omits the validation vocabulary. The suite expected this instance to remain valid, an assertion questioned in upstream issue #574."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that declares core and applicator vocabularies, before evaluating this assertion."
           }
         }
       },
       "2020-12": {
         "mandatory": {
           "total": 1301,
-          "passed": 1248
+          "passed": 1296
         },
         "optional": {
           "total": 1023,
@@ -3129,8 +2546,8 @@
             "optional/format/date-time.json :: validation of date-time strings :: century year 2100 is not a leap year",
             "optional/format/date-time.json :: validation of date-time strings :: hour 24 is invalid even with a leap second",
             "optional/format/date-time.json :: validation of date-time strings :: invalid extended year",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in date portion",
-            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '\u09ea' (a Bengali 4) in time portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in date portion",
+            "optional/format/date-time.json :: validation of date-time strings :: invalid non-ASCII '৪' (a Bengali 4) in time portion",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded day dates",
             "optional/format/date-time.json :: validation of date-time strings :: invalid non-padded month dates",
             "optional/format/date-time.json :: validation of date-time strings :: only RFC3339 not all of ISO 8601 are valid",
@@ -3156,7 +2573,7 @@
             "optional/format/date.json :: validation of date strings :: century year 0100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: century year 2100 is not a leap year",
             "optional/format/date.json :: validation of date strings :: invalid month",
-            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '\u09ea' (a Bengali 4)",
+            "optional/format/date.json :: validation of date strings :: invalid non-ASCII '৪' (a Bengali 4)",
             "optional/format/date.json :: validation of date strings :: invalid: NUL character after an otherwise valid full-date",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in day field",
             "optional/format/date.json :: validation of date strings :: invalid: alphabetic characters in month field",
@@ -3204,7 +2621,7 @@
             "optional/format/duration.json :: validation of duration strings :: exponent notation is not allowed in a component",
             "optional/format/duration.json :: validation of duration strings :: fractional duration is not allowed by RFC 3339 ABNF",
             "optional/format/duration.json :: validation of duration strings :: hours and seconds cannot appear without minutes",
-            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/duration.json :: validation of duration strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/duration.json :: validation of duration strings :: leading whitespace is invalid",
             "optional/format/duration.json :: validation of duration strings :: missing time separator",
             "optional/format/duration.json :: validation of duration strings :: must start with P",
@@ -3376,7 +2793,7 @@
             "optional/format/ipv4.json :: validation of IP addresses :: internal whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid fullwidth digits (non-ASCII)",
             "optional/format/ipv4.json :: validation of IP addresses :: invalid mathematical bold digits (non-ASCII)",
-            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/ipv4.json :: validation of IP addresses :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/ipv4.json :: validation of IP addresses :: leading dot is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: leading whitespace is invalid",
             "optional/format/ipv4.json :: validation of IP addresses :: negative sign is invalid",
@@ -3399,8 +2816,8 @@
             "optional/format/ipv6.json :: validation of IPv6 addresses :: an out-of-range first octet in the embedded IPv4 is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: eight groups alongside '::' is invalid",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: insufficient octets without double colons",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4)",
-            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '\u09ea' (a Bengali 4) in the IPv4 portion",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4)",
+            "optional/format/ipv6.json :: validation of IPv6 addresses :: invalid non-ASCII '৪' (a Bengali 4) in the IPv4 portion",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 is not ipv6",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: ipv4 segment must have 4 octets",
             "optional/format/ipv6.json :: validation of IPv6 addresses :: leading whitespace is invalid",
@@ -3480,7 +2897,7 @@
             "optional/format/time.json :: validation of time strings :: invalid leap second, positive time-offset (wrong minute)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong hour)",
             "optional/format/time.json :: validation of time strings :: invalid leap second, zero time-offset (wrong minute)",
-            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '\u09e8' (a Bengali 2)",
+            "optional/format/time.json :: validation of time strings :: invalid non-ASCII '২' (a Bengali 2)",
             "optional/format/time.json :: validation of time strings :: invalid time string with extra leading zeros",
             "optional/format/time.json :: validation of time strings :: invalid time string with no leading zero for single digit",
             "optional/format/time.json :: validation of time strings :: leading whitespace before a valid time",
@@ -3555,7 +2972,7 @@
             "optional/format/uuid.json :: uuid format :: dashes in the wrong spot",
             "optional/format/uuid.json :: uuid format :: missing section",
             "optional/format/uuid.json :: uuid format :: no dashes",
-            "optional/format/uuid.json :: uuid format :: non-ASCII digit '\u09e8' (a Bengali 2) is invalid",
+            "optional/format/uuid.json :: uuid format :: non-ASCII digit '২' (a Bengali 2) is invalid",
             "optional/format/uuid.json :: uuid format :: shifted dashes",
             "optional/format/uuid.json :: uuid format :: too few dashes",
             "optional/format/uuid.json :: uuid format :: too many dashes",
@@ -3568,433 +2985,45 @@
           ]
         },
         "deviations": {
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $defs first :: incorrect parent schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref and $dynamicAnchor are independent of order - $ref first :: incorrect parent schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: non-number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: $ref to $dynamicRef finds detached $dynamicAnchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect extended schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: incorrect parent schema": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "ref.json :: $id with file URI still resolves pointers - *nix :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - *nix :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: non-number is invalid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "ref.json :: $id with file URI still resolves pointers - windows :: number is valid": {
-            "reason": "upstream-validator-deviation",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "Error"
-            },
-            "note": "Every reference here is the internal pointer #/definitions/foo and the $id scheme is never dereferenced, but hyperjump declines to register a schema whose $id uses the file: scheme. Documented upstream policy rather than an accidental defect, and still a departure from the suite expectation.",
-            "issue": "https://github.com/texaryn/texaryn/issues/108"
-          },
-          "refRemote.json :: $ref to $ref finds detached $anchor :: non-number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: $ref to $ref finds detached $anchor :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: integer is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: Location-independent identifier in remote ref :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: anchor within remote ref :: remote anchor valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: number is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change - change folder in subschema :: string is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite runner supplies no resource resolver. This schema enters the baseUriChangeFolderInSubschema/ resource before referencing folderInteger.json, so the adapter reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change :: base URI change ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: base URI change :: base URI change ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: fragment within remote ref :: remote fragment valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: ref within remote ref :: ref within ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with different URN $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote HTTP ref with nested absolute ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref :: remote ref valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to defs :: invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: remote ref with ref to defs :: valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: number is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: retrieved nested refs resolve relative to their URI not $id :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: null is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: object is invalid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
-          "refRemote.json :: root ref in remote ref :: string is valid": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "compile-error",
-              "errorName": "RetrievalError"
-            },
-            "note": "The suite expects this document to be retrieved from http://localhost:1234. The suite runner supplies no resource resolver, and Texaryn does not fetch external resources implicitly. Hyperjump reports the unavailable resource during compilation."
-          },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: number value": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom dialect that declares an unknown optional vocabulary. The suite expects processing to continue when an unknown vocabulary is marked optional."
           },
           "vocabulary.json :: ignore unrecognized optional vocabulary :: string value": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom dialect that declares an unknown optional vocabulary. The suite expects processing to continue when an unknown vocabulary is marked optional."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: applicator vocabulary still works": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that declares core and applicator vocabularies, before evaluating this assertion."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: invalid number, but it still validates": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that omits the validation vocabulary. The suite expected this instance to remain valid, an assertion questioned in upstream issue #574."
           },
           "vocabulary.json :: schema that uses custom metaschema with with no validation vocabulary :: no validation: valid number": {
-            "reason": "external-resource-resolver-not-configured",
+            "reason": "custom-vocabulary-support-gap",
             "outcome": {
               "kind": "compile-error",
               "errorName": "Error"
             },
-            "note": "The suite names a custom metaschema at http://localhost:1234. The suite runner supplies no resource resolver, so the adapter cannot load that metaschema or its declared vocabulary."
+            "note": "Hyperjump fails compilation for a custom metaschema that declares core and applicator vocabularies, before evaluating this assertion."
           }
         }
       }

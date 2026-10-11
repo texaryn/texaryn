@@ -1,25 +1,42 @@
+import '@hyperjump/json-schema/draft-04'
 import '@hyperjump/json-schema/draft-2020-12'
 import '@hyperjump/json-schema/draft-2019-09'
 import '@hyperjump/json-schema/draft-07'
 import { buildSchemaDocument, compile, getSchema, interpret, BASIC } from '@hyperjump/json-schema/experimental'
 import * as Instance from '@hyperjump/json-schema/instance/experimental'
 import type { Output } from '@hyperjump/json-schema'
+import type { SchemaDocument } from '@hyperjump/json-schema/experimental'
 import type { ProjectionOptions, SchemaProjection, ValidationResult } from '@texaryn/core'
-import { detectDialect, type Dialect } from './dialect.js'
+import { detectDialect, schemaIdentifier, type Dialect } from './dialect.js'
 import { buildProjection, DEFAULT_LIMITS } from './projection.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './schema-graph.js'
 import { newProjectionCache, type ProjectionLimits } from './static-walk.js'
 import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
-import { assertNoFileSchemaIdentifiers, loadExternalResources } from './resources.js'
+import { loadExternalResources, referencedPointerTargets } from './resources.js'
 import { materializeLocalPointerAliases } from './local-pointer-aliases.js'
 import { setSchemaDocumentContext } from './pointer-utils.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
 
 const dialectIds: Record<Dialect, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-07': 'http://json-schema.org/draft-07/schema#',
   '2019-09': 'https://json-schema.org/draft/2019-09/schema',
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
+}
+
+function indexEmbeddedDocuments(
+  document: SchemaDocument,
+  documents: Record<string, unknown>,
+  visited = new WeakSet<object>(),
+): void {
+  if (visited.has(document)) return
+  visited.add(document)
+  documents[document.baseUri] = document
+  for (const [uri, embedded] of Object.entries(document.embedded ?? {})) {
+    documents[uri] = embedded
+    indexEmbeddedDocuments(embedded as SchemaDocument, documents, visited)
+  }
 }
 
 const SCHEMA_SINGLE = new Set([
@@ -139,11 +156,28 @@ export async function createAdapter(
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
-  assertNoFileSchemaIdentifiers(schema, dialect)
   const externalRemotes = await loadExternalResources(schema, dialect, config)
   const sourceSchema = externalRemotes.length === 0 ? schema : ownRoot(schema)
-  const adapterSchema = materializeLocalPointerAliases(sourceSchema, dialect)
-  const adapterRemotes = externalRemotes.map((remote) => materializeLocalPointerAliases(remote, dialect, true))
+  const externalPointerTargets = dialect === 'draft-04'
+    ? referencedPointerTargets([schema, ...externalRemotes], dialect)
+    : new Map<string, ReadonlySet<string>>()
+  const rootIdentifier = typeof schema === 'object' && schema !== null && !Array.isArray(schema)
+    ? schemaIdentifier(schema as Record<string, unknown>, dialect)
+    : undefined
+  const rootResource = typeof rootIdentifier === 'string' ? rootIdentifier.split('#', 1)[0]! : ''
+  const adapterSchema = materializeLocalPointerAliases(
+    sourceSchema,
+    dialect,
+    false,
+    externalPointerTargets.get(rootResource),
+  )
+  const adapterRemotes = externalRemotes.map((remote) => {
+    const identifier = typeof remote === 'object' && remote !== null && !Array.isArray(remote)
+      ? schemaIdentifier(remote as Record<string, unknown>, dialect)
+      : undefined
+    const resource = typeof identifier === 'string' ? identifier.split('#', 1)[0]! : ''
+    return materializeLocalPointerAliases(remote, dialect, true, externalPointerTargets.get(resource))
+  })
   const graph = buildSchemaGraph(adapterSchema, dialect, adapterRemotes)
   rejectSameLocationCycles(graph)
   if (typeof adapterSchema === 'object' && adapterSchema !== null) {
@@ -155,7 +189,7 @@ export async function createAdapter(
     const uri = (remote as Record<string, unknown>).$id as string
     const document = buildSchemaDocument(unshared(remote) as Parameters<typeof buildSchemaDocument>[0], uri, dialectIds[dialect])
     documents[uri] = document
-    documents[document.baseUri] = document
+    indexEmbeddedDocuments(document, documents)
   }
   const rootDocument = buildSchemaDocument(
     unshared(adapterSchema) as Parameters<typeof buildSchemaDocument>[0],
@@ -163,7 +197,7 @@ export async function createAdapter(
     dialectIds[dialect],
   )
   documents[id] = rootDocument
-  documents[rootDocument.baseUri] = rootDocument
+  indexEmbeddedDocuments(rootDocument, documents)
   const browser = { _cache: documents } as unknown as NonNullable<Parameters<typeof getSchema>[1]>
   const schemaDoc = await getSchema(id, browser)
   const compiled = await compile(schemaDoc)

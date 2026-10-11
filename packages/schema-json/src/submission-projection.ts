@@ -1,5 +1,5 @@
 import { isSchemaNode, type SchemaNode } from '@texaryn/json-schema-library'
-import type { Dialect } from './dialect.js'
+import { isPre2019Dialect, type Dialect } from './dialect.js'
 
 const SCHEMA_SINGLE = new Set([
   'additionalItems',
@@ -46,7 +46,7 @@ export function supportsSubmissionProjection(schemas: readonly unknown[], dialec
     if (seen.has(value)) return false
     seen.add(value)
     if (typeof value.$dynamicRef === 'string' || typeof value.$recursiveRef === 'string') return true
-    if (dialect !== 'draft-07' && ('unevaluatedItems' in value || 'unevaluatedProperties' in value)) return true
+    if (!isPre2019Dialect(dialect) && ('unevaluatedItems' in value || 'unevaluatedProperties' in value)) return true
 
     for (const [keyword, child] of Object.entries(value)) {
       if (NON_SCHEMA_VALUES.has(keyword)) continue
@@ -85,7 +85,7 @@ function sameInstanceSchemas(roots: readonly SchemaNode[], dialect: Dialect): Sc
     if (typeof node.$ref === 'string') {
       const target = resolveReference(node)
       if (target && !referencePath.has(target.schemaLocation)) visit(target)
-      if (dialect === 'draft-07') {
+      if (isPre2019Dialect(dialect)) {
         referencePath.delete(node.schemaLocation)
         return
       }

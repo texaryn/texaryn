@@ -1,5 +1,5 @@
 import { isSchemaNode, settings, type SchemaNode } from '@texaryn/json-schema-library'
-import type { Dialect } from './dialect.js'
+import { isPre2019Dialect, type Dialect } from './dialect.js'
 import { POSITION, escape } from './schema-graph.js'
 
 export interface LocationInfo {
@@ -51,6 +51,7 @@ const NON_APPLYING = new Set([
   '$recursiveRef',
   '$schema',
   '$id',
+  'id',
   '$anchor',
   '$dynamicAnchor',
   '$recursiveAnchor',
@@ -61,9 +62,9 @@ const NON_APPLYING = new Set([
   POSITION,
 ])
 
-// Draft 7 ignores a $ref's siblings, and the library copies the annotations to merge onto the target.
+// Draft 4 and Draft 7 ignore a $ref's siblings, and the library copies the annotations to merge onto the target.
 export function onlyPoints(node: SchemaNode): boolean {
-  if (node.getDraftVersion() === 'draft-07') return true
+  if (isPre2019Dialect(node.getDraftVersion())) return true
   return Object.keys(node.schema as object).every((keyword) => NON_APPLYING.has(keyword) || settings.PROPERTIES_TO_MERGE.includes(keyword))
 }
 
@@ -238,7 +239,7 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   }
   const references = referenceKeywords(node)
   if (references.length > 0) {
-    if (cache.dialect !== 'draft-07') {
+    if (!isPre2019Dialect(cache.dialect)) {
       const raw = authoredSchema(node, cache)
       if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
         out.add(position)
@@ -310,7 +311,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
         const target = followReference(node, keyword)
         if (target) visitAll(target, stack, dead)
       }
-      if (cache.dialect === 'draft-07') {
+      if (isPre2019Dialect(cache.dialect)) {
         stack.delete(position)
         return
       }

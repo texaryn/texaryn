@@ -15,7 +15,7 @@ import type {
   JsonPointer,
   ProjectionOptions,
 } from '@texaryn/core'
-import { detectDialect, type Dialect } from './dialect.js'
+import { detectDialect, isPre2019Dialect, type Dialect } from './dialect.js'
 import { loadMetaschemas, referencedDialects } from './metaschemas/index.js'
 import { loadExternalResources } from './resources.js'
 import { materializeLocalPointerAliases } from './local-pointer-aliases.js'
@@ -44,7 +44,7 @@ export async function createAdapter(
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
-  if (config?.dynamicReferenceProjection === 'local' && dialect === 'draft-07') {
+  if (config?.dynamicReferenceProjection === 'local' && isPre2019Dialect(dialect)) {
     throw new TypeError('Local dynamic reference projection requires Draft 2019-09 or Draft 2020-12.')
   }
 
@@ -64,13 +64,13 @@ export async function createAdapter(
     referencesByDocument.set(prefix, pointers)
   }
   // json-schema-library evaluates some branches the specification never does, so only the projection drops them.
-  const document = withoutUnreachableBranches(schema, referencesByDocument.get('') ?? [])
+  const document = withoutUnreachableBranches(schema, referencesByDocument.get('') ?? [], dialect)
   const projectionRemotes = [
     ...metaschemas,
     ...externalRemotes.map((remote) => {
       const id = (remote as Record<string, unknown>).$id
       const base = typeof id === 'string' ? id.split('#', 1)[0]! : ''
-      return withoutUnreachableBranches(remote, referencesByDocument.get(base) ?? [])
+      return withoutUnreachableBranches(remote, referencesByDocument.get(base) ?? [], dialect)
     }),
   ] as JsonSchema[]
   rejectSameLocationCycles(graph)
@@ -518,7 +518,7 @@ function dynamicReferenceAnchor(reference: string): string | undefined {
 // json-schema-library's `draft` compile option uses "draft-2019-09"/"draft-2020-12" rather
 // than this package's "2019-09"/"2020-12" Dialect values.
 function toDraftOption(dialect: Dialect): string {
-  return dialect === 'draft-07' ? 'draft-07' : `draft-${dialect}`
+  return dialect === '2019-09' || dialect === '2020-12' ? `draft-${dialect}` : dialect
 }
 
 // compileSchema() is synchronous for schemas with only local $ref (Phase 1's scope); it is
@@ -534,7 +534,7 @@ async function prepareSchema(
   // that it can be disabled. From 2019-09 the default inverted, and `format` is an
   // annotation unless the format-assertion vocabulary is declared, so asserting it
   // is a deviation rather than a stricter setting.
-  const formatAssertion = dialect === 'draft-07' ? undefined : false
+  const formatAssertion = isPre2019Dialect(dialect) ? undefined : false
   const root = compileSchema(materializeLocalPointerAliases(schema, dialect) as JsonSchema | BooleanSchema, {
     drafts: DRAFTS,
     draft: toDraftOption(dialect),

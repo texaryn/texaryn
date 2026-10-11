@@ -1,4 +1,5 @@
 type Json = Record<string, unknown>
+import { identifierKeyword, type Dialect } from './dialect.js'
 
 const SINGLE = new Set([
   'additionalItems',
@@ -75,10 +76,11 @@ function referencePointers(value: unknown, found: Reference[]): Reference[] {
   return found
 }
 
-function declaresIdentifier(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(declaresIdentifier)
+function declaresIdentifier(value: unknown, dialect: Dialect): boolean {
+  if (Array.isArray(value)) return value.some((child) => declaresIdentifier(child, dialect))
   if (!isRecord(value)) return false
-  return Object.entries(value).some(([key, child]) => (IDENTIFIERS.has(key) && typeof child === 'string') || declaresIdentifier(child))
+  const idKeyword = identifierKeyword(dialect)
+  return Object.entries(value).some(([key, child]) => ((IDENTIFIERS.has(key) || key === idKeyword) && typeof child === 'string') || declaresIdentifier(child, dialect))
 }
 
 const unreachable = (schema: Json, keyword: string): boolean =>
@@ -88,7 +90,11 @@ const unreachable = (schema: Json, keyword: string): boolean =>
 const startsWith = (a: readonly string[], b: readonly string[]) => b.length <= a.length && b.every((s, i) => a[i] === s)
 
 /** Keeps a branch the specification never evaluates when a reference or an identifier could reach it. */
-export function withoutUnreachableBranches(document: unknown, referencedPositions: readonly string[] = []): unknown {
+export function withoutUnreachableBranches(
+  document: unknown,
+  referencedPositions: readonly string[] = [],
+  dialect: Dialect = '2020-12',
+): unknown {
   const references = referencePointers(document, [])
   for (const pointer of referencedPositions) references.push(...referencePointers({ $ref: pointer }, []))
   const reached = (at: Position, bases: readonly Position[]): boolean =>
@@ -104,8 +110,8 @@ export function withoutUnreachableBranches(document: unknown, referencedPosition
 
   const schemaAt = (schema: unknown, position: Position, bases: readonly Position[]): unknown => {
     if (!isRecord(schema)) return copy(schema)
-    const within = typeof schema.$id === 'string' && position.keys.length > 0 ? [...bases, position] : bases
-    const dropped = (key: string): boolean => unreachable(schema, key) && !reached(below(position, key), within) && !declaresIdentifier(schema[key])
+    const within = typeof schema[identifierKeyword(dialect)] === 'string' && position.keys.length > 0 ? [...bases, position] : bases
+    const dropped = (key: string): boolean => unreachable(schema, key) && !reached(below(position, key), within) && !declaresIdentifier(schema[key], dialect)
     const branches = ['then', 'else'].filter((key) => key in schema)
     const bare = typeof schema.if === 'boolean' && branches.length > 0 && branches.every(dropped) && !reached(below(position, 'if'), within)
     const entries: [string, unknown][] = []

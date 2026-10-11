@@ -1,20 +1,37 @@
-import type { Dialect } from './dialect.js'
+import { identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
 
 const SINGLE: Record<Dialect, ReadonlySet<string>> = {
+  'draft-04': new Set(['additionalItems', 'additionalProperties', 'items', 'not']),
   'draft-07': new Set(['additionalItems', 'additionalProperties', 'contains', 'else', 'if', 'items', 'not', 'propertyNames', 'then']),
   '2019-09': new Set(['additionalItems', 'additionalProperties', 'contains', 'contentSchema', 'else', 'if', 'items', 'not', 'propertyNames', 'then', 'unevaluatedItems', 'unevaluatedProperties']),
   '2020-12': new Set(['additionalProperties', 'contains', 'contentSchema', 'else', 'if', 'items', 'not', 'propertyNames', 'then', 'unevaluatedItems', 'unevaluatedProperties']),
 }
 const LIST: Record<Dialect, ReadonlySet<string>> = {
+  'draft-04': new Set(['allOf', 'anyOf', 'items', 'oneOf']),
   'draft-07': new Set(['allOf', 'anyOf', 'oneOf']),
   '2019-09': new Set(['allOf', 'anyOf', 'oneOf']),
   '2020-12': new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']),
 }
 const MAP: Record<Dialect, ReadonlySet<string>> = {
+  'draft-04': new Set(['definitions', 'dependencies', 'patternProperties', 'properties']),
   'draft-07': new Set(['$defs', 'definitions', 'dependencies', 'patternProperties', 'properties']),
   '2019-09': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
   '2020-12': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
 }
+const DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS = [
+  '$defs',
+  'contains',
+  'contentSchema',
+  'dependentRequired',
+  'dependentSchemas',
+  'else',
+  'if',
+  'prefixItems',
+  'propertyNames',
+  'then',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -90,10 +107,11 @@ function pointerTargetWithBase(
     }
 
     position = `${position}/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`
-    if (isRecord(child) && !(dialect === 'draft-07' && typeof child.$ref === 'string') && typeof child.$id === 'string') {
+    const childId = isRecord(child) ? schemaIdentifier(child, dialect) : undefined
+    if (isRecord(child) && !(isPre2019Dialect(dialect) && typeof child.$ref === 'string') && typeof childId === 'string') {
       try {
-        const resolved = base === undefined ? new URL(child.$id).href : new URL(child.$id, base).href
-        if (!(dialect === 'draft-07' && child.$id.startsWith('#'))) {
+        const resolved = base === undefined ? new URL(childId).href : new URL(childId, base).href
+        if (!(isPre2019Dialect(dialect) && childId.startsWith('#'))) {
           base = withoutFragment(resolved)
           resourceRoot = child
           resourceRootPosition = position
@@ -143,8 +161,8 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
   const add = (value: unknown, childPosition: string): void => {
     if (isRecord(value)) found.push({ schema: value, position: childPosition })
   }
-  if (dialect === 'draft-07' && typeof schema.$ref === 'string') {
-    for (const key of ['definitions', '$defs']) {
+  if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
+    for (const key of dialect === 'draft-04' ? ['definitions'] : ['definitions', '$defs']) {
       const map = schema[key]
       if (isRecord(map)) for (const [name, child] of Object.entries(map)) add(child, `${position}/${key}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`)
     }
@@ -168,6 +186,82 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
     schema.items.forEach((child, index) => add(child, `${position}/items/${index}`))
   }
   return found
+}
+
+function stripDraft04UnknownSchemaKeywords(
+  schema: unknown,
+  position: string,
+  preservedPointers: ReadonlySet<string>,
+  visited = new WeakMap<object, Set<string>>(),
+): void {
+  if (Array.isArray(schema)) {
+    schema.forEach((child, index) => stripDraft04UnknownSchemaKeywords(child, `${position}/${index}`, preservedPointers, visited))
+    return
+  }
+  if (!isRecord(schema)) return
+  const positions = visited.get(schema) ?? new Set<string>()
+  if (positions.has(position)) return
+  positions.add(position)
+  visited.set(schema, positions)
+  for (const keyword of DRAFT_04_UNKNOWN_SCHEMA_KEYWORDS) {
+    const childPosition = `${position}/${keyword}`
+    const preserve = hasPreservedTarget(childPosition, preservedPointers)
+    if (!preserve) {
+      Reflect.deleteProperty(schema, keyword)
+    } else if ((keyword === '$defs' || keyword === 'dependentSchemas') && isRecord(schema[keyword])) {
+      const map = schema[keyword] as Record<string, unknown>
+      for (const [name, child] of Object.entries(map)) {
+        const childPosition = `${position}/${keyword}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`
+        if (hasPreservedTarget(childPosition, preservedPointers)) {
+          stripDraft04UnknownSchemaKeywords(child, childPosition, preservedPointers, visited)
+        } else {
+          Reflect.deleteProperty(map, name)
+        }
+      }
+    } else if (keyword === 'prefixItems' && Array.isArray(schema[keyword])) {
+      const items = schema[keyword] as unknown[]
+      for (const [index, child] of items.entries()) {
+        const itemPosition = `${childPosition}/${index}`
+        if (hasPreservedTarget(itemPosition, preservedPointers)) {
+          stripDraft04UnknownSchemaKeywords(child, itemPosition, preservedPointers, visited)
+        } else {
+          items[index] = {}
+        }
+      }
+    } else {
+      stripDraft04UnknownSchemaKeywords(schema[keyword], childPosition, preservedPointers, visited)
+    }
+  }
+  for (const child of children(schema, position, 'draft-04')) {
+    stripDraft04UnknownSchemaKeywords(child.schema, child.position, preservedPointers, visited)
+  }
+}
+
+function hasPreservedTarget(position: string, preservedPointers: ReadonlySet<string>): boolean {
+  for (const pointer of preservedPointers) {
+    if (pointer === position || pointer.startsWith(`${position}/`)) return true
+  }
+  return false
+}
+
+function valueAtPointer(document: unknown, pointer: string): unknown {
+  const fragment = pointer.startsWith('#') ? pointer.slice(1) : pointer
+  if (fragment === '') return document
+  if (!fragment.startsWith('/')) return undefined
+  let value = document
+  for (const rawSegment of fragment.slice(1).split('/')) {
+    const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+    if (Array.isArray(value)) {
+      const index = Number(segment)
+      if (!Number.isInteger(index) || index < 0 || index >= value.length) return undefined
+      value = value[index]
+    } else if (isRecord(value) && Object.hasOwn(value, segment)) {
+      value = value[segment]
+    } else {
+      return undefined
+    }
+  }
+  return value
 }
 
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
@@ -195,15 +289,22 @@ function ancestorAlias(
 }
 
 /** Gives the validator an indexed schema location for a pointer into non-schema JSON. */
-export function materializeLocalPointerAliases(input: unknown, dialect: Dialect, preserveRootId = false): unknown {
+export function materializeLocalPointerAliases(
+  input: unknown,
+  dialect: Dialect,
+  preserveRootId = false,
+  preservedUnknownPointers: ReadonlySet<string> = new Set(),
+): unknown {
   const document = clone(input)
   if (!isRecord(document)) return document
 
   const pending: { schema: Record<string, unknown>; position: string; scope: ResourceScope }[] = []
+  const legacyAnchors = new Map<string, { base: string; resourcePosition: string; position: string }>()
   const visited = new WeakMap<object, Set<string>>()
   const recognizedPositions = new Set<string>()
   const scopesByPosition = new Map<string, ResourceScope>()
-  const keyword = dialect === 'draft-07' ? 'definitions' : '$defs'
+  const keyword = isPre2019Dialect(dialect) ? 'definitions' : '$defs'
+  const idKeyword = identifierKeyword(dialect)
   const newScope = (
     schema: Record<string, unknown>,
     position: string,
@@ -233,10 +334,10 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     if (existing !== undefined) return existing
 
     const aliasTarget = clone(target)
-    if (dialect === 'draft-07' && isRecord(aliasTarget) && typeof aliasTarget.$ref === 'string') {
-      Reflect.deleteProperty(aliasTarget, '$id')
+    if (isPre2019Dialect(dialect) && isRecord(aliasTarget) && typeof aliasTarget.$ref === 'string') {
+      Reflect.deleteProperty(aliasTarget, idKeyword)
     }
-    if (resourceBase !== undefined && isRecord(aliasTarget)) setOwn(aliasTarget, '$id', resourceBase)
+    if (resourceBase !== undefined && isRecord(aliasTarget)) setOwn(aliasTarget, idKeyword, resourceBase)
 
     let definitions = scope.schema[keyword]
     if (!isRecord(definitions)) {
@@ -270,16 +371,51 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     visited.set(schema, visitedPositions)
 
     let scope = inherited
-    const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
-    if (ignoresSiblings && !(preserveRootId && position === '#')) Reflect.deleteProperty(schema, '$id')
-    if (!ignoresSiblings && typeof schema.$id === 'string' && !(dialect === 'draft-07' && schema.$id.startsWith('#'))) {
+    const id = schemaIdentifier(schema, dialect)
+    const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
+    if (ignoresSiblings && !(preserveRootId && position === '#')) Reflect.deleteProperty(schema, idKeyword)
+    if (!ignoresSiblings && typeof id === 'string' && !(isPre2019Dialect(dialect) && id.startsWith('#'))) {
       let base = inherited.base
       try {
-        base = base === undefined ? new URL(schema.$id).href : new URL(schema.$id, base).href
+        const resolved = base === undefined ? new URL(id).href : new URL(id, base).href
+        base = resolved
+        if (isPre2019Dialect(dialect)) {
+          const hash = resolved.indexOf('#')
+          const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+          if (fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+            const resourceBase = withoutFragment(resolved)
+            const sameResource = inherited.base === resourceBase
+            legacyAnchors.set(resolved, {
+              base: resourceBase,
+              resourcePosition: sameResource ? inherited.position : position,
+              position,
+            })
+            if (dialect === 'draft-04' && position !== '#') {
+              if (sameResource) Reflect.deleteProperty(schema, idKeyword)
+              else setOwn(schema, idKeyword, resourceBase)
+            }
+          }
+        }
       } catch {
         base = inherited.base
       }
       scope = newScope(schema, position, base === undefined ? undefined : withoutFragment(base), materialized)
+    }
+    if (!ignoresSiblings && isPre2019Dialect(dialect) && typeof id === 'string' && id.startsWith('#')) {
+      try {
+        const resolved = inherited.base === undefined ? undefined : new URL(id, inherited.base).href
+        const fragment = resolved?.slice(resolved.indexOf('#') + 1)
+        if (resolved !== undefined && fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
+          legacyAnchors.set(resolved, {
+            base: inherited.base ?? withoutFragment(resolved),
+            resourcePosition: inherited.position,
+            position,
+          })
+          if (dialect === 'draft-04' && position !== '#') Reflect.deleteProperty(schema, idKeyword)
+        }
+      } catch {
+        // An unresolvable legacy identifier cannot be used to rewrite a reference.
+      }
     }
     if (recognized) {
       if (materialized) {
@@ -296,9 +432,10 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     }
   }
 
-  const initialBase = typeof document.$id === 'string'
+  const documentId = schemaIdentifier(document, dialect)
+  const initialBase = typeof documentId === 'string'
     ? (() => {
-        try { return withoutFragment(new URL(document.$id).href) } catch { return undefined }
+        try { return withoutFragment(new URL(documentId).href) } catch { return undefined }
       })()
     : undefined
   const rootScope = newScope(document, '#', initialBase, false)
@@ -307,6 +444,24 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   for (let cursor = 0; cursor < pending.length; cursor += 1) {
     const { schema, position, scope } = pending[cursor]!
     if (typeof schema.$ref !== 'string') continue
+    if (isPre2019Dialect(dialect) && scope.base !== undefined) {
+      try {
+        const resolved = new URL(schema.$ref, scope.base).href
+        const anchor = legacyAnchors.get(resolved)
+        if (anchor !== undefined) {
+          const pointer = anchor.position.startsWith(anchor.resourcePosition)
+            ? anchor.position.slice(anchor.resourcePosition.length)
+            : anchor.position.slice(1)
+          const reference = anchor.base === scope.base && anchor.resourcePosition === scope.position
+            ? `#${pointer}`
+            : `${anchor.base}#${pointer}`
+          setOwn(schema, '$ref', reference)
+          continue
+        }
+      } catch {
+        // Let the ordinary reference handling report malformed references.
+      }
+    }
     const fragment = referenceFragment(schema.$ref, scope.base)
     if (fragment === undefined || !fragment.startsWith('/')) continue
     const targetPosition = pointerPosition(scope.position, fragment)
@@ -321,10 +476,15 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
       setOwn(schema, '$ref', `#/${keyword}/${localAncestorAlias.name}${suffix}`)
       continue
     }
-    if (scope.knownPositions.has(targetPosition)) continue
     const located = pointerTargetWithBase(scope.schema, fragment, scope.base, scope.position, dialect)
     const target = located?.schema
     if (!isRecord(target) && typeof target !== 'boolean') continue
+    if (isPre2019Dialect(dialect) && located!.resourceRootPosition !== scope.position && located!.base !== undefined) {
+      const suffix = located!.position.slice(located!.resourceRootPosition.length)
+      setOwn(schema, '$ref', `${located!.base}#${suffix}`)
+      continue
+    }
+    if (scope.knownPositions.has(targetPosition)) continue
 
     let targetScope = scope
     let copiedResource = false
@@ -380,6 +540,14 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
       ? `#/${keyword}/${alias}`
       : `${targetScope.base ?? ''}#/${keyword}/${alias}`
     setOwn(schema, '$ref', reference)
+  }
+
+  if (dialect === 'draft-04') {
+    const visited = new WeakMap<object, Set<string>>()
+    stripDraft04UnknownSchemaKeywords(document, '#', preservedUnknownPointers, visited)
+    for (const pointer of preservedUnknownPointers) {
+      stripDraft04UnknownSchemaKeywords(valueAtPointer(document, pointer), pointer, preservedUnknownPointers, visited)
+    }
   }
 
   return document

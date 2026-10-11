@@ -19,18 +19,13 @@ upstream commit.
 
 ## What is here
 
-Only the three dialects Texaryn claims, `tests/draft7`, `tests/draft2019-09`
-and `tests/draft2020-12`. Draft 3, 4 and 6 are not vendored because no adapter
-claims them.
+The four dialects Texaryn claims, `tests/draft4`, `tests/draft7`,
+`tests/draft2019-09` and `tests/draft2020-12`. Draft 3 and 6 are not vendored
+because no adapter claims them.
 
-`remotes/` is deliberately not vendored, because neither adapter factory
-exposes a resolver hook, so there is no way to register those documents and
-every test reaching for one fails identically whether or not the files are
-present. This is not a claim that they need an HTTP server: upstream is
-explicit that they can be loaded from disk and registered under their
-`http://localhost:1234/...` retrieval URI. The moment a resolver is part of
-the adapter surface, vendor them. Until then the failures are recorded and
-classified in `../json-schema-suite/baseline.json`.
+`remotes/` contains the upstream fixture tree. The suite runner resolves its
+`http://localhost:1234/...` URIs from disk and passes that callback through each
+adapter's public resolver option, so the conformance run needs no network.
 
 ## Updating
 
@@ -38,7 +33,8 @@ classified in `../json-schema-suite/baseline.json`.
 git clone --depth 1 https://github.com/json-schema-org/JSON-Schema-Test-Suite /tmp/jsts
 ```
 
-Copy `tests/draft7`, `tests/draft2019-09`, `tests/draft2020-12` and `LICENSE`
+Copy `tests/draft4`, `tests/draft7`, `tests/draft2019-09`,
+`tests/draft2020-12`, `remotes` and `LICENSE`
 over this directory, write the new commit SHA into `UPSTREAM_REVISION`, then
 rewrite the digests and regenerate the baseline:
 

@@ -52,11 +52,11 @@ export const draft07Dependencies: TexarynExample = {
   id: 'dependency-draft07',
   title: 'Draft 7 dependencies',
   description:
-    'Draft 7 folds both behaviours into a single dependencies keyword. Texaryn supports it for draft-07 schemas, where dependentSchemas and dependentRequired do not exist.',
+    'Draft 7 folds both behaviours into a single dependencies keyword. This schema uses the object form to add a CVV field when a credit card is present.',
   category: 'dependencies',
   dialect: 'draft-07',
   covers: [
-    'schema.dependency.draft07-dependencies',
+    'schema.dependency.pre2019-dependencies',
     'schema.dialect.draft-07',
     'schema.type.string',
   ],
@@ -79,8 +79,36 @@ export const draft07Dependencies: TexarynExample = {
   initialData: { creditCard: '4111111111111111', cvv: '123' },
 }
 
+export const draft04Dependencies: TexarynExample = {
+  id: 'dependency-draft04',
+  title: 'Draft 4 dependencies',
+  description:
+    'Draft 4 uses dependencies for conditional fields and required properties. This schema adds a CVV field when a credit card is present.',
+  category: 'dependencies',
+  dialect: 'draft-04',
+  covers: ['schema.dependency.pre2019-dependencies', 'schema.dialect.draft-04', 'schema.type.string'],
+  schema: {
+    $schema: 'http://json-schema.org/draft-04/schema#',
+    type: 'object',
+    title: 'Payment (draft 4)',
+    properties: {
+      creditCard: { type: 'string', title: 'Credit card' },
+    },
+    dependencies: {
+      creditCard: {
+        properties: {
+          cvv: { type: 'string', title: 'CVV', minLength: 3, maxLength: 4 },
+        },
+        required: ['cvv'],
+      },
+    },
+  },
+  initialData: { creditCard: '4111111111111111', cvv: '123' },
+}
+
 export const dependencyExamples = [
   dependentSchemas,
   dependentRequired,
   draft07Dependencies,
+  draft04Dependencies,
 ] as const

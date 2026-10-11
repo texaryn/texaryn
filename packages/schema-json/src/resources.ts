@@ -1,5 +1,6 @@
 import type { MaybePromise } from '@texaryn/core'
-import { detectDialect, type Dialect } from './dialect.js'
+import { detectDialect, identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
+import { DEFINITION_KEYS, LIST, MAP, SINGLE } from './schema-keywords.js'
 
 /** Resolves one absolute resource URI without its fragment. The adapter never fetches it itself. */
 export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown | undefined>
@@ -13,57 +14,9 @@ export interface SchemaResourceOptions {
 
 export const DEFAULT_MAX_EXTERNAL_RESOURCES = 128
 
-const SINGLE: Record<Dialect, ReadonlySet<string>> = {
-  'draft-07': new Set([
-    'additionalItems',
-    'additionalProperties',
-    'contains',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-  ]),
-  '2019-09': new Set([
-    'additionalItems',
-    'additionalProperties',
-    'contains',
-    'contentSchema',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-    'unevaluatedItems',
-    'unevaluatedProperties',
-  ]),
-  '2020-12': new Set([
-    'additionalProperties',
-    'contains',
-    'contentSchema',
-    'else',
-    'if',
-    'items',
-    'not',
-    'propertyNames',
-    'then',
-    'unevaluatedItems',
-    'unevaluatedProperties',
-  ]),
-}
-const LIST: Record<Dialect, ReadonlySet<string>> = {
-  'draft-07': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2019-09': new Set(['allOf', 'anyOf', 'oneOf']),
-  '2020-12': new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']),
-}
-const MAP: Record<Dialect, ReadonlySet<string>> = {
-  'draft-07': new Set(['$defs', 'definitions', 'dependencies', 'patternProperties', 'properties']),
-  '2019-09': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-  '2020-12': new Set(['$defs', 'definitions', 'dependencies', 'dependentSchemas', 'patternProperties', 'properties']),
-}
 const META_URIS = new Set([
+  'http://json-schema.org/draft-04/schema',
+  'https://json-schema.org/draft-04/schema',
   'http://json-schema.org/draft-07/schema',
   'https://json-schema.org/draft-07/schema',
   'http://json-schema.org/draft/2019-09/schema',
@@ -128,7 +81,7 @@ function absoluteUri(reference: string, base: string | undefined): string | unde
 
 function resourceBase(identifier: unknown, parent: string | undefined, dialect: Dialect): string | undefined {
   if (typeof identifier !== 'string') return parent
-  if (dialect === 'draft-07' && identifier.startsWith('#')) return parent
+  if (isPre2019Dialect(dialect) && identifier.startsWith('#')) return parent
   const resolved = absoluteUri(identifier, parent)
   return resolved === undefined ? parent : withoutFragment(resolved)
 }
@@ -203,8 +156,9 @@ function pointerTargetWithContext(
 
     parentBase = base
     position = `${position}/${escape(segment)}`
-    if (isRecord(child) && !(dialect === 'draft-07' && typeof child.$ref === 'string') && typeof child.$id === 'string') {
-      const childBase = resourceBase(child.$id, base, dialect)
+    const childId = isRecord(child) ? schemaIdentifier(child, dialect) : undefined
+    if (isRecord(child) && !(isPre2019Dialect(dialect) && typeof child.$ref === 'string') && typeof childId === 'string') {
+      const childBase = resourceBase(childId, base, dialect)
       if (childBase !== undefined) {
         knownResources?.add(childBase)
         const embeddedDialect = detectDialect(child, { defaultDialect: dialect })
@@ -215,7 +169,7 @@ function pointerTargetWithContext(
             position,
           )
         }
-        const startsResource = !(dialect === 'draft-07' && child.$id.startsWith('#'))
+        const startsResource = !(isPre2019Dialect(dialect) && childId.startsWith('#'))
         if (startsResource) {
           base = childBase
           resourceRoot = child
@@ -249,7 +203,7 @@ function referencesIn(
   const anchorTargets = new Map<string, { schema: unknown; base: string | undefined; position: string }>()
   const contextsByPosition = new Map<string, { base: string | undefined; resourceRoot: unknown; resourceRootPosition: string }>()
   const visitedLocalReferences = new Set<number>()
-  const referenceKeywords = dialect === 'draft-07'
+  const referenceKeywords = isPre2019Dialect(dialect)
     ? ['$ref']
     : dialect === '2019-09'
       ? ['$ref', '$recursiveRef']
@@ -270,9 +224,10 @@ function referencesIn(
     }
 
     const record = schema as Record<string, unknown>
-    const ignoresSiblings = dialect === 'draft-07' && typeof record.$ref === 'string'
-    const base = ignoresSiblings ? parentBase : resourceBase(record.$id, parentBase, dialect)
-    if (!ignoresSiblings && typeof record.$id === 'string' && base !== undefined) {
+    const identifier = schemaIdentifier(record, dialect)
+    const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
+    const base = ignoresSiblings ? parentBase : resourceBase(identifier, parentBase, dialect)
+    if (!ignoresSiblings && typeof identifier === 'string' && base !== undefined) {
       knownResources?.add(base)
       const embeddedDialect = detectDialect(record, { defaultDialect: dialect })
       if (embeddedDialect !== dialect) {
@@ -283,16 +238,16 @@ function referencesIn(
         )
       }
     }
-    const startsResource = !ignoresSiblings && typeof record.$id === 'string' && !(dialect === 'draft-07' && record.$id.startsWith('#'))
+    const startsResource = !ignoresSiblings && typeof identifier === 'string' && !(isPre2019Dialect(dialect) && identifier.startsWith('#'))
     const currentRoot = startsResource ? schema : resourceRoot
     const currentRootPosition = startsResource ? position : resourceRootPosition
     contextsByPosition.set(position, { base, resourceRoot: currentRoot, resourceRootPosition: currentRootPosition })
     if (seenAtBase(seen, schema, parentBase)) return
-    if (!ignoresSiblings && dialect === 'draft-07' && typeof record.$id === 'string' && record.$id.startsWith('#')) {
-      const anchorUri = absoluteUri(record.$id, parentBase) ?? (parentBase === undefined ? record.$id : undefined)
+    if (!ignoresSiblings && isPre2019Dialect(dialect) && typeof identifier === 'string' && identifier.startsWith('#')) {
+      const anchorUri = absoluteUri(identifier, parentBase) ?? (parentBase === undefined ? identifier : undefined)
       if (anchorUri !== undefined) anchorTargets.set(anchorUri, { schema, base, position })
     }
-    if (dialect !== 'draft-07' && typeof record.$anchor === 'string') {
+    if (!isPre2019Dialect(dialect) && typeof record.$anchor === 'string') {
       anchorTargets.set(`${base ?? ''}#${record.$anchor}`, { schema, base, position })
     }
     if (dialect === '2020-12' && typeof record.$dynamicAnchor === 'string') {
@@ -315,7 +270,7 @@ function referencesIn(
       }
     }
 
-    if (dialect === 'draft-07' && typeof record.$ref === 'string') {
+    if (isPre2019Dialect(dialect) && typeof record.$ref === 'string') {
       for (const keyword of ['definitions', '$defs']) {
         const children = record[keyword]
         if (isRecord(children)) {
@@ -417,9 +372,10 @@ function declaredResourceIds(document: unknown, initialBase: string | undefined,
       return
     }
     const record = schema as Record<string, unknown>
-    const ignoresSiblings = dialect === 'draft-07' && typeof record.$ref === 'string'
-    const base = ignoresSiblings ? parentBase : resourceBase(record.$id, parentBase, dialect)
-    if (!ignoresSiblings && typeof record.$id === 'string' && base !== undefined) {
+    const identifier = schemaIdentifier(record, dialect)
+    const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
+    const base = ignoresSiblings ? parentBase : resourceBase(identifier, parentBase, dialect)
+    if (!ignoresSiblings && typeof identifier === 'string' && base !== undefined) {
       ids.add(base)
       const embeddedDialect = detectDialect(record, { defaultDialect: dialect })
       if (embeddedDialect !== dialect) {
@@ -511,7 +467,7 @@ function structurallyEqual(left: unknown, right: unknown, seen = new WeakMap<obj
     key === rightKeys[index] && structurallyEqual(left[key], right[key], seen))
 }
 
-function draft7AnchorTargets(source: unknown, retrievalUri: string): Map<string, { base: string; pointer: string }> {
+function legacyAnchorTargets(source: unknown, retrievalUri: string, dialect: Dialect): Map<string, { base: string; pointer: string }> {
   const targets = new Map<string, { base: string; pointer: string }>()
   const seen = new WeakMap<object, Set<string>>()
   const visit = (schema: unknown, parentBase: string, position: string, resourceBase: string, resourcePosition: string): void => {
@@ -522,13 +478,14 @@ function draft7AnchorTargets(source: unknown, retrievalUri: string): Map<string,
     contexts.add(context)
     seen.set(schema, contexts)
 
+    const identifier = schemaIdentifier(schema, dialect)
     const ignoresSiblings = typeof schema.$ref === 'string'
     let base = parentBase
     let anchorBase = resourceBase
     let anchorPosition = resourcePosition
-    if (!ignoresSiblings && typeof schema.$id === 'string') {
-      const resolved = absoluteUri(schema.$id, parentBase)
-      if (resolved !== undefined && schema.$id.startsWith('#')) {
+    if (!ignoresSiblings && typeof identifier === 'string') {
+      const resolved = absoluteUri(identifier, parentBase)
+      if (resolved !== undefined && identifier.startsWith('#')) {
         const pointer = position.startsWith(resourcePosition) ? position.slice(resourcePosition.length) : position.slice(1)
         targets.set(resolved, { base: resourceBase, pointer })
       } else if (resolved !== undefined) {
@@ -542,7 +499,7 @@ function draft7AnchorTargets(source: unknown, retrievalUri: string): Map<string,
       if (isRecord(child) || typeof child === 'boolean') visit(child, base, childPosition, anchorBase, anchorPosition)
     }
     if (ignoresSiblings) {
-      for (const keyword of ['definitions', '$defs']) {
+      for (const keyword of DEFINITION_KEYS[dialect]) {
         const map = schema[keyword]
         if (isRecord(map)) {
           for (const [key, child] of Object.entries(map)) visitChild(child, `${position}/${keyword}/${escape(key)}`)
@@ -550,12 +507,12 @@ function draft7AnchorTargets(source: unknown, retrievalUri: string): Map<string,
       }
       return
     }
-    for (const keyword of SINGLE['draft-07']) visitChild(schema[keyword], `${position}/${keyword}`)
-    for (const keyword of LIST['draft-07']) {
+    for (const keyword of SINGLE[dialect]) visitChild(schema[keyword], `${position}/${keyword}`)
+    for (const keyword of LIST[dialect]) {
       const list = schema[keyword]
       if (Array.isArray(list)) list.forEach((child, index) => visitChild(child, `${position}/${keyword}/${index}`))
     }
-    for (const keyword of MAP['draft-07']) {
+    for (const keyword of MAP[dialect]) {
       const map = schema[keyword]
       if (isRecord(map)) for (const [key, child] of Object.entries(map)) visitChild(child, `${position}/${keyword}/${escape(key)}`)
     }
@@ -575,12 +532,12 @@ function remoteSchema(
   const sourceDocument = typeof source === 'boolean'
     ? { allOf: [source] }
     : source as Record<string, unknown>
-  const referenceKeywords = dialect === 'draft-07'
+  const referenceKeywords = isPre2019Dialect(dialect)
     ? new Set(['$ref'])
     : dialect === '2019-09'
       ? new Set(['$ref', '$recursiveRef'])
       : new Set(['$ref', '$dynamicRef'])
-  const legacyAnchors = dialect === 'draft-07' ? draft7AnchorTargets(source, retrievalUri) : new Map()
+  const legacyAnchors = isPre2019Dialect(dialect) ? legacyAnchorTargets(source, retrievalUri, dialect) : new Map()
   const memo = new WeakMap<object, Map<string | undefined, unknown>>()
 
   const visit = (value: unknown, parentBase: string | undefined, position: string, root = false): unknown => {
@@ -591,8 +548,9 @@ function remoteSchema(
     const keyBase = parentBase
     const cached = memo.get(value)?.get(keyBase)
     if (cached !== undefined) return cached
-    const originalId = value.$id
-    const ignoresSiblings = dialect === 'draft-07' && typeof value.$ref === 'string'
+    const idKeyword = identifierKeyword(dialect)
+    const originalId = value[idKeyword]
+    const ignoresSiblings = isPre2019Dialect(dialect) && typeof value.$ref === 'string'
     let base = parentBase
     let resolvedId: string | undefined
     if (root) {
@@ -603,7 +561,7 @@ function remoteSchema(
       if (resolvedId === undefined) {
         throw new SchemaResourceResolutionError(`Cannot resolve $id "${originalId}" at "${position}" in the resource retrieved from "${retrievalUri}".`, retrievalUri, position)
       }
-      base = dialect === 'draft-07' && originalId.startsWith('#') ? parentBase : withoutFragment(resolvedId)
+      base = isPre2019Dialect(dialect) && originalId.startsWith('#') ? parentBase : withoutFragment(resolvedId)
     }
     if (resolvedId !== undefined && withoutFragment(resolvedId).startsWith('file:')) {
       throw new SchemaResourceResolutionError(`File schema resources are not supported: "${withoutFragment(resolvedId)}" at "${position}".`, withoutFragment(resolvedId), position)
@@ -614,8 +572,8 @@ function remoteSchema(
     memo.set(value, values)
 
     for (const [keyword, child] of Object.entries(value)) {
-      if (keyword === '$id' && resolvedId !== undefined) {
-        const normalizedId = dialect === 'draft-07' && typeof originalId === 'string' && originalId.startsWith('#')
+      if (keyword === idKeyword && resolvedId !== undefined) {
+        const normalizedId = isPre2019Dialect(dialect) && typeof originalId === 'string' && originalId.startsWith('#')
           ? originalId
           : resolvedId
         Object.defineProperty(output, keyword, { value: normalizedId, enumerable: true, configurable: true, writable: true })
@@ -627,7 +585,7 @@ function remoteSchema(
         const anchor = legacyAnchors.get(resolved)
         const normalizedReference = anchor === undefined ? resolved : `${anchor.base}#${anchor.pointer}`
         Object.defineProperty(output, keyword, { value: normalizedReference, enumerable: true, configurable: true, writable: true })
-      } else if (ignoresSiblings && (keyword === 'definitions' || keyword === '$defs') && isRecord(child)) {
+      } else if (ignoresSiblings && DEFINITION_KEYS[dialect].includes(keyword) && isRecord(child)) {
         Object.defineProperty(output, keyword, { value: Object.fromEntries(Object.entries(child).map(([name, member]) => [
           name,
           isRecord(member) || typeof member === 'boolean' ? visit(member, base, `${position}/${keyword}/${escape(name)}`) : cloneValue(member),
@@ -655,8 +613,11 @@ function remoteSchema(
     }
     if (root) {
       output.$id = rootIdentifier
+      if (dialect === 'draft-04') output.id = rootIdentifier
       if (!Object.hasOwn(output, '$schema')) {
-        output.$schema = dialect === 'draft-07'
+        output.$schema = dialect === 'draft-04'
+          ? 'http://json-schema.org/draft-04/schema#'
+          : dialect === 'draft-07'
           ? 'http://json-schema.org/draft-07/schema#'
           : `https://json-schema.org/draft/${dialect}/schema`
       }
@@ -671,10 +632,12 @@ function canonicalRemote(uri: string, schema: unknown, dialect: Dialect): Normal
   if (!isRecord(schema) && typeof schema !== 'boolean') {
     throw new SchemaResourceResolutionError(`The resource resolver returned a non-schema value for "${uri}".`, uri)
   }
-  if (isRecord(schema) && schema.$id !== undefined && typeof schema.$id !== 'string') {
-    throw new SchemaResourceResolutionError(`The resource at "${uri}" has a non-string $id.`, uri)
+  const idKeyword = identifierKeyword(dialect)
+  const declaredId = isRecord(schema) ? schema[idKeyword] : undefined
+  if (declaredId !== undefined && typeof declaredId !== 'string') {
+    throw new SchemaResourceResolutionError(`The resource at "${uri}" has a non-string ${idKeyword}.`, uri)
   }
-  const id = isRecord(schema) && typeof schema.$id === 'string' ? schema.$id : uri
+  const id = typeof declaredId === 'string' ? declaredId : uri
   const resolvedId = absoluteUri(id, uri)
   if (resolvedId === undefined) {
     throw new SchemaResourceResolutionError(`The resource at "${uri}" declares an unresolvable $id.`, uri)
@@ -691,7 +654,7 @@ function canonicalRemote(uri: string, schema: unknown, dialect: Dialect): Normal
         uri,
         dialect,
         canonicalBase,
-        dialect === 'draft-07' && resolvedId.includes('#') ? `${uri}${resolvedId.slice(resolvedId.indexOf('#'))}` : uri,
+        isPre2019Dialect(dialect) && resolvedId.includes('#') ? `${uri}${resolvedId.slice(resolvedId.indexOf('#'))}` : uri,
       )]
   return { primary, aliases, canonicalBase }
 }
@@ -700,25 +663,15 @@ function isMetaSchema(uri: string): boolean {
   return META_URIS.has(uri)
 }
 
-export function assertNoFileSchemaIdentifiers(schema: unknown, dialect: Dialect): void {
-  const rootId = isRecord(schema) && typeof schema.$id === 'string'
-    ? resourceBase(schema.$id, undefined, dialect)
-    : undefined
-  for (const uri of declaredResourceIds(schema, rootId, dialect)) {
-    if (uri.startsWith('file:')) {
-      throw new Error(`Hyperjump does not support schema identifiers with the file: scheme: "${uri}".`)
-    }
-  }
-}
-
 export async function loadExternalResources(
   schema: unknown,
   dialect: Dialect,
   options: SchemaResourceOptions | undefined,
 ): Promise<unknown[]> {
   const resolver = options?.resolveResource
-  const rootId = isRecord(schema) && typeof schema.$id === 'string'
-    ? resourceBase(schema.$id, undefined, dialect)
+  const identifier = isRecord(schema) ? schemaIdentifier(schema, dialect) : undefined
+  const rootId = typeof identifier === 'string'
+    ? resourceBase(identifier, undefined, dialect)
     : undefined
   const known = declaredResourceIds(schema, rootId, dialect)
   if (rootId) known.add(rootId)
@@ -761,10 +714,6 @@ export async function loadExternalResources(
     const references = referencesIn(current.document, current.base, dialect, known)
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
-        const localUri = base === undefined ? undefined : absoluteUri(reference, base)
-        if (localUri !== undefined && withoutFragment(localUri).startsWith('file:')) {
-          throw new SchemaResourceResolutionError(`File schema resources are not supported: "${withoutFragment(localUri)}" at "${position}".`, withoutFragment(localUri), position)
-        }
         continue
       }
       const resolved = absoluteUri(reference, base)

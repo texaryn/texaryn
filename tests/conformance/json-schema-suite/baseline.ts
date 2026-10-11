@@ -10,13 +10,9 @@ import { suiteDialects, type SuiteDialect } from './runner.js'
  * file are deliberately impossible, because "skip all unevaluatedProperties
  * tests" is how a suite stops meaning anything.
  */
-// `standard-metaschema-resolution-missing` was here until both adapters
-// resolved the published metaschemas. It is deliberately not kept as a spare:
-// a reason that describes a limitation nobody has any more is somewhere a
-// future regression could be filed instead of fixed.
 export const deviationReasons = [
-  // The suite runner omits the host supplied resolver for external documents.
-  'external-resource-resolver-not-configured',
+  // The suite records the custom vocabulary contract and exact case outcomes.
+  'custom-vocabulary-support-gap',
   'texaryn-adapter-deviation',
   'upstream-validator-deviation',
   'suite-known-issue',
@@ -25,13 +21,12 @@ export const deviationReasons = [
 export type DeviationReason = (typeof deviationReasons)[number]
 
 /**
- * Reasons a reader can confirm from the test harness alone. Every other reason
- * asserts something about code (ours or someone else's) that could be fixed
- * instead, so it has to cite the record of that decision rather than a
- * sentence someone typed.
+ * Reasons described directly by the pinned suite contract, with the exact
+ * case and outcome recorded below. Code-attribution reasons require an issue
+ * URL so a limitation is not mistaken for an acceptable permanent result.
  */
 export const issueExemptReasons: readonly DeviationReason[] = [
-  'external-resource-resolver-not-configured',
+  'custom-vocabulary-support-gap',
 ]
 
 /**

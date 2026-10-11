@@ -423,9 +423,34 @@ export function buildProjection(
     const format = resolvedByKeyword.get('format')?.[0] as string | undefined
     if (format !== undefined) node.format = format
 
+    const draft04Bounds = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'])
     for (const key of CONSTRAINT_KEYS) {
+      if (cache.dialect === 'draft-04' && draft04Bounds.has(key)) continue
       const value = resolvedByKeyword.get(key)?.[0]
       if (value !== undefined) (node.constraints as Record<string, unknown>)[key] = value
+    }
+    if (cache.dialect === 'draft-04') {
+      const constraints = node.constraints as Record<string, unknown>
+      for (const record of records) {
+        if (!draft04Bounds.has(record.keywordName)) continue
+        const keywordPosition = schemaPosition(record.schemaUri, rootUri)
+        const sourcePosition = schemaParentPosition(
+          keywordPosition,
+          Math.max(0, schemaPositionSegments(keywordPosition).length - 1),
+        )
+        const source = schemaAtPosition(rawSchema, sourcePosition)
+        if (source === null || typeof source !== 'object' || Array.isArray(source)) continue
+        const schema = source as Record<string, unknown>
+        for (const [bound, exclusive] of [
+          ['minimum', 'exclusiveMinimum'],
+          ['maximum', 'exclusiveMaximum'],
+        ] as const) {
+          const value = schema[bound]
+          if (typeof value !== 'number') continue
+          const target = schema[exclusive] === true ? exclusive : bound
+          if (constraints[target] === undefined) constraints[target] = value
+        }
+      }
     }
     for (const key of ANNOTATION_KEYS) {
       const value = resolvedByKeyword.get(key)?.[0]

@@ -1,5 +1,5 @@
 import { isSchemaNode, type SchemaNode } from '@texaryn/json-schema-library'
-import type { Dialect } from './dialect.js'
+import { isPre2019Dialect, type Dialect } from './dialect.js'
 import { withoutUnreachableBranches } from './normalize.js'
 
 type CompiledRoot = SchemaNode & { readonly context?: { readonly refs?: Record<string, unknown> } }
@@ -144,9 +144,9 @@ function validationContracts(schema: unknown, dialect: Dialect): string {
     const profile = Object.fromEntries(
       ASSERTION_KEYWORDS
         .filter((key) => Object.hasOwn(value, key))
-        .filter((key) => key !== 'format' || dialect === 'draft-07')
-        .filter((key) => (key !== 'minContains' && key !== 'maxContains') || dialect !== 'draft-07')
-        .filter((key) => (key !== 'unevaluatedProperties' && key !== 'unevaluatedItems') || dialect !== 'draft-07')
+        .filter((key) => key !== 'format' || isPre2019Dialect(dialect))
+        .filter((key) => (key !== 'minContains' && key !== 'maxContains') || !isPre2019Dialect(dialect))
+        .filter((key) => (key !== 'unevaluatedProperties' && key !== 'unevaluatedItems') || !isPre2019Dialect(dialect))
         .filter((key) => key !== 'additionalItems' || dialect !== '2020-12')
         .filter((key) => key !== 'additionalItems' || Array.isArray(value.items))
         .map((key) => [key, value[key]]),
@@ -171,7 +171,7 @@ function validationContracts(schema: unknown, dialect: Dialect): string {
       visit(value[keyword], [...path, keyword])
     }
 
-    if (dialect !== 'draft-07') {
+    if (!isPre2019Dialect(dialect)) {
       visit(value.unevaluatedProperties, [...path, 'unevaluatedProperties'])
       visit(value.unevaluatedItems, [...path, 'unevaluatedItems'])
       for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
@@ -198,7 +198,7 @@ function validationContracts(schema: unknown, dialect: Dialect): string {
     if (dialect !== '2020-12' && Array.isArray(items)) visit(value.additionalItems, [...path, 'additionalItems'])
   }
 
-  visit(withoutUnreachableBranches(schema), [])
+  visit(withoutUnreachableBranches(schema, [], dialect), [])
   return serializeContract(root)
 }
 

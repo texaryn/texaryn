@@ -38,7 +38,7 @@ export type CapabilityStatus = 'supported' | 'partial' | 'experimental'
  */
 export type VerificationLayer = 'projection' | 'runtime' | 'renderer'
 
-export type Dialect = 'draft-07' | '2019-09' | '2020-12'
+export type Dialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 
 export interface CapabilityDefinition {
   title: string
@@ -63,6 +63,13 @@ export interface CapabilityDefinition {
    */
   exampleRequired?: false
   exampleExemptionReason?: string
+}
+
+const referenceKeywordsByDialect: Partial<Record<Dialect, readonly string[]>> = {
+  'draft-04': ['$ref', 'definitions'],
+  'draft-07': ['$ref', 'definitions'],
+  '2019-09': ['$ref', '$defs'],
+  '2020-12': ['$ref', '$defs'],
 }
 
 export const capabilities = {
@@ -197,22 +204,14 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
   'schema.reference.reused-fragment': {
     title: 'A $defs fragment reused by several properties',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
 
   'schema.reference.recursive': {
@@ -220,11 +219,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    keywordsByDialect: {
-      'draft-07': ['$ref', 'definitions'],
-      '2019-09': ['$ref', '$defs'],
-      '2020-12': ['$ref', '$defs'],
-    },
+    keywordsByDialect: referenceKeywordsByDialect,
   },
 
   'schema.conditional.if-then-else': {
@@ -232,6 +227,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    dialects: ['draft-07', '2019-09', '2020-12'],
     keywords: ['if', 'then', 'else'],
   },
 
@@ -266,15 +262,22 @@ export const capabilities = {
     dialects: ['2019-09', '2020-12'],
     keywords: ['dependentRequired'],
   },
-  'schema.dependency.draft07-dependencies': {
-    title: 'Draft 7 dependencies',
+  'schema.dependency.pre2019-dependencies': {
+    title: 'Draft 4 and Draft 7 dependencies',
     category: 'schema',
     status: 'supported',
     verification: 'projection',
-    dialects: ['draft-07'],
+    dialects: ['draft-04', 'draft-07'],
     keywords: ['dependencies'],
   },
 
+  'schema.dialect.draft-04': {
+    title: 'Draft 4',
+    category: 'schema',
+    status: 'supported',
+    verification: 'projection',
+    dialects: ['draft-04'],
+  },
   'schema.dialect.draft-07': {
     title: 'Draft 7',
     category: 'schema',
@@ -358,6 +361,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    dialects: ['draft-07', '2019-09', '2020-12'],
     keywords: ['examples'],
   },
   'schema.annotation.readOnly': {
@@ -365,6 +369,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    dialects: ['draft-07', '2019-09', '2020-12'],
     keywords: ['readOnly'],
   },
   'schema.annotation.writeOnly': {
@@ -372,6 +377,7 @@ export const capabilities = {
     category: 'schema',
     status: 'supported',
     verification: 'projection',
+    dialects: ['draft-07', '2019-09', '2020-12'],
     keywords: ['writeOnly'],
   },
   // format-annotation is the default vocabulary from 2019-09, and this claims

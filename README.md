@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  Supports JSON Schema Draft 7, 2019-09 and 2020-12, with automatic dialect detection.
+  Supports JSON Schema Draft 4, Draft 7, 2019-09 and 2020-12, with automatic dialect detection.
   See <a href="https://texaryn.github.io/texaryn/guides/json-schema-support/">JSON Schema support</a> for form generation capabilities and validation limits.
 </p>
 
@@ -416,7 +416,7 @@ Texaryn is being built incrementally.
 - Core IR and runtime foundations
 - stable array identity
 - JSON Schema evaluation layer
-- Draft 7 / 2019-09 / 2020-12 dialect boundary
+- Draft 4 / Draft 7 / 2019-09 / 2020-12 dialect boundary
 - conditionals and schema composition
 - React runtime bindings
 - React hooks
