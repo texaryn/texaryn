@@ -5,6 +5,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { RendererRegistry, SchemaEvaluationPort, UIHints } from '@texaryn/core'
 import { useForm, FormProvider, FormRoot } from '@texaryn/react'
 import type { WidgetComponent } from '@texaryn/react'
+import { createArrayDragTransfer, dispatchArrayDrag } from './array-drag.js'
 
 export interface RendererConformanceOptions {
   name: string
@@ -215,6 +216,36 @@ export function rendererConformance({ name, createRegistry }: RendererConformanc
       await waitFor(() => {
         const rowDown = row.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]')
         expect(document.activeElement).toBe(rowDown)
+      })
+    })
+
+    it('reorders a stable row through the native drag handle', async () => {
+      const schema = {
+        type: 'object',
+        properties: { people: { type: 'array', items: { type: 'string' } } },
+      }
+      render(
+        <TestForm
+          schema={schema}
+          data={{ people: ['Ada', 'Grace', 'Lin'] }}
+          hints={{ '/people': { canReorder: true } }}
+        />,
+      )
+      const root = await waitFor(() => {
+        const found = document.querySelector<HTMLElement>('[data-array-container]')
+        expect(found).not.toBeNull()
+        return found!
+      })
+      const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+      const transfer = createArrayDragTransfer()
+      rows[0]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+      dispatchArrayDrag('dragstart', rows[1]!.querySelector('[draggable="true"]')!, transfer)
+      dispatchArrayDrag('dragover', rows[0]!, transfer, 10)
+      dispatchArrayDrag('drop', rows[0]!, transfer, 10)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('form-data').textContent).toContain('"people":["Grace","Ada","Lin"]')
       })
     })
   })

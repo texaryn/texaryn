@@ -6,6 +6,10 @@
 
 # @texaryn/core
 
+## Classes
+
+- [RemoteSnapshotNotificationError](classes/RemoteSnapshotNotificationError.md)
+
 ## Interfaces
 
 - [ActionMessage](interfaces/ActionMessage.md)
@@ -40,7 +44,9 @@
 - [FieldConstraints](interfaces/FieldConstraints.md)
 - [FieldHints](interfaces/FieldHints.md)
 - [FieldNode](interfaces/FieldNode.md)
+- [FormCommandGuardContext](interfaces/FormCommandGuardContext.md)
 - [FormMessages](interfaces/FormMessages.md)
+- [FormMutation](interfaces/FormMutation.md)
 - [FormRuntime](interfaces/FormRuntime.md)
 - [FormRuntimeOptions](interfaces/FormRuntimeOptions.md)
 - [IdentityMap](interfaces/IdentityMap.md)
@@ -57,6 +63,7 @@
 - [ProjectionDiagnostic](interfaces/ProjectionDiagnostic.md)
 - [ProjectionOptions](interfaces/ProjectionOptions.md)
 - [ReconcileOptions](interfaces/ReconcileOptions.md)
+- [RemoteSnapshotOptions](interfaces/RemoteSnapshotOptions.md)
 - [RendererRegistry](interfaces/RendererRegistry.md)
 - [RuntimeState](interfaces/RuntimeState.md)
 - [SchemaEvaluationPort](interfaces/SchemaEvaluationPort.md)
@@ -87,6 +94,7 @@
 - [DocumentNode](type-aliases/DocumentNode.md)
 - [Effect](type-aliases/Effect.md)
 - [FieldType](type-aliases/FieldType.md)
+- [FormCommandGuard](type-aliases/FormCommandGuard.md)
 - [IdentityKey](type-aliases/IdentityKey.md)
 - [IdentitySegment](type-aliases/IdentitySegment.md)
 - [InitializationPolicy](type-aliases/InitializationPolicy.md)

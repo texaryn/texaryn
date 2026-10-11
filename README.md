@@ -179,6 +179,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | Package | Version | Purpose |
 | --- | --- | --- |
 | [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI IR, compiler, runtime, state, commands, identity, renderer registry |
+| [`@texaryn/collaboration-yjs`](packages/collaboration-yjs/README.md) | Planned 0.1.0 | Optional Yjs adapter for convergent scalar field edits |
 | [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
 | [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
 | [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fangular?label=) | Angular signal bindings, renderer, and default widgets |

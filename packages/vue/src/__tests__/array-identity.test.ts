@@ -5,6 +5,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import type { UIHints } from '@texaryn/core'
 import { createDefaultRegistry, FormRoot, provideFormRuntime, useForm } from '../index.js'
 import { mountExample, settle } from './harness.js'
+import { createArrayDragTransfer, dispatchArrayDrag } from '../../../../tests/renderer-conformance/array-drag.js'
 
 function inputs(wrapper: { findAll: (s: string) => { element: HTMLInputElement }[] }) {
   return wrapper.findAll('input[type="text"]').map((w) => w.element)
@@ -265,5 +266,32 @@ describe('the array control issues the commands it offers', () => {
     // contained in the name so speech input keeps working.
     expect(up[0].attributes('aria-label')).toMatch(/^Move up .*2/)
     expect(up[0].text()).toBe('Up')
+  })
+})
+
+describe('native array drag reorder', () => {
+  it('moves the stable Vue row through the current array command', async () => {
+    const { wrapper, form } = await mountExample('ui-hint-array')
+    const root = (wrapper.element as HTMLElement).querySelector<HTMLElement>('[data-array-container]')!
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const movedRow = rows[1]!
+    const transfer = createArrayDragTransfer()
+    const handle = movedRow.querySelector<HTMLElement>('[draggable="true"]')!
+    expect(handle.tabIndex).toBe(-1)
+    expect(handle.getAttribute('aria-hidden')).toBe('true')
+    rows[0]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+    dispatchArrayDrag('dragstart', handle, transfer)
+    dispatchArrayDrag('dragover', rows[0]!, transfer, 10)
+    dispatchArrayDrag('drop', rows[0]!, transfer, 10)
+    await settle()
+
+    expect(form.data.value).toEqual({
+      tracks: [
+        { id: 'b', name: 'Second' },
+        { id: 'a', name: 'First' },
+      ],
+    })
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
   })
 })

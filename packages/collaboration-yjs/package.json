@@ -1,0 +1,48 @@
+{
+  "name": "@texaryn/collaboration-yjs",
+  "version": "0.0.0",
+  "description": "Optional Yjs collaboration for scalar fields in Texaryn forms",
+  "keywords": [
+    "yjs",
+    "collaboration",
+    "json-schema",
+    "forms",
+    "texaryn"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/collaboration-yjs"
+  },
+  "homepage": "https://texaryn.github.io/texaryn/",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "CHANGELOG.md"],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@texaryn/schema-json": "workspace:*",
+    "yjs": "13.6.33"
+  },
+  "scripts": {
+    "build": "tsc --build"
+  }
+}

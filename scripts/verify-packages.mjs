@@ -208,6 +208,17 @@ for (const pkg of packages) {
         'dir',
       )
     }
+    if (pkg.name === '@texaryn/collaboration-yjs') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+      symlinkSync(
+        join(process.cwd(), pkg.dir, 'node_modules', 'yjs'),
+        join(isolatedNodeModules, 'yjs'),
+        'dir',
+      )
+    }
     try {
       let mod
       if (pkg.name === '@texaryn/angular') {

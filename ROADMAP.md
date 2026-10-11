@@ -4,8 +4,12 @@
 
 A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
-Roadmap items 4 to 6 are implemented locally. Drag-and-drop array reorder is
-the active post-validation milestone.
+ADR-012 through ADR-017 are implemented locally on `feat/non-form-node-types`.
+Native drag reorder and scalar collaboration close post-validation items 7 and 8.
+The branch is not released. PR #210 remains open with passing checks. PR #211
+still shows a Codecov failure from its last run. The local coverage configuration
+now maps Angular's compiled output to its TypeScript sources, with 95.84% of
+PR #211's added executable lines covered.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -31,8 +35,8 @@ The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
 `@texaryn/schema-json`. PR #207 merged that dependency change and PR #208
-created the 0.8.2 release. All release checks passed; the publish job is
-waiting for approval in the protected `npm-release` environment. The private
+created the 0.8.2 release. All release checks passed, and the protected
+`npm-release` workflow published version 0.8.2. The private
 Hyperjump adapter is a CI comparison implementation, not a planned production
 migration.
 
@@ -42,9 +46,9 @@ is [published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library
 and has a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
 Merged PR #207 replaces the upstream dependency, removes the packaged
 workaround, and adds a patch changeset for `@texaryn/schema-json`. Build,
-typecheck, the full test suite, package verification, and main CI passed. The
-published adapter remains at 0.8.1 on upstream 11.6.2 until the 0.8.2 publish
-job completes.
+typecheck, the full test suite, package verification, and main CI passed.
+`@texaryn/schema-json` 0.8.2 is [published on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.8.2)
+and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2).
 
 ## Table of Contents
 
@@ -1939,17 +1943,39 @@ properties in the existing JSON Schema source, with the JSON editor retained
 for advanced schemas. The implementation and integration coverage are complete
 locally on `feat/non-form-node-types` and unreleased.
 
-PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
-and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
-the Angular PR, and the Svelte merge depends on that base.
+ADR-016 accepts native drag reorder for array controls in all renderer packages.
+Stable item IDs resolve to current indexes at drop time, nested array ownership
+is scoped to its own DOM region, and the accessible Up and Down controls remain
+the keyboard and touch path. The implementation, renderer coverage and package
+changesets are complete locally on `feat/non-form-node-types`.
+Build, typecheck, package verification, site validation and the full suite
+pass. The suite has 5,596 tests across 164 files.
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Zod adapter is under review in [PR #210](https://github.com/texaryn/texaryn/pull/210). The Angular renderer is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211).
+ADR-017 selects an optional Yjs adapter for collaborative scalar edits.
+`@texaryn/collaboration-yjs` stores an immutable baseline and JSON Pointer
+overrides, while the host supplies `Y.Doc` and its provider. The core mutation
+bridge, fixed-shape remote snapshot application, array locks, adapter, package
+documentation and changeset are implemented locally. Structural edits and
+concurrent array ordering remain outside version 1. ChatGPT's final code review
+confirmed the four reported runtime findings are resolved and found no remaining
+actionable issue in the supplied implementation. Build, typecheck, package
+verification, site validation and the full suite pass with 5,596 tests across
+164 files.
+
+PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
+and CI Gate pass. Its current Codecov result is 0.00% because Vitest executes
+Angular's compiled output while coverage only included TypeScript source files.
+Including compiled output lets v8 source maps attribute hits to TypeScript. The
+local run measures 95.84% coverage on the exact PR diff. The correction still
+needs to reach PR #211 before Codecov can rerun.
+
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Zod adapter is under review in [PR #210](https://github.com/texaryn/texaryn/pull/210). The Angular renderer is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211).
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. The 0.8.2 release checks passed; its protected npm publish job is
-awaiting approval. Hyperjump remains in CI for comparison only. This is an
+workaround. Version 0.8.2 passed its release checks and is published. Hyperjump
+remains in CI for comparison only. This is an
 implementation change within the accepted strategy, not a later engine
 selection phase.
 
@@ -2150,24 +2176,22 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. Continue the remaining work in
-this order:
+MUI and custom styling examples are complete. The implementation sequence is
+complete locally through collaborative scalar editing. Remaining integration
+work is:
 
-1. Additional schema adapters: Zod in PR #210, then TypeBox
-2. Additional renderers: Angular in PR #211, Svelte in `feat/svelte-renderer`, and Solid in `feat/solid-renderer`
-3. Non-form node types: tables, lists and layouts. The design is accepted in
-   [ADR-012](docs/adr/012-non-form-ui-runtime.md); implementation is complete
-   locally on `feat/non-form-node-types` and is unreleased.
-4. Server-driven UI tooling. The protocol is accepted in
-   [ADR-013](docs/adr/013-server-driven-document-updates.md); implementation is
-   complete locally on `feat/non-form-node-types` and is unreleased.
-5. AI generation tooling. ADR-014 and the versioned contract, acceptance
-   example, downloadable instructions, and fixtures are complete locally on
-   `feat/non-form-node-types`; the work is unreleased.
-6. Visual form builder. ADR-015 and the playground implementation are complete
-   locally on `feat/non-form-node-types`; the work is unreleased.
-7. Drag-and-drop array reorder
-8. Collaborative editing with OT or CRDT on top of commands
+1. Zod adapter and TypeBox coverage are in open PR #210. All reported checks
+   pass.
+2. Angular renderer is in open PR #211. Build, typecheck, tests, Changeset,
+   Dependency review and CI Gate pass. The local coverage correction measures
+   95.84% on the PR diff. Svelte and Solid renderers are implemented in local
+   branches and are not released.
+3. Non-form node types, server-driven UI tooling, AI generation tooling and the
+   visual form builder are complete locally under ADR-012 through ADR-015.
+4. Native drag reorder is complete locally under ADR-016.
+5. Collaborative scalar editing is complete locally under ADR-017. Structural
+   array collaboration remains deferred pending shared row identity and an
+   ordering contract for concurrent moves, inserts and deletes.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 

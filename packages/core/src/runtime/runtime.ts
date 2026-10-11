@@ -16,11 +16,178 @@ import type { JsonPointer, NodeId, ValidationError, ValidationResult, VisibleErr
 import type {
   FormRuntime,
   FormRuntimeOptions,
+  FormMutation,
+  FormCommandGuard,
   InitializationReport,
+  InitializationPolicy,
   NodeState,
+  RemoteSnapshotOptions,
 } from './types.js'
 import { createValidationScheduler } from './validation-scheduler.js'
 import type { ValidationScheduler, ValidationTrigger } from './validation-scheduler.js'
+
+export class RemoteSnapshotNotificationError extends Error {
+  constructor(readonly notificationError: unknown) {
+    super('The remote snapshot was applied, but store notification failed.')
+    this.name = 'RemoteSnapshotNotificationError'
+  }
+}
+
+function isJsonScalar(value: unknown): boolean {
+  return value === null || typeof value === 'string' || typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value))
+}
+
+function isPlainRecord(value: object): value is Record<string, unknown> {
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function assertSameJsonShape(before: unknown, next: unknown): void {
+  let visited = 0
+  let totalStringLength = 0
+  const active = new WeakSet<object>()
+
+  function visit(previous: unknown, value: unknown, pointer: string, depth: number): void {
+    visited++
+    if (visited > 100_000 || depth > 128) {
+      throw new Error('Remote form snapshot exceeds the supported JSON size or depth.')
+    }
+
+    if (isJsonScalar(previous)) {
+      if (!isJsonScalar(value)) {
+        throw new Error(`Remote form snapshot changes the scalar shape at "${pointer}".`)
+      }
+      if (typeof value === 'string') totalStringLength += value.length
+      if (totalStringLength > 1_000_000) throw new Error('Remote form snapshot exceeds the supported string size.')
+      return
+    }
+
+    if (Array.isArray(previous)) {
+      if (!Array.isArray(value) || value.length !== previous.length) {
+        throw new Error(`Remote form snapshot changes the array shape at "${pointer}".`)
+      }
+      if (Object.getOwnPropertySymbols(value).length > 0 ||
+          Object.getOwnPropertyNames(value).length !== value.length + 1 ||
+          Object.getOwnPropertySymbols(previous).length > 0 ||
+          Object.getOwnPropertyNames(previous).length !== previous.length + 1) {
+        throw new Error(`Remote form snapshot contains non-JSON array properties at "${pointer}".`)
+      }
+      if (active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
+      active.add(value)
+      for (let index = 0; index < previous.length; index++) {
+        if (!Object.hasOwn(value, index)) {
+          throw new Error(`Remote form snapshot contains a sparse array at "${pointer}".`)
+        }
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, String(index))
+        if (!descriptor?.enumerable || !('value' in descriptor) ||
+            !previousDescriptor?.enumerable || !('value' in previousDescriptor)) {
+          throw new Error(`Remote form snapshot contains an accessor at "${pointer}/${index}".`)
+        }
+        visit(previousDescriptor.value, descriptor.value, `${pointer}/${index}`, depth + 1)
+      }
+      active.delete(value)
+      return
+    }
+
+    if (typeof previous === 'object' && previous !== null && isPlainRecord(previous)) {
+      if (typeof value !== 'object' || value === null || Array.isArray(value) || !isPlainRecord(value)) {
+        throw new Error(`Remote form snapshot changes the object shape at "${pointer}".`)
+      }
+      const oldKeys = Object.keys(previous).sort()
+      const newKeys = Object.keys(value).sort()
+      if (oldKeys.length !== newKeys.length || oldKeys.some((key, index) => key !== newKeys[index])) {
+        throw new Error(`Remote form snapshot changes object properties at "${pointer}".`)
+      }
+      if (Object.getOwnPropertySymbols(value).length > 0 ||
+          Object.getOwnPropertyNames(value).length !== newKeys.length ||
+          Object.getOwnPropertySymbols(previous).length > 0 ||
+          Object.getOwnPropertyNames(previous).length !== oldKeys.length) {
+        throw new Error(`Remote form snapshot contains non-JSON object properties at "${pointer}".`)
+      }
+      for (const key of oldKeys) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key)
+        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, key)
+        if (!descriptor?.enumerable || !('value' in descriptor) ||
+            !previousDescriptor?.enumerable || !('value' in previousDescriptor)) {
+          throw new Error(`Remote form snapshot contains an accessor at "${pointer}/${key}".`)
+        }
+        totalStringLength += key.length
+        if (totalStringLength > 1_000_000) {
+          throw new Error('Remote form snapshot exceeds the supported string size.')
+        }
+      }
+      if (active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
+      active.add(value)
+      for (const key of oldKeys) {
+        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, key)!
+        const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+        visit(previousDescriptor.value, descriptor.value, `${pointer}/${key}`, depth + 1)
+      }
+      active.delete(value)
+      return
+    }
+
+    throw new Error(`The current form data is not supported for remote snapshots at "${pointer}".`)
+  }
+
+  visit(before, next, '', 0)
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (isJsonScalar(left) || isJsonScalar(right)) return false
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length &&
+      left.every((value, index) => jsonValuesEqual(value, right[index]))
+  }
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null) return false
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  return leftKeys.length === rightKeys.length && leftKeys.every((key) =>
+    Object.hasOwn(right, key) && jsonValuesEqual((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]),
+  )
+}
+
+function cloneJsonValue(value: unknown): unknown {
+  if (isJsonScalar(value)) return value
+  if (Array.isArray(value)) return value.map((item) => cloneJsonValue(item))
+  const result: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    Object.defineProperty(result, key, {
+      value: cloneJsonValue(item),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    })
+  }
+  return result
+}
+
+function changedScalarPointers(before: unknown, next: unknown): string[] {
+  const result: string[] = []
+
+  function visit(left: unknown, right: unknown, pointer: string): void {
+    if (isJsonScalar(left) && isJsonScalar(right)) {
+      if (!Object.is(left, right)) result.push(pointer)
+      return
+    }
+    if (Array.isArray(left) && Array.isArray(right)) {
+      left.forEach((value, index) => visit(value, right[index], `${pointer}/${index}`))
+      return
+    }
+    if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
+      for (const key of Object.keys(left)) {
+        const escaped = key.replace(/~/g, '~0').replace(/\//g, '~1')
+        visit((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], `${pointer}/${escaped}`)
+      }
+    }
+  }
+
+  visit(before, next, '')
+  return result
+}
 
 function isDataMutatingCommand(command: Command): boolean {
   switch (command.type) {
@@ -175,6 +342,8 @@ export function createFormRuntime(
     throw new Error('Projected submission requires a SchemaEvaluationPort with projectSubmission().')
   }
 
+  const initializationPolicy: InitializationPolicy = options.initialization ?? 'none'
+
   // Not `?? {}`, which treated `null` as "not supplied" while `false`, `0` and
   // `''` survived, so a caller could not say the instance is `null` and which
   // falsy values lived was arbitrary. `null` is a legal instance.
@@ -202,7 +371,7 @@ export function createFormRuntime(
    * the reference and matched.
    */
   const initialize =
-    options.initialization === 'schema-defaults'
+    initializationPolicy === 'schema-defaults'
       ? (data: unknown, provisional?: readonly JsonPointer[]): InitializationResult =>
           initializeDefaults(
             data,
@@ -236,6 +405,43 @@ export function createFormRuntime(
   )
   const attemptsStore = createStore(0)
   const nodeStores = new Map<NodeId, NodeStoreBundle>()
+  const mutationListeners = new Set<{
+    listener: (mutation: FormMutation) => void
+    onError: (error: unknown) => void
+  }>()
+  const commandGuards = new Set<{
+    guard: FormCommandGuard
+    onRejected?: (reason: string) => void
+  }>()
+  let arrayStructureLocks = 0
+
+  function publishedDocument(document: UIDocument): UIDocument {
+    if (arrayStructureLocks === 0) return document
+    let nodes: UIDocument['nodes'] | undefined
+    for (const [id, node] of Object.entries(document.nodes)) {
+      if (node.type !== 'container' || node.containerType !== 'array' || node.arrayMeta === undefined) continue
+      nodes ??= { ...document.nodes }
+      nodes[id] = {
+        ...node,
+        arrayMeta: { ...node.arrayMeta, canAdd: false, canRemove: false, canReorder: false },
+      }
+    }
+    return nodes === undefined ? document : { ...document, nodes }
+  }
+
+  function notifyMutation(mutation: FormMutation): void {
+    for (const entry of mutationListeners) {
+      try {
+        entry.listener(mutation)
+      } catch (error) {
+        try {
+          entry.onError(error)
+        } catch {
+          continue
+        }
+      }
+    }
+  }
 
   const nodes = new Map<NodeId, NodeRuntimeState>()
   for (const key of Object.keys(currentDoc.nodes)) {
@@ -337,7 +543,7 @@ export function createFormRuntime(
     // has to re-point its widgets at their new nodes before it is told those
     // nodes' values, or it writes one row's value into another row's control
     // and moves the caret of whatever is focused.
-    documentStore.set(nextDoc)
+    documentStore.set(publishedDocument(nextDoc))
 
     for (const [nodeId, nodeRuntimeState] of nextNodes) {
       const uiNode = nextDoc.nodes[nodeId as string]
@@ -529,8 +735,24 @@ export function createFormRuntime(
     }
   }
 
-  function dispatch(incoming: Command): void {
+  function dispatch(incoming: Command, dispatchOptions: { origin?: unknown } = {}): void {
     if (destroyed) return
+
+    for (const entry of commandGuards) {
+      let rejection: string | undefined
+      try {
+        rejection = entry.guard(incoming, { document: currentDoc, data: state.data })
+      } catch (error) {
+        rejection = error instanceof Error ? error.message : String(error)
+      }
+      if (rejection === undefined) continue
+      try {
+        entry.onRejected?.(rejection)
+      } catch {
+        // A rejected command remains rejected even if its reporter fails.
+      }
+      return
+    }
 
     // `Reset` establishes a new baseline, so the policy that produced the first
     // one produces this one, with or without `cmd.data`. It runs before the
@@ -572,6 +794,8 @@ export function createFormRuntime(
     // back does not, because `Reset` never reaches `setAtPointer` and so
     // cannot throw today. It moves with the rest because the invariant is the
     // ordering, not the one line that currently demonstrates it.
+    const beforeData = state.data
+    const beforeDocument = currentDoc
     const { nextState, effects, provisional } = processCommand(state, command, currentDoc)
 
     if (mutatesData) {
@@ -631,25 +855,37 @@ export function createFormRuntime(
       state = { ...state, submission: { status: 'idle', attempts: state.submission.attempts, cancelled: true } }
     }
 
-    if (mutatesData) {
-      // Reset nodes stuck at pending from an invalidated in-flight validation
+    let publicationFailed = false
+    let publicationError: unknown
+    try {
       batch(() => {
-        resetPendingNodes()
+        if (mutatesData) resetPendingNodes()
+        dataStore.set(state.data)
+        if (report !== undefined) initializationStore.set(report)
+        publishSubmission()
+        syncNodeStores()
+        for (const effect of effects) {
+          if (submissionProjectionFailed && effect.type === 'validate' && effect.trigger === 'submit') continue
+          handleEffect(effect)
+        }
+        if (seeded.length > 0) markSeeded(seeded)
       })
+    } catch (error) {
+      publicationFailed = true
+      publicationError = error
     }
 
-    batch(() => {
-      dataStore.set(state.data)
-      if (report !== undefined) initializationStore.set(report)
-      publishSubmission()
-      syncNodeStores()
-      for (const effect of effects) {
-        if (submissionProjectionFailed && effect.type === 'validate' && effect.trigger === 'submit') continue
-        handleEffect(effect)
-      }
-      // After the recompile, which builds the node the seeded location now has.
-      if (seeded.length > 0) markSeeded(seeded)
-    })
+    if (state.data !== beforeData) {
+      notifyMutation({
+        command,
+        origin: dispatchOptions.origin,
+        beforeData,
+        data: state.data,
+        beforeDocument,
+        document: currentDoc,
+      })
+    }
+    if (publicationFailed) throw publicationError
   }
 
   /**
@@ -675,6 +911,151 @@ export function createFormRuntime(
     state = { ...state, nodes: nextNodes }
   }
 
+  function subscribeMutations(
+    listener: (mutation: FormMutation) => void,
+    onError: (error: unknown) => void,
+  ): () => void {
+    if (destroyed) return () => undefined
+    const entry = { listener, onError }
+    mutationListeners.add(entry)
+    return () => mutationListeners.delete(entry)
+  }
+
+  function registerCommandGuard(
+    guard: FormCommandGuard,
+    onRejected?: (reason: string) => void,
+  ): () => void {
+    if (destroyed) return () => undefined
+    const entry = { guard, onRejected }
+    commandGuards.add(entry)
+    return () => commandGuards.delete(entry)
+  }
+
+  function lockArrayStructure(): () => void {
+    if (destroyed) return () => undefined
+    arrayStructureLocks++
+    try {
+      documentStore.set(publishedDocument(currentDoc))
+    } catch (error) {
+      arrayStructureLocks = Math.max(0, arrayStructureLocks - 1)
+      throw error
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      if (destroyed) return
+      arrayStructureLocks = Math.max(0, arrayStructureLocks - 1)
+      documentStore.set(publishedDocument(currentDoc))
+    }
+  }
+
+  function applyRemoteSnapshot(data: unknown, snapshotOptions: RemoteSnapshotOptions = {}): void {
+    if (destroyed) return
+    if (initializationPolicy !== 'none') {
+      throw new Error('Remote snapshots require initialization: none.')
+    }
+    assertSameJsonShape(state.data, data)
+    const snapshot = cloneJsonValue(data)
+    if (jsonValuesEqual(state.data, snapshot)) return
+
+    const beforeData = state.data
+    const beforeDocument = currentDoc
+    const changedPointers = changedScalarPointers(beforeData, snapshot)
+    const previous = indexByLogicalKey(currentDoc, state.nodes)
+    const projection = port.project(snapshot, {
+      expandedBoundaryTokens: state.expandedBoundaryTokens,
+      boundaryGeneration: state.boundaryGeneration,
+    })
+    const result = compile(projection, snapshot, options.hints, state.identities)
+    const nextDoc = result.document
+    const nextIndex = indexByLogicalKey(nextDoc)
+    const nextNodes = new Map<NodeId, NodeRuntimeState>()
+
+    for (const key of Object.keys(nextDoc.nodes)) {
+      const nodeId = key as NodeId
+      const uiNode = nextDoc.nodes[key]
+      const value = uiNode.dataPointer != null ? getAtPointer(snapshot, uiNode.dataPointer) : undefined
+      const logicalKey = nextIndex.keyOf.get(nodeId)
+      const carried = logicalKey === undefined ? undefined : previous.byKey.get(logicalKey)
+      const initialValue = uiNode.dataPointer == null
+        ? undefined
+        : getAtPointer(state.initialData, uiNode.dataPointer)
+      const interaction = carried?.state
+        ? { ...carried.state.interaction, modified: !jsonValuesEqual(value, initialValue) }
+        : { dirty: false, touched: false, pristine: true, modified: !jsonValuesEqual(value, initialValue) }
+      nextNodes.set(nodeId, {
+        value,
+        validation: { status: 'idle', errors: [] },
+        interaction,
+      })
+    }
+
+    const previousSubmission = state.submission
+    const submission: SubmissionState = {
+      status: 'idle',
+      attempts: previousSubmission.attempts,
+      ...(previousSubmission.status === 'idle' ? {} : { cancelled: true as const }),
+    }
+
+    scheduler.invalidate()
+    scheduler.cancelScheduled()
+    submissionGeneration++
+    currentAttempt = null
+    state = {
+      ...state,
+      data: snapshot,
+      nodes: nextNodes,
+      identities: result.identityMap,
+      submission,
+    }
+    currentDoc = nextDoc
+
+    let publicationFailed = false
+    let publicationError: unknown
+    try {
+      batch(() => {
+        dataStore.set(snapshot)
+        documentStore.set(publishedDocument(nextDoc))
+        submissionStore.set(submission)
+        attemptsStore.set(submission.attempts)
+        for (const [nodeId, nodeRuntimeState] of nextNodes) {
+          const uiNode = nextDoc.nodes[nodeId as string]
+          const bundle = nodeStores.get(nodeId)
+          if (!bundle) {
+            nodeStores.set(nodeId, createNodeStoreBundle(nodeRuntimeState, uiNode, attemptsStore))
+            continue
+          }
+          bundle.value.set(nodeRuntimeState.value)
+          bundle.dirty.set(nodeRuntimeState.interaction.dirty)
+          bundle.touched.set(nodeRuntimeState.interaction.touched)
+          bundle.errors.set(nodeRuntimeState.validation.errors)
+          bundle.validationStatus.set(nodeRuntimeState.validation.status)
+          bundle.visible.set(uiNode.visible)
+          bundle.disabled.set(uiNode.disabled)
+        }
+        for (const nodeId of [...nodeStores.keys()]) {
+          if (!nextNodes.has(nodeId)) nodeStores.delete(nodeId)
+        }
+        refreshVisibleErrors()
+      })
+    } catch (error) {
+      publicationFailed = true
+      publicationError = error
+    }
+
+    notifyMutation({
+      origin: snapshotOptions.origin,
+      beforeData,
+      data: snapshot,
+      beforeDocument,
+      document: nextDoc,
+      changedPointers,
+    })
+    scheduler.schedule('change')
+    if (publicationFailed) throw new RemoteSnapshotNotificationError(publicationError)
+  }
+
   function getNodeState(nodeId: NodeId): NodeState | undefined {
     return nodeStores.get(nodeId)
   }
@@ -684,6 +1065,8 @@ export function createFormRuntime(
     submissionGeneration++
     currentAttempt = null
     scheduler.destroy()
+    mutationListeners.clear()
+    commandGuards.clear()
     nodeStores.clear()
   }
 
@@ -693,7 +1076,12 @@ export function createFormRuntime(
     submission: submissionStore,
     visibleErrors: visibleErrorsStore,
     initialization: initializationStore,
+    initializationPolicy,
     dispatch,
+    subscribeMutations,
+    registerCommandGuard,
+    applyRemoteSnapshot,
+    lockArrayStructure,
     getNodeState,
     destroy,
   }

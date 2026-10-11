@@ -138,6 +138,30 @@ export interface FormRuntimeOptions {
   initialization?: InitializationPolicy
 }
 
+export interface FormMutation {
+  readonly command?: Command
+  readonly origin?: unknown
+  readonly beforeData: unknown
+  readonly data: unknown
+  readonly beforeDocument: UIDocument
+  readonly document: UIDocument
+  readonly changedPointers?: readonly string[]
+}
+
+export interface FormCommandGuardContext {
+  readonly document: UIDocument
+  readonly data: unknown
+}
+
+export type FormCommandGuard = (
+  command: Command,
+  context: FormCommandGuardContext,
+) => string | undefined
+
+export interface RemoteSnapshotOptions {
+  readonly origin?: unknown
+}
+
 export interface NodeState {
   readonly value: Store<unknown>
   readonly errors: Store<ValidationError[]>
@@ -174,7 +198,18 @@ export interface FormRuntime extends UIDocumentRuntime<UIDocument, unknown> {
    * rather than one run over data.
    */
   readonly initialization: Store<InitializationReport | undefined>
-  dispatch(command: Command): void
+  readonly initializationPolicy: InitializationPolicy
+  dispatch(command: Command, options?: { origin?: unknown }): void
+  subscribeMutations(
+    listener: (mutation: FormMutation) => void,
+    onError: (error: unknown) => void,
+  ): () => void
+  registerCommandGuard(
+    guard: FormCommandGuard,
+    onRejected?: (reason: string) => void,
+  ): () => void
+  applyRemoteSnapshot(data: unknown, options?: RemoteSnapshotOptions): void
+  lockArrayStructure(): () => void
   getNodeState(nodeId: NodeId): NodeState | undefined
   destroy(): void
 }
