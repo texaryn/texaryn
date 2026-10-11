@@ -9,8 +9,12 @@ and collaborative scalar editing merged in PR #214. Angular, Svelte, and Solid
 renderers merged in PRs #211 to #213. Five new npm packages and their GitHub
 releases are published. Trusted publishers are configured for all five packages.
 Run [#220](https://github.com/texaryn/texaryn/actions/runs/38164624614) reconciled
-seven previously published versions that lacked GitHub releases. Remaining
-roadmap work centers on Draft-04 JSON Schema support.
+seven previously published versions that lacked GitHub releases. Draft-04 JSON
+Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
+and its minor package release was published through
+[PR #223](https://github.com/texaryn/texaryn/pull/223).
+This completes the implementation work through Phase 5+. The remaining roadmap
+subjects are IR migrations and the plugin ecosystem.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -48,8 +52,10 @@ and has a matching [GitHub release](https://github.com/texaryn/json-schema-libra
 Merged PR #207 replaces the upstream dependency, removes the packaged
 workaround, and adds a patch changeset for `@texaryn/schema-json`. PR #208
 published version 0.8.2 against fork version 11.6.6. PR #216 published
-`@texaryn/schema-json` 0.8.3 on npm and created its immutable Git tag, but the
-matching GitHub release is missing after a partial release workflow failure.
+`@texaryn/schema-json` 0.8.3 on npm and created its immutable Git tag. Main CI
+run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
+reconciled its matching GitHub release. PR #223 published version 0.9.0 with
+Draft-04 support.
 Version 0.8.2 is [published on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.8.2)
 and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2).
 
@@ -1324,9 +1330,11 @@ the adapter delegates to the dialect the schema declares.
 **Draft-04** is supported with native dialect detection, validation, reference
 resolution, and metaschema support. Its different `id`, `definitions`, and
 `$ref` semantics are handled as Draft-04 behavior rather than translated into
-2020-12 keywords. The implementation is on `feat/draft-04-support`; its
-mandatory official validation suite last passed 618 of 618 cases in each
-adapter. Merge and the minor package release remain outstanding.
+2020-12 keywords. The implementation merged in PR #222. Its mandatory official
+validation suite passed 618 of 618 cases in each adapter. The minor package
+release is [`@texaryn/schema-json` 0.9.0 on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.9.0),
+with a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.9.0),
+published through PR #223.
 
 ### Dialect Detection
 
@@ -1900,17 +1908,17 @@ requirement for v1, but the compiler should be structured to allow it.
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. PR #214
 merged the document runtime, AI kit, visual builder, array reorder, and scalar
 collaboration work. Published packages include `@texaryn/core` 0.15.0,
-`@texaryn/schema-json` 0.8.3, `@texaryn/react` 0.7.0,
+`@texaryn/schema-json` 0.9.0, `@texaryn/react` 0.7.0,
 `@texaryn/react-bootstrap` 0.6.0, `@texaryn/react-mui` 0.6.0,
 `@texaryn/vue` 0.6.0, `@texaryn/web-components` 0.6.0,
 `@texaryn/angular` 0.2.0, `@texaryn/collaboration-yjs` 0.1.0,
-`@texaryn/schema-zod` 0.1.1, `@texaryn/solid` 0.2.0, and
+`@texaryn/schema-zod` 0.1.2, `@texaryn/solid` 0.2.0, and
 `@texaryn/svelte` 0.2.0.
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. Source for
 `@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
 `@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged. Their published
-versions are 0.1.1, 0.2.0, 0.2.0, 0.2.0, and 0.1.0 respectively.
+versions are 0.1.2, 0.2.0, 0.2.0, 0.2.0, and 0.1.0 respectively.
 
 Three main branch release runs failed while publishing the first versions of
 `@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,
@@ -1933,6 +1941,13 @@ then created their missing GitHub releases: `@texaryn/core` 0.15.0,
 `@texaryn/react` 0.7.0, `@texaryn/react-bootstrap` 0.6.0,
 `@texaryn/react-mui` 0.6.0, `@texaryn/schema-json` 0.8.3, `@texaryn/vue` 0.6.0,
 and `@texaryn/web-components` 0.6.0. Release recovery is complete.
+
+Draft-04 support merged in PR #222 after ChatGPT peer review and passed the
+official validation suite with 618 of 618 cases in each adapter. PR #223
+published `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2 with npm
+provenance. Main CI run
+[#38174908644](https://github.com/texaryn/texaryn/actions/runs/38174908644)
+verified provenance and created both matching GitHub releases.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2187,7 +2202,7 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 ### Phase 5+: Post-Validation
 
 MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
-and TypeBox coverage, and `@texaryn/schema-zod` 0.1.1 is published. The
+and TypeBox coverage, and `@texaryn/schema-zod` 0.1.2 is published. The
 additional renderer phase is complete. Continue the open work in this order:
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, and Solid in PR #213. Complete.
@@ -2197,9 +2212,9 @@ additional renderer phase is complete. Continue the open work in this order:
 5. The playground visual form builder in PR #214 under ADR-015.
 6. Native array reorder under ADR-016.
 7. Collaborative scalar editing under ADR-017.
-8. Draft-04 JSON Schema support is implemented on local branch
-   `feat/draft-04-support`; its mandatory official validation suite passes 618
-   of 618 cases in each adapter. Merge and publish remain outstanding.
+8. Draft-04 JSON Schema support is complete in PR #222. Its mandatory official
+   validation suite passed 618 of 618 cases in each adapter. PR #223 published
+   `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
 9. IR migration decisions are recorded in ADR-018. Form and display document
    IRs remain separate families.
 10. The plugin ecosystem decision is recorded in ADR-019. Core has no shared
@@ -2338,12 +2353,12 @@ Deferred from MVP:
 ### Phase 5+ Execution Order
 
 1. Schema authoring: TypeBox through JSON Schema and the Zod 4 adapter. Zod is
-   merged, and `@texaryn/schema-zod` 0.1.1 is published.
+   merged, and `@texaryn/schema-zod` 0.1.2 is published.
 2. Additional renderers: Angular, Svelte, and Solid in PRs #211 to #213.
 3. Display documents, bounded updates, AI generation, the visual builder, array
    reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
-4. Draft-04 JSON Schema support is implemented on `feat/draft-04-support`;
-   merge and the minor package release remain outstanding.
+4. Draft-04 JSON Schema support is complete in PR #222. PR #223 published
+   `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
 5. IR migrations.
 6. Plugin ecosystem.
 
