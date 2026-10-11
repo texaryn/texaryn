@@ -1993,9 +1993,11 @@ browser input-to-DOM latency, array commands, memory deltas, validation
 throughput, a production comparison of six Texaryn renderer paths, and one
 production RJSF comparison on a conditional form. Other form library
 comparisons are not planned until a concrete adoption or product decision
-defines comparable workloads. JSON Forms uses a UI Schema and renderer set;
-TanStack Form is headless and does not generate fields from JSON Schema. The
-RJSF figures are one workload baseline, not a ranking across form libraries.
+defines equivalent functionality and timing boundaries. The RJSF comparison is
+the only current competitor performance comparison. JSON Forms uses a UI
+Schema and renderer set; TanStack Form is headless and does not generate fields
+from JSON Schema. The RJSF figures are one workload baseline, not a ranking
+across form libraries.
 Targeted diffing stays deferred until supported application workloads show
 repeated structural operations above the interaction target.
 
@@ -2228,12 +2230,14 @@ by a second consumer before the Vue renderer freezes more of it.
   `react-bootstrap` dependency, no CSS loaded by the package, versioned
   independently of the core group. It passes the renderer and ARIA conformance
   suites unchanged; those suites now take a registry factory.
-- The demo switches between the default and Bootstrap renderers and owns the
-  stylesheet.
-- Next: the MUI spec validates the same contract against a component system
-  (controlled props, `helperText`, error state, theming). Container binding
-  primitives are added only if Bootstrap and MUI both duplicate the same
-  non-presentational composition.
+- `@texaryn/react-mui` validates the contract with Material UI controlled
+  props, `helperText`, error state, and theming. Its registry factory is tested
+  through the shared renderer conformance suite.
+- The playground switches between the default, Bootstrap, and MUI renderers.
+  It owns the Bootstrap stylesheet and MUI theme provider.
+- Container binding primitives remain deferred. Bootstrap and MUI widgets use
+  the same React hooks for field binding and array behavior, so the current
+  integrations do not show duplicated non-presentational composition.
 
 ### Phase 4: Second Renderer (PRs 21-25)
 
@@ -2584,8 +2588,9 @@ comparisons and application-specific persistence formats to later evidence.
    renderer paths on one conditional form. A separate local comparison covers
    one Draft 7 workload in Texaryn React and RJSF. Defer JSON Forms and
    TanStack Form measurements until a concrete adoption or product decision
-   defines comparable workloads. Do not treat the RJSF baseline as a ranking
-   across form libraries.
+   defines equivalent functionality and timing boundaries. RJSF is the only
+   current competitor performance comparison. Do not treat its baseline as a
+   ranking across form libraries.
 
 6. **Server rendering across processes.** Resolved in
    [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
