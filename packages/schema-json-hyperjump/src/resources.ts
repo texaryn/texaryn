@@ -422,6 +422,55 @@ function referencesIn(
 
 export function referencedPointerTargets(documents: readonly unknown[], dialect: Dialect): Map<string, ReadonlySet<string>> {
   const targets = new Map<string, Set<string>>()
+  const resourcePositions = new Map<string, { document: string; position: string }>()
+
+  for (const document of documents) {
+    const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
+    const documentBase = resourceBase(identifier, undefined, dialect)
+    if (documentBase !== undefined) resourcePositions.set(documentBase, { document: documentBase, position: '#' })
+
+    const seen = new WeakMap<object, Set<string | undefined>>()
+    const visit = (schema: unknown, parentBase: string | undefined, position: string): void => {
+      if (typeof schema !== 'object' || schema === null || seenAtBase(seen, schema, parentBase)) return
+      if (Array.isArray(schema)) {
+        schema.forEach((child, index) => visit(child, parentBase, `${position}/${index}`))
+        return
+      }
+      const record = schema as Record<string, unknown>
+      const id = schemaIdentifier(record, dialect)
+      const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
+      const base = ignoresSiblings ? parentBase : resourceBase(id, parentBase, dialect)
+      const startsResource = !ignoresSiblings && typeof id === 'string' && !(isPre2019Dialect(dialect) && id.startsWith('#'))
+      if (startsResource && base !== undefined && (base !== documentBase || position === '#' || !resourcePositions.has(base))) {
+        resourcePositions.set(base, { document: documentBase ?? '', position })
+      }
+      if (ignoresSiblings) {
+        for (const keyword of DEFINITION_KEYS[dialect]) {
+          const map = record[keyword]
+          if (isRecord(map)) {
+            for (const [key, child] of Object.entries(map)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
+          }
+        }
+        return
+      }
+      for (const keyword of SINGLE[dialect]) visit(record[keyword], base, `${position}/${keyword}`)
+      for (const keyword of LIST[dialect]) {
+        const list = record[keyword]
+        if (Array.isArray(list)) list.forEach((child, index) => visit(child, base, `${position}/${keyword}/${index}`))
+      }
+      for (const keyword of MAP[dialect]) {
+        const map = record[keyword]
+        if (isRecord(map)) {
+          for (const [key, child] of Object.entries(map)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
+        }
+      }
+      if (dialect !== '2020-12' && Array.isArray(record.items)) {
+        record.items.forEach((child, index) => visit(child, base, `${position}/items/${index}`))
+      }
+    }
+    visit(document, documentBase, '#')
+  }
+
   for (const document of documents) {
     const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
     const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, dialect) : undefined
@@ -437,10 +486,12 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
         // Keep malformed URI escapes as authored so the validator can report them.
       }
       if (!fragment.startsWith('/')) continue
-      const resource = withoutFragment(resolved)
-      const pointers = targets.get(resource) ?? new Set<string>()
-      pointers.add(`#${fragment}`)
-      targets.set(resource, pointers)
+      const resource = resourcePositions.get(withoutFragment(resolved))
+      if (resource === undefined) continue
+      const pointer = resource.position === '#' ? `#${fragment}` : `${resource.position}${fragment}`
+      const pointers = targets.get(resource.document) ?? new Set<string>()
+      pointers.add(pointer)
+      targets.set(resource.document, pointers)
     }
   }
   return targets

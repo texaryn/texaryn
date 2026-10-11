@@ -152,6 +152,32 @@ describe('createHyperjumpAdapter', () => {
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
 
+    it('keeps an unknown-keyword target inside an embedded Draft 4 resource', async () => {
+      const remoteId = 'https://e.test/remote'
+      const embeddedId = 'https://e.test/sub'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: {
+          embedded: { $ref: `${remoteId}#/definitions/sub` },
+          value: { $ref: `${embeddedId}#/contains` },
+        },
+      }, {
+        resolveResource: (uri) => uri === remoteId
+          ? {
+              id: remoteId,
+              definitions: {
+                sub: { id: embeddedId, type: 'object', contains: { type: 'string' } },
+              },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ embedded: {}, value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ embedded: {}, value: 1 })).valid).toBe(false)
+    })
+
     it('does not activate dependentSchemas in Draft 4', async () => {
       const adapter = await createHyperjumpAdapter({
         $schema: 'http://json-schema.org/draft-04/schema#',
