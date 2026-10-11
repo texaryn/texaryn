@@ -30,6 +30,8 @@ export {
 export type { InputProps, LabelProps, ErrorProps, DescriptionProps, FieldState } from './props/index.js'
 export { FormRoot } from './components/FormRoot.js'
 export type { FormRootProps } from './components/FormRoot.js'
+export { DocumentRoot } from './components/DocumentRoot.js'
+export type { DocumentRootProps, DocumentWidgetComponent } from './components/DocumentRoot.js'
 export { NodeRenderer } from './components/NodeRenderer.js'
 export { ProjectionBoundaryActions } from './components/ProjectionBoundaryActions.js'
 export type { ProjectionBoundaryActionsProps } from './components/ProjectionBoundaryActions.js'

@@ -10,7 +10,7 @@
 
 ### document
 
-> **document**: `Accessor`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\>
+> **document**: `Accessor`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\<`1`\>\>
 
 ***
 
@@ -34,4 +34,4 @@
 
 ### registry
 
-> **registry**: `Accessor`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md)\>\>
+> **registry**: `Accessor`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>

@@ -163,6 +163,7 @@ export default defineConfig({
           items: [
             { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
             { label: 'Schema adapters', slug: 'guides/schema-adapters' },
+            { label: 'Display documents', slug: 'guides/display-documents' },
             {
               label: 'JSON Schema validation compatibility',
               slug: 'guides/json-schema-conformance',

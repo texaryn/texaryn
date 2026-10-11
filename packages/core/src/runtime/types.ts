@@ -1,13 +1,48 @@
 import type { Store } from '../state/store.js'
-import type { UIDocument } from '../ir/types.js'
+import type { AnyUIDocument, UIDocument, UIDocumentV2 } from '../ir/types.js'
 import type { UIHints } from '../hints/types.js'
 import type { Command } from '../commands/types.js'
 import type { SubmissionState } from '../ir/runtime-state.js'
-import type { NodeId, MaybePromise, ValidationError, VisibleError } from '../types.js'
+import type { JsonScalar, JsonValue, NodeId, StableItemId, MaybePromise, ValidationError, VisibleError } from '../types.js'
 import type { DefaultConflict, DefaultRefusal } from '../initialization/index.js'
 
 /** Which initialization policy consumes the schema's `default` annotations. */
 export type InitializationPolicy = 'none' | 'schema-defaults'
+
+export interface UIDocumentRuntime<Document extends AnyUIDocument = AnyUIDocument, Data = unknown> {
+  readonly document: Store<Document>
+  readonly data: Store<Data>
+  destroy(): void
+}
+
+export interface DocumentCollectionRow {
+  readonly id: StableItemId
+  readonly value: JsonScalar
+  readonly cells: readonly JsonScalar[]
+}
+
+export interface DocumentActionContext {
+  readonly nodeId: NodeId
+  readonly document: UIDocumentV2
+  readonly data: JsonValue
+}
+
+export type DocumentActionHandler = (
+  args: JsonValue | undefined,
+  context: DocumentActionContext,
+) => MaybePromise<void>
+
+export interface DocumentRuntimeOptions {
+  initialData?: unknown
+  actions?: Readonly<Record<string, DocumentActionHandler>>
+}
+
+export interface DocumentRuntime extends UIDocumentRuntime<UIDocumentV2, JsonValue> {
+  replaceDocument(document: unknown): void
+  setData(data: unknown): void
+  getCollection(nodeId: NodeId): Store<readonly DocumentCollectionRow[]> | undefined
+  invokeAction(nodeId: NodeId): Promise<void>
+}
 
 /**
  * What one run of ADR-003's initialization pass did, without the data, which
@@ -74,7 +109,7 @@ export interface NodeState {
   readonly showErrors: Store<boolean>
 }
 
-export interface FormRuntime {
+export interface FormRuntime extends UIDocumentRuntime<UIDocument, unknown> {
   readonly document: Store<UIDocument>
   readonly data: Store<unknown>
   readonly submission: Store<SubmissionState>

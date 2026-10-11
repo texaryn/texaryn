@@ -2,11 +2,9 @@
 
 *From Latin texere: to weave, construct, compose.*
 
-A framework-neutral, headless runtime for declarative and dynamically generated
-interfaces. Forms are the first domain. The architecture targets general dynamic
-UI (layouts, tables, lists, actions, conditional and repeated content,
-server-driven UI, AI-generated UI) without building any of it until the form
-runtime has shipped and found users.
+A framework-neutral, headless runtime for declarative interfaces. Forms shipped
+first, and the versioned IR now also supports standalone display documents.
+Server-driven and AI-generated interfaces remain later roadmap items.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1909,8 +1907,11 @@ and follow-up review found no remaining actionable issues.
 
 ADR-012 accepts a standalone, schema independent display document runtime for
 tables, lists, layouts, text, and actions. Its implementation is in PR #214.
-ChatGPT reviewed the ADR and found no remaining actionable issues. Forms remain
-on version 1 and `FormRuntime`.
+Core runtime support and semantic renderer roots are available in React, Vue,
+Solid, Svelte, Angular, and Web Components. The pre-rebase full suite passed
+5,596 tests across 164 files. ChatGPT reviewed the ADR, runtime, and renderer
+changes and found no remaining actionable issues. Forms remain on version 1
+and `FormRuntime`.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2116,16 +2117,17 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. Continue the remaining work in
-this order:
+MUI and custom styling examples are complete. PR #210 merged Zod and TypeBox
+support. The Zod package awaits publication. Continue the remaining work in this
+order:
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, then Solid in PR #213.
-2. Non-form nodes: tables, lists, layouts and actions, as accepted in ADR-012.
+2. Non-form nodes: tables, lists, layouts and actions in PR #214.
 3. Server-driven UI tooling.
 4. AI generation tooling.
 5. Visual form builder.
-6. Drag-and-drop array reorder.
-7. Collaborative scalar editing.
+6. Drag-and-drop array reorder in PR #214.
+7. Collaborative scalar editing in PR #214.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 

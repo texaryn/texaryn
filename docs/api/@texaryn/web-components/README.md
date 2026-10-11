@@ -8,6 +8,11 @@
 
 ## Interfaces
 
+- [DocumentDomWidget](interfaces/DocumentDomWidget.md)
+- [DocumentMount](interfaces/DocumentMount.md)
+- [DocumentMountOptions](interfaces/DocumentMountOptions.md)
+- [DocumentNodeBinding](interfaces/DocumentNodeBinding.md)
+- [DocumentRenderContext](interfaces/DocumentRenderContext.md)
 - [DomWidget](interfaces/DomWidget.md)
 - [ErrorSummaryMount](interfaces/ErrorSummaryMount.md)
 - [ErrorSummaryOptions](interfaces/ErrorSummaryOptions.md)
@@ -19,6 +24,7 @@
 
 ## Type Aliases
 
+- [DocumentWidgetFactory](type-aliases/DocumentWidgetFactory.md)
 - [WidgetFactory](type-aliases/WidgetFactory.md)
 
 ## Functions
@@ -28,6 +34,7 @@
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [defineTexarynForm](functions/defineTexarynForm.md)
 - [makeId](functions/makeId.md)
+- [mountDocument](functions/mountDocument.md)
 - [mountErrorSummary](functions/mountErrorSummary.md)
 - [mountForm](functions/mountForm.md)
 - [numberInput](functions/numberInput.md)

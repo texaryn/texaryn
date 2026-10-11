@@ -1,0 +1,127 @@
+---
+title: Display documents
+description: Build standalone lists, tables, layouts, text and actions with the version 2 UI document runtime.
+---
+
+Texaryn form documents stay on version 1 and use `FormRuntime`. Version 2 is a
+standalone display document for text, groups, layouts, lists, tables and host
+actions. It does not contain editable form fields or use a JSON Schema adapter.
+
+## Create a display document
+
+`createDocumentRuntime` validates the whole document and its current data before
+returning a runtime. A list or table points to an array in `dataPointer`. Its
+value and column pointers are evaluated against each row.
+
+```ts
+import { createDocumentRuntime } from '@texaryn/core'
+
+const runtime = createDocumentRuntime(
+  {
+    version: 2,
+    rootId: 'root',
+    nodes: {
+      root: {
+        id: 'root',
+        type: 'container',
+        parentId: null,
+        annotations: { title: 'Directory' },
+        containerType: 'group',
+        children: ['title', 'people', 'table', 'refresh'],
+      },
+      title: {
+        id: 'title',
+        type: 'text',
+        parentId: 'root',
+        annotations: {},
+        textRole: 'heading',
+        content: 'People',
+      },
+      people: {
+        id: 'people',
+        type: 'list',
+        parentId: 'root',
+        annotations: {},
+        collectionId: 'people-list',
+        dataPointer: '/people',
+        valuePointer: '/name',
+        rowKeyPointer: '/id',
+      },
+      table: {
+        id: 'table',
+        type: 'table',
+        parentId: 'root',
+        annotations: {},
+        collectionId: 'people-table',
+        dataPointer: '/people',
+        rowKeyPointer: '/id',
+        columns: [
+          { id: 'name', label: 'Name', valuePointer: '/name' },
+          { id: 'role', label: 'Role', valuePointer: '/role' },
+        ],
+      },
+      refresh: {
+        id: 'refresh',
+        type: 'action',
+        parentId: 'root',
+        annotations: {},
+        actionType: 'refresh-directory',
+        label: 'Refresh',
+        buttonRole: 'button',
+      },
+    },
+  },
+  {
+    initialData: {
+      people: [
+        { id: 'p1', name: 'Ada', role: 'Engineer' },
+        { id: 'p2', name: 'Grace', role: 'Engineer' },
+      ],
+    },
+    actions: {
+      'refresh-directory': async (_args, context) => {
+        await fetch('/api/directory/refresh', { method: 'POST' })
+        console.log(context.data)
+      },
+    },
+  },
+)
+```
+
+Collection rows can be any JSON values in lists. The selected list value and
+table cells must be scalar, null, or missing. Missing and null values render
+empty. A configured row key must resolve to a unique string or finite number
+for every row. With no row key, a data replacement starts a new row identity
+lifetime.
+
+An update is validated before it is published. `setData` throws and retains the
+previous data and collection identities when a source has the wrong shape, a
+selected value is an object or array, or a row key is invalid. `replaceDocument`
+does the same for invalid trees. Column IDs must be unique within a table.
+
+## Render the document
+
+The framework roots use semantic HTML and observe collection updates from the
+same runtime.
+
+```tsx
+import { DocumentRoot } from '@texaryn/react'
+
+export function Directory() {
+  return <DocumentRoot runtime={runtime} />
+}
+```
+
+The other packages export `DocumentRoot` for Vue, Solid and Svelte. Angular
+uses `<texaryn-document-root [runtime]="runtime" />`. The Web Components
+package exposes `mountDocument(container, runtime)`, which borrows the runtime
+and returns an object with `unmount()`.
+
+Call `runtime.setData(nextData)` to update the display. Register action handlers
+on the host when creating the runtime. The runtime rejects an action name that
+has no host handler. Hosts should validate action arguments and authorization
+before performing an operation.
+
+Custom registries can override rendering by semantic node type. A document
+cannot select a framework component by name. Layout nodes describe ordered
+structure, while each renderer selects its own markup and spacing.

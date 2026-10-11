@@ -10,6 +10,7 @@
 
 - [ArrayActions](interfaces/ArrayActions.md)
 - [DescriptionProps](interfaces/DescriptionProps.md)
+- [DocumentRootProps](interfaces/DocumentRootProps.md)
 - [DomCheckedInputProps](interfaces/DomCheckedInputProps.md)
 - [DomInputBaseProps](interfaces/DomInputBaseProps.md)
 - [DomValueInputProps](interfaces/DomValueInputProps.md)
@@ -33,6 +34,7 @@
 
 ## Type Aliases
 
+- [DocumentWidgetComponent](type-aliases/DocumentWidgetComponent.md)
 - [WidgetComponent](type-aliases/WidgetComponent.md)
 
 ## Variables
@@ -49,6 +51,7 @@
 ## Functions
 
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
+- [DocumentRoot](functions/DocumentRoot.md)
 - [ErrorSummary](functions/ErrorSummary.md)
 - [FieldErrors](functions/FieldErrors.md)
 - [FieldLabelContent](functions/FieldLabelContent.md)

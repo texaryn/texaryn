@@ -2,6 +2,15 @@ export type { TexarynFormElement } from './element.js'
 export { defineTexarynForm } from './define.js'
 export { mountForm } from './mount.js'
 export type { Mount, MountOptions } from './mount.js'
+export { mountDocument } from './document.js'
+export type {
+  DocumentDomWidget,
+  DocumentMount,
+  DocumentMountOptions,
+  DocumentNodeBinding,
+  DocumentRenderContext,
+  DocumentWidgetFactory,
+} from './document.js'
 export { mountErrorSummary } from './summary.js'
 export type { ErrorSummaryMount, ErrorSummaryOptions } from './summary.js'
 export { createDefaultRegistry } from './registry.js'

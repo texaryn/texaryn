@@ -6,17 +6,29 @@
 
 # Interface: FormRuntime
 
+## Extends
+
+- [`UIDocumentRuntime`](UIDocumentRuntime.md)\<[`UIDocument`](UIDocument.md), `unknown`\>
+
 ## Properties
 
 ### data
 
 > `readonly` **data**: [`Store`](Store.md)\<`unknown`\>
 
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`data`](UIDocumentRuntime.md#data-1)
+
 ***
 
 ### document
 
-> `readonly` **document**: [`Store`](Store.md)\<[`UIDocument`](UIDocument.md)\>
+> `readonly` **document**: [`Store`](Store.md)\<[`UIDocument`](UIDocument.md)\<`1`\>\>
+
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`document`](UIDocumentRuntime.md#document-1)
 
 ***
 
@@ -63,6 +75,10 @@ rather than one run over data.
 #### Returns
 
 `void`
+
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`destroy`](UIDocumentRuntime.md#destroy)
 
 ***
 
