@@ -1,3 +1,6 @@
+ignore:
+  - packages/angular/src/__tests__/angular-adapter.ts
+
 coverage:
   status:
     project:
