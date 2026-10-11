@@ -38,7 +38,7 @@ export default defineConfig({
         'packages/react-bootstrap/src/**',
         'packages/react-mui/src/**',
         'packages/vue/src/**',
-        'packages/angular/src/**',
+        'packages/angular/dist/**/*.js',
         'packages/web-components/src/**',
         'packages/hints-rjsf/src/**',
       ],
