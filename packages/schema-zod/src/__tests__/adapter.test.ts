@@ -25,6 +25,54 @@ describe('createZodAdapter', () => {
     expect(adapter.project({}).nodes.has('/name' as JsonPointer)).toBe(true)
   })
 
+  it('maps Zod issue codes and bounds to JSON Schema keywords', async () => {
+    const adapter = await createZodAdapter(
+      z.object({
+        email: z.email(),
+        constant: z.literal('fixed'),
+        choice: z.enum(['first', 'second']),
+        strict: z.object({ known: z.string() }).strict(),
+        multiple: z.number().multipleOf(0.5),
+        maxString: z.string().max(2),
+        minArray: z.array(z.string()).min(2),
+        maxArray: z.array(z.string()).max(1),
+        minNumber: z.number().min(1),
+        exclusiveMin: z.number().gt(1),
+        maxNumber: z.number().max(1),
+        exclusiveMax: z.number().lt(1),
+      }),
+    )
+    const result = await adapter.validate({
+      email: 'invalid',
+      constant: 'other',
+      choice: 'third',
+      strict: { known: 'ok', extra: true },
+      multiple: 1.2,
+      maxString: 'long',
+      minArray: [],
+      maxArray: ['first', 'second'],
+      minNumber: 0,
+      exclusiveMin: 1,
+      maxNumber: 2,
+      exclusiveMax: 1,
+    })
+
+    expect(result.errors.map(({ instancePointer, keyword }) => [instancePointer, keyword])).toEqual([
+      ['/email', 'format'],
+      ['/constant', 'const'],
+      ['/choice', 'enum'],
+      ['/strict', 'additionalProperties'],
+      ['/multiple', 'multipleOf'],
+      ['/maxString', 'maxLength'],
+      ['/minArray', 'minItems'],
+      ['/maxArray', 'maxItems'],
+      ['/minNumber', 'minimum'],
+      ['/exclusiveMin', 'exclusiveMinimum'],
+      ['/maxNumber', 'maximum'],
+      ['/exclusiveMax', 'exclusiveMaximum'],
+    ])
+  })
+
   it('validates with Zod and preserves async refinements and custom messages', async () => {
     const schema = z.object({
       code: z.string().refine(async (value) => value === 'approved', 'Code is not approved'),
@@ -54,6 +102,16 @@ describe('createZodAdapter', () => {
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]?.instancePointer).toBe('/a~1b~0c')
     expect(result.errors[0]?.keyword).toBe('minLength')
+  })
+
+  it('returns all errors for the root pointer and no errors for an unrelated pointer', async () => {
+    const adapter = await createZodAdapter(z.object({ name: z.string().min(2) }))
+
+    const rootResult = await adapter.validateAt({ name: '' }, '' as JsonPointer)
+    const unrelatedResult = await adapter.validateAt({ name: '' }, '/other' as JsonPointer)
+
+    expect(rootResult.errors).toHaveLength(1)
+    expect(unrelatedResult).toEqual({ valid: true, errors: [] })
   })
 
   it('keeps nested union branch failures visible to validateAt', async () => {
@@ -125,6 +183,71 @@ describe('createZodAdapter', () => {
     const result = await adapter.validate('value')
 
     expect(result.errors.filter((error) => error.keyword === 'custom')).toHaveLength(2)
+  })
+
+  it('merges union failures using type aware stable parameters', async () => {
+    const withValue = (value: unknown) =>
+      z.string().superRefine((_input, context) => {
+        context.addIssue({ code: 'custom', message: 'Equivalent value', params: { value } })
+      })
+    const nullPrototypeA = Object.assign(Object.create(null) as Record<string, unknown>, {
+      nested: [null, true],
+    })
+    const nullPrototypeB = Object.assign(Object.create(null) as Record<string, unknown>, {
+      nested: [null, true],
+    })
+    const shared = { nested: 'value' }
+    const sharedGraph = { first: shared, second: shared }
+    const repeatedGraph = { first: { nested: 'value' }, second: { nested: 'value' } }
+    const schema = z.union([
+      withValue(null),
+      withValue(null),
+      withValue('text'),
+      withValue('text'),
+      withValue(true),
+      withValue(true),
+      withValue(-0),
+      withValue(-0),
+      withValue(0),
+      withValue(0),
+      withValue(12n),
+      withValue(12n),
+      withValue(undefined),
+      withValue(undefined),
+      withValue([1, 'nested']),
+      withValue([1, 'nested']),
+      withValue({ second: 2, first: 'ordered' }),
+      withValue({ first: 'ordered', second: 2 }),
+      withValue(nullPrototypeA),
+      withValue(nullPrototypeB),
+      withValue(sharedGraph),
+      withValue(repeatedGraph),
+    ])
+    const adapter = await createZodAdapter(schema)
+    const result = await adapter.validate('value')
+
+    expect(result.errors).toHaveLength(11)
+  })
+
+  it('preserves union failures with values that cannot be serialized safely', async () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+    const withValue = (value: unknown) =>
+      z.string().superRefine((_input, context) => {
+        context.addIssue({ code: 'custom', message: 'Unsafe value', params: { value } })
+      })
+    const schema = z.union([
+      withValue(Symbol('value')),
+      withValue(() => 'value'),
+      withValue(new Date(0)),
+      withValue(circular),
+      withValue([() => 'value']),
+      withValue({ nested: () => 'value' }),
+    ])
+    const adapter = await createZodAdapter(schema)
+    const result = await adapter.validate('value')
+
+    expect(result.errors.filter((error) => error.keyword === 'custom')).toHaveLength(6)
   })
 
   it('uses the input schema for transforms while leaving validation to Zod', async () => {
