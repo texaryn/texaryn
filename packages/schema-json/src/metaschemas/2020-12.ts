@@ -7,7 +7,7 @@
 //
 // Loaded only when a schema actually references one of these URIs, so a form
 // that never asks "is this itself a valid schema?" does not carry them.
-import type { JsonSchema } from 'json-schema-library'
+import type { JsonSchema } from '@texaryn/json-schema-library'
 
 /** The 2020-12 metaschema and every vocabulary document it references. */
 export const metaschemas: JsonSchema[] = [

@@ -958,7 +958,7 @@
       "2020-12": {
         "mandatory": {
           "total": 1301,
-          "passed": 1278
+          "passed": 1279
         },
         "optional": {
           "total": 1023,
@@ -1451,18 +1451,10 @@
           "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with correct field": {
             "reason": "external-resource-resolver-not-configured",
             "outcome": {
-              "kind": "validate-error",
-              "errorName": "TypeError"
+              "kind": "wrong-validity",
+              "actual": false
             },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
-          },
-          "dynamicRef.json :: strict-tree schema, guards against misspelled properties :: instance with misspelled field": {
-            "reason": "external-resource-resolver-not-configured",
-            "outcome": {
-              "kind": "validate-error",
-              "errorName": "TypeError"
-            },
-            "note": "Dynamic anchor resolution depends on a base document served from http://localhost:1234. The suite runner supplies no resource resolver, so the referenced resource is unavailable to the adapter."
+            "note": "The suite runner supplies no resolver for tree.json at http://localhost:1234. The correct instance therefore remains invalid, while the misspelled instance happens to match its expected invalid result."
           },
           "dynamicRef.json :: tests for implementation dynamic anchor and reference link :: correct extended schema": {
             "reason": "external-resource-resolver-not-configured",

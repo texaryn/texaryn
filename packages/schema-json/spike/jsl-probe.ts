@@ -8,7 +8,7 @@
  *
  * Run with: npx tsx spike/jsl-probe.ts (from packages/schema-json/)
  */
-import { compileSchema, type SchemaNode } from 'json-schema-library'
+import { compileSchema, type SchemaNode } from '@texaryn/json-schema-library'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'

@@ -1,4 +1,4 @@
-import type { JsonSchema } from 'json-schema-library'
+import type { JsonSchema } from '@texaryn/json-schema-library'
 import type { Dialect } from '../dialect.js'
 
 /**

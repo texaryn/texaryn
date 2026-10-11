@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, posix } from 'node:path'
 import { tmpdir } from 'node:os'
 import { publishedPackages } from './packages.mjs'
 
@@ -76,7 +76,16 @@ for (const pkg of packages) {
         `tar xzf ${tarball} -O package/dist/vendor/json-schema-library/index.mjs`,
         { encoding: 'utf8' },
       )
-      if (!vendoredRuntime.includes('if(error)return;') || !vendoredRuntime.includes('if(d.error){error=d.error;return}')) {
+      const runtimeBase = 'package/dist/vendor/json-schema-library'
+      const runtimeImports = [...vendoredRuntime.matchAll(/(?:\bfrom\s*|\bimport\s*\()(["'])(\.\.?\/[^"']+\.mjs)\1/g)]
+      for (const [, , specifier] of runtimeImports) {
+        const file = posix.join(runtimeBase, specifier)
+        if (!files.includes(file)) {
+          console.error(`MISSING: ${file}`)
+          failed = true
+        }
+      }
+      if (!vendoredRuntime.includes('if(!d)return f;')) {
         console.error('schema-json vendor is missing the dependent schema reduction fix')
         failed = true
       }
@@ -129,7 +138,6 @@ for (const pkg of packages) {
         '@sagold/json-pointer',
         'fast-copy',
         'fast-deep-equal',
-        'uri-js',
         'valid-url',
       ]
       for (const dependency of runtimeDependencies) {

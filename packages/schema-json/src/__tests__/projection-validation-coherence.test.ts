@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createJsonSchemaAdapter, ProjectionValidationDivergenceError } from '../index.js'
-import { withoutUnreachableBranches } from '../normalize.js'
+import { createJsonSchemaAdapter } from '../index.js'
 import type { Dialect } from '../dialect.js'
 import type { JsonPointer } from '@texaryn/core'
 
@@ -79,7 +78,7 @@ const cases = [
 describe('projection and validation reference targets', () => {
   it.each(dialects.flatMap(([dialect, $schema]) =>
     cases.map((testCase) => [`${testCase.label} in ${dialect}`, dialect, $schema, testCase] as const),
-  ))('%s fails closed when validation resolves a different schema', async (_label, dialect, $schema, testCase) => {
+  ))('%s validates through the declared reference target', async (_label, dialect, $schema, testCase) => {
     const schema = {
       $schema,
       type: 'object',
@@ -89,23 +88,14 @@ describe('projection and validation reference targets', () => {
         result: { $ref: '#/properties/value' },
       },
     }
-    const normalized = withoutUnreachableBranches(schema) as Record<string, unknown>
-    const projectedAdapter = await createJsonSchemaAdapter(normalized, { defaultDialect: dialect })
-    const projected = projectedAdapter.project({})
+    const adapter = await createJsonSchemaAdapter(schema, { defaultDialect: dialect })
+    const projected = adapter.project({})
     const node = projected.nodes.get('/result' as JsonPointer)
 
     expect(node?.type).toBe(testCase.type)
     if (testCase.keyword === 'minimum') expect(node?.constraints.minimum).toBe(0)
     if (testCase.keyword === 'minLength') expect(node?.constraints.minLength).toBe(1)
-    expect((await projectedAdapter.validate({ result: testCase.value })).valid).toBe(true)
-
-    const error = await createJsonSchemaAdapter(schema, { defaultDialect: dialect }).catch((caught: unknown) => caught)
-    expect(error).toBeInstanceOf(ProjectionValidationDivergenceError)
-    expect(error).toMatchObject({
-      sourcePosition: '#/properties/result',
-      validationPosition: '#/then/properties/value',
-      projectionPosition: '#/properties/value',
-    })
+    expect((await adapter.validate({ result: testCase.value })).valid).toBe(true)
   })
 
   it('accepts equivalent targets under escaped keys and prefix items', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { compileSchema, type JsonSchema } from 'json-schema-library'
+import { compileSchema, type JsonSchema } from '@texaryn/json-schema-library'
 import { DRAFTS } from '../bare-maps.js'
 
 const compile = (schema: object, draft = 'draft-2020-12') =>

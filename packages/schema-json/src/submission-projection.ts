@@ -1,4 +1,4 @@
-import { isSchemaNode, type SchemaNode } from 'json-schema-library'
+import { isSchemaNode, type SchemaNode } from '@texaryn/json-schema-library'
 import type { Dialect } from './dialect.js'
 
 const SCHEMA_SINGLE = new Set([
@@ -157,12 +157,28 @@ function selectedByAdditionalProperties(
   key: string,
   dialect: Dialect,
 ): boolean {
-  const ancestors = new Set<string>()
+  const selectedPaths = new Set<string>()
   for (let node: SchemaNode | undefined = selected; node; node = node.parent) {
-    ancestors.add(JSON.stringify([node.schemaLocation, node.evaluationPath]))
+    selectedPaths.add(JSON.stringify([node.schemaLocation, node.evaluationPath]))
   }
   const candidates = additionalPropertiesForKey([projection], key, dialect)
-  return candidates.some((node) => ancestors.has(JSON.stringify([node.schemaLocation, node.evaluationPath])))
+  return candidates.some((candidate) => {
+    const visited = new Set<string>()
+    for (let node: SchemaNode | undefined = candidate; node; ) {
+      const position = JSON.stringify([node.schemaLocation, node.evaluationPath])
+      if (selectedPaths.has(position)) return true
+      if (
+        node.schemaLocation === selected.schemaLocation &&
+        selected.evaluationPath.startsWith(`${node.evaluationPath}/`)
+      ) {
+        return true
+      }
+      if (visited.has(position) || typeof node.$ref !== 'string') return false
+      visited.add(position)
+      node = resolveReference(node)
+    }
+    return false
+  })
 }
 
 function schemasForItem(scopes: readonly SchemaNode[], index: number, dialect: Dialect): SchemaNode[] {

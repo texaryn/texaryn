@@ -6,7 +6,7 @@ import {
   type JsonSchema,
   type BooleanSchema,
   type ValidationPath,
-} from 'json-schema-library'
+} from '@texaryn/json-schema-library'
 import type {
   SchemaProjection,
   MaybePromise,
@@ -25,7 +25,6 @@ import { assertProjectionValidationCoherence } from './projection-validation-coh
 import { projectSubmissionData, supportsSubmissionProjection } from './submission-projection.js'
 import { withoutUnreachableBranches } from './normalize.js'
 import { DRAFTS } from './bare-maps.js'
-import { fixRootReference } from './root-reference.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions, POSITION } from './schema-graph.js'
 import { pointerResolver, type PointerResolver } from './instance-pointer.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
@@ -542,7 +541,6 @@ async function prepareSchema(
     formatAssertion,
     remotes: remotes?.map((remote) => materializeLocalPointerAliases(remote, dialect, true) as JsonSchema),
   })
-  fixRootReference(root, dialect)
   return root
 }
 

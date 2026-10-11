@@ -18,8 +18,11 @@ source while keeping Texaryn specific projection behavior in the adapter.
 
 The fork now contains the reference registry and nested reduction fixes in
 [PR #1](https://github.com/texaryn/json-schema-library/pull/1). Its GitHub test
-jobs pass. Version 11.6.6 is prepared but not on npm yet, and the published
-adapter has not adopted it.
+jobs pass. Version [11.6.6 is published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library/v/11.6.6)
+with a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
+The current monorepo integration branch replaces upstream 11.6.2 and removes
+the adapter's packaged workaround. Published `@texaryn/schema-json` 0.8.1 stays
+on upstream until that integration is merged and released.
 
 The repository also contains a private Hyperjump adapter. It is useful for
 cross implementation conformance checks, but it has different compilation and
@@ -77,6 +80,11 @@ cannot meet a required JSON Schema dialect contract, it cannot receive critical
 security fixes, or the product contract changes to require formal annotation
 collection as its projection source. A phase boundary by itself is not a
 reason to reconsider the engine.
+
+The 11.6.6 release workflow skips publishing an already existing immutable npm
+version and still creates its GitHub release. Configure npm trusted publishing
+immediately before the next new fork version, then validate it with that
+version's first OIDC publish.
 
 ## Consequences
 
