@@ -13,6 +13,7 @@
 // when built.
 export const publishedPackages = [
   { name: '@texaryn/core', dir: 'packages/core', expectedExport: 'createFormRuntime' },
+  { name: '@texaryn/angular', dir: 'packages/angular', expectedExport: 'createForm' },
   { name: '@texaryn/schema-json', dir: 'packages/schema-json', expectedExport: 'createJsonSchemaAdapter' },
   { name: '@texaryn/schema-zod', dir: 'packages/schema-zod', expectedExport: 'createZodAdapter' },
   { name: '@texaryn/react', dir: 'packages/react', expectedExport: 'useForm' },

@@ -3,6 +3,7 @@
   "entryPointStrategy": "packages",
   "entryPoints": [
     "packages/core",
+    "packages/angular",
     "packages/schema-json",
     "packages/schema-zod",
     "packages/react",
