@@ -244,6 +244,31 @@ function hasPreservedTarget(position: string, preservedPointers: ReadonlySet<str
   return false
 }
 
+function valueAtPointer(document: unknown, pointer: string): unknown {
+  let fragment = pointer.startsWith('#') ? pointer.slice(1) : pointer
+  try {
+    fragment = decodeURIComponent(fragment)
+  } catch {
+    // Keep malformed URI escapes as authored so the validator can report them.
+  }
+  if (fragment === '') return document
+  if (!fragment.startsWith('/')) return undefined
+  let value = document
+  for (const rawSegment of fragment.slice(1).split('/')) {
+    const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+    if (Array.isArray(value)) {
+      const index = Number(segment)
+      if (!Number.isInteger(index) || index < 0 || index >= value.length) return undefined
+      value = value[index]
+    } else if (isRecord(value) && Object.hasOwn(value, segment)) {
+      value = value[segment]
+    } else {
+      return undefined
+    }
+  }
+  return value
+}
+
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
   if (reference.startsWith('#')) return reference.slice(1)
   if (base === undefined) return undefined
@@ -522,7 +547,13 @@ export function materializeLocalPointerAliases(
     setOwn(schema, '$ref', reference)
   }
 
-  if (dialect === 'draft-04') stripDraft04UnknownSchemaKeywords(document, '#', preservedUnknownPointers)
+  if (dialect === 'draft-04') {
+    const visited = new WeakMap<object, Set<string>>()
+    stripDraft04UnknownSchemaKeywords(document, '#', preservedUnknownPointers, visited)
+    for (const pointer of preservedUnknownPointers) {
+      stripDraft04UnknownSchemaKeywords(valueAtPointer(document, pointer), pointer, preservedUnknownPointers, visited)
+    }
+  }
 
   return document
 }
