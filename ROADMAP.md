@@ -16,12 +16,17 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
+The `@texaryn/svelte` implementation is in
+[PR #212](https://github.com/texaryn/texaryn/pull/212), now based on `main`
+after Angular PR #211 merged. It adds Svelte 5 store bindings, a default
+component registry, package and site documentation, playground integration,
+and shared example conformance coverage. Its checks are running against `main`.
+
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
-`@texaryn/schema-json`. PR #207 merged that dependency change and PR #208
-created the 0.8.2 release. All release checks passed; the publish job is
-waiting for approval in the protected `npm-release` environment. The private
+`@texaryn/schema-json`. PR #207 merged that dependency change, and PR #208
+published version 0.8.2. The private
 Hyperjump adapter is a CI comparison implementation, not a planned production
 migration.
 
@@ -30,10 +35,9 @@ The source fixes and release setup are merged to the Texaryn fork as
 is [published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library/v/11.6.6)
 and has a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
 Merged PR #207 replaces the upstream dependency, removes the packaged
-workaround, and adds a patch changeset for `@texaryn/schema-json`. Build,
-typecheck, the full test suite, package verification, and main CI passed. The
-published adapter remains at 0.8.1 on upstream 11.6.2 until the 0.8.2 publish
-job completes.
+workaround, and adds a patch changeset for `@texaryn/schema-json`. PR #208
+published `@texaryn/schema-json` 0.8.2 against fork version 11.6.6. Build,
+typecheck, the full test suite, package verification, and main CI passed.
 
 ## Table of Contents
 
@@ -418,16 +422,15 @@ Each is a distinct representation with a distinct owner.
 C4Component
   title Texaryn JSON Schema engine boundary
 
-  System_Ext(currentEngine, "json-schema-library 11.6.2", "Engine in published adapter 0.8.1")
-  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published fork, adopted by merged PR #207")
+  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published production engine, adopted by merged PR #207")
   System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
 
   Container_Boundary(texaryn, "Texaryn workspace") {
     Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
-    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.1, 0.8.2 publish pending", "Merged adapter source uses the fork and builds Texaryn projections and validation results")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.2", "Builds Texaryn projections and validation results with the maintained fork")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
-    Component(renderers, "React, Vue, and Web Components", "Renderer packages", "Consume core runtime state")
+    Component(renderers, "React, Vue, Angular, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
   }
 
   Rel(core, port, "defines")
@@ -436,8 +439,7 @@ C4Component
   Rel(renderers, core, "depends on")
   Rel(productionAdapter, port, "implements")
   Rel(comparisonAdapter, port, "implements for CI comparison")
-  Rel(productionAdapter, currentEngine, "published 0.8.1 uses")
-  Rel(productionAdapter, forkEngine, "merged adapter source uses")
+  Rel(productionAdapter, forkEngine, "published 0.8.2 uses")
   Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
@@ -1247,10 +1249,8 @@ The schema evaluation port is defined in `@texaryn/core` (interface only).
 The supported production implementation and the private CI comparison
 implementation live in separate packages:
 
-1. `@texaryn/schema-json`: published production adapter. Version 0.8.1 pins
-   upstream `json-schema-library` 11.6.2. Merged PR #207 updates the adapter
-   source to the Texaryn maintained fork. Version 0.8.2 awaits the protected
-   npm publish job.
+1. `@texaryn/schema-json`: published production adapter. Version 0.8.2 uses
+   the Texaryn maintained `json-schema-library` fork at version 11.6.6.
 2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
    supported production option or a planned migration target.
 
@@ -1885,9 +1885,19 @@ packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
 support and TypeBox integration; the release workflow has not published the
-Zod package yet. Angular is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211),
-Svelte in [PR #212](https://github.com/texaryn/texaryn/pull/212), and Solid in
-[PR #213](https://github.com/texaryn/texaryn/pull/213).
+Zod package yet. Angular source merged in [PR #211](https://github.com/texaryn/texaryn/pull/211).
+Svelte is in [PR #212](https://github.com/texaryn/texaryn/pull/212), retargeted
+to `main` after the Angular merge. Solid is in [PR #213](https://github.com/texaryn/texaryn/pull/213),
+stacked on Svelte.
+
+The Svelte 5 renderer in PR #212 passed build, typecheck, package verification,
+coverage, and site build before its retarget to `main`. Its checks are running
+again against the merged Angular renderer. ChatGPT review found a runtime
+replacement edge case in `FormRoot`; the binding and teardown behavior now
+follow the active form and a regression test covers replacement. Follow-up
+ChatGPT review confirmed the finding is resolved. The SolidJS renderer in PR
+#213 remains stacked on #212. Its earlier build, typecheck, package
+verification, full suite, and site build passed before the stack update.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is

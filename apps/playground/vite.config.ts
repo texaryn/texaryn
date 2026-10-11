@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { PLAYGROUND_PATH } from '../../site.config.mjs'
 import { themeBootScript } from '../../theme.config.mjs'
 
@@ -39,5 +40,5 @@ function themeBoot(): Plugin {
 // server can resolve them.
 export default defineConfig(({ mode }) => ({
   base: mode === 'pages' ? PLAYGROUND_PATH : '/playground/',
-  plugins: [themeBoot(), tailwindcss(), react()],
+  plugins: [themeBoot(), tailwindcss(), svelte(), react()],
 }))
