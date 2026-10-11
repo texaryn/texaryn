@@ -1878,7 +1878,7 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The other items remain deferred.
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Angular renderer is implemented in this branch; remaining work follows below.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
@@ -2085,11 +2085,11 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. Keep the remaining work deferred
-until the project has users:
+MUI and custom styling examples are complete. Angular is the current renderer
+milestone; keep the other items deferred until the project has users:
 
 - Additional schema adapters (Zod, TypeBox)
-- Additional renderers (Angular, Svelte, Solid)
+- Additional renderers (Svelte, Solid)
 - Non-form node types (tables, lists, layouts)
 - Server-driven UI tooling
 - AI generation tooling

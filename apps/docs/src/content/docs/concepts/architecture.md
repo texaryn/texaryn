@@ -13,6 +13,7 @@ one can be understood without reading the others.
 | `@texaryn/core` | The framework-neutral runtime: IR, commands, validation and submission lifecycle |
 | `@texaryn/schema-json` | JSON Schema evaluation behind the schema port, across three dialects |
 | `@texaryn/react` | The React binding: hooks, prop getters and the default widgets |
+| `@texaryn/angular` | The Angular binding: signals, standalone components and the default widgets |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets over the React binding |
 | `@texaryn/react-mui` | Material UI v9 widgets over the React binding |
 | `@texaryn/vue` | The Vue 3 binding: composables, provide and inject context, and the default widgets |

@@ -1,7 +1,9 @@
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, posix } from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { publishedPackages } from './packages.mjs'
 
 const packages = publishedPackages
@@ -159,7 +161,30 @@ for (const pkg of packages) {
         failed = true
       }
     }
+    if (pkg.name === '@texaryn/angular') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      for (const dependency of ['@angular/common', '@angular/compiler', '@angular/core']) {
+        const source = join(process.cwd(), pkg.dir, 'node_modules', dependency)
+        const target = join(isolatedNodeModules, dependency)
+        if (!existsSync(source)) {
+          console.error(`MISSING workspace peer dependency: ${dependency}`)
+          failed = true
+          continue
+        }
+        mkdirSync(dirname(target), { recursive: true })
+        symlinkSync(source, target, 'dir')
+      }
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+    }
     try {
+      if (pkg.name === '@texaryn/angular') {
+        // The package is partially compiled. The plain Node smoke test uses
+        // Angular's JIT fallback, while application builds use the linker.
+        const consumerRequire = createRequire(join(extractDir, 'package', 'package.json'))
+        await import(pathToFileURL(consumerRequire.resolve('@angular/compiler')).href)
+      }
       const mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
       if (!(pkg.expectedExport in mod)) {
         console.error(`Expected export "${pkg.expectedExport}" not found in ${pkg.name}`)

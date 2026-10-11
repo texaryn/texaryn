@@ -18,6 +18,7 @@ const alias = {
   '@texaryn/react-bootstrap': resolve(root, 'packages/react-bootstrap/src/index.ts'),
   '@texaryn/react-mui': resolve(root, 'packages/react-mui/src/index.ts'),
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
+  '@texaryn/angular': resolve(root, 'packages/angular/dist/index.js'),
   '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
   '@texaryn/hints-rjsf': resolve(root, 'packages/hints-rjsf/src/index.ts'),
   '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
@@ -37,6 +38,7 @@ export default defineConfig({
         'packages/react-bootstrap/src/**',
         'packages/react-mui/src/**',
         'packages/vue/src/**',
+        'packages/angular/src/**',
         'packages/web-components/src/**',
         'packages/hints-rjsf/src/**',
       ],
@@ -109,6 +111,15 @@ export default defineConfig({
         test: {
           name: 'vue',
           root: 'packages/vue',
+          include: ['src/**/*.test.ts'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'angular',
+          root: 'packages/angular',
           include: ['src/**/*.test.ts'],
           environment: 'jsdom',
         },
