@@ -2514,8 +2514,9 @@ because they require an explicit cross-process and persistence contract.
 
 3. **Validation scheduling.** Resolved in
    [`packages/core/src/runtime/validation-scheduler.ts`](packages/core/src/runtime/validation-scheduler.ts).
-   Change validation is debounced by 300 milliseconds. Blur and submit validate
-   immediately. Per-field hints select the trigger.
+   Change validation is debounced by 300 milliseconds by default, configurable
+   through `validationDebounceMs`. Blur and submit validate immediately.
+   Per-field hints select the trigger.
 
 4. **React binding lifecycle.** Resolved. React Context provides the runtime to
    nested components, and `useSyncExternalStore` connects components to core
