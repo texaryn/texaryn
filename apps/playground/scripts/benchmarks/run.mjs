@@ -278,7 +278,7 @@ function shuffle(values) {
   return result
 }
 
-async function openBenchmarkPage(browser, origin, fieldCount) {
+async function openBenchmarkPage(browser, origin, fieldCount, suite) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
   const pageErrors = []
   const consoleErrors = []
@@ -286,7 +286,8 @@ async function openBenchmarkPage(browser, origin, fieldCount) {
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
-  const response = await page.goto(`${origin}/benchmarks/?fields=${fieldCount}`, { waitUntil: 'load' })
+  const suiteQuery = suite ? `&suite=${suite}` : ''
+  const response = await page.goto(`${origin}/benchmarks/?fields=${fieldCount}${suiteQuery}`, { waitUntil: 'load' })
   try {
     await page.waitForFunction(
       () => window.__texarynBenchReady === true || window.__texarynBenchError,
@@ -338,7 +339,7 @@ async function waitForConditionalState(page, enabled) {
   )
 }
 
-async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts) {
+async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts, includePreparation) {
   const samples = []
 
   for (let cycle = 0; cycle < warmupMounts; cycle++) {
@@ -347,12 +348,19 @@ async function measureRendererMounts(page, renderer, warmupMounts, measuredMount
   }
 
   for (let sample = 0; sample < measuredMounts; sample++) {
-    await prepareRenderer(page, renderer)
-    const elapsed = await page.evaluate(async () => {
-      const startedAt = performance.now()
-      await window.__texarynBench.mount()
-      return performance.now() - startedAt
-    })
+    const elapsed = includePreparation
+      ? await page.evaluate(async (name) => {
+          const startedAt = performance.now()
+          await window.__texarynBench.prepare(name)
+          await window.__texarynBench.mount()
+          return performance.now() - startedAt
+        }, renderer)
+      : await page.evaluate(async (name) => {
+          await window.__texarynBench.prepare(name)
+          const startedAt = performance.now()
+          await window.__texarynBench.mount()
+          return performance.now() - startedAt
+        }, renderer)
     samples.push(elapsed)
     await unmountRenderer(page)
   }
@@ -404,8 +412,8 @@ async function measureRendererTransitions(page, renderer, warmupCycles, transiti
   return { activations, removals }
 }
 
-async function runRendererTrial(browser, origin, renderer, trial, configuration) {
-  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50)
+async function runRendererTrial(browser, origin, renderer, trial, configuration, suite) {
+  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50, suite)
 
   try {
     const mountSamples = await measureRendererMounts(
@@ -413,6 +421,7 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
       renderer,
       configuration.mountWarmupsPerTrial,
       configuration.measuredMountsPerTrial,
+      suite === 'library',
     )
     const { activations, removals } = await measureRendererTransitions(
       page,
@@ -428,7 +437,9 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
       removals,
       result: {
         trial,
-        mountToDomAtSecondAnimationFrame: summarize(mountSamples),
+        [suite === 'library'
+          ? 'schemaAdapterRuntimeAndMountToDomAtSecondAnimationFrame'
+          : 'mountToDomAtSecondAnimationFrame']: summarize(mountSamples),
         activationToMatchingDomFrame: summarize(activations),
         removalToMatchingDomFrame: summarize(removals),
       },
@@ -439,8 +450,10 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
   }
 }
 
-async function crossRendererBenchmarks(browser, origin) {
-  const renderers = ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular']
+async function rendererComparison(browser, origin, renderers, suite) {
+  const mountMetric = suite === 'library'
+    ? 'schemaAdapterRuntimeAndMountToDomAtSecondAnimationFrame'
+    : 'mountToDomAtSecondAnimationFrame'
   const configuration = {
     trials: 5,
     mountWarmupsPerTrial: 2,
@@ -459,7 +472,7 @@ async function crossRendererBenchmarks(browser, origin) {
     rendererOrders.push(order)
 
     for (const renderer of order) {
-      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration)
+      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration, suite)
       mountSamples[renderer].push(...measurement.mountSamples)
       activationSamples[renderer].push(...measurement.activations)
       removalSamples[renderer].push(...measurement.removals)
@@ -473,7 +486,7 @@ async function crossRendererBenchmarks(browser, origin) {
     ...configuration,
     rendererOrders,
     renderers: Object.fromEntries(renderers.map((renderer) => [renderer, {
-      mountToDomAtSecondAnimationFrame: summarize(mountSamples[renderer]),
+      [mountMetric]: summarize(mountSamples[renderer]),
       conditionalTransitionToMatchingDomFrame: summarize([
         ...activationSamples[renderer],
         ...removalSamples[renderer],
@@ -482,6 +495,28 @@ async function crossRendererBenchmarks(browser, origin) {
       removalToMatchingDomFrame: summarize(removalSamples[renderer]),
       trials: trialResults[renderer],
     }])),
+  }
+}
+
+async function crossRendererBenchmarks(browser, origin) {
+  return {
+    fieldCount: 50,
+    conditionalField: 'Extra',
+    ...await rendererComparison(
+      browser,
+      origin,
+      ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular'],
+      undefined,
+    ),
+  }
+}
+
+async function libraryComparisonBenchmarks(browser, origin) {
+  return {
+    ...await rendererComparison(browser, origin, ['react', 'rjsf'], 'library'),
+    schemaDraft: 'Draft 7',
+    rjsfCoreVersion: '5.24.13',
+    rjsfValidatorVersion: '5.24.13',
   }
 }
 
@@ -559,6 +594,7 @@ async function browserBenchmarks() {
       buildMode: 'production',
       memory,
       crossRenderer: await crossRendererBenchmarks(browser, origin),
+      libraryComparison: await libraryComparisonBenchmarks(browser, origin),
     }
   } finally {
     await browser?.close()
