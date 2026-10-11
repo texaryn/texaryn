@@ -1,5 +1,11 @@
 # @texaryn/schema-json
 
+## 0.8.2
+
+### Patch Changes
+
+- 4438491: Use the Texaryn maintained JSON Schema engine fork and remove the packaged local patch.
+
 ## 0.8.1
 
 ### Patch Changes
