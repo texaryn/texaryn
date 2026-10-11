@@ -6,8 +6,9 @@ A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
 Server-driven updates, AI generation, a visual builder, native array reorder,
 and collaborative scalar editing merged in PR #214. Angular, Svelte, and Solid
-renderers merged in PRs #211 to #213. Remaining work centers on the first npm
-releases for five packages and Draft-04 JSON Schema support.
+renderers merged in PRs #211 to #213. Five new npm packages and their GitHub
+releases are published. Trusted publisher configuration is in progress.
+Remaining roadmap work centers on Draft-04 JSON Schema support.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -20,15 +21,15 @@ The current state and the remaining work are in [Status, 2026-10-11](#status-202
 The `@texaryn/svelte` implementation merged in
 [PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
 bindings, a default component registry, package and site documentation,
-playground integration, and shared example conformance coverage. Its package
-release is pending.
+playground integration, and shared example conformance coverage. Version 0.2.0
+is published on npm.
 
 The `@texaryn/solid` renderer merged in
 [PR #213](https://github.com/texaryn/texaryn/pull/213). It adds SolidJS
 bindings, a default component registry, package and site documentation,
 playground integration, and cross-framework state sharing coverage. Its checks
-passed against `main`, including 98.46% Codecov patch coverage. Its first npm
-release remains pending.
+passed against `main`, including 98.46% Codecov patch coverage. Version 0.2.0
+is published on npm.
 
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
@@ -1900,8 +1901,8 @@ collaboration work. Published packages include `@texaryn/core` 0.15.0,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. Source for
 `@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
-`@texaryn/solid`, and `@texaryn/collaboration-yjs` is merged, but their first
-npm releases remain outstanding.
+`@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged. Their published
+versions are 0.1.1, 0.2.0, 0.2.0, 0.2.0, and 0.1.0 respectively.
 
 Three main branch release runs failed while publishing the first versions of
 `@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,
@@ -1911,16 +1912,14 @@ already set `NPM_CONFIG_ACCESS=public`, so that setting alone did not resolve
 the first publish failures. Run [38156158050](https://github.com/texaryn/texaryn/actions/runs/38156158050)
 passed build, test, and typecheck, then failed on those five publishes.
 
-The release workflow retains OIDC and public access, and adds an optional npm
-token to bootstrap first publishes. npm requires a package to exist before a
-trusted publisher can be configured. After each package has a first version
-and trusted publishing is configured, the workflow returns to OIDC. Release
-reconciliation checks exact npm versions and uses verified provenance to
-target each missing GitHub release at its source commit. Registry checks
-confirm the current versions of core, schema-json, React, react-bootstrap,
-react-mui, Vue, and Web Components are published but lack matching GitHub
-releases. The current
-versions of Zod, Angular, Svelte, Solid, and Yjs are not yet on npm.
+The five packages were published locally through npm's 2FA flow. Their registry
+signatures are present, and their packed files match the checkout. npm rewrote
+workspace dependency ranges in each package.json to published version ranges.
+These first versions have no build provenance. Matching GitHub releases target the `main`
+commit containing those exact package versions. The release workflow uses OIDC
+and verifies provenance for versions that still need GitHub releases. Trusted
+publisher configuration and recovery of seven previously published package
+releases remain outstanding.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2192,10 +2191,10 @@ renderer phase is complete. Continue the open work in this order:
    IRs remain separate families.
 10. The plugin ecosystem decision is recorded in ADR-019. Core has no shared
     plugin container or transform pipeline.
-11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs with a
-    temporary npm token, configure trusted publishing for each package, remove
-    the token, then verify their GitHub releases and recover the seven existing
-    published versions with missing releases.
+11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs through
+    local npm 2FA. First versions and their GitHub releases are published.
+    Configure trusted publishing for each package and recover seven existing
+    published versions with missing GitHub releases.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 

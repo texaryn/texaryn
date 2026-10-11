@@ -145,7 +145,13 @@ export function resolveReleaseTargets(
 }
 
 export function main({ env = process.env, run = execFileSync, log = console.log } = {}) {
+  const existingReleases = new Set(
+    (env.EXISTING_RELEASES ?? '').split(/\r?\n/).map((tag) => tag.trim()).filter(Boolean),
+  )
+  // First local 2FA publishes predate npm trusted publishing and have no
+  // provenance. Their existing GitHub releases complete reconciliation.
   const packages = parsePackageInputs(env.PUBLISHED_PACKAGES, env.REGISTRY_PACKAGES)
+    .filter(({ name, version }) => !existingReleases.has(`${name}@${version}`))
   if (packages.length === 0) {
     if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, 'source-commits=[]\n')
     log('No published package versions need release reconciliation')

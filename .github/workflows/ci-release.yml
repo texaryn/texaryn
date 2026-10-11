@@ -167,19 +167,6 @@ jobs:
       - name: Pin npm for publishing
         run: npm install --global npm@11.19.1
       - run: pnpm build
-      # npm cannot attach a trusted publisher until the package exists. A
-      # short-lived NPM_TOKEN can bootstrap first publishes; without it, npm
-      # uses OIDC. Remove the secret after trusted publishing is configured.
-      - name: Configure npm auth for first publishes
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [[ -n "${NPM_TOKEN:-}" ]]; then
-            umask 077
-            npmrc="$RUNNER_TEMP/texaryn-npmrc"
-            printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$npmrc"
-            echo "NPM_CONFIG_USERCONFIG=$npmrc" >> "$GITHUB_ENV"
-          fi
       - id: publish
         uses: changesets/action@v2
         with:
@@ -209,6 +196,16 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+      - name: Read existing GitHub releases
+        id: releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo 'tags<<EOF'
+            gh api --paginate repos/texaryn/texaryn/releases --jq '.[].tag_name'
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
       - name: Check published package versions
         id: registry
         run: node scripts/check-unpublished-packages.mjs
@@ -219,6 +216,7 @@ jobs:
         env:
           PUBLISHED_PACKAGES: ${{ needs.publish.outputs['published-packages'] }}
           REGISTRY_PACKAGES: ${{ steps.registry.outputs['published-packages'] }}
+          EXISTING_RELEASES: ${{ steps.releases.outputs.tags }}
         run: node scripts/resolve-release-targets.mjs
       # Check published versions, not tags, because a partial Changesets publish
       # can leave npm ahead of the tags and releases on GitHub.
@@ -228,9 +226,9 @@ jobs:
           PUBLISHED_PACKAGES: ${{ needs.publish.outputs['published-packages'] }}
           REGISTRY_PACKAGES: ${{ steps.registry.outputs['published-packages'] }}
           SOURCE_COMMITS: ${{ steps.provenance.outputs['source-commits'] }}
+          EXISTING_RELEASES: ${{ steps.releases.outputs.tags }}
         run: |
           set -euo pipefail
-          EXISTING_RELEASES=$(gh api --paginate repos/texaryn/texaryn/releases --jq '.[].tag_name')
           export EXISTING_RELEASES
           export PUBLISHED_PACKAGES
           export REGISTRY_PACKAGES
