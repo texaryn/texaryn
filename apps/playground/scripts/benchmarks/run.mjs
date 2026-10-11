@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import os, { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -271,7 +272,7 @@ async function arrayBenchmarks() {
 function shuffle(values) {
   const result = [...values]
   for (let index = result.length - 1; index > 0; index--) {
-    const other = Math.floor(Math.random() * (index + 1))
+    const other = randomInt(index + 1)
     ;[result[index], result[other]] = [result[other], result[index]]
   }
   return result
@@ -337,117 +338,139 @@ async function waitForConditionalState(page, enabled) {
   )
 }
 
+async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts) {
+  const samples = []
+
+  for (let cycle = 0; cycle < warmupMounts; cycle++) {
+    await mountRenderer(page, renderer)
+    await unmountRenderer(page)
+  }
+
+  for (let sample = 0; sample < measuredMounts; sample++) {
+    await prepareRenderer(page, renderer)
+    const elapsed = await page.evaluate(async () => {
+      const startedAt = performance.now()
+      await window.__texarynBench.mount()
+      return performance.now() - startedAt
+    })
+    samples.push(elapsed)
+    await unmountRenderer(page)
+  }
+
+  return samples
+}
+
+async function measureRendererTransitions(page, renderer, warmupCycles, transitionCount) {
+  await mountRenderer(page, renderer)
+  const checkbox = page.locator('#root input[type="checkbox"]').first()
+
+  for (let cycle = 0; cycle < warmupCycles; cycle++) {
+    await checkbox.check()
+    await waitForConditionalState(page, true)
+    await checkbox.uncheck()
+    await waitForConditionalState(page, false)
+  }
+
+  await page.evaluate(() => window.__texarynBench.startInputMeasurement())
+  let completed = 0
+  for (let index = 0; index < transitionCount / 2; index++) {
+    await checkbox.check()
+    completed++
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
+    await checkbox.uncheck()
+    completed++
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
+  }
+
+  const input = await page.evaluate(() => ({
+    samples: window.__texarynInputSamples,
+    mismatches: window.__texarynInputMismatches,
+    completed: window.__texarynInputCompleted,
+  }))
+  if (
+    input.mismatches !== 0
+    || input.completed !== transitionCount
+    || input.samples.length !== transitionCount
+  ) {
+    throw new Error(`${renderer} did not produce matching runtime data and conditional DOM for every input event.`)
+  }
+
+  const activations = input.samples.filter((sample) => sample.enabled).map((sample) => sample.elapsedMs)
+  const removals = input.samples.filter((sample) => !sample.enabled).map((sample) => sample.elapsedMs)
+  if (activations.length !== transitionCount / 2 || removals.length !== transitionCount / 2) {
+    throw new Error(`${renderer} did not produce equal activation and removal samples.`)
+  }
+
+  return { activations, removals }
+}
+
+async function runRendererTrial(browser, origin, renderer, trial, configuration) {
+  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50)
+
+  try {
+    const mountSamples = await measureRendererMounts(
+      page,
+      renderer,
+      configuration.mountWarmupsPerTrial,
+      configuration.measuredMountsPerTrial,
+    )
+    const { activations, removals } = await measureRendererTransitions(
+      page,
+      renderer,
+      configuration.inputWarmupCyclesPerTrial,
+      configuration.inputTransitionsPerTrial,
+    )
+    if (pageErrors.length > 0) throw new Error(`${renderer} browser error: ${pageErrors[0]}`)
+
+    return {
+      mountSamples,
+      activations,
+      removals,
+      result: {
+        trial,
+        mountToDomAtSecondAnimationFrame: summarize(mountSamples),
+        activationToMatchingDomFrame: summarize(activations),
+        removalToMatchingDomFrame: summarize(removals),
+      },
+    }
+  } finally {
+    await unmountRenderer(page).catch(() => {})
+    await page.close()
+  }
+}
+
 async function crossRendererBenchmarks(browser, origin) {
   const renderers = ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular']
-  const trials = 5
-  const mountWarmupsPerTrial = 2
-  const measuredMountsPerTrial = 3
-  const inputWarmupCyclesPerTrial = 5
-  const inputTransitionsPerTrial = 200
+  const configuration = {
+    trials: 5,
+    mountWarmupsPerTrial: 2,
+    measuredMountsPerTrial: 3,
+    inputWarmupCyclesPerTrial: 5,
+    inputTransitionsPerTrial: 200,
+  }
   const mountSamples = Object.fromEntries(renderers.map((name) => [name, []]))
   const activationSamples = Object.fromEntries(renderers.map((name) => [name, []]))
   const removalSamples = Object.fromEntries(renderers.map((name) => [name, []]))
   const trialResults = Object.fromEntries(renderers.map((name) => [name, []]))
   const rendererOrders = []
 
-  for (let trial = 0; trial < trials; trial++) {
+  for (let trial = 0; trial < configuration.trials; trial++) {
     const order = shuffle(renderers)
     rendererOrders.push(order)
 
     for (const renderer of order) {
-      const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50)
-      const trialMounts = []
-      const trialActivations = []
-      const trialRemovals = []
-
-      try {
-        for (let cycle = 0; cycle < mountWarmupsPerTrial; cycle++) {
-          await mountRenderer(page, renderer)
-          await unmountRenderer(page)
-        }
-
-        for (let sample = 0; sample < measuredMountsPerTrial; sample++) {
-          await prepareRenderer(page, renderer)
-          const elapsed = await page.evaluate(async () => {
-            const startedAt = performance.now()
-            await window.__texarynBench.mount()
-            return performance.now() - startedAt
-          })
-          trialMounts.push(elapsed)
-          mountSamples[renderer].push(elapsed)
-          await unmountRenderer(page)
-        }
-
-        await mountRenderer(page, renderer)
-        const checkbox = page.locator('#root input[type="checkbox"]').first()
-        for (let cycle = 0; cycle < inputWarmupCyclesPerTrial; cycle++) {
-          await checkbox.check()
-          await waitForConditionalState(page, true)
-          await checkbox.uncheck()
-          await waitForConditionalState(page, false)
-        }
-
-        await page.evaluate(() => window.__texarynBench.startInputMeasurement())
-        let completed = 0
-        for (let index = 0; index < inputTransitionsPerTrial / 2; index++) {
-          await checkbox.check()
-          completed++
-          await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
-          await checkbox.uncheck()
-          completed++
-          await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
-        }
-
-        const input = await page.evaluate(() => ({
-          samples: window.__texarynInputSamples,
-          mismatches: window.__texarynInputMismatches,
-          completed: window.__texarynInputCompleted,
-        }))
-        if (
-          input.mismatches !== 0
-          || input.completed !== inputTransitionsPerTrial
-          || input.samples.length !== inputTransitionsPerTrial
-        ) {
-          throw new Error(`${renderer} did not produce matching runtime data and conditional DOM for every input event.`)
-        }
-
-        for (const sample of input.samples) {
-          if (sample.enabled) {
-            trialActivations.push(sample.elapsedMs)
-            activationSamples[renderer].push(sample.elapsedMs)
-          } else {
-            trialRemovals.push(sample.elapsedMs)
-            removalSamples[renderer].push(sample.elapsedMs)
-          }
-        }
-
-        if (trialActivations.length !== inputTransitionsPerTrial / 2
-          || trialRemovals.length !== inputTransitionsPerTrial / 2) {
-          throw new Error(`${renderer} did not produce equal activation and removal samples.`)
-        }
-
-        if (pageErrors.length > 0) throw new Error(`${renderer} browser error: ${pageErrors[0]}`)
-        trialResults[renderer].push({
-          trial: trial + 1,
-          mountToDomAtSecondAnimationFrame: summarize(trialMounts),
-          activationToMatchingDomFrame: summarize(trialActivations),
-          removalToMatchingDomFrame: summarize(trialRemovals),
-        })
-      } finally {
-        await unmountRenderer(page).catch(() => {})
-        await page.close()
-      }
+      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration)
+      mountSamples[renderer].push(...measurement.mountSamples)
+      activationSamples[renderer].push(...measurement.activations)
+      removalSamples[renderer].push(...measurement.removals)
+      trialResults[renderer].push(measurement.result)
     }
   }
 
   return {
     fieldCount: 50,
     conditionalField: 'Extra',
-    trials,
-    inputTransitionsPerTrial,
-    mountWarmupsPerTrial,
-    measuredMountsPerTrial,
-    inputWarmupCyclesPerTrial,
+    ...configuration,
     rendererOrders,
     renderers: Object.fromEntries(renderers.map((renderer) => [renderer, {
       mountToDomAtSecondAnimationFrame: summarize(mountSamples[renderer]),

@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { createApplication } from '@angular/platform-browser'
 import { createRoot } from 'react-dom/client'
-import { createElement, type ReactNode } from 'react'
+import { createElement } from 'react'
 import { createApp, defineComponent, h } from 'vue'
 import { mount as mountSvelte, unmount as unmountSvelte } from 'svelte'
 import { createComponent as createSolidComponent } from 'solid-js'
@@ -63,14 +63,14 @@ declare global {
   }
 }
 
-const renderers: Renderer[] = [
+const renderers = new Set<Renderer>([
   'react',
   'vue',
   'svelte',
   'solid',
   'web-components',
   'angular',
-]
+])
 
 function schemaFor(fieldCount: number) {
   const properties = Object.fromEntries(
@@ -160,7 +160,7 @@ async function start(): Promise<void> {
   window.__texarynBench = {
     prepare(renderer): void {
       if (runtime || cleanupRenderer) throw new Error('Unmount the current benchmark before preparing another.')
-      if (!renderers.includes(renderer)) throw new Error(`Unknown renderer: ${renderer}`)
+      if (!renderers.has(renderer)) throw new Error(`Unknown renderer: ${renderer}`)
       currentRenderer = renderer
       runtime = createFormRuntime(port, { initialData: dataFor(fieldCount) })
       host.replaceChildren()
@@ -177,8 +177,9 @@ async function start(): Promise<void> {
           const root = createRoot(host)
           root.render(createElement(
             FormProvider,
-            { value: currentRuntime, children: createElement(ReactFormRoot, { registry: registries.react }) },
-          ) as ReactNode)
+            { value: currentRuntime },
+            createElement(ReactFormRoot, { registry: registries.react }),
+          ))
           cleanupRenderer = () => root.unmount()
           break
         }

@@ -62,8 +62,14 @@ function angularPartialLinker(): Plugin {
 // The workspace prerequisite still applies: the internal packages resolve
 // through their compiled dist, so `pnpm build` has to run before the dev
 // server can resolve them.
+function baseForMode(mode: string): string {
+  if (mode === 'pages') return PLAYGROUND_PATH
+  if (mode === 'benchmark') return '/'
+  return '/playground/'
+}
+
 export default defineConfig(({ mode }) => ({
-  base: mode === 'pages' ? PLAYGROUND_PATH : mode === 'benchmark' ? '/' : '/playground/',
+  base: baseForMode(mode),
   resolve: mode === 'benchmark' ? { mainFields: ['module'] } : undefined,
   define: mode === 'benchmark' ? { ngDevMode: 'false' } : undefined,
   plugins: [
