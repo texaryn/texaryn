@@ -252,12 +252,44 @@ describe('createHyperjumpAdapter', () => {
         $schema: 'http://json-schema.org/draft-04/schema#',
         id: 'https://e.test/client',
         type: 'object',
-        properties: { value: { $ref: `${resourceId}#/contains/box` } },
+        properties: { value: { $ref: `${resourceId}#%2Fcontains%2Fbox` } },
       }, {
         resolveResource: (uri) => {
           requested.push(uri)
           if (uri === resourceId) {
             return { id: resourceId, contains: { box: { $ref: `${targetId}#/if/box` } } }
+          }
+          if (uri === targetId) return { id: targetId, if: { box: { type: 'string' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([resourceId, targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
+    it('loads resources referenced by a pointer through an embedded resource ID', async () => {
+      const resourceId = 'https://e.test/remote'
+      const embeddedId = 'https://e.test/embedded'
+      const targetId = 'https://e.test/other'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: {
+          nested: { $ref: `${resourceId}#/definitions/sub` },
+          value: { $ref: `${embeddedId}#/contains/box` },
+        },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === resourceId) {
+            return {
+              id: resourceId,
+              definitions: { sub: { id: embeddedId, contains: { box: { $ref: `${targetId}#/if/box` } } } },
+            }
           }
           if (uri === targetId) return { id: targetId, if: { box: { type: 'string' } } }
           return undefined

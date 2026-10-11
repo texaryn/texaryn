@@ -137,6 +137,14 @@ function absoluteUri(reference: string, base: string | undefined): string | unde
   }
 }
 
+function decodeUriFragment(fragment: string): string {
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return fragment
+  }
+}
+
 function resourceBase(identifier: unknown, parent: string | undefined, dialect: Dialect): string | undefined {
   if (typeof identifier !== 'string') return parent
   if (isPre2019Dialect(dialect) && identifier.startsWith('#')) return parent
@@ -176,12 +184,7 @@ function pointerTargetWithContext(
   dialect: Dialect,
   knownResources?: Set<string>,
 ): LocatedPointerTarget | undefined {
-  let pointer: string
-  try {
-    pointer = decodeURIComponent(fragment)
-  } catch {
-    pointer = fragment
-  }
+  const pointer = decodeUriFragment(fragment)
   if (pointer === '') return {
     schema: document,
     parentBase: initialBase,
@@ -509,12 +512,7 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
     const hash = resolved.indexOf('#')
     if (hash === -1) continue
     const fragment = resolved.slice(hash + 1)
-    let decodedFragment = fragment
-    try {
-      decodedFragment = decodeURIComponent(fragment)
-    } catch {
-      // Keep malformed URI escapes as authored so the validator can report them.
-    }
+    const decodedFragment = decodeUriFragment(fragment)
     if (!decodedFragment.startsWith('/')) continue
     const resourceBase = withoutFragment(resolved)
     const resource = resourcePositions.get(resourceBase)
@@ -942,7 +940,7 @@ export async function loadExternalResources(
       if (!uri || isMetaSchema(uri)) continue
       const hash = resolved.indexOf('#')
       const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
-      const pointerTarget = fragment?.startsWith('/') ? fragment : undefined
+      const pointerTarget = fragment !== undefined && decodeUriFragment(fragment).startsWith('/') ? fragment : undefined
       if (resources.has(uri)) {
         if (pointerTarget !== undefined) {
           queue.push({ document: resources.get(uri), base: resourceBases.get(uri) ?? uri, pointerTarget })
