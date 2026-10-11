@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Vue, or another framework binding.
+  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Angular, Vue, or another framework binding.
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@ Deterministic Runtime
     ↓
 Renderer Binding
     ↓
-React / Vue / ...
+React / Angular / Vue / ...
 ```
 
 The core has no dependency on React, Vue, the DOM, or an AI SDK.
@@ -183,6 +183,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
 | [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
 | [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
+| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fangular?label=) | Angular signal bindings, renderer, and default widgets |
 | [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 | [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
@@ -268,6 +269,10 @@ The React package provides:
 
 `@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`.
 
+`@texaryn/angular` provides standalone components and signals over the same
+runtime stores. Its API and usage are documented in the
+[Angular renderer guide](https://texaryn.github.io/texaryn/guides/angular/).
+
 The registry is extensible, so applications can replace or add widgets without modifying the runtime.
 
 ## Default React widgets
@@ -345,7 +350,7 @@ Schema meaning remains intact while renderers retain control over presentation.
                ↓
          @texaryn/core
           ↑         ↑
-@texaryn/react   @texaryn/vue
+@texaryn/react   @texaryn/angular   @texaryn/vue
 ```
 
 Framework packages are consumers of the core contracts.

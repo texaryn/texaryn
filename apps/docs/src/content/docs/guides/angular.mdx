@@ -1,0 +1,89 @@
+---
+title: Angular renderer
+description: Render Texaryn forms in Angular with signals and standalone components.
+---
+
+The `@texaryn/angular` package renders a Texaryn UI document through standalone
+Angular components. It observes the framework neutral runtime through Angular
+signals. Schema evaluation and validation remain in `@texaryn/schema-json` and
+`@texaryn/core`.
+
+## Install
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/angular
+```
+
+Angular 20 or newer is required. The application provides Angular as a peer
+dependency.
+
+## Create a form
+
+Create the schema adapter before Angular creates the form component. Call
+`createForm` from an injection context so the runtime is destroyed with its
+owning component.
+
+```ts
+import { Component } from '@angular/core'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import { createDefaultRegistry, createForm, FormRoot } from '@texaryn/angular'
+
+const adapter = await createJsonSchemaAdapter({
+  type: 'object',
+  properties: {
+    name: { type: 'string', title: 'Name' },
+    email: { type: 'string', format: 'email', title: 'Email' },
+  },
+  required: ['name'],
+})
+
+@Component({
+  selector: 'app-profile-form',
+  standalone: true,
+  imports: [FormRoot],
+  template: `
+    <texaryn-form-root
+      [form]="form"
+      [registry]="registry"
+      idPrefix="profile"
+      [showErrorSummary]="true"
+    />
+  `,
+})
+export class ProfileForm {
+  readonly form = createForm(adapter, { initialData: { name: '', email: '' } })
+  readonly registry = createDefaultRegistry()
+}
+```
+
+Give each form on the page a unique `idPrefix`. Texaryn derives label and error
+IDs from that prefix and each field's stable node identity.
+
+## Custom widgets
+
+Register standalone component classes that expose a required `node` input.
+Container widgets can inject form context with `useFormContext()` and render
+children with `NodeRenderer`.
+
+```ts
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import type { UINode } from '@texaryn/core'
+import type { AngularWidget } from '@texaryn/angular'
+
+@Component({
+  selector: 'app-custom-widget',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `{{ node().annotations.title ?? node().id }}`,
+})
+export class CustomWidget implements AngularWidget {
+  readonly node = input.required<UINode>()
+}
+```
+
+## Angular Forms
+
+Texaryn keeps its runtime as the source of form data and validation. The Angular
+renderer does not create a second `FormGroup` or mirror form values into Angular
+Forms. A custom widget can use Angular controls directly when an application
+needs a specialized control.
