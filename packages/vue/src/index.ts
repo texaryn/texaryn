@@ -27,6 +27,8 @@ export type { FieldAria } from './field-props.js'
 
 export type { WidgetComponent } from './widget.js'
 export { FormRoot } from './components/FormRoot.js'
+export { DocumentRoot } from './components/DocumentRoot.js'
+export type { DocumentRootProps, DocumentWidgetComponent } from './components/DocumentRoot.js'
 export { ErrorSummary } from './components/ErrorSummary.js'
 export { NodeRenderer } from './components/NodeRenderer.js'
 

@@ -15,6 +15,7 @@ import { createMuiRegistry } from '@texaryn/react-mui'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
 import { ExampleBrowser } from './ExampleBrowser.js'
+import { FormBuilder } from './FormBuilder.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
@@ -302,6 +303,7 @@ export function App() {
   )
   const [query, setQuery] = useState('')
   const [inspectorTab, setInspectorTab] = useState<Tab>(DEFAULT_TAB)
+  const [schemaMode, setSchemaMode] = useState<'visual' | 'json'>('json')
   const [schemaText, setSchemaText] = useState(() =>
     formatSchema(resolveExample(initial.exampleId)?.schema ?? {}),
   )
@@ -418,13 +420,37 @@ export function App() {
           <h2 className="pg-heading" id="schema-editor-label">
             JSON Schema
           </h2>
-          <textarea
-            aria-labelledby="schema-editor-label"
-            className="pg-schema-editor"
-            value={schemaText}
-            onChange={(e) => handleSchemaChange(e.target.value)}
-            spellCheck={false}
-          />
+          <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
+            <button
+              aria-pressed={schemaMode === 'visual'}
+              className="pg-editor-tabs__item"
+              type="button"
+              onClick={() => setSchemaMode('visual')}
+            >
+              Visual
+            </button>
+            <button
+              aria-pressed={schemaMode === 'json'}
+              className="pg-editor-tabs__item"
+              type="button"
+              onClick={() => setSchemaMode('json')}
+            >
+              JSON
+            </button>
+          </div>
+          <div id="schema-editor-panel">
+            {schemaMode === 'visual' ? (
+              <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
+            ) : (
+              <textarea
+                aria-labelledby="schema-editor-label"
+                className="pg-schema-editor"
+                value={schemaText}
+                onChange={(e) => handleSchemaChange(e.target.value)}
+                spellCheck={false}
+              />
+            )}
+          </div>
           {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
         </aside>
 

@@ -1,0 +1,28 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "display",
+  "document": {
+    "version": 2,
+    "rootId": "root",
+    "nodes": {
+      "root": {
+        "id": "root",
+        "type": "container",
+        "parentId": null,
+        "annotations": { "title": "Directory" },
+        "containerType": "group",
+        "children": ["heading"]
+      },
+      "heading": {
+        "id": "heading",
+        "type": "text",
+        "parentId": "root",
+        "annotations": {},
+        "content": "People",
+        "textRole": "heading"
+      }
+    }
+  },
+  "data": { "people": [] }
+}

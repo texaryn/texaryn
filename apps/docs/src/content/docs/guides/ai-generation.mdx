@@ -1,0 +1,114 @@
+---
+title: AI generation
+description: Generate forms and display documents with versioned output contracts and Texaryn runtime validation.
+---
+
+Texaryn provides a versioned output contract and examples for AI generated
+forms and standalone display documents. Model calls stay in your application.
+The examples use the same public validators that handle ordinary application
+input.
+
+## Download the version 1 contract
+
+- [Generation JSON Schema](../../schemas/ai-generation/v1/generation.schema.json)
+- [Generation instructions](../../prompts/ai-generation/v1/generation-instructions.md)
+
+The JSON Schema file defines two output kinds. Its `$defs.uiHints` and
+`$defs.displayDocumentV2` definitions can also be referenced by a host schema.
+The contract is versioned independently of the version 2 display document.
+
+## Choose one output kind
+
+For a form, ask for a JSON Schema object and optional UI hints. State the
+supported schema dialect and projection limits in the model instructions.
+Require an object root with at least one projected field. Prefer explicit
+types, declared object properties, homogeneous arrays and simple compositions.
+Version 1 rejects `oneOf` and `anyOf` because an unmatched
+branch can have no projection diagnostic. It also requires an explicit
+supported dialect and an object root. Passing validation means the initial
+projection passed the checks this kit applies. It does not promise that every
+conditional state or every JSON Schema keyword projects completely.
+Before compilation, the example validates the schema and every mapped resource
+against the locally bundled metaschema for the declared dialect. It follows
+local and mapped references while checking the version 1 subset, including
+pointer targets outside standard schema keywords. Nested `$id` boundaries and
+named anchors are not supported by this generation subset.
+
+For a display, ask for a version 2 document and its JSON data. Version 2
+supports text, groups, layouts, lists, tables and actions. It does not contain
+editable form fields. The model must use only widget and action names already
+allowed by the host.
+
+## Accept generated output
+
+Parse the model response as JSON, validate the envelope with the downloaded
+schema, then pass the selected content through Texaryn's runtime APIs. The
+runtime checks are still necessary because structural JSON Schema validation
+cannot prove document graph reachability, collection validity or complete
+form projection.
+
+```ts
+import { createDocumentRuntime, createFormRuntime } from '@texaryn/core'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+
+const envelopeAdapter = await createJsonSchemaAdapter(generationContract)
+const output: unknown = JSON.parse(modelText)
+const envelopeResult = await envelopeAdapter.validate(output)
+if (!envelopeResult.valid) throw new Error('Invalid Texaryn generation envelope')
+
+if (isFormOutput(output)) {
+  assertAllowedWidgets(output.hints, hostWidgetNames)
+  const schemaAdapter = await createJsonSchemaAdapter(output.schema)
+  const projection = schemaAdapter.project({})
+  if (projection.diagnostics?.length) {
+    throw new Error('The schema leaves form content without a projected control')
+  }
+  const form = createFormRuntime(schemaAdapter, { hints: output.hints })
+  renderForm(form)
+} else {
+  assertAllowedActions(output.document, hostActions)
+  const display = createDocumentRuntime(output.document, {
+    initialData: output.data,
+    actions: hostActions,
+  })
+  renderDisplay(display)
+}
+```
+
+`isFormOutput`, `assertAllowedWidgets`, `assertAllowedActions`, and the render
+functions above belong to the host. Validate the envelope before narrowing its
+type. The host owns action handlers and authorization. Version 2 runtime
+validation checks the full node graph, pointers, row keys, selected values,
+limits, and action argument validators before returning a runtime.
+
+Only render a returned runtime. On a content failure, a host can send bounded
+diagnostics back to the model for a small number of repairs. The repository
+example caps repairs at two, caps feedback at eight diagnostics, and does not
+retry model transport failures. It has deterministic fixtures for valid and
+invalid outputs and does not call a live model. It lives under
+`packages/examples/src/ai-generation` and is not a Texaryn runtime API.
+
+## Trust boundary
+
+Model output is untrusted data. The output cannot add renderer widgets or host
+actions. A JSON Schema keyword does not select a custom widget. The generated
+`hints[pointer].widget` value must already be allowed by the host. Display actions
+must already be registered, their arguments must pass the registration's
+validator, and the handler must apply authorization before any side effect.
+Generated strings and documents do not execute expressions or code.
+
+The host also limits response bytes before JSON parsing. Texaryn's form
+generation helper preflights JSON depth and value counts, and bounds form
+schema size, depth, array lengths and object properties before compilation.
+External schema references require an exact URI match in the host supplied
+resource map, which may contain at most eight entries. The example does not
+fetch resources. It validates each mapped resource against the declared
+dialect and checks referenced targets for unsupported schema features before
+compilation. Display runtime limits bound document and collection work.
+
+## Deferred
+
+The generation kit does not add provider SDKs, streaming, conversations,
+autonomous actions, visual form generation, model evaluation, or an AI package.
+Add shared runtime abstractions only if application use demonstrates a stable
+need.

@@ -8,11 +8,13 @@
 
 ## Interfaces
 
+- [DocumentRootProps](interfaces/DocumentRootProps.md)
 - [FormRootProps](interfaces/FormRootProps.md)
 - [SolidFormContext](interfaces/SolidFormContext.md)
 
 ## Type Aliases
 
+- [DocumentWidgetComponent](type-aliases/DocumentWidgetComponent.md)
 - [WidgetComponent](type-aliases/WidgetComponent.md)
 
 ## Variables
@@ -25,6 +27,7 @@
 - [ArrayControl](functions/ArrayControl.md)
 - [createDefaultRegistry](functions/createDefaultRegistry.md)
 - [createForm](functions/createForm.md)
+- [DocumentRoot](functions/DocumentRoot.md)
 - [ErrorSummary](functions/ErrorSummary.md)
 - [FieldErrors](functions/FieldErrors.md)
 - [FieldWidget](functions/FieldWidget.md)

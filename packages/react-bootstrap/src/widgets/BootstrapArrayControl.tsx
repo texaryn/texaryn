@@ -1,6 +1,6 @@
 import React from 'react'
 import type { ContainerNode, UINode } from '@texaryn/core'
-import { NodeRenderer, useArrayActions, useFieldArray, useRendererContext } from '@texaryn/react'
+import { NodeRenderer, useArrayActions, useArrayDrag, useFieldArray, useRendererContext } from '@texaryn/react'
 
 export interface WidgetProps {
   node: UINode
@@ -17,16 +17,18 @@ function BootstrapArrayControlImpl({ node }: WidgetProps) {
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
   const actions = useArrayActions(node)
+  const drag = useArrayDrag(containerNode.id, fieldArray.items, fieldArray.move)
 
   return (
-    <div>
+    <div ref={drag.rootRef} data-array-container="">
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
         const remove = actions.remove(index + 1, childNode)
         const moveUp = actions.moveUp(index + 1, childNode)
         const moveDown = actions.moveDown(index + 1, childNode)
         return (
-          <div key={item.id} className="mb-3" data-array-row="">
+          <div key={item.id} className="mb-3" {...drag.rowProps(item.id)}>
+            {drag.canDrag ? <span {...drag.handleProps(item.id)}>⠿</span> : null}
             {childNode ? (
               <NodeRenderer node={childNode} document={document} registry={registry} />
             ) : null}

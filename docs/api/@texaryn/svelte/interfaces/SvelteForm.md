@@ -24,7 +24,7 @@
 
 ### document
 
-> **document**: `Readable`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\>
+> **document**: `Readable`\<[`UIDocument`](../../core/interfaces/UIDocument.md)\<`1`\>\>
 
 #### Inherited from
 

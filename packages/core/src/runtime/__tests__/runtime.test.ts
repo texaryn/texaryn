@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createFormRuntime } from '../runtime.js'
+import { createFormRuntime, RemoteSnapshotNotificationError } from '../runtime.js'
 import type { SchemaEvaluationPort, SchemaProjection, NodeProjection, ChildProjection } from '../../schema/port.js'
 import type { JsonPointer, NodeId, ValidationResult, MaybePromise } from '../../types.js'
 
@@ -392,6 +392,280 @@ describe('FormRuntime', () => {
     expect(runtime.getNodeState(item1Id)!.value.getSnapshot()).toBe('c')
 
     runtime.destroy()
+  })
+})
+
+describe('remote snapshots and runtime hooks', () => {
+  it('applies changed snapshots as owned data and reports origin and scalar pointers', () => {
+    const initial = { name: 'Alice', age: 30 }
+    const runtime = createFormRuntime(makePort(() => simpleProjection), { initialData: initial })
+    const listener = vi.fn()
+    const origin = { peer: 'remote' }
+    runtime.subscribeMutations(listener, vi.fn())
+
+    runtime.applyRemoteSnapshot({ name: 'Bob', age: 30 }, { origin })
+
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Bob', age: 30 })
+    expect(runtime.data.getSnapshot()).not.toBe(initial)
+    expect(listener).toHaveBeenCalledOnce()
+    expect(listener.mock.calls[0]![0]).toMatchObject({
+      origin,
+      beforeData: initial,
+      changedPointers: ['/name'],
+    })
+
+    const applied = runtime.data.getSnapshot()
+    runtime.applyRemoteSnapshot({ name: 'Bob', age: 30 })
+    expect(runtime.data.getSnapshot()).toBe(applied)
+    expect(listener).toHaveBeenCalledOnce()
+    runtime.destroy()
+  })
+
+  it.each([
+    ['a scalar becomes an object', { name: { value: 'Alice' }, age: 30, profile: { city: 'Paris' } }, /scalar shape/],
+    ['a number is non-finite', { name: 'Alice', age: Number.NaN, profile: { city: 'Paris' } }, /scalar shape/],
+    ['object keys change', { name: 'Alice', age: 30, profile: { town: 'Paris' } }, /object properties/],
+    ['a nested value is not a plain object', { name: 'Alice', age: 30, profile: new Date(0) }, /object shape/],
+  ])('rejects remote snapshots when %s', (_name, next, error) => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30, profile: { city: 'Paris' } },
+    })
+    const before = runtime.data.getSnapshot()
+
+    expect(() => runtime.applyRemoteSnapshot(next)).toThrow(error)
+    expect(runtime.data.getSnapshot()).toBe(before)
+    runtime.destroy()
+  })
+
+  it('rejects symbols, hidden properties, and accessors in remote objects', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30 },
+    })
+    const withSymbol = { name: 'Bob', age: 30, [Symbol('extra')]: true }
+    const withHidden = { name: 'Bob', age: 30 }
+    Object.defineProperty(withHidden, 'hidden', { value: true })
+    const withAccessor = { age: 30 } as { name?: string; age: number }
+    Object.defineProperty(withAccessor, 'name', { enumerable: true, get: () => 'Bob' })
+
+    expect(() => runtime.applyRemoteSnapshot(withSymbol)).toThrow(/non-JSON object properties/)
+    expect(() => runtime.applyRemoteSnapshot(withHidden)).toThrow(/non-JSON object properties/)
+    expect(() => runtime.applyRemoteSnapshot(withAccessor)).toThrow(/accessor/)
+    runtime.destroy()
+  })
+
+  it('rejects malformed remote arrays before reading their values', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30, items: ['a', 'b'] },
+    })
+    const short = { name: 'Alice', age: 30, items: ['a'] }
+    const withExtra = { name: 'Alice', age: 30, items: ['a', 'b'] as string[] & { extra?: boolean } }
+    withExtra.items.extra = true
+    const withSymbol = { name: 'Alice', age: 30, items: ['a', 'b'] as string[] & { [key: symbol]: boolean } }
+    withSymbol.items[Symbol('extra')] = true
+    const withAccessor = { name: 'Alice', age: 30, items: ['a', 'b'] }
+    Object.defineProperty(withAccessor.items, '0', { enumerable: true, get: () => 'a' })
+    const withSparseArray = { name: 'Alice', age: 30, items: new Array<string>(2) }
+
+    expect(() => runtime.applyRemoteSnapshot(short)).toThrow(/array shape/)
+    expect(() => runtime.applyRemoteSnapshot(withExtra)).toThrow(/non-JSON array properties/)
+    expect(() => runtime.applyRemoteSnapshot(withSymbol)).toThrow(/non-JSON array properties/)
+    expect(() => runtime.applyRemoteSnapshot(withAccessor)).toThrow(/accessor/)
+    expect(() => runtime.applyRemoteSnapshot(withSparseArray)).toThrow(/non-JSON array properties/)
+    runtime.destroy()
+  })
+
+  it('compares arrays by value and reports changed scalar pointers within them', () => {
+    const runtime = createFormRuntime(makeArrayPort(), {
+      initialization: 'none',
+      initialData: { tags: ['a', 'b'] },
+    })
+    const listener = vi.fn()
+    runtime.subscribeMutations(listener, vi.fn())
+
+    runtime.applyRemoteSnapshot({ tags: ['a', 'c'] })
+    expect(listener.mock.calls[0]![0].changedPointers).toEqual(['/tags/1'])
+    const committed = runtime.data.getSnapshot()
+    runtime.applyRemoteSnapshot({ tags: ['a', 'c'] })
+    expect(runtime.data.getSnapshot()).toBe(committed)
+    expect(listener).toHaveBeenCalledOnce()
+    runtime.destroy()
+  })
+
+  it('creates node stores for fields introduced by a remote snapshot projection', () => {
+    const port = makePort((data) => {
+      const showExtra = (data as { showExtra: boolean }).showExtra
+      const entries: Array<[string, Partial<NodeProjection> & { children?: ChildProjection[] }]> = [
+        ['', {
+          type: 'object',
+          children: [
+            { pointer: toPointer('/name'), key: 'name', required: false },
+            { pointer: toPointer('/showExtra'), key: 'showExtra', required: false },
+            ...(showExtra ? [{ pointer: toPointer('/extra'), key: 'extra', required: false }] : []),
+          ],
+        }],
+        ['/name', { type: 'string' }],
+        ['/showExtra', { type: 'boolean' }],
+      ]
+      if (showExtra) entries.push(['/extra', { type: 'string' }])
+      return makeProjection(entries)
+    })
+    const runtime = createFormRuntime(port, {
+      initialization: 'none',
+      initialData: { name: 'Ada', showExtra: false, extra: 'Hidden' },
+    })
+    runtime.applyRemoteSnapshot({ name: 'Ada', showExtra: true, extra: 'Visible' })
+
+    const extraId = findFieldNode(runtime, '/extra')
+    expect(runtime.getNodeState(extraId)?.value.getSnapshot()).toBe('Visible')
+    expect(runtime.getNodeState(extraId)?.dirty.getSnapshot()).toBe(false)
+    runtime.destroy()
+  })
+
+  it('rejects cyclic, deeply nested, and oversized remote snapshots', () => {
+    const cyclicBefore: { name: string; age: number; self?: unknown } = { name: 'Alice', age: 30 }
+    cyclicBefore.self = cyclicBefore
+    const cycleRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: cyclicBefore })
+    const cyclicNext: { name: string; age: number; self?: unknown } = { name: 'Bob', age: 30 }
+    cyclicNext.self = cyclicNext
+    expect(() => cycleRuntime.applyRemoteSnapshot(cyclicNext)).toThrow(/cycle/)
+    cycleRuntime.destroy()
+
+    const deep = (levels: number): Record<string, unknown> => {
+      let value: Record<string, unknown> = { leaf: 'value' }
+      for (let index = 0; index < levels; index++) value = { child: value }
+      return value
+    }
+    const deepBefore = { name: 'Alice', age: 30, nested: deep(130) }
+    const deepRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: deepBefore })
+    expect(() => deepRuntime.applyRemoteSnapshot({ ...deepBefore, name: 'Bob' })).toThrow(/size or depth/)
+    deepRuntime.destroy()
+
+    const oversizedBefore = { name: 'a', age: 30 }
+    const oversizedRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: oversizedBefore })
+    expect(() => oversizedRuntime.applyRemoteSnapshot({ name: 'x'.repeat(1_000_001), age: 30 })).toThrow(/string size/)
+    oversizedRuntime.destroy()
+
+    const longKey = 'k'.repeat(1_000_001)
+    const longKeyData = { name: 'Alice', age: 30, [longKey]: true }
+    const keyRuntime = createFormRuntime(makePort(() => simpleProjection), { initialData: longKeyData })
+    expect(() => keyRuntime.applyRemoteSnapshot({ ...longKeyData, name: 'Bob' })).toThrow(/string size/)
+    keyRuntime.destroy()
+  })
+
+  it('requires initialization to be disabled for remote snapshots', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialization: 'schema-defaults',
+      initialData: { name: 'Alice', age: 30 },
+    })
+    expect(() => runtime.applyRemoteSnapshot({ name: 'Bob', age: 30 })).toThrow(/initialization: none/)
+    runtime.destroy()
+  })
+
+  it('reports listener errors and still notifies the remaining mutation subscribers', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30 },
+    })
+    const notificationError = new Error('listener failed')
+    const onError = vi.fn(() => { throw new Error('reporter failed') })
+    const nextListener = vi.fn()
+    runtime.subscribeMutations(() => { throw notificationError }, onError)
+    runtime.subscribeMutations(nextListener, vi.fn())
+    const nameId = findFieldNode(runtime, '/name')
+
+    expect(() => runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Bob' })).not.toThrow()
+    expect(onError).toHaveBeenCalledWith(notificationError)
+    expect(nextListener).toHaveBeenCalledOnce()
+    runtime.destroy()
+  })
+
+  it('rejects commands through guards and allows commands after guard removal', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30 },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+    const onRejected = vi.fn(() => { throw new Error('reporter failed') })
+    const unregisterThrowing = runtime.registerCommandGuard(() => { throw 'guard failed' }, onRejected)
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Blocked' })
+    expect(onRejected).toHaveBeenCalledWith('guard failed')
+    expect((runtime.data.getSnapshot() as { name: string }).name).toBe('Alice')
+    unregisterThrowing()
+
+    const unregister = runtime.registerCommandGuard(() => 'read only', onRejected)
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Blocked' })
+    expect(onRejected).toHaveBeenLastCalledWith('read only')
+    unregister()
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'Allowed' })
+    expect((runtime.data.getSnapshot() as { name: string }).name).toBe('Allowed')
+    runtime.destroy()
+  })
+
+  it('locks array structure until every release and ignores repeated releases', () => {
+    const runtime = createFormRuntime(makeArrayPort(), { initialData: { tags: ['a', 'b'] } })
+    const arrayId = findArrayContainerId(runtime)
+    const arrayNode = () => runtime.document.getSnapshot().nodes[arrayId as string]
+    const firstRelease = runtime.lockArrayStructure()
+    const secondRelease = runtime.lockArrayStructure()
+
+    expect(arrayNode()).toMatchObject({ arrayMeta: { canAdd: false, canRemove: false, canReorder: false } })
+    firstRelease()
+    expect(arrayNode()).toMatchObject({ arrayMeta: { canAdd: false, canRemove: false, canReorder: false } })
+    secondRelease()
+    expect(arrayNode()).toMatchObject({ arrayMeta: { canAdd: true, canRemove: true, canReorder: false } })
+    secondRelease()
+    runtime.destroy()
+  })
+
+  it('restores the array lock count when document publication throws', () => {
+    const runtime = createFormRuntime(makeArrayPort(), { initialData: { tags: ['a', 'b'] } })
+    const unsubscribe = runtime.document.subscribe(() => { throw new Error('publication failed') })
+    expect(() => runtime.lockArrayStructure()).toThrow(/publication failed/)
+    unsubscribe()
+
+    const release = runtime.lockArrayStructure()
+    expect(runtime.document.getSnapshot().nodes[findArrayContainerId(runtime) as string]).toMatchObject({
+      arrayMeta: { canAdd: false, canRemove: false },
+    })
+    release()
+    runtime.destroy()
+  })
+
+  it('wraps store notification failures after applying a valid remote snapshot', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30 },
+    })
+    const notificationError = new Error('store listener failed')
+    runtime.data.subscribe(() => { throw notificationError })
+    const mutationListener = vi.fn()
+    runtime.subscribeMutations(mutationListener, vi.fn())
+
+    try {
+      runtime.applyRemoteSnapshot({ name: 'Bob', age: 30 })
+      throw new Error('expected notification failure')
+    } catch (error) {
+      expect(error).toBeInstanceOf(RemoteSnapshotNotificationError)
+      expect((error as RemoteSnapshotNotificationError).notificationError).toBe(notificationError)
+    }
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Bob', age: 30 })
+    expect(mutationListener).toHaveBeenCalledOnce()
+    runtime.destroy()
+  })
+
+  it('makes subscriptions, guards, snapshots, and locks inert after destruction', () => {
+    const runtime = createFormRuntime(makePort(() => simpleProjection), {
+      initialData: { name: 'Alice', age: 30 },
+    })
+    const listener = vi.fn()
+    const onRejected = vi.fn()
+    runtime.destroy()
+    runtime.subscribeMutations(listener, vi.fn())
+    runtime.registerCommandGuard(() => 'blocked', onRejected)
+    const release = runtime.lockArrayStructure()
+    release()
+    runtime.applyRemoteSnapshot({ name: 'Bob', age: 30 })
+
+    expect(runtime.data.getSnapshot()).toEqual({ name: 'Alice', age: 30 })
+    expect(listener).not.toHaveBeenCalled()
+    expect(onRejected).not.toHaveBeenCalled()
   })
 })
 

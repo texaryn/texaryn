@@ -2,6 +2,9 @@ export type NodeId = string & { __brand: 'NodeId' }
 export type StableItemId = string & { __brand: 'StableItemId' }
 export type JsonPointer = string & { __brand: 'JsonPointer' }
 
+export type JsonScalar = string | number | boolean | null
+export type JsonValue = JsonScalar | JsonValue[] | { [key: string]: JsonValue }
+
 export type MaybePromise<T> = T | Promise<T>
 
 export type JsonSchemaType =

@@ -8,6 +8,7 @@ import { createForm } from '../src/form.js'
 import { createDefaultRegistry } from '../src/registry.js'
 import { FormRoot } from '../src/components/FormRoot.js'
 import { useField } from '../src/field.js'
+import { createArrayDragTransfer, dispatchArrayDrag } from '../../../tests/renderer-conformance/array-drag.js'
 
 afterEach(cleanup)
 
@@ -265,5 +266,50 @@ describe('Solid renderer', () => {
       expect(screen.getByTestId('field-fallbacks').textContent).toBe('false false true false false 0')
     })
     fireEvent.click(screen.getByRole('button', { name: 'Set number' }))
+  })
+
+  it('reorders the selected stable row with native drag events', async () => {
+    const { form } = await renderForm({
+      type: 'object',
+      properties: { people: { type: 'array', items: { type: 'string' } } },
+    }, { people: ['Ada', 'Grace', 'Lin'] }, { '/people': { canReorder: true } })
+    const root = document.querySelector<HTMLElement>('[data-array-container]')!
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const transfer = createArrayDragTransfer()
+    const handle = rows[1]!.querySelector<HTMLElement>('[draggable="true"]')!
+    expect(handle.tabIndex).toBe(-1)
+    expect(handle.getAttribute('aria-hidden')).toBe('true')
+    rows[0]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+    dispatchArrayDrag('dragstart', handle, transfer)
+    dispatchArrayDrag('dragover', rows[0]!, transfer, 10)
+    dispatchArrayDrag('drop', rows[0]!, transfer, 10)
+
+    await waitFor(() => expect(form.data.getSnapshot()).toEqual({ people: ['Grace', 'Ada', 'Lin'] }))
+  })
+
+  it('ignores missing payloads and clears stale drops without a session', async () => {
+    await renderForm({
+      type: 'object',
+      properties: { people: { type: 'array', items: { type: 'string' } } },
+    }, { people: ['Ada', 'Grace', 'Lin'] }, { '/people': { canReorder: true } })
+    const root = document.querySelector<HTMLElement>('[data-array-container]')!
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const emptyTransfer = createArrayDragTransfer()
+    dispatchArrayDrag('dragover', rows[0]!, emptyTransfer)
+    dispatchArrayDrag('drop', rows[0]!, emptyTransfer)
+
+    const staleTransfer = createArrayDragTransfer()
+    staleTransfer.setData('application/x-texaryn-array-item', 'removed-item')
+    root.setAttribute('data-array-drag-active', '')
+    rows[0]!.setAttribute('data-dragging', '')
+    rows[1]!.setAttribute('data-drop-target', '')
+    dispatchArrayDrag('dragover', rows[1]!, staleTransfer)
+    dispatchArrayDrag('dragleave', rows[1]!, staleTransfer)
+    dispatchArrayDrag('drop', rows[1]!, staleTransfer)
+
+    expect(root.hasAttribute('data-array-drag-active')).toBe(false)
+    expect(rows[0]!.hasAttribute('data-dragging')).toBe(false)
+    expect(rows[1]!.hasAttribute('data-drop-target')).toBe(false)
   })
 })

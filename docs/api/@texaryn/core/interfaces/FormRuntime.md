@@ -6,17 +6,29 @@
 
 # Interface: FormRuntime
 
+## Extends
+
+- [`UIDocumentRuntime`](UIDocumentRuntime.md)\<[`UIDocument`](UIDocument.md), `unknown`\>
+
 ## Properties
 
 ### data
 
 > `readonly` **data**: [`Store`](Store.md)\<`unknown`\>
 
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`data`](UIDocumentRuntime.md#data-1)
+
 ***
 
 ### document
 
-> `readonly` **document**: [`Store`](Store.md)\<[`UIDocument`](UIDocument.md)\>
+> `readonly` **document**: [`Store`](Store.md)\<[`UIDocument`](UIDocument.md)\<`1`\>\>
+
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`document`](UIDocumentRuntime.md#document-1)
 
 ***
 
@@ -44,6 +56,12 @@ rather than one run over data.
 
 ***
 
+### initializationPolicy
+
+> `readonly` **initializationPolicy**: [`InitializationPolicy`](../type-aliases/InitializationPolicy.md)
+
+***
+
 ### submission
 
 > `readonly` **submission**: [`Store`](Store.md)\<[`SubmissionState`](SubmissionState.md)\>
@@ -56,6 +74,26 @@ rather than one run over data.
 
 ## Methods
 
+### applyRemoteSnapshot()
+
+> **applyRemoteSnapshot**(`data`, `options?`): `void`
+
+#### Parameters
+
+##### data
+
+`unknown`
+
+##### options?
+
+[`RemoteSnapshotOptions`](RemoteSnapshotOptions.md)
+
+#### Returns
+
+`void`
+
+***
+
 ### destroy()
 
 > **destroy**(): `void`
@@ -64,17 +102,27 @@ rather than one run over data.
 
 `void`
 
+#### Overrides
+
+[`UIDocumentRuntime`](UIDocumentRuntime.md).[`destroy`](UIDocumentRuntime.md#destroy)
+
 ***
 
 ### dispatch()
 
-> **dispatch**(`command`): `void`
+> **dispatch**(`command`, `options?`): `void`
 
 #### Parameters
 
 ##### command
 
 [`Command`](../type-aliases/Command.md)
+
+##### options?
+
+###### origin?
+
+`unknown`
 
 #### Returns
 
@@ -95,3 +143,53 @@ rather than one run over data.
 #### Returns
 
 [`NodeState`](NodeState.md) \| `undefined`
+
+***
+
+### lockArrayStructure()
+
+> **lockArrayStructure**(): () => `void`
+
+#### Returns
+
+() => `void`
+
+***
+
+### registerCommandGuard()
+
+> **registerCommandGuard**(`guard`, `onRejected?`): () => `void`
+
+#### Parameters
+
+##### guard
+
+[`FormCommandGuard`](../type-aliases/FormCommandGuard.md)
+
+##### onRejected?
+
+(`reason`) => `void`
+
+#### Returns
+
+() => `void`
+
+***
+
+### subscribeMutations()
+
+> **subscribeMutations**(`listener`, `onError`): () => `void`
+
+#### Parameters
+
+##### listener
+
+(`mutation`) => `void`
+
+##### onError
+
+(`error`) => `void`
+
+#### Returns
+
+() => `void`

@@ -16,6 +16,7 @@
 
 ## Type Aliases
 
+- [DocumentWidgetComponent](type-aliases/DocumentWidgetComponent.md)
 - [FieldKind](type-aliases/FieldKind.md)
 - [FormRoot](type-aliases/FormRoot.md)
 - [WidgetComponent](type-aliases/WidgetComponent.md)
@@ -41,6 +42,18 @@
 ## References
 
 ### ArrayControl
+
+Renames and re-exports [FormRoot](variables/FormRoot.md)
+
+***
+
+### DocumentNodeView
+
+Renames and re-exports [FormRoot](variables/FormRoot.md)
+
+***
+
+### DocumentRoot
 
 Renames and re-exports [FormRoot](variables/FormRoot.md)
 

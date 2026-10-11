@@ -60,7 +60,12 @@ function mockMount(store: ReturnType<typeof createStore<VisibleError[]>>): Mount
     submission: createStore<SubmissionState>({ status: 'idle', attempts: 0 }),
     visibleErrors: store,
     initialization: createStore<InitializationReport | undefined>(undefined),
+    initializationPolicy: 'none',
     dispatch: () => {},
+    subscribeMutations: () => () => {},
+    registerCommandGuard: () => () => {},
+    applyRemoteSnapshot: () => {},
+    lockArrayStructure: () => () => {},
     getNodeState: () => undefined,
     destroy: () => {},
   }

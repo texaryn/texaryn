@@ -48,6 +48,10 @@ Three areas:
 3. The inspector: data, validation, projection, IR, runtime state, schema and
    hints.
 
+The schema editor has JSON and Visual modes. The visual builder edits direct
+scalar fields on a simple object schema and writes each change to the same JSON
+Schema source. Advanced schema keywords remain in the source and use JSON mode.
+
 Selecting an example loads its schema, hints and initial data from
 `@texaryn/examples`, so the playground keeps no catalog of its own. Editing the
 schema switches to a custom schema rendered from the editor contents alone.

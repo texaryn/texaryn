@@ -1,0 +1,181 @@
+---
+title: Display documents
+description: Build standalone lists, tables, layouts, text and actions with the version 2 UI document runtime.
+---
+
+Texaryn form documents stay on version 1 and use `FormRuntime`. Version 2 is a
+standalone display document for text, groups, layouts, lists, tables and host
+actions. It does not contain editable form fields or use a JSON Schema adapter.
+
+## Create a display document
+
+`createDocumentRuntime` validates the whole document and its current data before
+returning a runtime. A list or table points to an array in `dataPointer`. Its
+value and column pointers are evaluated against each row.
+
+```ts
+import { createDocumentRuntime } from '@texaryn/core'
+
+const runtime = createDocumentRuntime(
+  {
+    version: 2,
+    rootId: 'root',
+    nodes: {
+      root: {
+        id: 'root',
+        type: 'container',
+        parentId: null,
+        annotations: { title: 'Directory' },
+        containerType: 'group',
+        children: ['title', 'people', 'table', 'refresh'],
+      },
+      title: {
+        id: 'title',
+        type: 'text',
+        parentId: 'root',
+        annotations: {},
+        textRole: 'heading',
+        content: 'People',
+      },
+      people: {
+        id: 'people',
+        type: 'list',
+        parentId: 'root',
+        annotations: {},
+        collectionId: 'people-list',
+        dataPointer: '/people',
+        valuePointer: '/name',
+        rowKeyPointer: '/id',
+      },
+      table: {
+        id: 'table',
+        type: 'table',
+        parentId: 'root',
+        annotations: {},
+        collectionId: 'people-table',
+        dataPointer: '/people',
+        rowKeyPointer: '/id',
+        columns: [
+          { id: 'name', label: 'Name', valuePointer: '/name' },
+          { id: 'role', label: 'Role', valuePointer: '/role' },
+        ],
+      },
+      refresh: {
+        id: 'refresh',
+        type: 'action',
+        parentId: 'root',
+        annotations: {},
+        actionType: 'refresh-directory',
+        label: 'Refresh',
+        buttonRole: 'button',
+      },
+    },
+  },
+  {
+    initialData: {
+      people: [
+        { id: 'p1', name: 'Ada', role: 'Engineer' },
+        { id: 'p2', name: 'Grace', role: 'Engineer' },
+      ],
+    },
+    actions: {
+      'refresh-directory': async (_args, context) => {
+        await fetch('/api/directory/refresh', { method: 'POST' })
+        console.log(context.data)
+      },
+    },
+  },
+)
+```
+
+Collection rows can be any JSON values in lists. The selected list value and
+table cells must be scalar, null, or missing. Missing and null values render
+empty. A configured row key must resolve to a unique string or finite number
+for every row. With no row key, a data replacement starts a new row identity
+lifetime.
+
+An update is validated before it is published. `setData` throws and retains the
+previous data and collection identities when a source has the wrong shape, a
+selected value is an object or array, or a row key is invalid. `replaceDocument`
+does the same for invalid trees. Column IDs must be unique within a table.
+
+## Render the document
+
+The framework roots use semantic HTML and observe collection updates from the
+same runtime.
+
+```tsx
+import { DocumentRoot } from '@texaryn/react'
+
+export function Directory() {
+  return <DocumentRoot runtime={runtime} />
+}
+```
+
+The other packages export `DocumentRoot` for Vue, Solid and Svelte. Angular
+uses `<texaryn-document-root [runtime]="runtime" />`. The Web Components
+package exposes `mountDocument(container, runtime)`, which borrows the runtime
+and returns an object with `unmount()`.
+
+Call `runtime.setData(nextData)` to update only data, or
+`runtime.replaceSnapshot(nextDocument, nextData)` to replace both together.
+Register action handlers on the host when creating the runtime. Actions without
+a registered host handler render disabled, and direct invocation rejects them.
+An action with arguments needs a registration descriptor with a synchronous
+validator. The validator returns JSON arguments or throws. Core clones and
+freezes that value before invoking the handler. The handler remains responsible
+for authorization before performing an operation.
+
+## Apply server updates
+
+Create one session for a runtime stream. The first message is a full snapshot.
+Each later update uses exactly the next revision and contains a patch, new data,
+or both. A higher revision snapshot can resynchronize after a missed update or
+after code changes the runtime outside the session. Call `apply` outside any
+active core signal batch.
+
+```ts
+import { createDocumentUpdateSession } from '@texaryn/core'
+
+const updates = createDocumentUpdateSession(runtime, {
+  onNotificationError(error) {
+    reportRendererError(error)
+  },
+})
+
+updates.apply({
+  protocol: 1,
+  kind: 'snapshot',
+  revision: 12,
+  document: serverDocument,
+  data: serverData,
+})
+
+updates.apply({
+  protocol: 1,
+  kind: 'update',
+  revision: 13,
+  patch: [{ op: 'replace', path: '/nodes/title/content', value: 'New title' }],
+})
+```
+
+The patch subset supports `add`, `remove`, and `replace` below `/nodes`. It
+rejects unknown envelope and operation properties, invalid JSON Pointers,
+unsupported operations, skipped revisions, and resource limit violations. Data
+is a complete replacement when supplied. Validation completes before the
+runtime publishes document, data, and collection rows in one transaction.
+Patch only updates preserve unkeyed row IDs. An update that supplies data
+starts a new unkeyed row identity lifetime. Compatible keyed rows keep their
+IDs.
+
+Core limits JSON depth to 64, JSON values to 250,000, one string to 1,000,000
+UTF-16 code units, total string content to 10,000,000 code units, document
+nodes to 10,000, and document tree depth to 64. It also bounds arrays,
+collections, patch operations, candidate traversal work, and update rate.
+Hosts can lower core limits. The transport must cap raw request bytes before
+JSON parsing and authenticate and authorize the sender before passing a message
+to the session. The repository records the full protocol contract in ADR-013.
+
+Custom registries can override rendering by semantic node type. A document
+cannot select a framework component by name. Layout nodes describe ordered
+structure, while each renderer selects its own markup and spacing.

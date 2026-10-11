@@ -10,16 +10,18 @@ one can be understood without reading the others.
 
 | Package | Responsibility |
 | --- | --- |
-| `@texaryn/core` | The framework-neutral runtime: IR, commands, validation and submission lifecycle |
+| `@texaryn/core` | The framework-neutral runtime: versioned UI documents, form commands, validation and submission lifecycle |
+| `@texaryn/collaboration-yjs` | Optional Yjs binding for shared scalar field values; the host supplies the document and provider |
 | `@texaryn/schema-json` | JSON Schema evaluation behind the schema port, across three dialects |
 | `@texaryn/schema-zod` | Zod 4 validation with projection through JSON Schema |
-| `@texaryn/react` | The React binding: hooks, prop getters and the default widgets |
-| `@texaryn/angular` | The Angular binding: signals, standalone components and the default widgets |
+| `@texaryn/react` | The React binding: form hooks, display documents and the default widgets |
+| `@texaryn/angular` | The Angular binding: signals, standalone form and display components |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets over the React binding |
 | `@texaryn/react-mui` | Material UI v9 widgets over the React binding |
-| `@texaryn/vue` | The Vue 3 binding: composables, provide and inject context, and the default widgets |
-| `@texaryn/svelte` | The Svelte 5 binding: readable store bridge, component registry, and default widgets |
-| `@texaryn/web-components` | The custom element binding: `<texaryn-form>` and native widgets in light DOM |
+| `@texaryn/vue` | The Vue 3 binding: form composables, display documents, and the default widgets |
+| `@texaryn/solid` | The SolidJS binding: signal subscriptions, display documents, and default widgets |
+| `@texaryn/svelte` | The Svelte 5 binding: readable store bridge, form and display components |
+| `@texaryn/web-components` | The custom element binding: form and display roots with native widgets in light DOM |
 
 ## The schema port
 
@@ -29,6 +31,23 @@ implementation, which is what keeps JSON Schema from becoming an assumption
 rather than a choice. TypeBox supplies JSON Schema directly. The optional
 `@texaryn/schema-zod` package uses Zod for validation and the JSON Schema
 adapter for field projection.
+
+## Collaborative scalar edits
+
+The optional `@texaryn/collaboration-yjs` package stores a bootstrap snapshot
+and scalar overrides by JSON Pointer. Core stays independent of Yjs and
+transport code. The host supplies a `Y.Doc` and provider. Version 1 keeps array
+lengths and object properties fixed, so concurrent array ordering is outside
+this package's contract.
+
+```mermaid
+flowchart LR
+  App[Host application] --> Runtime[FormRuntime]
+  Runtime -->|committed scalar edits| Adapter[@texaryn/collaboration-yjs]
+  Adapter <-->|baseline and pointer overrides| Doc[Y.Doc]
+  App --> Provider[Host selected provider]
+  Provider <-->|Yjs updates| Doc
+```
 
 ## Independent versions
 

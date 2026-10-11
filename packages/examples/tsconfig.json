@@ -11,5 +11,5 @@
     "src/**/*.test.ts",
     "src/**/*.spec.ts"
   ],
-  "references": [{ "path": "../core" }]
+  "references": [{ "path": "../core" }, { "path": "../schema-json" }]
 }

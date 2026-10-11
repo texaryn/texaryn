@@ -1,13 +1,88 @@
 import type { Store } from '../state/store.js'
-import type { UIDocument } from '../ir/types.js'
+import type { AnyUIDocument, UIDocument, UIDocumentV2 } from '../ir/types.js'
 import type { UIHints } from '../hints/types.js'
 import type { Command } from '../commands/types.js'
 import type { SubmissionState } from '../ir/runtime-state.js'
-import type { NodeId, MaybePromise, ValidationError, VisibleError } from '../types.js'
+import type { JsonScalar, JsonValue, NodeId, StableItemId, MaybePromise, ValidationError, VisibleError } from '../types.js'
 import type { DefaultConflict, DefaultRefusal } from '../initialization/index.js'
 
 /** Which initialization policy consumes the schema's `default` annotations. */
 export type InitializationPolicy = 'none' | 'schema-defaults'
+
+export interface UIDocumentRuntime<Document extends AnyUIDocument = AnyUIDocument, Data = unknown> {
+  readonly document: Store<Document>
+  readonly data: Store<Data>
+  destroy(): void
+}
+
+export interface DocumentCollectionRow {
+  readonly id: StableItemId
+  readonly value: JsonScalar
+  readonly cells: readonly JsonScalar[]
+}
+
+export interface DocumentActionContext {
+  readonly nodeId: NodeId
+  readonly document: UIDocumentV2
+  readonly data: JsonValue
+}
+
+export type DocumentActionHandler = (
+  args: JsonValue | undefined,
+  context: DocumentActionContext,
+) => MaybePromise<void>
+
+export type DocumentActionArgumentValidator = (
+  args: JsonValue | undefined,
+) => JsonValue | undefined
+
+export interface DocumentActionRegistration {
+  handler: DocumentActionHandler
+  validateArgs?: DocumentActionArgumentValidator
+}
+
+export type DocumentAction = DocumentActionHandler | DocumentActionRegistration
+
+export interface DocumentRuntimeLimits {
+  maxJsonDepth: number
+  maxJsonValues: number
+  maxArrayItems: number
+  maxStringLength: number
+  maxTotalStringLength: number
+  maxDocumentNodes: number
+  maxDocumentTreeDepth: number
+  maxRowsPerCollection: number
+  maxCollectionRows: number
+  maxTableCells: number
+}
+
+export interface DocumentRuntimeOptions {
+  initialData?: unknown
+  actions?: Readonly<Record<string, DocumentAction>>
+  limits?: Partial<DocumentRuntimeLimits>
+}
+
+export interface DocumentRuntime extends UIDocumentRuntime<UIDocumentV2, JsonValue> {
+  replaceDocument(document: unknown): void
+  setData(data: unknown): void
+  replaceSnapshot(document: unknown, data: unknown): void
+  getCollection(nodeId: NodeId): Store<readonly DocumentCollectionRow[]> | undefined
+  hasActionHandler(actionType: string): boolean
+  invokeAction(nodeId: NodeId): Promise<void>
+}
+
+export interface DocumentUpdateSessionOptions {
+  maxMessagesPerSecond?: number
+  maxPatchOperations?: number
+  now?: () => number
+  onNotificationError: (error: unknown) => void
+}
+
+export interface DocumentUpdateSession {
+  apply(message: unknown): void
+  getRevision(): number | undefined
+  destroy(): void
+}
 
 /**
  * What one run of ADR-003's initialization pass did, without the data, which
@@ -63,6 +138,30 @@ export interface FormRuntimeOptions {
   initialization?: InitializationPolicy
 }
 
+export interface FormMutation {
+  readonly command?: Command
+  readonly origin?: unknown
+  readonly beforeData: unknown
+  readonly data: unknown
+  readonly beforeDocument: UIDocument
+  readonly document: UIDocument
+  readonly changedPointers?: readonly string[]
+}
+
+export interface FormCommandGuardContext {
+  readonly document: UIDocument
+  readonly data: unknown
+}
+
+export type FormCommandGuard = (
+  command: Command,
+  context: FormCommandGuardContext,
+) => string | undefined
+
+export interface RemoteSnapshotOptions {
+  readonly origin?: unknown
+}
+
 export interface NodeState {
   readonly value: Store<unknown>
   readonly errors: Store<ValidationError[]>
@@ -74,7 +173,7 @@ export interface NodeState {
   readonly showErrors: Store<boolean>
 }
 
-export interface FormRuntime {
+export interface FormRuntime extends UIDocumentRuntime<UIDocument, unknown> {
   readonly document: Store<UIDocument>
   readonly data: Store<unknown>
   readonly submission: Store<SubmissionState>
@@ -99,7 +198,18 @@ export interface FormRuntime {
    * rather than one run over data.
    */
   readonly initialization: Store<InitializationReport | undefined>
-  dispatch(command: Command): void
+  readonly initializationPolicy: InitializationPolicy
+  dispatch(command: Command, options?: { origin?: unknown }): void
+  subscribeMutations(
+    listener: (mutation: FormMutation) => void,
+    onError: (error: unknown) => void,
+  ): () => void
+  registerCommandGuard(
+    guard: FormCommandGuard,
+    onRejected?: (reason: string) => void,
+  ): () => void
+  applyRemoteSnapshot(data: unknown, options?: RemoteSnapshotOptions): void
+  lockArrayStructure(): () => void
   getNodeState(nodeId: NodeId): NodeState | undefined
   destroy(): void
 }

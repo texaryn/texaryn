@@ -4,13 +4,17 @@
 
 [Documentation](../../../README.md) / [@texaryn/core](../README.md) / WidgetEntry
 
-# Interface: WidgetEntry\<T\>
+# Interface: WidgetEntry\<T, Node\>
 
 ## Type Parameters
 
 ### T
 
 `T` = `unknown`
+
+### Node
+
+`Node` = [`UINode`](../type-aliases/UINode.md)
 
 ## Properties
 
@@ -22,4 +26,4 @@
 
 ### tester
 
-> **tester**: [`WidgetTester`](WidgetTester.md)
+> **tester**: [`WidgetTester`](WidgetTester.md)\<`Node`\>

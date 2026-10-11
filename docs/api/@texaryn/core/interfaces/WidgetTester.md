@@ -4,7 +4,13 @@
 
 [Documentation](../../../README.md) / [@texaryn/core](../README.md) / WidgetTester
 
-# Interface: WidgetTester
+# Interface: WidgetTester\<Node\>
+
+## Type Parameters
+
+### Node
+
+`Node` = [`UINode`](../type-aliases/UINode.md)
 
 ## Properties
 
@@ -22,7 +28,7 @@
 
 ##### node
 
-[`UINode`](../type-aliases/UINode.md)
+`Node`
 
 #### Returns
 
