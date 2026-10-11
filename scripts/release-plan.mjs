@@ -1,12 +1,11 @@
 // Plans one GitHub release per published package. Every package versions
 // independently, so there is no repository-wide version to hang a single
-// `v*` release on; each release sits on the `<name>@<version>` tag that
-// `changeset publish` already pushed.
+// `v*` release on; each release sits on the `<name>@<version>` tag for the
+// verified npm package source commit.
 //
-// The plan has two sources. `published-packages` is the changesets action
-// output and describes only what that execution published, so a rerun after
-// npm succeeded reports nothing. Tags pointing at the release commit survive
-// that, which is what makes a retry able to finish the job.
+// The plan combines the changesets action output with exact package versions
+// confirmed by the registry. This recovers partial publishes even when their
+// tags were never pushed or no longer point at the current commit.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { publishedPackages } from './packages.mjs'
@@ -33,19 +32,24 @@ export function parsePublishedPackages(raw) {
   )
 }
 
-// `changeset publish` tags as `<name>@<version>`, and the name is itself
-// scoped, so the version is whatever follows the final `@`.
-export function parsePackageTag(tag) {
-  const at = tag.lastIndexOf('@')
-  if (at <= 0) return null
-  const name = tag.slice(0, at)
-  const version = tag.slice(at + 1)
-  if (!directoryByName.has(name) || version === '') return null
-  return { name, version }
-}
-
-export function packagesFromTags(tags) {
-  return tags.map(parsePackageTag).filter((entry) => entry !== null)
+export function parseSourceCommits(raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return []
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (entry) =>
+      entry !== null &&
+      typeof entry === 'object' &&
+      typeof entry.name === 'string' &&
+      typeof entry.version === 'string' &&
+      typeof entry.commit === 'string' &&
+      /^[0-9a-f]{40}$/.test(entry.commit),
+  )
 }
 
 export function extractVersionSection(changelog, version) {
@@ -67,16 +71,21 @@ function readNotes(name, version, { root, readFile }) {
   }
 }
 
-// Prefers the action output and falls back to the commit's tags, so a rerun
-// after a partial failure still plans the releases that are missing.
 export function planReleases({
   publishedPackages = '',
-  tags = [],
+  registryPackages = '',
+  sourceCommits = [],
+  existingReleases = [],
   root = process.cwd(),
   readFile = (path) => readFileSync(path, 'utf8'),
 } = {}) {
   const published = parsePublishedPackages(publishedPackages)
-  const source = published.length > 0 ? published : packagesFromTags(tags)
+  const fromRegistry = parsePublishedPackages(registryPackages)
+  const source = [...published, ...fromRegistry]
+  const commitsByTag = new Map(
+    sourceCommits.map(({ name, version, commit }) => [`${name}@${version}`, commit]),
+  )
+  const released = new Set(existingReleases)
 
   const seen = new Set()
   const plan = []
@@ -86,12 +95,14 @@ export function planReleases({
     const tag = `${name}@${version}`
     if (seen.has(tag)) continue
     seen.add(tag)
+    if (released.has(tag)) continue
 
     plan.push({
       tag,
       title: tag,
       name,
       version,
+      target: commitsByTag.get(tag) ?? null,
       prerelease: version.includes('-'),
       notes: readNotes(name, version, { root, readFile }),
     })
@@ -101,12 +112,17 @@ export function planReleases({
 }
 
 export function main({ env = process.env, log = console.log } = {}) {
-  const tags = (env.RELEASE_TAGS ?? '')
+  const existingReleases = (env.EXISTING_RELEASES ?? '')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
 
-  log(JSON.stringify(planReleases({ publishedPackages: env.PUBLISHED_PACKAGES ?? '', tags })))
+  log(JSON.stringify(planReleases({
+    publishedPackages: env.PUBLISHED_PACKAGES ?? '',
+    registryPackages: env.REGISTRY_PACKAGES ?? '',
+    sourceCommits: parseSourceCommits(env.SOURCE_COMMITS ?? ''),
+    existingReleases,
+  })))
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

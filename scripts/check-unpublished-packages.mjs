@@ -41,7 +41,12 @@ export function decide(results) {
   return results.some((r) => r.status !== 'published')
 }
 
-export async function main({ root = process.cwd(), fetch = globalThis.fetch, log = console.log } = {}) {
+export async function main({
+  root = process.cwd(),
+  fetch = globalThis.fetch,
+  log = console.log,
+  outputPath = process.env.GITHUB_OUTPUT,
+} = {}) {
   const results = await Promise.all(
     readVersions(root).map(({ name, version }) => checkVersion(name, version, { fetch })),
   )
@@ -50,8 +55,14 @@ export async function main({ root = process.cwd(), fetch = globalThis.fetch, log
   }
   const shouldPublish = decide(results)
   log(`should-publish=${shouldPublish}`)
-  if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `should-publish=${shouldPublish}\n`)
+  if (outputPath) {
+    const publishedPackages = results
+      .filter((result) => result.status === 'published')
+      .map(({ name, version }) => ({ name, version }))
+    appendFileSync(
+      outputPath,
+      `should-publish=${shouldPublish}\npublished-packages=${JSON.stringify(publishedPackages)}\n`,
+    )
   }
   return shouldPublish
 }
