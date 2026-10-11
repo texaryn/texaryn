@@ -64,7 +64,8 @@ jobs:
         with:
           name: coverage
           path: coverage/lcov.info
-          retention-days: 1
+          if-no-files-found: error
+          retention-days: 7
 
   # Outside the CI Gate: SonarQube Cloud reports its quality gate as its own
   # check, and an outage there should not block merges.
