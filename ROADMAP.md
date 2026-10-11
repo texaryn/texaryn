@@ -1878,13 +1878,20 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
-Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. This schema-adapters change adds Zod support and TypeBox integration through JSON Schema; the public Zod package still needs its release workflow.
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published
+packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
+`@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui`
+0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0.
+`@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
+the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
+support and TypeBox integration; the release workflow has not published the
+Zod package yet. The Angular renderer is implemented on this branch and remains
+unreleased.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. The 0.8.2 release checks passed; its protected npm publish job is
-awaiting approval. Hyperjump remains in CI for comparison only. This is an
+workaround. Version 0.8.2 is published. Hyperjump remains in CI for comparison only. This is an
 implementation change within the accepted strategy, not a later engine
 selection phase.
 
@@ -1894,7 +1901,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 |---|------|-------|
 | 1 | Implicit structural type inference | Done (#115) |
 | 2 | Conditional projection | Done (#117, #118) |
-| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 created version 0.8.2; its publish job awaits protected environment approval. |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 published version 0.8.2 and created its immutable release. |
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
@@ -2085,18 +2092,16 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 ### Phase 5+: Post-Validation
 
-MUI and custom styling examples are complete. This change completes schema
-authoring support: TypeBox supplies JSON Schema to the production adapter, and
-`@texaryn/schema-zod` uses Zod for validation with JSON Schema projection.
-Continue with the remaining roadmap items in this order:
+MUI and custom styling examples are complete. PR #210 merged Zod and TypeBox
+support. The Zod package awaits publication. The remaining roadmap items are:
 
-- Additional renderers (Angular, Svelte, Solid)
-- Non-form node types (tables, lists, layouts)
-- Server-driven UI tooling
-- AI generation tooling
-- Visual form builder
-- Drag-and-drop array reorder
-- Collaborative editing (OT/CRDT on top of commands)
+1. Additional renderers: Angular, Svelte and Solid.
+2. Non-form node types: tables, lists and layouts.
+3. Server-driven UI tooling.
+4. AI generation tooling.
+5. Visual form builder.
+6. Drag-and-drop array reorder.
+7. Collaborative editing.
 
 ## 20. Assessment: Decisions, Risks, and Viability
 

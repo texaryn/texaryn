@@ -1,0 +1,65 @@
+{
+  "name": "@texaryn/angular",
+  "version": "0.1.0",
+  "description": "Angular signal bindings and default widgets for Texaryn",
+  "keywords": [
+    "angular",
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "headless",
+    "angular-forms",
+    "dynamic-forms",
+    "typescript"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/angular"
+  },
+  "homepage": "https://texaryn.github.io/texaryn/",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "CHANGELOG.md"],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=20.0.0",
+    "@angular/core": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@angular/common": "20.3.33",
+    "@angular/compiler": "20.3.33",
+    "@angular/compiler-cli": "20.3.33",
+    "@angular/core": "20.3.33",
+    "@angular/platform-browser": "20.3.33",
+    "@texaryn/schema-json": "workspace:*",
+    "jsdom": "^25.0.0",
+    "rxjs": "^7.8.2",
+    "typescript": "~5.8.0"
+  },
+  "scripts": {
+    "build": "ngc -p tsconfig.json",
+    "typecheck": "ngc --noEmit -p tsconfig.typecheck.json"
+  }
+}
