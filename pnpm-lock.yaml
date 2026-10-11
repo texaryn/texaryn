@@ -214,6 +214,9 @@ importers:
       '@texaryn/core':
         specifier: workspace:^
         version: link:../core
+      '@texaryn/schema-json':
+        specifier: workspace:^
+        version: link:../schema-json
 
   packages/hints-rjsf:
     devDependencies:

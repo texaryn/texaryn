@@ -386,6 +386,110 @@ body {
   opacity: 0.6;
 }
 
+.pg-editor-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--tx-border);
+}
+
+.pg-editor-tabs__item {
+  padding: 0.45rem 0.65rem;
+  color: var(--tx-text-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pg-editor-tabs__item[aria-pressed='true'] {
+  color: var(--tx-text);
+  border-bottom-color: var(--tx-accent);
+  font-weight: 650;
+}
+
+.pg-builder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.pg-builder__message {
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.pg-builder__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pg-builder__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.75rem;
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+}
+
+.pg-builder__field legend {
+  padding: 0 0.25rem;
+  font-family: var(--tx-font-mono);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.pg-builder__control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--tx-text-muted);
+  font-size: 0.75rem;
+}
+
+.pg-builder__input {
+  min-width: 0;
+  padding: 0.4rem;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.pg-builder__field .pg-checkbox-label {
+  align-self: center;
+}
+
+.pg-button--quiet {
+  justify-self: end;
+  padding-inline: 0.6rem;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border-color: var(--tx-border-strong);
+}
+
+.pg-builder__advanced {
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+}
+
+.pg-builder__advanced ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .pg-submit-row {
   display: flex;
   align-items: center;
@@ -543,6 +647,8 @@ body {
 .pg-select:focus-visible,
 .pg-search:focus-visible,
 .pg-schema-editor:focus-visible,
+.pg-editor-tabs__item:focus-visible,
+.pg-builder__input:focus-visible,
 .pg-button:focus-visible,
 .pg-tab:focus-visible,
 .pg-examples__item:focus-visible,

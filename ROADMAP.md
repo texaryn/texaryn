@@ -4,7 +4,8 @@
 
 A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
-Server-driven and AI-generated interfaces remain later roadmap items.
+Roadmap items 4 to 6 are implemented locally. Drag-and-drop array reorder is
+the active post-validation milestone.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1922,6 +1923,22 @@ and found no remaining actionable issues. The full suite passed 5,547 tests
 across 160 files. Typecheck, build, package verification and site build pass.
 The work is complete locally on `feat/non-form-node-types` and unreleased.
 
+ADR-014 accepts a provider-neutral AI generation kit. The versioned output
+contract supports schema-generated version 1 forms and direct version 2 display
+documents. A downloadable schema and instructions, bounded repair example,
+runtime acceptance checks, and deterministic fixtures are implemented locally
+on `feat/non-form-node-types`. The kit adds no AI SDK or runtime package and is
+unreleased. ChatGPT's final code review identified reference traversal and
+metaschema validation gaps. The fixes cover local and host supplied references,
+including Draft 7 pointers into unknown keywords. ChatGPT's final review found
+no remaining actionable findings. The full suite passed 5,569 tests across 162
+files; typecheck, build, package verification and site build pass.
+
+ADR-015 accepts a playground-only visual form builder. It edits simple scalar
+properties in the existing JSON Schema source, with the JSON editor retained
+for advanced schemas. The implementation and integration coverage are complete
+locally on `feat/non-form-node-types` and unreleased.
+
 PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
 and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
 the Angular PR, and the Svelte merge depends on that base.
@@ -2144,8 +2161,11 @@ this order:
 4. Server-driven UI tooling. The protocol is accepted in
    [ADR-013](docs/adr/013-server-driven-document-updates.md); implementation is
    complete locally on `feat/non-form-node-types` and is unreleased.
-5. AI generation tooling
-6. Visual form builder
+5. AI generation tooling. ADR-014 and the versioned contract, acceptance
+   example, downloadable instructions, and fixtures are complete locally on
+   `feat/non-form-node-types`; the work is unreleased.
+6. Visual form builder. ADR-015 and the playground implementation are complete
+   locally on `feat/non-form-node-types`; the work is unreleased.
 7. Drag-and-drop array reorder
 8. Collaborative editing with OT or CRDT on top of commands
 
@@ -2279,9 +2299,9 @@ Deferred from MVP:
 - Schema adapters for anything other than JSON Schema
 - Renderers beyond React and one proof-of-neutrality renderer
 - Non-form node types (tables, lists, general layouts)
-- Server-driven UI tooling (the IR supports it by construction; the tooling can wait)
-- AI generation tooling
-- Visual form builder
+- AI provider SDKs, streaming, conversations, and prompt orchestration
+- Nested and advanced visual schema editing beyond the playground builder in
+  ADR-015
 - Drag-and-drop reorder (array add/remove/move via commands is sufficient)
 - Draft-04 JSON Schema support
 - Collaborative editing

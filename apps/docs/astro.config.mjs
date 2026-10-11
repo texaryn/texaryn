@@ -121,6 +121,7 @@ export default defineConfig({
             'start/getting-started',
             'concepts/architecture',
             'guides/json-schema-support',
+            'guides/ai-generation',
             'guides/migrating-from-rjsf',
           ],
           demote: ['api/**', '404'],
@@ -162,6 +163,7 @@ export default defineConfig({
           items: [
             { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
             { label: 'Display documents', slug: 'guides/display-documents' },
+            { label: 'AI generation', slug: 'guides/ai-generation' },
             {
               label: 'JSON Schema validation compatibility',
               slug: 'guides/json-schema-conformance',

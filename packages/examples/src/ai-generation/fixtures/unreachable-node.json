@@ -1,0 +1,14 @@
+{
+  "format": "texaryn-generation",
+  "version": 1,
+  "kind": "display",
+  "document": {
+    "version": 2,
+    "rootId": "root",
+    "nodes": {
+      "root": { "id": "root", "type": "text", "parentId": null, "annotations": {}, "content": "People", "textRole": "heading" },
+      "orphan": { "id": "orphan", "type": "text", "parentId": null, "annotations": {}, "content": "Unreachable", "textRole": "paragraph" }
+    }
+  },
+  "data": {}
+}
