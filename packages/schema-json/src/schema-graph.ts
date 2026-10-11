@@ -1,4 +1,4 @@
-import type { Dialect } from './dialect.js'
+import { isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
 
 type Edge = { readonly to: string; readonly via: string; readonly inPlace: boolean }
 
@@ -17,9 +17,10 @@ const INSTANCE_SINGLE = ['additionalProperties', 'contains', 'propertyNames'] as
 const INSTANCE_MAP = ['properties', 'patternProperties'] as const
 const CONTAINERS = ['$defs', 'definitions'] as const
 // The index keeps the last node per $id; json-schema-library compiles $defs first and keeps the first from 2019-09.
-const INDEX_ORDER: Record<Dialect, readonly string[]> = { 'draft-07': CONTAINERS, '2019-09': ['definitions', '$defs'], '2020-12': ['definitions', '$defs'] }
+const INDEX_ORDER: Record<Dialect, readonly string[]> = { 'draft-04': ['definitions'], 'draft-07': CONTAINERS, '2019-09': ['definitions', '$defs'], '2020-12': ['definitions', '$defs'] }
 
 const REFERENCES: Record<Dialect, readonly string[]> = {
+  'draft-04': ['$ref'],
   'draft-07': ['$ref'],
   '2019-09': ['$ref', '$recursiveRef'],
   '2020-12': ['$ref', '$dynamicRef'],
@@ -96,7 +97,7 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
       }
     }
   }
-  if (dialect === 'draft-07' && typeof schema.$ref === 'string') {
+  if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
     if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
     return found
   }
@@ -111,14 +112,14 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
   }
   // json-schema-library keeps evaluating 'dependencies' past draft-07 for backward compatibility.
   addMap('dependencies', true)
-  if (dialect !== 'draft-07') addMap('dependentSchemas', true)
+  if (!isPre2019Dialect(dialect)) addMap('dependentSchemas', true)
   for (const keyword of INSTANCE_SINGLE) {
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
   if (dialect !== '2020-12' && Array.isArray(schema.items) && isRecord(schema.additionalItems)) {
     found.push({ position: `${position}/additionalItems`, via: 'additionalItems', inPlace: false })
   }
-  if (dialect !== 'draft-07') {
+  if (!isPre2019Dialect(dialect)) {
     for (const keyword of ['unevaluatedItems', 'unevaluatedProperties'] as const) {
       if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
     }
@@ -142,13 +143,14 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
     const schema = at(documents, position)
     if (!isRecord(schema)) return
     let base = parentBase
-    const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
-    if (!ignoresSiblings && typeof schema.$id === 'string') {
+    const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
+    const identifier = schemaIdentifier(schema, dialect)
+    if (!ignoresSiblings && typeof identifier === 'string') {
       index.identifiers.add(position)
-      if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
-        index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
+      if (isPre2019Dialect(dialect) && identifier.startsWith('#')) {
+        index.anchors.set(`${withoutFragment(base)}${identifier}`, position)
       } else {
-        const resolved = resolveUri(schema.$id, parentBase)
+        const resolved = resolveUri(identifier, parentBase)
         if (resolved) {
           base = withoutFragment(resolved)
           index.resources.set(base, position)
@@ -156,7 +158,7 @@ function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
       }
     }
     if (!ignoresSiblings) {
-      if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') {
+      if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
         index.identifiers.add(position)
         index.anchors.set(`${base}#${schema.$anchor}`, position)
       }
@@ -219,13 +221,14 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
     if (!isRecord(schema)) return
     let base = index.baseAt.get(position) ?? inheritedBase
     if (!index.baseAt.has(position)) {
-      const ignoresSiblings = dialect === 'draft-07' && typeof schema.$ref === 'string'
-      if (!ignoresSiblings && typeof schema.$id === 'string') {
+      const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
+      const identifier = schemaIdentifier(schema, dialect)
+      if (!ignoresSiblings && typeof identifier === 'string') {
         index.identifiers.add(position)
-        if (dialect === 'draft-07' && schema.$id.startsWith('#')) {
-          index.anchors.set(`${withoutFragment(base)}${schema.$id}`, position)
+        if (isPre2019Dialect(dialect) && identifier.startsWith('#')) {
+          index.anchors.set(`${withoutFragment(base)}${identifier}`, position)
         } else {
-          const resolved = resolveUri(schema.$id, base)
+          const resolved = resolveUri(identifier, base)
           if (resolved) {
             base = withoutFragment(resolved)
             index.resources.set(base, position)
@@ -233,7 +236,7 @@ export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: r
         }
       }
       if (!ignoresSiblings) {
-        if (dialect !== 'draft-07' && typeof schema.$anchor === 'string') {
+        if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
           index.identifiers.add(position)
           index.anchors.set(`${base}#${schema.$anchor}`, position)
         }

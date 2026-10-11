@@ -1042,8 +1042,20 @@ it('keeps Hyperjump resource context isolated when an input schema is reused', a
 })
 
 it.each([
-  ['root identifier', { $id: 'file:///tmp/root.json', type: 'string' }],
-  ['nested identifier', { type: 'object', properties: { child: { $id: 'file:///tmp/child.json', type: 'string' } } }],
-])('preserves Hyperjump file URI refusal for a %s', async (_label, schema) => {
-  await expect(createHyperjumpAdapter(schema)).rejects.toThrow('file: scheme')
+  [
+    'root identifier',
+    { $id: 'file:///tmp/root.json', type: 'object', definitions: { value: { type: 'number' } }, properties: { value: { $ref: '#/definitions/value' } } },
+    { value: 1 },
+    { value: 'wrong type' },
+  ],
+  [
+    'nested identifier',
+    { type: 'object', properties: { child: { $id: 'file:///tmp/child.json', type: 'object', definitions: { value: { type: 'number' } }, properties: { value: { $ref: '#/definitions/value' } } } } },
+    { child: { value: 1 } },
+    { child: { value: 'wrong type' } },
+  ],
+])('uses a file URI %s as a base for local references without loading a file', async (_label, schema, valid, invalid) => {
+  const adapter = await createHyperjumpAdapter(schema)
+  expect((await adapter.validate(valid)).valid).toBe(true)
+  expect((await adapter.validate(invalid)).valid).toBe(false)
 })

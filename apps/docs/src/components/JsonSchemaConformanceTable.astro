@@ -5,6 +5,7 @@
 import baseline from '../../../../tests/conformance/json-schema-suite/baseline.json'
 
 const dialectLabels: Record<string, string> = {
+  'draft-04': 'Draft 4',
   'draft-07': 'Draft 7',
   '2019-09': '2019-09',
   '2020-12': '2020-12',
@@ -16,7 +17,7 @@ const adapterLabels: Record<string, string> = {
 }
 
 const reasonLabels: Record<string, string> = {
-  'external-schema-resolution-not-exposed': 'External schema resolution',
+  'custom-vocabulary-support-gap': 'Custom vocabulary support',
   'texaryn-adapter-deviation': 'Texaryn adapter',
   'upstream-validator-deviation': 'Upstream validator',
   'suite-known-issue': 'Suite known issue',

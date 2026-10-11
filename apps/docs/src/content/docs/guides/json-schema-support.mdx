@@ -5,8 +5,8 @@ description: Supported JSON Schema drafts, form generation capabilities and vali
 
 import SchemaSupportTable from '../../../components/SchemaSupportTable.astro'
 
-Texaryn's `@texaryn/schema-json` adapter supports **Draft 7, 2019-09 and
-2020-12**, with automatic dialect detection. Draft support identifies the
+Texaryn's `@texaryn/schema-json` adapter supports **Draft 4, Draft 7, 2019-09
+and 2020-12**, with automatic dialect detection. Draft support identifies the
 schema dialect used by the adapter; it is not a claim that every keyword
 produces a form control or that Texaryn provides full specification compliance.
 
@@ -14,14 +14,23 @@ produces a form control or that Texaryn provides full specification compliance.
 
 | Draft | `$schema` value | Status |
 | --- | --- | --- |
+| Draft 4 | `http://json-schema.org/draft-04/schema#` | Supported |
 | Draft 7 | `http://json-schema.org/draft-07/schema#` | Supported |
 | 2019-09 | `https://json-schema.org/draft/2019-09/schema` | Supported |
 | 2020-12 | `https://json-schema.org/draft/2020-12/schema` | Supported |
-| Draft 4 and Draft 6 | | Not supported |
+| Draft 6 | | Not supported |
 
 The adapter reads `$schema`. A missing or unrecognized value falls back to
 Draft 7, rather than rejecting the schema. Set `defaultDialect` to change
 that fallback; it does not override a recognized `$schema` value.
+
+External schema resources must use the root schema's dialect. References to
+resources using a different dialect are rejected. Custom dialects and
+user-defined vocabularies are not a supported extension point. The adapter
+uses its built-in validation keywords even when a custom metaschema omits the
+validation vocabulary, and it does not guarantee rejection of every unknown
+required vocabulary. Use one of the four listed standard dialects when schema
+semantics must be portable.
 
 ```ts
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
@@ -182,16 +191,22 @@ Newer draft keywords such as `minContains`, `maxContains`,
 `unevaluatedProperties` and `unevaluatedItems` are delegated to that library;
 they are not an independent Texaryn compliance guarantee.
 
+The production adapter and the private Hyperjump comparison adapter each pass
+all 618 mandatory Draft 4 cases at the pinned JSON Schema Test Suite revision.
+These are validation results. Draft 4 tuple-valued `items` does not produce
+tuple-specific form controls, and external resources using another dialect are
+not supported.
+
 For **2019-09 and 2020-12**, the adapter never asserts the schema's own
 `format` keywords, because those dialects make `format` an annotation by
 default. A value such as `format: 'email'` stays available as field metadata
 but does not make an invalid email fail validation, and declaring the
 format-assertion vocabulary in `$vocabulary` does not turn assertion on.
 
-**Draft 7** asserts `format`, which the specification permits and which is the
-conventional behaviour there. That includes a schema whose `$schema` is missing
-or unrecognized, which falls back to Draft 7 unless `defaultDialect` names
-another dialect.
+**Draft 4 and Draft 7** assert `format`, which their specifications permit and
+which is the conventional behaviour there. That includes a schema whose
+`$schema` is missing or unrecognized, which falls back to Draft 7 unless
+`defaultDialect` names another dialect.
 
 The adapter exposes no format assertion option of its own, so for the schema's
 own keywords the detected dialect alone decides. The `format` keywords inside a

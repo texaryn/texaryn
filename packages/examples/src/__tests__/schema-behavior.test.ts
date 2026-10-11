@@ -220,6 +220,7 @@ describe('constraints reach the projection', () => {
 
 describe('dialects are detected and honoured', () => {
   it.each([
+    ['dialect-draft-04', 'draft-04'],
     ['dialect-draft-07', 'draft-07'],
     ['dialect-2019-09', '2019-09'],
     ['dialect-2020-12', '2020-12'],
@@ -229,14 +230,17 @@ describe('dialects are detected and honoured', () => {
     expect(projection.nodes.size).toBeGreaterThan(1)
   })
 
-  // The keyword is the point: dependentSchemas does not exist in draft-07,
-  // and dependencies is not how 2020-12 spells it, so each example proves its
-  // dialect was actually used rather than defaulted.
-  it('applies dependencies under draft-07 and dependentSchemas under 2020-12', async () => {
+  // The keyword is the point: dependencies has legacy semantics, while the
+  // newer drafts use dependentSchemas and dependentRequired.
+  it('applies dependencies under Draft 4 and Draft 7', async () => {
+    const draft04 = example('dependency-draft04')
     const draft07 = example('dependency-draft07')
     const modern = example('dependency-dependent-schemas')
 
+    expect(draft04.dialect).toBe('draft-04')
     expect(draft07.dialect).toBe('draft-07')
+    expect(node(await project(draft04, { creditCard: 'x' }), '/cvv')?.active).toBe(true)
+    expect(node(await project(draft04, {}), '/cvv')?.active).toBe(false)
     expect(node(await project(draft07, { creditCard: 'x' }), '/cvv')?.active).toBe(true)
     expect(node(await project(modern, { creditCard: 'x' }), '/cvv')?.active).toBe(true)
   })

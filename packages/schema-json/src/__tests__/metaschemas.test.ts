@@ -3,7 +3,7 @@ import { createJsonSchemaAdapter } from '../index.js'
 import { loadMetaschemas, referencedDialects } from '../metaschemas/index.js'
 import type { Dialect } from '../dialect.js'
 
-const dialects: Dialect[] = ['draft-07', '2019-09', '2020-12']
+const dialects: Dialect[] = ['draft-04', 'draft-07', '2019-09', '2020-12']
 
 describe('metaschema documents', () => {
   // The vendored files are generated copies of published documents, and the
@@ -24,6 +24,7 @@ describe('metaschema documents', () => {
   })
 
   it('carries the closure each dialect needs', async () => {
+    expect((await loadMetaschemas(['draft-04'])).length).toBe(1)
     expect((await loadMetaschemas(['draft-07'])).length).toBe(1)
     expect((await loadMetaschemas(['2019-09'])).length).toBe(7)
     expect((await loadMetaschemas(['2020-12'])).length).toBe(8)

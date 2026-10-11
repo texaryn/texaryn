@@ -49,6 +49,30 @@ describe('AI generation contract', () => {
     }
   })
 
+  it('accepts a Draft 4 form through the locally bundled metaschema', async () => {
+    const schema = {
+      $schema: 'http://json-schema.org/draft-04/schema#',
+      id: 'https://example.test/generated/draft4.json',
+      type: 'object',
+      definitions: { displayName: { type: 'string' } },
+      properties: { name: { $ref: '#/definitions/displayName' } },
+    }
+    const result = await runGenerationExample('Build a profile form', async () => formOutput(schema), {
+      kind: 'form',
+      contractSchema,
+      maxRepairs: 0,
+      allowedWidgets: ['textarea'],
+    }).catch((error: unknown) => {
+      if (error instanceof GenerationRejectedError) {
+        throw new Error(error.diagnostics.join('\n'), { cause: error })
+      }
+      throw error
+    })
+
+    expect(result.kind).toBe('form')
+    if (result.kind === 'form') result.runtime.destroy()
+  })
+
   it('accepts a display document through the version 2 runtime', async () => {
     const result = await runGenerationExample('Build a directory display', async () => fixture('display'), {
       kind: 'display',

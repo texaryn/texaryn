@@ -1321,9 +1321,12 @@ layer would introduce silent semantic bugs. The underlying validator libraries
 (AJV, @hyperjump, json-schema-library) already handle multiple dialects natively;
 the adapter delegates to the dialect the schema declares.
 
-**Draft-04** is deferred. It has significant keyword differences (`id` vs `$id`,
-`definitions` vs `$defs`, different `$ref` resolution) that would complicate the
-adapter without clear demand. Add it when a consumer needs it.
+**Draft-04** is supported with native dialect detection, validation, reference
+resolution, and metaschema support. Its different `id`, `definitions`, and
+`$ref` semantics are handled as Draft-04 behavior rather than translated into
+2020-12 keywords. The implementation is on `feat/draft-04-support`; its
+mandatory official validation suite last passed 618 of 618 cases in each
+adapter. Merge and the minor package release remain outstanding.
 
 ### Dialect Detection
 
@@ -2339,7 +2342,8 @@ Deferred from MVP:
 2. Additional renderers: Angular, Svelte, and Solid in PRs #211 to #213.
 3. Display documents, bounded updates, AI generation, the visual builder, array
    reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
-4. Draft-04 JSON Schema support.
+4. Draft-04 JSON Schema support is implemented on `feat/draft-04-support`;
+   merge and the minor package release remain outstanding.
 5. IR migrations.
 6. Plugin ecosystem.
 

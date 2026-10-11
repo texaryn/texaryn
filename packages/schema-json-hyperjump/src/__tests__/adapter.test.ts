@@ -28,6 +28,28 @@ import {
 } from './fixtures.js'
 
 describe('createHyperjumpAdapter', () => {
+  describe('draft-04 $ref semantics', () => {
+    it('ignores siblings in Draft 4 and applies them in 2020-12', async () => {
+      const draft04 = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        type: 'object',
+        definitions: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/definitions/value', minimum: 100 } },
+      })
+      expect((await draft04.validate({ value: 1 })).valid).toBe(true)
+      expect((await draft04.validate({ value: 'wrong type' })).valid).toBe(false)
+
+      const modern = await createHyperjumpAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        $defs: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/$defs/value', minimum: 100 } },
+      })
+      expect((await modern.validate({ value: 1 })).valid).toBe(false)
+      expect((await modern.validate({ value: 100 })).valid).toBe(true)
+    })
+  })
+
   describe('flat object projection', () => {
     it('produces root node at empty pointer', async () => {
       const adapter = await createHyperjumpAdapter(flatObjectSchema)

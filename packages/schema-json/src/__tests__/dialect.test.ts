@@ -2,6 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { detectDialect } from '../dialect.js'
 
 describe('detectDialect', () => {
+  it('detects draft-04 from $schema', () => {
+    expect(
+      detectDialect(
+        { $schema: 'http://json-schema.org/draft-04/schema#' },
+        { defaultDialect: 'draft-07' },
+      ),
+    ).toBe('draft-04')
+  })
+
   it('detects draft-07 from $schema', () => {
     expect(
       detectDialect(

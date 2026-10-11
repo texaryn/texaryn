@@ -1,3 +1,4 @@
+import '@hyperjump/json-schema/draft-04'
 import '@hyperjump/json-schema/draft-2020-12'
 import '@hyperjump/json-schema/draft-2019-09'
 import '@hyperjump/json-schema/draft-07'
@@ -11,12 +12,13 @@ import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions } from './s
 import { newProjectionCache, type ProjectionLimits } from './static-walk.js'
 import { toJsonInstance } from './json-instance.js'
 import { mapErrors } from './validation.js'
-import { assertNoFileSchemaIdentifiers, loadExternalResources } from './resources.js'
+import { loadExternalResources } from './resources.js'
 import { materializeLocalPointerAliases } from './local-pointer-aliases.js'
 import { setSchemaDocumentContext } from './pointer-utils.js'
 import type { HyperjumpAdapterConfig, HyperjumpAdapter } from './types.js'
 
 const dialectIds: Record<Dialect, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-07': 'http://json-schema.org/draft-07/schema#',
   '2019-09': 'https://json-schema.org/draft/2019-09/schema',
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
@@ -139,7 +141,6 @@ export async function createAdapter(
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
-  assertNoFileSchemaIdentifiers(schema, dialect)
   const externalRemotes = await loadExternalResources(schema, dialect, config)
   const sourceSchema = externalRemotes.length === 0 ? schema : ownRoot(schema)
   const adapterSchema = materializeLocalPointerAliases(sourceSchema, dialect)

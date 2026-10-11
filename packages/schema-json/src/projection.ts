@@ -1,4 +1,5 @@
 import { mergeNode, isSchemaNode, type SchemaNode, type ValidationPath } from '@texaryn/json-schema-library'
+import { isPre2019Dialect } from './dialect.js'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -174,7 +175,7 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
       completed.add(position)
       return
     }
-    if (!referringSite && current.getDraftVersion() !== 'draft-07' && !onlyPoints(current)) {
+    if (!referringSite && !isPre2019Dialect(current.getDraftVersion()) && !onlyPoints(current)) {
       parts.push(current)
       completed.add(position)
       return
@@ -189,7 +190,7 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
         visit(target)
       }
     }
-    if (current.getDraftVersion() !== 'draft-07') {
+    if (!isPre2019Dialect(current.getDraftVersion())) {
       const sibling = mergeNode(current, current, ...references)
       const siblingSchema = sibling?.schema as Record<string, unknown> | undefined
       if (
@@ -337,7 +338,7 @@ function visitReferenceDefaultSites(
   visitor: (node: SchemaNode) => void,
   dynamicReferenceProjection = false,
 ): void {
-  if (cache.dialect === 'draft-07' || referenceOf(node) === undefined) return
+  if (isPre2019Dialect(cache.dialect) || referenceOf(node) === undefined) return
   const pending = [node]
   const visited = new Set<string>()
   while (pending.length > 0) {
@@ -506,7 +507,7 @@ function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): Sch
 
 function reduceAllOfForProjection(node: SchemaNode, data: unknown, scope: ValidationPath = []): SchemaNode | undefined {
   if (hasUnresolvedAllOfReference(node)) return undefined
-  if (node.getDraftVersion() !== 'draft-07') return node.reduceNode(data, { path: [...scope] }).node
+  if (!isPre2019Dialect(node.getDraftVersion())) return node.reduceNode(data, { path: [...scope] }).node
   const expanded = expandAllOfReferences(node)
   return expanded?.reduceNode(data, { path: [...scope] }).node
 }
@@ -555,7 +556,7 @@ function resolveSelectedConditionalReference(
   scope: ValidationPath = [],
   branchApplicability?: WeakMap<SchemaNode, boolean>,
 ): SchemaNode {
-  if (original.getDraftVersion() !== 'draft-07' || !original.if) return reduced
+  if (!isPre2019Dialect(original.getDraftVersion()) || !original.if) return reduced
   const selected = branchApplies(original.if, data, scope, branchApplicability) ? original.then : original.else
   if (!selected || typeof selected.$ref !== 'string') return reduced
 
@@ -836,7 +837,7 @@ function enterDynamicScope(
     if (resolved === current) break
     if (
       typeof current.$ref === 'string' &&
-      current.getDraftVersion() !== 'draft-07' &&
+      !isPre2019Dialect(current.getDraftVersion()) &&
       !onlyPoints(current)
     ) {
       return { node: dereference(current), path, dynamicReference }
@@ -878,7 +879,7 @@ function declarationsFrom(
     const schema = authoredSchema(node, cache)
     if (schema === null || typeof schema !== 'object' || !('default' in schema)) return
     const record = schema as Record<string, unknown>
-    if (typeof record.$ref === 'string' && cache.dialect === 'draft-07') return
+    if (typeof record.$ref === 'string' && isPre2019Dialect(cache.dialect)) return
     const source = documentPointer(node)
     if (seen.has(source)) return
     seen.add(source)
@@ -1069,7 +1070,7 @@ function unconditionalRequiredKeys(roots: readonly SchemaNode[]): Set<string> {
 }
 
 function reduceAdditionalPropertySchema(source: SchemaNode, data: unknown, scope: ValidationPath = []): SchemaNode {
-  if (source.getDraftVersion() !== 'draft-07') return source.reduceNode(data, { path: [...scope] }).node ?? source
+  if (!isPre2019Dialect(source.getDraftVersion())) return source.reduceNode(data, { path: [...scope] }).node ?? source
   const { node, unresolved } = dereferenceChecked(source)
   if (unresolved || !isSchemaNode(node)) return source
   return reduceAllOfForProjection(node, data) ?? node

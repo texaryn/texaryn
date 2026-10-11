@@ -1,8 +1,31 @@
 // One representative example per supported dialect. These exist to prove the
 // dialect is detected and honoured, not to duplicate every other example
-// three times: the dialects only need their own example where the semantics
-// actually differ, which is why dependencies has a separate draft-07 case.
+// four times: the dialects only need their own example where the semantics
+// actually differ.
 import type { TexarynExample } from '../types.js'
+
+export const draft04: TexarynExample = {
+  id: 'dialect-draft-04',
+  title: 'Draft 4',
+  description: 'A Draft 4 schema with legacy identifiers and exclusive bounds.',
+  category: 'dialects',
+  dialect: 'draft-04',
+  covers: ['schema.dialect.draft-04', 'schema.type.string', 'schema.type.number', 'schema.reference.local-ref'],
+  schema: {
+    $schema: 'http://json-schema.org/draft-04/schema#',
+    id: 'https://example.com/schemas/draft-04-profile.json',
+    type: 'object',
+    title: 'Draft 4 form',
+    definitions: {
+      displayName: { type: 'string', minLength: 2 },
+    },
+    properties: {
+      name: { $ref: '#/definitions/displayName', title: 'Name' },
+      score: { type: 'number', minimum: 0, exclusiveMinimum: true, title: 'Score' },
+    },
+  },
+  initialData: { name: 'Ada', score: 9.5 },
+}
 
 export const draft07: TexarynExample = {
   id: 'dialect-draft-07',
@@ -62,4 +85,4 @@ export const draft202012: TexarynExample = {
   initialData: { title: 'Texaryn', tags: ['forms'] },
 }
 
-export const dialectExamples = [draft07, draft201909, draft202012] as const
+export const dialectExamples = [draft04, draft07, draft201909, draft202012] as const

@@ -62,6 +62,7 @@ for (const pkg of packages) {
     const manifest = JSON.parse(execSync(`tar xzf ${tarball} -O package/package.json`, { encoding: 'utf8' }))
     if (pkg.name === '@texaryn/schema-json') {
       const vendoredFiles = [
+        'package/dist/metaschemas/draft-04.js',
         'package/dist/vendor/json-schema-library/index.mjs',
         'package/dist/vendor/json-schema-library/index.mjs.map',
         'package/dist/vendor/json-schema-library/LICENSE.md',
@@ -334,6 +335,28 @@ for (const pkg of packages) {
           failed = true
         } else {
           console.log('  ok: packed consumer projects and rejects invalid oneOf dependencies')
+        }
+
+        const fetch = globalThis.fetch
+        globalThis.fetch = async () => {
+          throw new Error('The packed Draft 4 metaschema attempted a network request')
+        }
+        try {
+          const draft04 = 'http://json-schema.org/draft-04/schema#'
+          const metaschemaAdapter = await mod.createJsonSchemaAdapter(
+            { $schema: draft04, $ref: draft04 },
+            { defaultDialect: 'draft-04' },
+          )
+          const validSchema = await metaschemaAdapter.validate({ type: 'integer', minimum: 1 })
+          const invalidSchema = await metaschemaAdapter.validate({ exclusiveMinimum: 5 })
+          if (!validSchema.valid || invalidSchema.valid) {
+            console.error('Packed Draft 4 metaschema validation returned an unexpected result')
+            failed = true
+          } else {
+            console.log('  ok: packed Draft 4 metaschema validates schemas without network access')
+          }
+        } finally {
+          globalThis.fetch = fetch
         }
       }
       if (pkg.name === '@texaryn/schema-zod') {

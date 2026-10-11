@@ -34,8 +34,8 @@ Those are reported separately and never added together.
 
 - **Mandatory passed** counts cases every implementation is expected to pass.
 - **Classified failures** are mandatory cases that fail for a stated, recorded
-  reason. Nothing is skipped: the remote-reference tests run, fail, and are
-  classified rather than being excluded from the denominator.
+  reason. Nothing is skipped. Remote-reference tests resolve from the vendored
+  suite fixtures and run in the normal denominator.
 - **Optional passed, default configuration** counts the `optional/` cases,
   which cover behaviour the specification leaves to the implementation. A lower
   number here is not a defect, and it is not directly comparable between
@@ -54,63 +54,74 @@ throw). There is no wildcard: a reason names one exact upstream test, so "skip
 all `unevaluatedProperties` tests" is not expressible. Recording the outcome is
 what stops a deviation covering a test that later fails for a new reason.
 
-A schema may reference its dialect's own metaschema to assert that it is itself
-a valid schema. Both adapters resolve those without any configuration, so that
-is not among the failures below; the published metaschemas are loaded on demand
-and never fetched over the network.
+The suite runner supplies the adapters' public resource resolver with
+`http://localhost:1234` fixtures loaded from disk. The run is reproducible
+offline. The primary adapter also loads each supported dialect's official
+metaschema locally.
 
-**External schema resolution** accounts for every failure of both adapters
-except the class below. The suite expects documents to be retrieved from
-`http://localhost:1234`, and neither adapter factory exposes a resolver hook.
+The remaining mandatory failures are all in `vocabulary.json` for 2019-09 and
+2020-12. The exact case identifiers and outcomes are recorded in the baseline.
+The primary adapter has two failures: it applies its built-in validation
+keywords when a custom metaschema omits the validation vocabulary. The suite's
+expected-valid result for the invalid `minimum` value is disputed in upstream
+[issue #574](https://github.com/json-schema-org/JSON-Schema-Test-Suite/issues/574):
+an implementation may offer familiar validation keywords even when that
+custom metaschema does not declare the validation vocabulary. These two cases
+are recorded as known suite issues, not as validator defects.
 
-Both fail closed, which is the part worth knowing, and they do it at different
-points. `@texaryn/schema-json` compiles, then reports the unresolved reference
-as a `$ref` validation error, so the instance is judged invalid whatever the
-referenced schema would have said; constraints beside the reference are still
-applied. `@texaryn/schema-json-hyperjump` refuses to compile at all. Neither
-silently drops the constraint, so an unresolvable reference cannot let data
-through unchecked.
+The private Hyperjump adapter has ten compilation failures. It rejects the
+custom dialect before reaching the instance assertions, including four cases
+for an unknown optional vocabulary and six cases using a custom metaschema
+that omits the validation vocabulary. The optional vocabulary cases and the
+applicator and valid-number assertions expose a comparison-adapter limitation.
+The invalid-number cases have the same disputed expected-valid result noted in
+issue #574. Neither adapter claims support for arbitrary custom vocabularies.
+The public adapter's built-in keyword behavior must not be read as support for
+user-defined vocabularies or as proof that unknown required vocabularies are
+rejected.
+
+The conformance count is per adapter and per dialect. For Draft 4, both
+adapters pass all 618 mandatory cases at the pinned suite revision, with no
+case skipped. This measures validation only. It does not establish tuple-item
+form projection, general custom vocabulary support, or cross-dialect external
+references. External resources must use the same dialect as the root schema.
 
 **Upstream validator deviations** are departures from the suite's expectations
 observed through the reference adapter. They are recorded that way on purpose:
 the measurement runs through Texaryn's own code, so it does not by itself
-establish the validator library as the cause. Each carries an issue link, so
-the claim travels with its evidence rather than resting on a sentence in a JSON
-file, and each is to be reproduced against the validator directly before being
-reported upstream. One is documented upstream policy rather than a defect,
-which its note says.
+establish the validator library as the cause. Each carries an issue link, and
+each should be reproduced against the validator directly before being reported
+upstream.
 
 ## Format assertion differs by dialect
 
 `format` is annotation-only in 2019-09 and 2020-12 by default, and assertion is
-permitted in Draft 7. `@texaryn/schema-json` asserts the schema's own `format`
-keywords in Draft 7, including through the Draft 7 fallback a schema whose
-`$schema` is missing or unrecognized, and never in 2019-09 or 2020-12.
+permitted in Draft 4 and Draft 7. `@texaryn/schema-json` asserts the schema's
+own `format` keywords in Draft 4 and Draft 7, including through the Draft 7
+fallback for a schema whose `$schema` is missing or unrecognized, and never in
+2019-09 or 2020-12.
 Declaring the format-assertion vocabulary does not turn it on in the later
 dialects, and the adapter has no option that does.
 
-That is why Draft 7's optional count sits above the other two. Those cases
-deliberately measure an implementation with format assertion switched on, so a
-dialect that correctly leaves it off scores lower there. It is the one place in
-this report where a lower number is the specification-correct one.
+The optional totals are not directly comparable across drafts because the
+directories contain different test sets. The optional format cases measure
+each adapter with its shipped defaults, so a dialect that correctly leaves
+format annotation-only can pass fewer of those assertions.
 
 One exception: a schema that uses `$ref` to reach a published metaschema, to
 check that a document is itself a valid schema, has that metaschema's `format`
 keywords asserted in every dialect, because json-schema-library compiles those
 documents with its own default, which asserts. A malformed `pattern` regex
-therefore fails with keyword `format` under Draft 7, 2019-09 and 2020-12
-alike, which in the later two is stricter than their annotation default.
+therefore fails with keyword `format` under Draft 4, Draft 7, 2019-09 and
+2020-12 alike, which in the later two is stricter than their annotation default.
 
 Strict schema linting would be a separate capability rather than a change to
 validation semantics.
 
-The mandatory suite cannot see any of this, which is worth knowing about the
-suite rather than about the adapter. Only 2020-12's `format.json` carries the
-"invalid string is only an annotation by default" cases; the Draft 7 and
-2019-09 files contain no string cases at all. Correcting 2019-09 moved its
-optional count by 219 and left every mandatory result in every dialect
-untouched, so the behaviour is pinned by a direct test in
-`@texaryn/schema-json` rather than by anything here.
+The mandatory suite cannot see every default-format distinction. The
+2019-09 and 2020-12 `format.json` files carry cases that verify annotation-only
+behavior. The adapter behavior is also pinned by direct tests in
+`@texaryn/schema-json`.
 
 ## Regenerating the baseline
 

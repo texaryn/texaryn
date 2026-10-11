@@ -7,6 +7,7 @@ import { buildSchemaGraph, cyclicPositions, rejectSameLocationCycles } from '../
 import type { Dialect } from '../dialect.js'
 
 const DIALECT_URI: Record<Dialect, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-07': 'http://json-schema.org/draft-07/schema#',
   '2019-09': 'https://json-schema.org/draft/2019-09/schema',
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',

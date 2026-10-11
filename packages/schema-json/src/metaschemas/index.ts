@@ -8,6 +8,8 @@ import type { Dialect } from '../dialect.js'
  * `https`) and a schema author may write either.
  */
 const prefixes: ReadonlyArray<readonly [string, Dialect]> = [
+  ['http://json-schema.org/draft-04/schema', 'draft-04'],
+  ['https://json-schema.org/draft-04/schema', 'draft-04'],
   ['http://json-schema.org/draft-07/schema', 'draft-07'],
   ['https://json-schema.org/draft-07/schema', 'draft-07'],
   ['http://json-schema.org/draft/2019-09/', '2019-09'],
@@ -81,9 +83,11 @@ export function referencedDialects(schema: unknown): Dialect[] {
  */
 function normalize(documents: readonly JsonSchema[]): JsonSchema[] {
   return documents.map((document) => {
-    const id = (document as { $id?: unknown }).$id
-    if (typeof id !== 'string' || !id.endsWith('#')) return { ...(document as object) } as JsonSchema
-    return { ...(document as object), $id: id.slice(0, -1) } as JsonSchema
+    const source = document as { $id?: unknown; id?: unknown }
+    const id = typeof source.$id === 'string' ? source.$id : source.id
+    if (typeof id !== 'string') return { ...(document as object) } as JsonSchema
+    const normalizedId = id.endsWith('#') ? id.slice(0, -1) : id
+    return { ...(document as object), $id: normalizedId } as JsonSchema
   })
 }
 
@@ -96,6 +100,8 @@ export async function loadMetaschemas(dialects: readonly Dialect[]): Promise<Jso
   const loaded = await Promise.all(
     dialects.map(async (dialect) => {
       switch (dialect) {
+        case 'draft-04':
+          return (await import('./draft-04.js')).metaschemas
         case 'draft-07':
           return (await import('./draft-07.js')).metaschemas
         case '2019-09':

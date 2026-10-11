@@ -260,9 +260,13 @@ function normalizedResources(resources: ReadonlyMap<string, unknown> | undefined
   return normalized
 }
 
-type SchemaDialect = 'draft-07' | '2019-09' | '2020-12'
+type SchemaDialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 
 const schemaDialects = new Map<string, SchemaDialect>([
+  ['http://json-schema.org/draft-04/schema#', 'draft-04'],
+  ['http://json-schema.org/draft-04/schema', 'draft-04'],
+  ['https://json-schema.org/draft-04/schema#', 'draft-04'],
+  ['https://json-schema.org/draft-04/schema', 'draft-04'],
   ['http://json-schema.org/draft-07/schema#', 'draft-07'],
   ['http://json-schema.org/draft-07/schema', 'draft-07'],
   ['https://json-schema.org/draft/2019-09/schema', '2019-09'],
@@ -270,6 +274,7 @@ const schemaDialects = new Map<string, SchemaDialect>([
 ])
 
 const metaschemaReferences: Record<SchemaDialect, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
   'draft-07': 'http://json-schema.org/draft-07/schema#',
   '2019-09': 'https://json-schema.org/draft/2019-09/schema',
   '2020-12': 'https://json-schema.org/draft/2020-12/schema',
@@ -444,7 +449,7 @@ async function checkFormSchemaPolicy(root: unknown, suppliedResources: ReadonlyM
   preflightSchemaResources(root)
   if (!isRecord(root)) throw new OutputRejectedError(['A generated form schema must be an object.'])
   if (typeof root.$schema !== 'string' || !schemaDialects.has(root.$schema)) {
-    throw new OutputRejectedError(['Set $schema to Draft 7, 2019-09, or 2020-12 explicitly.'])
+    throw new OutputRejectedError(['Set $schema to Draft 4, Draft 7, 2019-09, or 2020-12 explicitly.'])
   }
   const dialect = schemaDialects.get(root.$schema)!
   if (root.type !== 'object') {

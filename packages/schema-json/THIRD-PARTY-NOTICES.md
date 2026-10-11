@@ -11,13 +11,14 @@ MIT License. Its full license is included at
 ## JSON Schema metaschemas
 
 `src/metaschemas/` contains the published JSON Schema metaschema documents for
-Draft 7, 2019-09 and 2020-12, together with the vocabulary documents the latter
-two reference. They are copied verbatim so that validating a schema against its
-own metaschema needs no network access.
+Draft 4, Draft 7, 2019-09 and 2020-12, together with the vocabulary documents
+the latter two reference. They are copied verbatim so that validating a schema
+against its own metaschema needs no network access.
 
 Retrieved from:
 
 - `http://json-schema.org/draft-07/schema`
+- `http://json-schema.org/draft-04/schema`
 - `https://json-schema.org/draft/2019-09/schema` and its `meta/` documents
 - `https://json-schema.org/draft/2020-12/schema` and its `meta/` documents
 

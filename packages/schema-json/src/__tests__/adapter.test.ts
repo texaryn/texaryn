@@ -163,12 +163,140 @@ describe('createJsonSchemaAdapter', () => {
     })
   })
 
+  describe('draft-04 support', () => {
+    const draft04 = 'http://json-schema.org/draft-04/schema#'
+
+    it('validates boolean exclusive bounds and tuple items', async () => {
+      const numeric = await createJsonSchemaAdapter({
+        $schema: draft04,
+        minimum: 5,
+        exclusiveMinimum: true,
+      })
+      expect((await numeric.validate(5)).valid).toBe(false)
+      expect((await numeric.validate(5.1)).valid).toBe(true)
+
+      const tuple = await createJsonSchemaAdapter({
+        $schema: draft04,
+        type: 'array',
+        items: [{ type: 'integer' }, { type: 'string' }],
+        additionalItems: false,
+      })
+      expect((await tuple.validate([1, 'ok'])).valid).toBe(true)
+      expect((await tuple.validate([1, 'ok', true])).valid).toBe(false)
+    })
+
+    it('resolves definitions and legacy nested id values', async () => {
+      const adapter = await createJsonSchemaAdapter({
+        $schema: draft04,
+        id: 'https://example.test/root.json',
+        definitions: {
+          label: { id: 'label.json', type: 'string' },
+        },
+        properties: {
+          label: { $ref: 'https://example.test/label.json' },
+        },
+      })
+      expect((await adapter.validate({ label: 'ok' })).valid).toBe(true)
+      expect((await adapter.validate({ label: 1 })).valid).toBe(false)
+    })
+
+    it('resolves a fragment-only legacy id', async () => {
+      const adapter = await createJsonSchemaAdapter({
+        $schema: draft04,
+        id: 'https://example.test/root.json',
+        definitions: {
+          label: { id: '#label', type: 'string' },
+        },
+        properties: {
+          label: { $ref: '#label' },
+        },
+      })
+      expect((await adapter.validate({ label: 'ok' })).valid).toBe(true)
+      expect((await adapter.validate({ label: 1 })).valid).toBe(false)
+    })
+
+    it('ignores $ref siblings while modern dialects apply them', async () => {
+      const draft04Adapter = await createJsonSchemaAdapter({
+        $schema: draft04,
+        type: 'object',
+        definitions: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/definitions/value', minimum: 100 } },
+      })
+      expect((await draft04Adapter.validate({ value: 1 })).valid).toBe(true)
+      expect((await draft04Adapter.validate({ value: 'wrong type' })).valid).toBe(false)
+
+      const modernAdapter = await createJsonSchemaAdapter({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        $defs: { value: { type: 'number' } },
+        properties: { value: { $ref: '#/$defs/value', minimum: 100 } },
+      })
+      expect((await modernAdapter.validate({ value: 1 })).valid).toBe(false)
+      expect((await modernAdapter.validate({ value: 100 })).valid).toBe(true)
+    })
+
+    it('rejects malformed Draft 4 meta-schema keywords', async () => {
+      const schemaOfSchemas = await createJsonSchemaAdapter(
+        { $schema: draft04, $ref: draft04 },
+        { defaultDialect: 'draft-04' },
+      )
+      expect((await schemaOfSchemas.validate({ minimum: 0, exclusiveMinimum: 5 })).valid).toBe(false)
+      expect((await schemaOfSchemas.validate({ items: [{ type: 1 }] })).valid).toBe(false)
+      expect((await schemaOfSchemas.validate({ id: 1 })).valid).toBe(false)
+    })
+
+    it('rejects external resources that declare a different dialect', async () => {
+      const adapter = createJsonSchemaAdapter(
+        {
+          $schema: draft04,
+          id: 'https://example.test/root.json',
+          $ref: 'child.json',
+        },
+        {
+          resolveResource: (uri) =>
+            uri === 'https://example.test/child.json'
+              ? {
+                  $schema: 'http://json-schema.org/draft-07/schema#',
+                  id: 'https://example.test/child.json',
+                  type: 'string',
+                }
+              : undefined,
+        },
+      )
+      await expect(adapter).rejects.toThrow(/uses draft-07, but this adapter uses draft-04/)
+    })
+
+    it('resolves a relative reference across registered Draft 4 resources', async () => {
+      const adapter = await createJsonSchemaAdapter(
+        {
+          $schema: draft04,
+          id: 'https://example.test/root.json',
+          type: 'object',
+          properties: { label: { $ref: 'child.json' } },
+        },
+        {
+          resolveResource: (uri) =>
+            uri === 'https://example.test/child.json'
+              ? {
+                  $schema: draft04,
+                  id: 'https://example.test/child.json',
+                  type: 'string',
+                }
+              : undefined,
+        },
+      )
+      expect((await adapter.validate({ label: 'ok' })).valid).toBe(true)
+      expect((await adapter.validate({ label: 1 })).valid).toBe(false)
+    })
+  })
+
   // Whether `format` asserts is a per-dialect decision, so it is asserted per
   // dialect rather than sampled. The string is the official suite's own
   // "invalid email" value, and the underlying library asserts in every dialect
   // unless told otherwise, so each case here is a live choice.
   describe('format assertion by dialect', () => {
     const cases = [
+      { dialect: 'draft-04', expected: false },
       // Draft 7 treats format as an assertion by convention, and the
       // specification asks only that it can be turned off.
       { dialect: 'draft-07', expected: false },
@@ -205,6 +333,7 @@ describe('createJsonSchemaAdapter', () => {
   // reference rejects everything.
   describe('metaschema resolution', () => {
     const metaschemas = {
+      'draft-04': 'http://json-schema.org/draft-04/schema#',
       'draft-07': 'http://json-schema.org/draft-07/schema#',
       '2019-09': 'https://json-schema.org/draft/2019-09/schema',
       '2020-12': 'https://json-schema.org/draft/2020-12/schema',
