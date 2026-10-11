@@ -95,11 +95,20 @@ export type {
   DocumentUpdateSessionOptions,
   FormRuntime,
   FormRuntimeOptions,
+  FormMutation,
+  FormCommandGuard,
+  FormCommandGuardContext,
+  RemoteSnapshotOptions,
   InitializationPolicy,
   InitializationReport,
   NodeState,
 } from './runtime/index.js'
-export { createDocumentRuntime, createDocumentUpdateSession, createFormRuntime } from './runtime/index.js'
+export {
+  createDocumentRuntime,
+  createDocumentUpdateSession,
+  createFormRuntime,
+  RemoteSnapshotNotificationError,
+} from './runtime/index.js'
 
 // The pass itself stays unexported. What a caller needs is what the report
 // carries, which is why these two travel and `initializeDefaults` does not.

@@ -4,8 +4,9 @@
 
 A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
-Server-driven updates, AI generation, and a visual builder are implemented in
-PR #214; renderer and feature PRs remain in review.
+Server-driven updates, AI generation, a visual builder, native array reorder,
+and collaborative scalar editing are implemented in PR #214; renderer and
+feature PRs remain in review.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -31,7 +32,7 @@ The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
 `@texaryn/schema-json`. PR #207 merged that dependency change, and PR #208
-published version 0.8.2. The private
+published version 0.8.2 through the protected `npm-release` workflow. The private
 Hyperjump adapter is a CI comparison implementation, not a planned production
 migration.
 
@@ -42,7 +43,9 @@ and has a matching [GitHub release](https://github.com/texaryn/json-schema-libra
 Merged PR #207 replaces the upstream dependency, removes the packaged
 workaround, and adds a patch changeset for `@texaryn/schema-json`. PR #208
 published `@texaryn/schema-json` 0.8.2 against fork version 11.6.6. Build,
-typecheck, the full test suite, package verification, and main CI passed.
+typecheck, the full test suite, package verification, and main CI passed. Version
+0.8.2 is [published on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.8.2)
+and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2).
 
 ## Table of Contents
 
@@ -1929,10 +1932,25 @@ remaining actionable findings. ADR-015 accepts a playground-only visual form
 builder that edits simple scalar properties in the existing JSON Schema source,
 while retaining the JSON editor for advanced schemas.
 
+ADR-016 accepts native drag reorder for array controls in all renderer packages.
+Stable item IDs resolve to current indexes at drop time, nested array ownership
+is scoped to its own DOM region, and the accessible Up and Down controls remain
+the keyboard and touch path. The implementation and renderer coverage are in
+PR #214. ADR-017 selects an optional Yjs adapter for collaborative scalar edits.
+`@texaryn/collaboration-yjs` stores an immutable baseline and JSON Pointer
+overrides, while the host supplies `Y.Doc` and its provider. Structural edits
+and concurrent array ordering remain outside version 1. ChatGPT's final code
+review confirmed the four reported runtime findings are resolved and found no
+remaining actionable issues.
+
+Before the stack updates, PR #214 passed the full suite with 5,627 tests across
+168 files, along with build, typecheck, package verification, docs, and site
+checks. Its checks will rerun after the stack is retargeted to `main`.
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. Version 0.8.2 is published. Hyperjump remains in CI for comparison only. This is an
+workaround. Version 0.8.2 is published. Hyperjump remains in CI for comparison
+only. This is an
 implementation change within the accepted strategy, not a later engine
 selection phase.
 
@@ -1970,7 +1988,7 @@ The weekly and manually dispatched compatibility workflow compares published ups
 
 Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
 
-#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. The 0.8.2 publish job awaits protected environment approval. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. PR #208 published version 0.8.2 and created its immutable release. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
 
 PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
 

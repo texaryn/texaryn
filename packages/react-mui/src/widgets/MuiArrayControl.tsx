@@ -3,7 +3,7 @@ import Stack from '@mui/material/Stack'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import type { ContainerNode, UINode } from '@texaryn/core'
-import { NodeRenderer, useArrayActions, useFieldArray, useRendererContext } from '@texaryn/react'
+import { NodeRenderer, useArrayActions, useArrayDrag, useFieldArray, useRendererContext } from '@texaryn/react'
 
 export interface WidgetProps {
   node: UINode
@@ -20,16 +20,18 @@ function MuiArrayControlImpl({ node }: WidgetProps) {
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()
   const actions = useArrayActions(node)
+  const drag = useArrayDrag(containerNode.id, fieldArray.items, fieldArray.move)
 
   return (
-    <Stack spacing={2}>
+    <Stack ref={drag.rootRef} spacing={2} data-array-container="">
       {fieldArray.items.map((item, index) => {
         const childNode = item.nodeId ? document.nodes[item.nodeId] : undefined
         const remove = actions.remove(index + 1, childNode)
         const moveUp = actions.moveUp(index + 1, childNode)
         const moveDown = actions.moveDown(index + 1, childNode)
         return (
-          <Box key={item.id} data-array-row="">
+          <Box key={item.id} {...drag.rowProps(item.id)}>
+            {drag.canDrag ? <span {...drag.handleProps(item.id)}>⠿</span> : null}
             {childNode ? (
               <NodeRenderer node={childNode} document={document} registry={registry} />
             ) : null}

@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL('.', import.meta.url))
 
 const alias = {
   '@texaryn/core': resolve(root, 'packages/core/src/index.ts'),
+  '@texaryn/collaboration-yjs': resolve(root, 'packages/collaboration-yjs/src/index.ts'),
   '@texaryn/schema-json': resolve(
     root,
     'packages/schema-json/src/index.ts',
@@ -37,6 +38,7 @@ export default defineConfig({
       reportsDirectory: 'coverage',
       include: [
         'packages/core/src/**',
+        'packages/collaboration-yjs/src/**',
         'packages/schema-json/src/**',
         'packages/schema-zod/src/**',
         'packages/schema-json-hyperjump/src/**',
@@ -79,6 +81,14 @@ export default defineConfig({
         test: {
           name: 'schema-json',
           root: 'packages/schema-json',
+          include: ['src/**/*.test.ts'],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'collaboration-yjs',
+          root: 'packages/collaboration-yjs',
           include: ['src/**/*.test.ts'],
         },
       },

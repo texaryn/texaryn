@@ -56,6 +56,12 @@ rather than one run over data.
 
 ***
 
+### initializationPolicy
+
+> `readonly` **initializationPolicy**: [`InitializationPolicy`](../type-aliases/InitializationPolicy.md)
+
+***
+
 ### submission
 
 > `readonly` **submission**: [`Store`](Store.md)\<[`SubmissionState`](SubmissionState.md)\>
@@ -67,6 +73,26 @@ rather than one run over data.
 > `readonly` **visibleErrors**: [`Store`](Store.md)\<[`VisibleError`](VisibleError.md)[]\>
 
 ## Methods
+
+### applyRemoteSnapshot()
+
+> **applyRemoteSnapshot**(`data`, `options?`): `void`
+
+#### Parameters
+
+##### data
+
+`unknown`
+
+##### options?
+
+[`RemoteSnapshotOptions`](RemoteSnapshotOptions.md)
+
+#### Returns
+
+`void`
+
+***
 
 ### destroy()
 
@@ -84,13 +110,19 @@ rather than one run over data.
 
 ### dispatch()
 
-> **dispatch**(`command`): `void`
+> **dispatch**(`command`, `options?`): `void`
 
 #### Parameters
 
 ##### command
 
 [`Command`](../type-aliases/Command.md)
+
+##### options?
+
+###### origin?
+
+`unknown`
 
 #### Returns
 
@@ -111,3 +143,53 @@ rather than one run over data.
 #### Returns
 
 [`NodeState`](NodeState.md) \| `undefined`
+
+***
+
+### lockArrayStructure()
+
+> **lockArrayStructure**(): () => `void`
+
+#### Returns
+
+() => `void`
+
+***
+
+### registerCommandGuard()
+
+> **registerCommandGuard**(`guard`, `onRejected?`): () => `void`
+
+#### Parameters
+
+##### guard
+
+[`FormCommandGuard`](../type-aliases/FormCommandGuard.md)
+
+##### onRejected?
+
+(`reason`) => `void`
+
+#### Returns
+
+() => `void`
+
+***
+
+### subscribeMutations()
+
+> **subscribeMutations**(`listener`, `onError`): () => `void`
+
+#### Parameters
+
+##### listener
+
+(`mutation`) => `void`
+
+##### onError
+
+(`error`) => `void`
+
+#### Returns
+
+() => `void`

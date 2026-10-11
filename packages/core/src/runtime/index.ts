@@ -13,10 +13,14 @@ export type {
   DocumentUpdateSessionOptions,
   FormRuntime,
   FormRuntimeOptions,
+  FormMutation,
+  FormCommandGuard,
+  FormCommandGuardContext,
+  RemoteSnapshotOptions,
   InitializationPolicy,
   InitializationReport,
   NodeState,
 } from './types.js'
 export { createDocumentRuntime } from './document-runtime.js'
 export { createDocumentUpdateSession } from './document-update-session.js'
-export { createFormRuntime } from './runtime.js'
+export { createFormRuntime, RemoteSnapshotNotificationError } from './runtime.js'

@@ -24,6 +24,12 @@
 
 ***
 
+### canDrag
+
+> `readonly` **canDrag**: `Signal`\<`boolean`\>
+
+***
+
 ### context
 
 > `readonly` **context**: [`FormContext`](../interfaces/FormContext.md)
@@ -47,6 +53,78 @@
 > `readonly` **node**: `InputSignal`\<[`UINode`](../../core/type-aliases/UINode.md)\>
 
 ## Methods
+
+### dragLeave()
+
+> **dragLeave**(`event`): `void`
+
+#### Parameters
+
+##### event
+
+`DragEvent`
+
+#### Returns
+
+`void`
+
+***
+
+### dragOver()
+
+> **dragOver**(`event`, `itemId`): `void`
+
+#### Parameters
+
+##### event
+
+`DragEvent`
+
+##### itemId
+
+[`StableItemId`](../../core/type-aliases/StableItemId.md)
+
+#### Returns
+
+`void`
+
+***
+
+### drop()
+
+> **drop**(`event`, `itemId`): `void`
+
+#### Parameters
+
+##### event
+
+`DragEvent`
+
+##### itemId
+
+[`StableItemId`](../../core/type-aliases/StableItemId.md)
+
+#### Returns
+
+`void`
+
+***
+
+### endDrag()
+
+> **endDrag**(`event`): `void`
+
+#### Parameters
+
+##### event
+
+`DragEvent`
+
+#### Returns
+
+`void`
+
+***
 
 ### itemTitle()
 
@@ -89,6 +167,26 @@
 ##### restoreAtBoundary
 
 `boolean`
+
+#### Returns
+
+`void`
+
+***
+
+### startDrag()
+
+> **startDrag**(`event`, `itemId`): `void`
+
+#### Parameters
+
+##### event
+
+`DragEvent`
+
+##### itemId
+
+[`StableItemId`](../../core/type-aliases/StableItemId.md)
 
 #### Returns
 

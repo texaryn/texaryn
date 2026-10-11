@@ -14,6 +14,7 @@ import type { FormContext } from '@texaryn/angular'
 import type { WidgetComponent } from '@texaryn/angular'
 import { angularAdapter } from './angular-adapter.js'
 import { rendererDomAccessibilityContract } from '../../../../tests/renderer-conformance/renderer-dom-accessibility-contract.js'
+import { createArrayDragTransfer, dispatchArrayDrag } from '../../../../tests/renderer-conformance/array-drag.js'
 
 @Component({
   selector: 'texaryn-angular-smoke-host',
@@ -48,6 +49,20 @@ class AngularSmokeHost {
 class AngularReadOnlyHost {
   readonly form = createForm(readOnlyAdapter, {
     initialData: { role: 'dev', agree: true, locked: 'fixed', choice: 1, objectChoice: { code: 1 } },
+  })
+  readonly registry = createDefaultRegistry()
+}
+
+@Component({
+  selector: 'texaryn-angular-array-host',
+  standalone: true,
+  imports: [FormRoot],
+  template: '<texaryn-form-root [form]="form" [registry]="registry" idPrefix="array" />',
+})
+class AngularArrayHost {
+  readonly form = createForm(arrayAdapter, {
+    initialData: { people: ['Ada', 'Grace', 'Lin'] },
+    hints: { '/people': { canReorder: true } },
   })
   readonly registry = createDefaultRegistry()
 }
@@ -144,6 +159,7 @@ class AngularDocumentHost {
 let adapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 let readOnlyAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 let coverageAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
+let arrayAdapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
 
 describe('Angular signal renderer', () => {
   beforeAll(() => {
@@ -159,6 +175,7 @@ describe('Angular signal renderer', () => {
         AngularEmptyRegistryHost,
         AngularDynamicStoreHost,
         AngularDocumentHost,
+        AngularArrayHost,
       ],
       providers: [provideZonelessChangeDetection()],
     })
@@ -201,6 +218,10 @@ describe('Angular signal renderer', () => {
         },
         tags: { type: 'array', title: 'Tags', items: { type: 'string', title: 'Tag' } },
       },
+    })
+    arrayAdapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: { people: { type: 'array', items: { type: 'string' } } },
     })
   })
 
@@ -328,6 +349,30 @@ describe('Angular signal renderer', () => {
     await fixture.whenStable()
     expect(fixture.componentInstance.form.data()).toMatchObject({ tags: ['one', null] })
 
+    fixture.destroy()
+    fixture.nativeElement.remove()
+  })
+
+  it('reorders the selected stable row with native drag events', async () => {
+    const fixture = TestBed.createComponent(AngularArrayHost)
+    document.body.append(fixture.nativeElement)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+    const root = fixture.nativeElement.querySelector('[data-array-container]') as HTMLElement
+    expect(root, fixture.nativeElement.innerHTML).not.toBeNull()
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-array-row]')]
+    const transfer = createArrayDragTransfer()
+    const handle = rows[1]!.querySelector<HTMLElement>('[draggable="true"]')!
+    expect(handle.tabIndex).toBe(-1)
+    expect(handle.getAttribute('aria-hidden')).toBe('true')
+    rows[0]!.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 } as DOMRect)
+
+    dispatchArrayDrag('dragstart', handle, transfer)
+    dispatchArrayDrag('dragover', rows[0]!, transfer, 10)
+    dispatchArrayDrag('drop', rows[0]!, transfer, 10)
+    await fixture.whenStable()
+
+    expect(fixture.componentInstance.form.data()).toEqual({ people: ['Grace', 'Ada', 'Lin'] })
     fixture.destroy()
     fixture.nativeElement.remove()
   })

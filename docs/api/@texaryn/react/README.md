@@ -9,6 +9,7 @@
 ## Interfaces
 
 - [ArrayActions](interfaces/ArrayActions.md)
+- [ArrayDragBinding](interfaces/ArrayDragBinding.md)
 - [DescriptionProps](interfaces/DescriptionProps.md)
 - [DocumentRootProps](interfaces/DocumentRootProps.md)
 - [DomCheckedInputProps](interfaces/DomCheckedInputProps.md)
@@ -65,6 +66,7 @@
 - [NodeRenderer](functions/NodeRenderer.md)
 - [ProjectionBoundaryActions](functions/ProjectionBoundaryActions.md)
 - [useArrayActions](functions/useArrayActions.md)
+- [useArrayDrag](functions/useArrayDrag.md)
 - [useField](functions/useField.md)
 - [useFieldArray](functions/useFieldArray.md)
 - [useFieldBinding](functions/useFieldBinding.md)
