@@ -1,5 +1,12 @@
 # @texaryn/schema-zod
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [3f91516]
+  - @texaryn/schema-json@0.9.0
+
 ## 0.1.1
 
 ### Patch Changes

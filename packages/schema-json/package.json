@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/schema-json",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "JSON Schema evaluation and validation adapter for Texaryn",
   "keywords": [
     "json-schema",
