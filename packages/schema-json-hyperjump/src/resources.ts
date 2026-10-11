@@ -254,6 +254,9 @@ function referencesIn(
   initialBase: string | undefined,
   dialect: Dialect,
   knownResources?: Set<string>,
+  initialPosition = '#',
+  initialResourceRoot: unknown = document,
+  initialResourceRootPosition = initialPosition,
 ): LocatedReference[] {
   const references = new Map<string, LocatedReference>()
   const seen = new WeakMap<object, Set<string | undefined>>()
@@ -368,7 +371,7 @@ function referencesIn(
     }
   }
 
-  visit(document, initialBase, '#', document, '#')
+  visit(document, initialBase, initialPosition, initialResourceRoot, initialResourceRootPosition)
   let progressed = true
   while (progressed) {
     progressed = false
@@ -422,12 +425,17 @@ function referencesIn(
 
 export function referencedPointerTargets(documents: readonly unknown[], dialect: Dialect): Map<string, ReadonlySet<string>> {
   const targets = new Map<string, Set<string>>()
-  const resourcePositions = new Map<string, { document: string; position: string }>()
+  const resourcePositions = new Map<string, { document: string; position: string; schema: unknown }>()
+  const documentScanners = new Map<string, (schema: unknown, base: string | undefined, position: string) => void>()
+  const knownResources = new Set<string>()
 
   for (const document of documents) {
     const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
     const documentBase = resourceBase(identifier, undefined, dialect)
-    if (documentBase !== undefined) resourcePositions.set(documentBase, { document: documentBase, position: '#' })
+    const documentKey = documentBase ?? ''
+    if (documentBase !== undefined) {
+      resourcePositions.set(documentBase, { document: documentKey, position: '#', schema: document })
+    }
 
     const seen = new WeakMap<object, Set<string | undefined>>()
     const visit = (schema: unknown, parentBase: string | undefined, position: string): void => {
@@ -442,7 +450,7 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
       const base = ignoresSiblings ? parentBase : resourceBase(id, parentBase, dialect)
       const startsResource = !ignoresSiblings && typeof id === 'string' && !(isPre2019Dialect(dialect) && id.startsWith('#'))
       if (startsResource && base !== undefined && (base !== documentBase || position === '#' || !resourcePositions.has(base))) {
-        resourcePositions.set(base, { document: documentBase ?? '', position })
+        resourcePositions.set(base, { document: documentKey, position, schema })
       }
       if (ignoresSiblings) {
         for (const keyword of DEFINITION_KEYS[dialect]) {
@@ -469,30 +477,61 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
       }
     }
     visit(document, documentBase, '#')
+    documentScanners.set(documentKey, visit)
   }
 
+  const pendingReferences: LocatedReference[] = []
   for (const document of documents) {
     const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
     const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, dialect) : undefined
-    for (const { base: referenceBase, reference } of referencesIn(document, base, dialect)) {
-      const resolved = absoluteUri(reference, referenceBase)
-      if (resolved === undefined) continue
-      const hash = resolved.indexOf('#')
-      if (hash === -1) continue
-      let fragment = resolved.slice(hash + 1)
-      try {
-        fragment = decodeURIComponent(fragment)
-      } catch {
-        // Keep malformed URI escapes as authored so the validator can report them.
-      }
-      if (!fragment.startsWith('/')) continue
-      const resource = resourcePositions.get(withoutFragment(resolved))
-      if (resource === undefined) continue
-      const pointer = resource.position === '#' ? `#${fragment}` : `${resource.position}${fragment}`
-      const pointers = targets.get(resource.document) ?? new Set<string>()
-      pointers.add(pointer)
-      targets.set(resource.document, pointers)
+    pendingReferences.push(...referencesIn(document, base, dialect, knownResources))
+  }
+
+  const scannedTargets = new Set<string>()
+  for (let cursor = 0; cursor < pendingReferences.length; cursor += 1) {
+    const { base: referenceBase, reference } = pendingReferences[cursor]!
+    const resolved = absoluteUri(reference, referenceBase)
+    if (resolved === undefined) continue
+    const hash = resolved.indexOf('#')
+    if (hash === -1) continue
+    const fragment = resolved.slice(hash + 1)
+    let decodedFragment = fragment
+    try {
+      decodedFragment = decodeURIComponent(fragment)
+    } catch {
+      // Keep malformed URI escapes as authored so the validator can report them.
     }
+    if (!decodedFragment.startsWith('/')) continue
+    const resourceBase = withoutFragment(resolved)
+    const resource = resourcePositions.get(resourceBase)
+    if (resource === undefined) continue
+    const pointer = resource.position === '#' ? `#${decodedFragment}` : `${resource.position}${decodedFragment}`
+    const pointers = targets.get(resource.document) ?? new Set<string>()
+    pointers.add(pointer)
+    targets.set(resource.document, pointers)
+
+    const targetKey = `${resource.document}\n${pointer}`
+    if (scannedTargets.has(targetKey)) continue
+    scannedTargets.add(targetKey)
+    const located = pointerTargetWithContext(
+      resource.schema,
+      fragment,
+      resourceBase,
+      resource.position,
+      dialect,
+      knownResources,
+    )
+    if (located === undefined) continue
+    documentScanners.get(resource.document)?.(located.schema, located.parentBase, located.position)
+    pendingReferences.push(...referencesIn(
+      located.schema,
+      located.parentBase,
+      dialect,
+      knownResources,
+      located.position,
+      located.resourceRoot,
+      located.resourceRootPosition,
+    ))
   }
   return targets
 }

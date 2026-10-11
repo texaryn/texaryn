@@ -223,6 +223,27 @@ describe('createHyperjumpAdapter', () => {
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
 
+    it('preserves targets referenced by an explicitly referenced unknown schema', async () => {
+      const resourceId = 'https://e.test/remote'
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => uri === resourceId
+          ? {
+              id: resourceId,
+              contains: { box: { $ref: '#/if/box' } },
+              if: { box: { type: 'string' } },
+            }
+          : undefined,
+      })
+
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
     it('sanitizes pointer targets whose member names contain percent escapes', async () => {
       const resourceId = 'https://e.test/remote'
       const adapter = await createHyperjumpAdapter({
