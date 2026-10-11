@@ -257,6 +257,7 @@ function referencesIn(
   initialPosition = '#',
   initialResourceRoot: unknown = document,
   initialResourceRootPosition = initialPosition,
+  entryPointerFragments: readonly string[] = [],
 ): LocatedReference[] {
   const references = new Map<string, LocatedReference>()
   const seen = new WeakMap<object, Set<string | undefined>>()
@@ -372,6 +373,19 @@ function referencesIn(
   }
 
   visit(document, initialBase, initialPosition, initialResourceRoot, initialResourceRootPosition)
+  for (const fragment of entryPointerFragments) {
+    const located = pointerTargetWithContext(
+      document,
+      fragment,
+      initialBase,
+      initialPosition,
+      dialect,
+      knownResources,
+    )
+    if (located !== undefined) {
+      visit(located.schema, located.parentBase, located.position, located.resourceRoot, located.resourceRootPosition)
+    }
+  }
   let progressed = true
   while (progressed) {
     progressed = false
@@ -867,9 +881,10 @@ export async function loadExternalResources(
   }
 
   const resources = new Map<string, unknown>()
+  const resourceBases = new Map<string, string>()
   const documents = new Map<string, unknown>()
   const scanned = new Set<string>()
-  const queue: { document: unknown; base: string | undefined }[] = [{ document: schema, base: rootId }]
+  const queue: { document: unknown; base: string | undefined; pointerTarget?: string }[] = [{ document: schema, base: rootId }]
   const loading = new Map<string, Promise<NormalizedResource>>()
 
   const load = (uri: string, position: string): Promise<NormalizedResource> => {
@@ -890,10 +905,19 @@ export async function loadExternalResources(
 
   while (queue.length > 0) {
     const current = queue.shift()!
-    const key = current.base ?? `anonymous:${scanned.size}`
+    const key = `${current.base ?? `anonymous:${scanned.size}`}\n${current.pointerTarget ?? ''}`
     if (scanned.has(key)) continue
     scanned.add(key)
-    const references = referencesIn(current.document, current.base, dialect, known)
+    const references = referencesIn(
+      current.document,
+      current.base,
+      dialect,
+      known,
+      '#',
+      current.document,
+      '#',
+      current.pointerTarget === undefined ? [] : [current.pointerTarget],
+    )
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
         continue
@@ -906,13 +930,31 @@ export async function loadExternalResources(
       if (uri.startsWith('file:')) {
         throw new SchemaResourceResolutionError(`File schema resources are not supported: "${uri}" at "${position}".`, uri, position)
       }
-      if (!uri || isMetaSchema(uri) || known.has(uri) || resources.has(uri)) continue
+      if (!uri || isMetaSchema(uri)) continue
+      const hash = resolved.indexOf('#')
+      const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+      const pointerTarget = fragment?.startsWith('/') ? fragment : undefined
+      if (resources.has(uri)) {
+        if (pointerTarget !== undefined) {
+          queue.push({ document: resources.get(uri), base: resourceBases.get(uri) ?? uri, pointerTarget })
+        }
+        continue
+      }
+      if (known.has(uri)) {
+        const document = documents.get(uri)
+        if (pointerTarget !== undefined && document !== undefined) {
+          const documentId = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
+          queue.push({ document, base: typeof documentId === 'string' ? resourceBase(documentId, undefined, dialect) : uri, pointerTarget })
+        }
+        continue
+      }
       const loaded = await load(uri, position)
       const remoteDialect = detectDialect(loaded.primary, { defaultDialect: dialect })
       if (remoteDialect !== dialect) {
         throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)
       }
       resources.set(uri, loaded.primary)
+      resourceBases.set(uri, loaded.canonicalBase)
       known.add(uri)
       const nested = declaredResourceIds(loaded.primary, loaded.canonicalBase, dialect)
       for (const id of nested) known.add(id)
@@ -927,7 +969,11 @@ export async function loadExternalResources(
         documents.set(id, document)
         known.add(withoutFragment(id))
       }
-      queue.push({ document: loaded.primary, base: loaded.canonicalBase })
+      queue.push({
+        document: loaded.primary,
+        base: loaded.canonicalBase,
+        ...(pointerTarget === undefined ? {} : { pointerTarget }),
+      })
     }
   }
 

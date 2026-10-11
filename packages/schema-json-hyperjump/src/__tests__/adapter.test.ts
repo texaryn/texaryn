@@ -244,6 +244,31 @@ describe('createHyperjumpAdapter', () => {
       expect((await adapter.validate({ value: 1 })).valid).toBe(false)
     })
 
+    it('loads external resources referenced by an explicitly referenced unknown schema', async () => {
+      const resourceId = 'https://e.test/remote'
+      const targetId = 'https://e.test/other'
+      const requested: string[] = []
+      const adapter = await createHyperjumpAdapter({
+        $schema: 'http://json-schema.org/draft-04/schema#',
+        id: 'https://e.test/client',
+        type: 'object',
+        properties: { value: { $ref: `${resourceId}#/contains/box` } },
+      }, {
+        resolveResource: (uri) => {
+          requested.push(uri)
+          if (uri === resourceId) {
+            return { id: resourceId, contains: { box: { $ref: `${targetId}#/if/box` } } }
+          }
+          if (uri === targetId) return { id: targetId, if: { box: { type: 'string' } } }
+          return undefined
+        },
+      })
+
+      expect(requested).toEqual([resourceId, targetId])
+      expect((await adapter.validate({ value: 'accepted' })).valid).toBe(true)
+      expect((await adapter.validate({ value: 1 })).valid).toBe(false)
+    })
+
     it('sanitizes pointer targets whose member names contain percent escapes', async () => {
       const resourceId = 'https://e.test/remote'
       const adapter = await createHyperjumpAdapter({
