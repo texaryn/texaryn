@@ -96,11 +96,11 @@ each trial produce 500 activation samples and 500 removal samples per renderer.
 The run used macOS 25.6.0 on an Apple M1 Max with Node.js 26.5.1 and headless
 Chromium 153.0.8010.12. A frame observation confirms that the DOM update was
 visible by that point. It includes frame scheduling and does not confirm a
-completed paint. Angular development mode is disabled and checked by the
-harness. These results cover this form and machine only. They do not measure
-cold bundle transfer or general framework performance. The earlier single-run
-React input measurement above uses the Vite development server, so its values
-are not directly comparable with this production-build comparison.
+completed paint. Angular development mode is disabled, and the harness asserts
+`isDevMode() === false`. These results cover this form and machine only. They do
+not measure cold bundle transfer or general framework performance. The earlier
+single-run React input measurement above uses the Vite development server, so
+its values are not directly comparable with this production-build comparison.
 
 The comparison measures Texaryn renderer paths over the same core runtime. An
 RJSF comparison remains a separate, unmeasured follow-up because it would also
