@@ -201,4 +201,17 @@ describe('Angular signal renderer', () => {
     fixture.destroy()
     fixture.nativeElement.remove()
   })
+
+  it('disables action nodes without a registered host handler', async () => {
+    const runtime = createDocumentRuntime(displayDocument(), { initialData: { people: [] } })
+    const fixture = TestBed.createComponent(DocumentRoot)
+    fixture.componentRef.setInput('runtime', runtime)
+    fixture.autoDetectChanges()
+    await fixture.whenStable()
+
+    expect((fixture.nativeElement.querySelector('button') as HTMLButtonElement).disabled).toBe(true)
+
+    fixture.destroy()
+    runtime.destroy()
+  })
 })

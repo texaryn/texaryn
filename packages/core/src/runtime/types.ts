@@ -41,6 +41,7 @@ export interface DocumentRuntime extends UIDocumentRuntime<UIDocumentV2, JsonVal
   replaceDocument(document: unknown): void
   setData(data: unknown): void
   getCollection(nodeId: NodeId): Store<readonly DocumentCollectionRow[]> | undefined
+  hasActionHandler(actionType: string): boolean
   invokeAction(nodeId: NodeId): Promise<void>
 }
 

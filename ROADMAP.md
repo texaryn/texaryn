@@ -1908,7 +1908,7 @@ tables, lists, layouts, text, and actions. The implementation is complete
 locally on branch `feat/non-form-node-types`. Core runtime support and semantic
 renderer roots are available in React, Vue, Solid, Svelte, Angular, and Web
 Components. Build, typecheck, package verification, site validation, and the full
-test suite passed with 5,523 tests across 159 files. ChatGPT reviewed the ADR,
+test suite passed with 5,529 tests across 159 files. ChatGPT reviewed the ADR,
 runtime, and renderer changes and found no remaining actionable issues. This
 work is local and unreleased. Forms remain on version 1 and `FormRuntime`.
 

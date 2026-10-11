@@ -18,6 +18,12 @@
 
 ## Properties
 
+### actionDisabled
+
+> `readonly` **actionDisabled**: `Signal`\<`boolean`\>
+
+***
+
 ### component
 
 > `readonly` **component**: `Signal`\<`Type`\<[`AngularDocumentWidget`](../interfaces/AngularDocumentWidget.md)\> \| `undefined`\>

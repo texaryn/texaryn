@@ -62,4 +62,12 @@ describe('DocumentRoot', () => {
     wrapper.unmount()
     runtime.destroy()
   })
+
+  it('disables action nodes without a registered host handler', () => {
+    const runtime = createDocumentRuntime(fixture())
+    const wrapper = mount(DocumentRoot, { props: { runtime } })
+    expect((wrapper.get('button').element as HTMLButtonElement).disabled).toBe(true)
+    wrapper.unmount()
+    runtime.destroy()
+  })
 })

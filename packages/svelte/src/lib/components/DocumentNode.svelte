@@ -63,6 +63,6 @@
   {:else if node.type === 'table'}
     <DocumentTable {node} {runtime} />
   {:else}
-    <button type="button" onclick={() => invokeAction(node)}>{node.label}</button>
+    <button type="button" disabled={!runtime.hasActionHandler(node.actionType)} onclick={() => invokeAction(node)}>{node.label}</button>
   {/if}
 {/if}

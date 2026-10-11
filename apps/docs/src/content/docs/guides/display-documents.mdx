@@ -118,9 +118,9 @@ package exposes `mountDocument(container, runtime)`, which borrows the runtime
 and returns an object with `unmount()`.
 
 Call `runtime.setData(nextData)` to update the display. Register action handlers
-on the host when creating the runtime. The runtime rejects an action name that
-has no host handler. Hosts should validate action arguments and authorization
-before performing an operation.
+on the host when creating the runtime. Actions without a registered host handler
+render disabled, and direct invocation rejects them. Hosts should validate
+action arguments and authorization before performing an operation.
 
 Custom registries can override rendering by semantic node type. A document
 cannot select a framework component by name. Layout nodes describe ordered

@@ -74,10 +74,6 @@ describe('mountDocument', () => {
     expect(host.querySelector('li')).toBe(firstListItem)
     expect(host.querySelector('td')).toBe(firstCell)
     expect(host.querySelector('button')).toBe(action)
-    expect(host.querySelector('fieldset')).toBe(fieldset)
-    expect(host.querySelector('li')).toBe(firstListItem)
-    expect(host.querySelector('td')).toBe(firstCell)
-    expect(host.querySelector('button')).toBe(action)
     host.querySelector('button')?.click()
     await Promise.resolve()
     await Promise.resolve()
@@ -151,6 +147,14 @@ describe('mountDocument', () => {
     newButton?.click()
     await Promise.resolve()
     expect(refresh).toHaveBeenCalledOnce()
+    mounted.unmount()
+  })
+
+  it('disables action nodes without a registered host handler', () => {
+    const runtime = createDocumentRuntime(fixture())
+    const host = document.createElement('main')
+    const mounted = mountDocument(host, runtime)
+    expect((host.querySelector('button') as HTMLButtonElement).disabled).toBe(true)
     mounted.unmount()
   })
 

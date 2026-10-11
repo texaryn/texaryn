@@ -473,6 +473,9 @@ export function createDocumentRuntime(
     getCollection(nodeId) {
       return collectionStores.get(nodeId)
     },
+    hasActionHandler(actionType) {
+      return actions.has(actionType)
+    },
     async invokeAction(nodeId) {
       assertActive()
       const node = document.nodes[nodeId as string]
