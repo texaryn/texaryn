@@ -16,6 +16,12 @@ needed to close it.
 
 The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
 
+The `@texaryn/svelte` implementation is complete locally in branch
+`feat/svelte-renderer`, stacked on Angular PR #211. It adds Svelte 5 store
+bindings, a default component registry, package and site documentation,
+playground integration, and shared example conformance coverage. The renderer
+is not released yet.
+
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
 Texaryn maintained fork of `json-schema-library` through
@@ -1878,6 +1884,19 @@ requirement for v1, but the compiler should be structured to allow it.
 
 ### Status, 2026-10-11
 
+The Svelte 5 renderer is implemented in local branch `feat/svelte-renderer`,
+stacked on PR #211, and is not released. `pnpm build`, `pnpm typecheck`,
+`pnpm verify:packages`, `pnpm test:coverage`, and `pnpm site:build` pass. The
+full suite passes 5,491 tests across 152 files. ChatGPT review found a runtime
+replacement edge case in `FormRoot`; the binding and teardown behavior now
+follow the active form and a regression test covers replacement. A follow-up
+ChatGPT review confirmed the finding is resolved and reported no remaining
+actionable issues.
+
+PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
+and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
+the Angular PR, and the Svelte merge depends on that base.
+
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. Published packages: `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.1, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0 and `@texaryn/web-components` 0.5.0. `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. From the Phase 5+ list, MUI and the Emotion and Tailwind styling examples have shipped. The Zod adapter is under review in [PR #210](https://github.com/texaryn/texaryn/pull/210). The Angular renderer is under review in [PR #211](https://github.com/texaryn/texaryn/pull/211).
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
@@ -2089,7 +2108,7 @@ MUI and custom styling examples are complete. Continue the remaining work in
 this order:
 
 1. Additional schema adapters: Zod in PR #210, then TypeBox
-2. Additional renderers: Angular in PR #211, then Svelte and Solid
+2. Additional renderers: Angular in PR #211, then Svelte in `feat/svelte-renderer`, then Solid
 3. Non-form node types: tables, lists and layouts
 4. Server-driven UI tooling
 5. AI generation tooling

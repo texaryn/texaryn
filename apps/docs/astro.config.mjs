@@ -22,6 +22,7 @@ const API_ENTRY_POINTS = [
   '../../packages/react-bootstrap',
   '../../packages/react-mui',
   '../../packages/vue',
+  '../../packages/svelte',
 ]
 
 const API_PACKAGE_NAMES = API_ENTRY_POINTS.map(
@@ -109,9 +110,9 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Texaryn',
           description:
-            'Texaryn is a framework-neutral, headless runtime that turns a JSON Schema (Draft 7, 2019-09 or 2020-12) into a working form. A schema adapter projects the schema, the core runtime owns state, validation and submission, and a React, Angular, Vue or Web Components binding renders the result.',
+            'Texaryn is a framework-neutral, headless runtime that turns a JSON Schema (Draft 7, 2019-09 or 2020-12) into a working form. A schema adapter projects the schema, the core runtime owns state, validation and submission, and a React, Angular, Vue, Svelte or Web Components binding renders the result.',
           details: [
-            'Texaryn is pre-1.0 and every package versions on its own. An application installs `@texaryn/core` (the headless runtime) and `@texaryn/schema-json` (the JSON Schema adapter) together with one binding: `@texaryn/react`, `@texaryn/angular`, `@texaryn/vue` or `@texaryn/web-components`.',
+            'Texaryn is pre-1.0 and every package versions on its own. An application installs `@texaryn/core` (the headless runtime) and `@texaryn/schema-json` (the JSON Schema adapter) together with one binding: `@texaryn/react`, `@texaryn/angular`, `@texaryn/vue`, `@texaryn/svelte` or `@texaryn/web-components`.',
             '`@texaryn/react-bootstrap` and `@texaryn/react-mui` are widget registries over `@texaryn/react`, not bindings of their own. The per-binding usage lives in each package README in the GitHub repository.',
           ].join('\n\n'),
           promote: [
@@ -164,6 +165,7 @@ export default defineConfig({
               slug: 'guides/json-schema-conformance',
             },
             { label: 'Angular renderer', slug: 'guides/angular' },
+            { label: 'Svelte renderer', slug: 'guides/svelte' },
             { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
             { label: 'Localizing built-in copy', slug: 'guides/localizing-built-in-copy' },
             { label: 'Custom styling', slug: 'guides/custom-styling' },

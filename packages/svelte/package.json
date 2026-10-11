@@ -1,0 +1,71 @@
+{
+  "name": "@texaryn/svelte",
+  "version": "0.1.0",
+  "description": "Svelte 5 bindings, renderer, and default widgets for Texaryn",
+  "keywords": [
+    "svelte",
+    "json-schema",
+    "forms",
+    "form-builder",
+    "schema-driven",
+    "svelte-forms",
+    "dynamic-forms",
+    "typescript"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/hamzahamidi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/texaryn/texaryn.git",
+    "directory": "packages/svelte"
+  },
+  "homepage": "https://texaryn.github.io/texaryn/",
+  "bugs": {
+    "url": "https://github.com/texaryn/texaryn/issues"
+  },
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js"
+    },
+    "./components/*.svelte": {
+      "types": "./dist/components/*.svelte.d.ts",
+      "svelte": "./dist/components/*.svelte"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@texaryn/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "svelte": ">=5.20.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^2.5.4",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@testing-library/svelte": "^5.4.2",
+    "jsdom": "^25.0.0",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.6",
+    "typescript": "~5.8.0",
+    "vite": "^7.3.6"
+  },
+  "scripts": {
+    "build": "pnpm --filter @texaryn/core build && svelte-package --input src/lib --output dist",
+    "typecheck": "pnpm --filter @texaryn/core build && svelte-check --tsconfig ./tsconfig.svelte-check.json"
+  }
+}

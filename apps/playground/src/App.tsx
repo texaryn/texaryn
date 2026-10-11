@@ -18,6 +18,7 @@ import { ExampleBrowser } from './ExampleBrowser.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
 import { VueHost } from './VueHost.js'
+import { SvelteHost } from './SvelteHost.js'
 import { WcHost } from './WcHost.js'
 import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
@@ -57,6 +58,7 @@ const renderers: Record<RendererKey, RendererSpec> = {
     registry: createDefaultRegistry(),
   },
   vue: { kind: 'host', label: 'Vue · Default', Host: VueHost },
+  svelte: { kind: 'host', label: 'Svelte · Default', Host: SvelteHost },
   wc: { kind: 'host', label: 'Web Components · Default', Host: WcHost },
 }
 

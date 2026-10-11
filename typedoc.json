@@ -9,6 +9,7 @@
     "packages/react-bootstrap",
     "packages/react-mui",
     "packages/vue",
+    "packages/svelte",
     "packages/web-components"
   ],
   "plugin": ["typedoc-plugin-markdown"],

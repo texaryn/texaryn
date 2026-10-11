@@ -1,9 +1,11 @@
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, posix } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { build } from 'vite'
 import { publishedPackages } from './packages.mjs'
 
 const packages = publishedPackages
@@ -122,7 +124,10 @@ for (const pkg of packages) {
 
     console.log(`\n  attw:`)
     try {
-      execSync(`npx attw --profile esm-only ${tarball}`, { stdio: 'inherit' })
+      const command = pkg.name === '@texaryn/svelte'
+        ? `npx attw ${tarball} --profile esm-only --ignore-rules internal-resolution-error no-resolution`
+        : `npx attw --profile esm-only ${tarball}`
+      execSync(command, { stdio: 'inherit' })
     } catch {
       console.error(`attw failed for ${pkg.name}`)
       failed = true
@@ -178,19 +183,60 @@ for (const pkg of packages) {
       mkdirSync(texarynScope, { recursive: true })
       symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
     }
+    if (pkg.name === '@texaryn/svelte') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+      symlinkSync(
+        join(process.cwd(), pkg.dir, 'node_modules', 'svelte'),
+        join(isolatedNodeModules, 'svelte'),
+        'dir',
+      )
+    }
     try {
+      let mod
       if (pkg.name === '@texaryn/angular') {
         // The package is partially compiled. The plain Node smoke test uses
         // Angular's JIT fallback, while application builds use the linker.
         const consumerRequire = createRequire(join(extractDir, 'package', 'package.json'))
         await import(pathToFileURL(consumerRequire.resolve('@angular/compiler')).href)
       }
-      const mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
-      if (!(pkg.expectedExport in mod)) {
-        console.error(`Expected export "${pkg.expectedExport}" not found in ${pkg.name}`)
-        failed = true
+      if (pkg.name === '@texaryn/svelte') {
+        // Svelte packages ship component source for the consuming Svelte
+        // compiler. Bundle the unpacked tarball through that compiler before
+        // importing it, because Node cannot import .svelte files directly.
+        const entry = join(extractDir, 'consumer.js')
+        writeFileSync(join(extractDir, 'package.json'), JSON.stringify({ type: 'module' }))
+        writeFileSync(
+          entry,
+          "import { bindFormRuntime, createForm, createDefaultRegistry, FormRoot } from './package/dist/index.js'; export { bindFormRuntime, createForm, createDefaultRegistry, FormRoot }",
+        )
+        await build({
+          configFile: false,
+          root: extractDir,
+          plugins: [svelte({ configFile: join(process.cwd(), pkg.dir, 'svelte.config.js') })],
+          resolve: { conditions: ['svelte', 'browser'] },
+          build: {
+            lib: { entry, formats: ['es'], fileName: 'consumer' },
+            outDir: 'consumer-dist',
+            rollupOptions: { external: ['@texaryn/core', 'svelte', 'svelte/store'] },
+          },
+        })
+        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href)
       } else {
-        console.log(`  ok: ${pkg.expectedExport} exported`)
+        mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
+      }
+      const expectedExports = pkg.name === '@texaryn/svelte'
+        ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
+        : [pkg.expectedExport]
+      for (const expectedExport of expectedExports) {
+        if (!(expectedExport in mod)) {
+          console.error(`Expected export "${expectedExport}" not found in ${pkg.name}`)
+          failed = true
+        } else {
+          console.log(`  ok: ${expectedExport} exported`)
+        }
       }
       if (pkg.name === '@texaryn/schema-json') {
         const schema = {

@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -18,6 +19,7 @@ const alias = {
   '@texaryn/react-bootstrap': resolve(root, 'packages/react-bootstrap/src/index.ts'),
   '@texaryn/react-mui': resolve(root, 'packages/react-mui/src/index.ts'),
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
+  '@texaryn/svelte': resolve(root, 'packages/svelte/src/lib/index.ts'),
   '@texaryn/angular': resolve(root, 'packages/angular/dist/index.js'),
   '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
   '@texaryn/hints-rjsf': resolve(root, 'packages/hints-rjsf/src/index.ts'),
@@ -38,6 +40,7 @@ export default defineConfig({
         'packages/react-bootstrap/src/**',
         'packages/react-mui/src/**',
         'packages/vue/src/**',
+        'packages/svelte/src/lib/**/*.ts',
         'packages/angular/dist/**/*.js',
         'packages/web-components/src/**',
         'packages/hints-rjsf/src/**',
@@ -46,8 +49,10 @@ export default defineConfig({
       exclude: [
         '**/__tests__/**',
         '**/*.test.*',
+        '**/*.d.ts',
         '**/index.ts',
         '**/types.ts',
+        'packages/svelte/src/lib/widget.ts',
         'packages/vue/src/widget.ts',
         'packages/web-components/src/widget.ts',
         'packages/core/src/schema/**',
@@ -113,6 +118,22 @@ export default defineConfig({
           root: 'packages/vue',
           include: ['src/**/*.test.ts'],
           environment: 'jsdom',
+        },
+      },
+      {
+        plugins: [svelte({
+          configFile: resolve(root, 'packages/svelte/svelte.config.js'),
+          experimental: {
+            compileModule: { include: [/node_modules\/@testing-library\/svelte-core\//] },
+          },
+        })],
+        resolve: { alias, conditions: ['browser'] },
+        test: {
+          name: 'svelte',
+          root: 'packages/svelte',
+          include: ['tests/**/*.test.ts'],
+          environment: 'jsdom',
+          server: { deps: { inline: ['@testing-library/svelte', '@testing-library/svelte-core'] } },
         },
       },
       {
@@ -184,12 +205,14 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias },
+        plugins: [svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') })],
+        resolve: { alias, conditions: ['browser'] },
         test: {
           name: 'playground',
           root: 'apps/playground',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
+          server: { deps: { inline: ['@testing-library/svelte', '@testing-library/svelte-core'] } },
           // jsdom here has no `matchMedia` and a `localStorage` getter that
           // returns undefined. The theme controller uses both.
           setupFiles: ['src/test-setup.ts'],

@@ -1,0 +1,110 @@
+---
+title: Svelte renderer
+description: Render Texaryn forms in Svelte 5 with readable stores and Svelte components.
+---
+
+The `@texaryn/svelte` package renders a Texaryn UI document through Svelte 5
+components. It bridges the framework-neutral runtime stores to readable stores.
+Schema evaluation and validation remain in `@texaryn/schema-json` and
+`@texaryn/core`.
+
+## Install
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/svelte svelte
+```
+
+Svelte 5.20 or newer is required.
+
+## Create a form
+
+Create the schema adapter before mounting the component tree. A parent
+component creates the runtime, then `FormRoot` provides the renderer context to
+its descendants.
+
+```ts
+// main.ts
+import { mount } from 'svelte'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import App from './App.svelte'
+
+const adapter = await createJsonSchemaAdapter({
+  type: 'object',
+  title: 'Profile',
+  required: ['name'],
+  properties: {
+    name: { type: 'string', title: 'Name', minLength: 2 },
+    age: { type: 'integer', title: 'Age', minimum: 18 },
+  },
+})
+
+mount(App, {
+  target: document.getElementById('app')!,
+  props: { adapter },
+})
+```
+
+```svelte
+<!-- App.svelte -->
+<script lang="ts">
+  import type { SchemaEvaluationPort } from '@texaryn/core'
+  import { createDefaultRegistry, createForm, FormRoot } from '@texaryn/svelte'
+
+  let { adapter }: { adapter: SchemaEvaluationPort } = $props()
+  const form = createForm(adapter, { initialData: { name: '', age: 18 } })
+  const data = form.data
+  const registry = createDefaultRegistry()
+</script>
+
+<FormRoot {form} {registry}>
+  <h2>Data</h2>
+  <pre>{JSON.stringify($data, null, 2)}</pre>
+</FormRoot>
+```
+
+`FormRoot` renders the error summary and active schema nodes. It creates an id
+prefix from Svelte's component id for server rendering and hydration. Set an
+explicit `idPrefix` if application code needs a stable value, and keep it
+unique among the forms on the page. By default, `FormRoot` destroys the runtime
+when it unmounts. Set `destroyOnUnmount={false}` when another owner manages the
+runtime.
+
+## Default widgets and messages
+
+The default registry renders text, number, checkbox, enum, object, and array
+nodes. Field errors use a polite live region. The error summary focuses after a
+failed submission settles and links to each field control. Array controls add,
+remove, and reorder items when the corresponding UI hints allow those actions.
+
+Pass a complete `FormMessages` object to `FormRoot` to replace the built-in
+English messages. It remains the application's responsibility to provide every
+message function.
+
+## Custom widgets
+
+A widget is a Svelte 5 component that accepts a `node` prop. Register it in a
+`RendererRegistry<WidgetComponent>` and pass the registry to `FormRoot`.
+Descendants can use `useFormContext()` to access the form, registry, messages,
+and id prefix. Call it during component initialization below `FormRoot`.
+
+```svelte
+<script lang="ts">
+  import type { UINode } from '@texaryn/core'
+  import { useFormContext } from '@texaryn/svelte'
+
+  let { node }: { node: UINode } = $props()
+  const { form } = useFormContext()
+</script>
+
+<div data-node-id={node.id}>{node.annotations.title}</div>
+```
+
+`createFieldBinding` adapts field state to readable stores for custom inputs.
+The binding includes the field value, display value, label and description,
+interaction state, visible errors, and ARIA attributes.
+
+## Data ownership
+
+`createForm` keeps Texaryn's runtime as the source of form data and validation.
+Svelte components observe its readable stores. The binding does not mirror
+values into another form state library.

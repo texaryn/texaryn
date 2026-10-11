@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "baseUrl": "."
+  },
+  "include": ["src/lib/**/*.ts", "src/lib/**/*.d.ts", "src/lib/**/*.svelte"],
+  "exclude": ["src/lib/**/__tests__/**", "src/lib/**/*.test.ts"]
+}
