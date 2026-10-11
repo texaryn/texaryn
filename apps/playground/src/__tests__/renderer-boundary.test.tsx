@@ -72,7 +72,7 @@ describe('the renderer-owned region', () => {
     expect(offered.length).toBeGreaterThan(1)
     for (const { label } of offered) {
       expect(label, `"${label}" does not say what renders it`).toMatch(
-        /^(React|Vue|Svelte|Web Components) · .+/,
+        /^(React|Vue|Svelte|Solid|Web Components) · .+/,
       )
     }
   })

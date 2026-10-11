@@ -1,5 +1,6 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import solid from 'vite-plugin-solid'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -22,6 +23,7 @@ const alias = {
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
   '@texaryn/svelte': resolve(root, 'packages/svelte/src/lib/index.ts'),
   '@texaryn/angular': resolve(root, 'packages/angular/dist/index.js'),
+  '@texaryn/solid': resolve(root, 'packages/solid/src/index.ts'),
   '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
   '@texaryn/hints-rjsf': resolve(root, 'packages/hints-rjsf/src/index.ts'),
   '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
@@ -44,6 +46,7 @@ export default defineConfig({
         'packages/vue/src/**',
         'packages/svelte/src/lib/**/*.ts',
         'packages/angular/dist/**/*.js',
+        'packages/solid/src/**',
         'packages/web-components/src/**',
         'packages/hints-rjsf/src/**',
       ],
@@ -55,6 +58,7 @@ export default defineConfig({
         '**/index.ts',
         '**/types.ts',
         'packages/svelte/src/lib/widget.ts',
+        'packages/solid/src/widget.ts',
         'packages/vue/src/widget.ts',
         'packages/web-components/src/widget.ts',
         'packages/core/src/schema/**',
@@ -147,6 +151,17 @@ export default defineConfig({
         },
       },
       {
+        plugins: [solid()],
+        resolve: { alias, conditions: ['development', 'browser'] },
+        test: {
+          name: 'solid',
+          root: 'packages/solid',
+          include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
+          environment: 'jsdom',
+          server: { deps: { inline: ['solid-js', '@solidjs/testing-library'] } },
+        },
+      },
+      {
         resolve: { alias },
         test: {
           name: 'angular',
@@ -215,14 +230,17 @@ export default defineConfig({
         },
       },
       {
-        plugins: [svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') })],
-        resolve: { alias, conditions: ['browser'] },
+        plugins: [
+          svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') }),
+          solid({ include: /[\\/]packages[\\/]solid[\\/].*\.tsx$/ }),
+        ],
+        resolve: { alias, conditions: ['development', 'browser'] },
         test: {
           name: 'playground',
           root: 'apps/playground',
           include: ['src/**/*.test.{ts,tsx}'],
           environment: 'jsdom',
-          server: { deps: { inline: ['@testing-library/svelte', '@testing-library/svelte-core'] } },
+          server: { deps: { inline: ['@testing-library/svelte', '@testing-library/svelte-core', 'solid-js', 'solid-js/web'] } },
           // jsdom here has no `matchMedia` and a `localStorage` getter that
           // returns undefined. The theme controller uses both.
           setupFiles: ['src/test-setup.ts'],
