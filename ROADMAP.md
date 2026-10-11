@@ -6,7 +6,7 @@ A framework-neutral, headless runtime for declarative interfaces. Forms shipped
 first, and the versioned IR now also supports standalone display documents.
 Server-driven updates, AI generation, a visual builder, native array reorder,
 and collaborative scalar editing are implemented in PR #214; renderer and
-feature PRs remain in review.
+feature work in PR #214 remains in review.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -22,11 +22,11 @@ bindings, a default component registry, package and site documentation,
 playground integration, and shared example conformance coverage. Its package
 release is pending.
 
-The `@texaryn/solid` renderer is in
-[PR #213](https://github.com/texaryn/texaryn/pull/213), now based on `main`
-after PR #212 merged. It adds SolidJS bindings, a default component registry,
-package and site documentation, playground integration, and cross-framework
-state sharing coverage. Its checks are running against `main`.
+The `@texaryn/solid` renderer merged in
+[PR #213](https://github.com/texaryn/texaryn/pull/213). It adds SolidJS
+bindings, a default component registry, package and site documentation,
+playground integration, and cross-framework state sharing coverage. Its checks
+passed against `main`, including 98.46% Codecov patch coverage.
 
 The long term JSON Schema engine decision is
 [ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
@@ -1895,20 +1895,20 @@ packages include `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.2,
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. PR #210 merged Zod
 support and TypeBox integration; the release workflow has not published the
-Zod package yet. Angular source merged in PR #211, and Svelte source merged in
-PR #212. Solid is in PR #213, based on `main`. PR #214 contains the document
+Zod package yet. Angular source merged in PR #211, Svelte source merged in PR
+#212, and Solid source merged in PR #213. PR #214 contains the document
 runtime, AI kit, visual builder, array reorder, and collaboration work. It is
-stacked on Solid.
+based on `main` after PR #213 merged.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
 found a runtime replacement edge case in `FormRoot`; binding and teardown now
 follow the active form, with regression coverage. Follow-up review found no
 remaining actionable issues. The SolidJS renderer in PR #213 passed build,
-typecheck, package verification, full test suite, and site build on its earlier
-base. Its checks are running again against `main`. ChatGPT review findings
-about read-only control state and object enum comparison were fixed, and
-follow-up review found no remaining actionable issues.
+typecheck, package verification, full test suite, and site build against `main`,
+with 98.46% Codecov patch coverage. ChatGPT review findings about read-only
+control state and object enum comparison were fixed, and follow-up review found
+no remaining actionable issues.
 
 ADR-012 accepts a standalone, schema independent display document runtime for
 tables, lists, layouts, text, and actions. Its implementation is in PR #214.
@@ -1943,9 +1943,10 @@ and concurrent array ordering remain outside version 1. ChatGPT's final code
 review confirmed the four reported runtime findings are resolved and found no
 remaining actionable issues.
 
-Before the stack updates, PR #214 passed the full suite with 5,627 tests across
-168 files, along with build, typecheck, package verification, docs, and site
-checks. Its checks will rerun after the stack is retargeted to `main`.
+Before rebasing onto `main`, PR #214 passed the full suite with 5,627 tests
+across 168 files, along with build, typecheck, package verification, docs, and
+site checks. The branch is now rebased onto `main`, and the rebased tree passes
+the full test suite and typecheck locally.
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
@@ -2152,10 +2153,10 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 ### Phase 5+: Post-Validation
 
 MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
-and TypeBox coverage. The Zod package remains unpublished. Continue the open
-work in this order:
+and TypeBox coverage. The Zod package remains unpublished. The additional
+renderer phase is complete. Continue the open work in this order:
 
-1. Additional renderers: Angular in PR #211, Svelte in PR #212, then Solid in PR #213.
+1. Additional renderers: Angular in PR #211, Svelte in PR #212, and Solid in PR #213. Complete.
 2. Standalone display documents in PR #214 under ADR-012.
 3. Bounded server-driven document updates in PR #214 under ADR-013.
 4. Provider-neutral AI generation in PR #214 under ADR-014.
