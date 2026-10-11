@@ -10,12 +10,24 @@ import type {
 } from '../ir/types.js'
 import type {
   DocumentActionContext,
+  DocumentActionRegistration,
   DocumentActionHandler,
   DocumentCollectionRow,
   DocumentRuntime,
   DocumentRuntimeOptions,
 } from './types.js'
 import type { JsonPointer, JsonScalar, JsonValue, NodeId, StableItemId } from '../types.js'
+import {
+  assertDocumentNodeCount,
+  assertDocumentTreeDepth,
+  preflightJson,
+  preflightJsonRoots,
+  resolveDocumentRuntimeLimits,
+} from './document-limits.js'
+import type { JsonTraversalBudget } from './document-limits.js'
+import type { DocumentRuntimeLimits } from './types.js'
+import { registerDocumentRuntimeControl } from './document-runtime-control.js'
+import type { DocumentRuntimeControl, InternalSnapshotCommit } from './document-runtime-control.js'
 
 type CollectionNode = ListNode | TableNode
 
@@ -40,6 +52,7 @@ interface PreparedRow {
 interface CollectionSnapshot {
   readonly identities: ReadonlyMap<string, CollectionIdentity>
   readonly rows: ReadonlyMap<NodeId, readonly DocumentCollectionRow[]>
+  readonly nextItemId: number
 }
 
 const objectPrototype = Object.prototype
@@ -50,7 +63,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return prototype === objectPrototype || prototype === null
 }
 
-function cloneJson(value: unknown, path = '$', active = new Set<object>()): JsonValue {
+export function cloneJson(
+  value: unknown,
+  path: string,
+  limits: DocumentRuntimeLimits,
+  work?: JsonTraversalBudget,
+): JsonValue {
+  preflightJson(value, path, limits, work)
+  return cloneJsonUnchecked(value, path, new Set())
+}
+
+function cloneJsonUnchecked(value: unknown, path: string, active: Set<object>): JsonValue {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) throw new TypeError(`${path} must contain a finite number`)
@@ -79,7 +102,7 @@ function cloneJson(value: unknown, path = '$', active = new Set<object>()): Json
         if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
           throw new TypeError(`${path}[${index}] must be a JSON property`)
         }
-        result.push(cloneJson(descriptor.value, `${path}[${index}]`, active))
+        result.push(cloneJsonUnchecked(descriptor.value, `${path}[${index}]`, active))
       }
       return result
     }
@@ -96,7 +119,7 @@ function cloneJson(value: unknown, path = '$', active = new Set<object>()): Json
       if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
         throw new TypeError(`${path}.${key} must be a JSON property`)
       }
-      result[key] = cloneJson(descriptor.value, `${path}.${key}`, active)
+      result[key] = cloneJsonUnchecked(descriptor.value, `${path}.${key}`, active)
     }
     return result
   } finally {
@@ -151,17 +174,17 @@ function validateAnnotations(value: unknown, path: string): asserts value is Rec
     if (value[key] !== undefined && typeof value[key] !== 'boolean') fail(`${path}.${key}`, 'must be a boolean')
   }
   if (value.examples !== undefined && !Array.isArray(value.examples)) fail(`${path}.examples`, 'must be an array')
-  cloneJson(value, path)
 }
 
-function validateDocument(value: unknown): UIDocumentV2 {
-  const snapshot = cloneJson(value, 'document')
+function validateDocument(value: unknown, limits: DocumentRuntimeLimits): UIDocumentV2 {
+  const snapshot = cloneJson(value, 'document', limits)
   if (!isRecord(snapshot)) fail('document', 'must be an object')
   assertKeys(snapshot, ['version', 'rootId', 'nodes'], 'document')
   if (snapshot.version !== 2) fail('document.version', 'must be 2')
   const rootId = requiredString(snapshot, 'rootId', 'document') as NodeId
   if (!isRecord(snapshot.nodes)) fail('document.nodes', 'must be an object')
   const inputNodes = snapshot.nodes
+  assertDocumentNodeCount(inputNodes, limits)
   const nodes = new Map<NodeId, DocumentNode>()
   const collectionIds = new Set<string>()
 
@@ -272,20 +295,18 @@ function validateDocument(value: unknown): UIDocumentV2 {
     }
   }
 
-  const visiting = new Set<NodeId>()
+  assertDocumentTreeDepth(rootId, nodes, limits)
   const reachable = new Set<NodeId>()
-  function visit(nodeId: NodeId): void {
-    if (visiting.has(nodeId)) fail(`document.nodes.${nodeId}`, 'creates a cycle')
-    if (reachable.has(nodeId)) return
-    visiting.add(nodeId)
+  const pending = [rootId]
+  while (pending.length > 0) {
+    const nodeId = pending.pop()!
+    if (reachable.has(nodeId)) continue
+    reachable.add(nodeId)
     const node = nodes.get(nodeId)
     if (node?.type === 'container') {
-      for (const childId of node.children) visit(childId)
+      for (const childId of node.children) pending.push(childId)
     }
-    visiting.delete(nodeId)
-    reachable.add(nodeId)
   }
-  visit(rootId)
   if (reachable.size !== nodes.size) fail('document.nodes', 'contains unreachable nodes')
   for (const [nodeId, node] of nodes) {
     if (nodeId !== rootId && !childOwners.has(nodeId)) fail(`document.nodes.${nodeId}`, 'has no parent')
@@ -307,8 +328,14 @@ function keyToken(value: unknown, path: string): string {
   fail(path, 'must resolve to a string or finite number')
 }
 
-function prepareCollections(document: UIDocumentV2, data: JsonValue): PreparedCollection[] {
+function prepareCollections(
+  document: UIDocumentV2,
+  data: JsonValue,
+  limits: DocumentRuntimeLimits,
+): PreparedCollection[] {
   const result: PreparedCollection[] = []
+  let totalRows = 0
+  let totalCells = 0
   for (const candidate of Object.values(document.nodes)) {
     if (candidate.type !== 'list' && candidate.type !== 'table') continue
     const node = candidate
@@ -318,6 +345,19 @@ function prepareCollections(document: UIDocumentV2, data: JsonValue): PreparedCo
       continue
     }
     if (!Array.isArray(source)) fail(`collection ${node.collectionId}`, 'source must be an array when present')
+    if (source.length > limits.maxRowsPerCollection) {
+      fail(`collection ${node.collectionId}`, `exceeds the maximum row count of ${limits.maxRowsPerCollection}`)
+    }
+    totalRows += source.length
+    if (totalRows > limits.maxCollectionRows) {
+      fail('collections', `exceed the maximum total row count of ${limits.maxCollectionRows}`)
+    }
+    if (node.type === 'table') {
+      totalCells += source.length * node.columns.length
+      if (totalCells > limits.maxTableCells) {
+        fail('collections', `exceed the maximum table cell count of ${limits.maxTableCells}`)
+      }
+    }
     const rows: PreparedRow[] = []
     for (const [index, item] of source.entries()) {
       const path = `collection ${node.collectionId}[${index}]`
@@ -354,20 +394,35 @@ function freezeRows(rows: DocumentCollectionRow[]): readonly DocumentCollectionR
   return Object.freeze(rows)
 }
 
+function assertActionArgumentValidators(
+  document: UIDocumentV2,
+  actions: ReadonlyMap<string, DocumentActionRegistration>,
+): void {
+  for (const node of Object.values(document.nodes)) {
+    if (node.type !== 'action' || !Object.prototype.hasOwnProperty.call(node, 'actionArgs')) continue
+    const action = actions.get(node.actionType)
+    if (action && !action.validateArgs) {
+      throw new TypeError(`Action ${node.actionType} has arguments but no validateArgs registration`)
+    }
+  }
+}
+
 export function createDocumentRuntime(
   inputDocument: unknown,
   options: DocumentRuntimeOptions = {},
 ): DocumentRuntime {
-  const initialData = deepFreeze(cloneJson(options.initialData === undefined ? {} : options.initialData, 'data'))
-  let document = validateDocument(inputDocument)
+  const limits = resolveDocumentRuntimeLimits(options.limits)
+  const initialInputData = options.initialData === undefined ? {} : options.initialData
+  preflightJsonRoots([
+    { value: inputDocument, path: 'document' },
+    { value: initialInputData, path: 'data' },
+  ], limits)
+  const initialData = deepFreeze(cloneJson(initialInputData, 'data', limits))
+  let document = validateDocument(inputDocument, limits)
   let nextItemId = 0
   let identities = new Map<string, CollectionIdentity>()
   let destroyed = false
-
-  function newItemId(): StableItemId {
-    nextItemId += 1
-    return `document-item-${nextItemId}` as StableItemId
-  }
+  let mutationVersion = 0
 
   function makeSnapshot(
     nextDocument: UIDocumentV2,
@@ -375,9 +430,15 @@ export function createDocumentRuntime(
     previous: ReadonlyMap<string, CollectionIdentity>,
     preserveUnkeyed: boolean,
   ): CollectionSnapshot {
-    const prepared = prepareCollections(nextDocument, data)
+    const prepared = prepareCollections(nextDocument, data, limits)
     const nextIdentities = new Map<string, CollectionIdentity>()
     const collectionRows = new Map<NodeId, readonly DocumentCollectionRow[]>()
+    let candidateItemId = nextItemId
+
+    function newItemId(): StableItemId {
+      candidateItemId += 1
+      return `document-item-${candidateItemId}` as StableItemId
+    }
 
     for (const { node, rows } of prepared) {
       const previousIdentity = previous.get(node.collectionId)
@@ -412,21 +473,36 @@ export function createDocumentRuntime(
       collectionRows.set(node.id, freezeRows(output))
     }
 
-    return { identities: nextIdentities, rows: collectionRows }
+    return { identities: nextIdentities, rows: collectionRows, nextItemId: candidateItemId }
   }
 
   const initialSnapshot = makeSnapshot(document, initialData, identities, false)
   identities = new Map(initialSnapshot.identities)
+  nextItemId = initialSnapshot.nextItemId
   const documentStore = createStore(document)
   const dataStore = createStore(initialData)
   const collectionStores = new Map<NodeId, WritableStore<readonly DocumentCollectionRow[]>>()
   for (const [nodeId, rows] of initialSnapshot.rows) collectionStores.set(nodeId, createStore(rows))
 
-  const actions = new Map<string, DocumentActionHandler>()
-  for (const [name, handler] of Object.entries(options.actions ?? {})) {
-    if (name.length === 0 || typeof handler !== 'function') throw new TypeError('Action handlers must have nonempty names and be functions')
-    actions.set(name, handler)
+  const actions = new Map<string, DocumentActionRegistration>()
+  for (const [name, action] of Object.entries(options.actions ?? {})) {
+    if (name.length === 0) throw new TypeError('Action handlers must have nonempty names')
+    if (typeof action === 'function') {
+      actions.set(name, { handler: action })
+      continue
+    }
+    if (!isRecord(action)) throw new TypeError(`Action ${name} must be a handler or registration object`)
+    assertKeys(action, ['handler', 'validateArgs'], `actions.${name}`)
+    if (typeof action.handler !== 'function') throw new TypeError(`actions.${name}.handler must be a function`)
+    if (action.validateArgs !== undefined && typeof action.validateArgs !== 'function') {
+      throw new TypeError(`actions.${name}.validateArgs must be a function`)
+    }
+    actions.set(name, {
+      handler: action.handler as DocumentActionHandler,
+      validateArgs: action.validateArgs as DocumentActionRegistration['validateArgs'],
+    })
   }
+  assertActionArgumentValidators(document, actions)
 
   function assertActive(): void {
     if (destroyed) throw new Error('DocumentRuntime has been destroyed')
@@ -446,29 +522,58 @@ export function createDocumentRuntime(
     for (const [nodeId, store] of nextStores) collectionStores.set(nodeId, store)
   }
 
-  return {
+  function prepareSnapshot(inputDocumentValue: unknown, inputDataValue: unknown, preserveUnkeyed: boolean) {
+    preflightJsonRoots([
+      { value: inputDocumentValue, path: 'document' },
+      { value: inputDataValue, path: 'data' },
+    ], limits)
+    const nextDocument = validateDocument(inputDocumentValue, limits)
+    assertActionArgumentValidators(nextDocument, actions)
+    const nextData = deepFreeze(cloneJson(inputDataValue, 'data', limits))
+    const snapshot = makeSnapshot(nextDocument, nextData, identities, preserveUnkeyed)
+    return { document: nextDocument, data: nextData, collections: snapshot }
+  }
+
+  function commitSnapshot(
+    prepared: ReturnType<typeof prepareSnapshot>,
+    publication: { document: boolean; data: boolean },
+    onCommit?: (commit: InternalSnapshotCommit) => void,
+  ): void {
+    batch(() => {
+      identities = new Map(prepared.collections.identities)
+      nextItemId = prepared.collections.nextItemId
+      publishCollections(prepared.collections)
+      if (publication.document) {
+        document = prepared.document
+        documentStore.set(prepared.document)
+      }
+      if (publication.data) dataStore.set(prepared.data)
+      mutationVersion += 1
+      onCommit?.({
+        document: documentStore.getSnapshot(),
+        data: dataStore.getSnapshot(),
+        mutationVersion,
+      })
+    })
+  }
+
+  const runtime: DocumentRuntime = {
     document: documentStore,
     data: dataStore,
     replaceDocument(input) {
       assertActive()
-      const nextDocument = validateDocument(input)
-      const snapshot = makeSnapshot(nextDocument, dataStore.getSnapshot(), identities, true)
-      batch(() => {
-        document = nextDocument
-        identities = new Map(snapshot.identities)
-        publishCollections(snapshot)
-        documentStore.set(nextDocument)
-      })
+      const prepared = prepareSnapshot(input, dataStore.getSnapshot(), true)
+      commitSnapshot(prepared, { document: true, data: false })
     },
     setData(input) {
       assertActive()
-      const nextData = deepFreeze(cloneJson(input, 'data'))
-      const snapshot = makeSnapshot(document, nextData, identities, false)
-      batch(() => {
-        identities = new Map(snapshot.identities)
-        publishCollections(snapshot)
-        dataStore.set(nextData)
-      })
+      const prepared = prepareSnapshot(document, input, false)
+      commitSnapshot(prepared, { document: false, data: true })
+    },
+    replaceSnapshot(inputDocumentValue, inputDataValue) {
+      assertActive()
+      const prepared = prepareSnapshot(inputDocumentValue, inputDataValue, false)
+      commitSnapshot(prepared, { document: true, data: true })
     },
     getCollection(nodeId) {
       return collectionStores.get(nodeId)
@@ -480,17 +585,42 @@ export function createDocumentRuntime(
       assertActive()
       const node = document.nodes[nodeId as string]
       if (!node || node.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
-      const handler = actions.get(node.actionType)
-      if (!handler) throw new Error(`No host action is registered for ${node.actionType}`)
+      const action = actions.get(node.actionType)
+      if (!action) throw new Error(`No host action is registered for ${node.actionType}`)
+      const hasArgs = Object.prototype.hasOwnProperty.call(node, 'actionArgs')
+      let args: JsonValue | undefined
+      if (action.validateArgs) {
+        const validatedArgs = action.validateArgs(hasArgs ? node.actionArgs : undefined)
+        args = validatedArgs === undefined
+          ? undefined
+          : deepFreeze(cloneJson(validatedArgs, 'actionArgs', limits))
+      } else if (hasArgs) {
+        throw new TypeError(`Action ${node.actionType} does not accept arguments`)
+      }
       const context: DocumentActionContext = Object.freeze({
         nodeId,
         document,
         data: dataStore.getSnapshot(),
       })
-      await handler(node.actionArgs, context)
+      await action.handler(args, context)
     },
     destroy() {
       destroyed = true
     },
   }
+
+  const control: DocumentRuntimeControl = {
+    limits,
+    getMutationVersion: () => mutationVersion,
+    replaceSnapshot(inputDocumentValue, inputDataValue, publication, onCommit) {
+      assertActive()
+      const prepared = prepareSnapshot(inputDocumentValue, inputDataValue, publication.preserveUnkeyed)
+      commitSnapshot(prepared, {
+        document: publication.publishDocument,
+        data: publication.publishData,
+      }, onCommit)
+    },
+  }
+  registerDocumentRuntimeControl(runtime, control)
+  return runtime
 }

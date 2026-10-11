@@ -1575,21 +1575,22 @@ This works because:
 ### Server-Driven UI Flow
 
 ```
-Server ──(UIDocument JSON)──> Client Runtime
-  |                               |
-  |  partial update:              |
-  |  { patch: [                   |
-  |    { op: "replace",           |
-  |      path: "/nodes/n1/visible"|
-  |      value: true }            |
-  |  ]}                           |
-  |                               |
-  +─(JSON Patch)────────────────> |
+Server ──(versioned snapshot)────> Update Session ──> DocumentRuntime
+  |                                  |                       |
+  |  revision 12                     | validate and commit   | notify
+  |                                  |                       |
+  +──(revision 13 patch or data)─────+                       |
 ```
 
-The server can send a full `UIDocument` on initial load and JSON Patch updates
-for subsequent changes. The runtime applies patches, updates affected node
-signals, and the renderer updates the affected widgets.
+The first message is a full version 2 document and data snapshot. Each later
+update uses the next revision and contains a restricted JSON Patch, replacement
+data, or both. A higher revision snapshot can resynchronize the session. The
+session validates the whole resulting document and data before one atomic
+runtime publication. Its patch subset supports `add`, `remove`, and `replace`
+under `/nodes`; it does not implement every RFC 6902 operation. The session
+bounds message size, JSON depth, document nodes and depth, collections, patch
+operations, and update rate. The host limits raw request bytes before parsing.
+See [ADR-013](docs/adr/013-server-driven-document-updates.md) for the protocol.
 
 ### AI-Generated UI Flow
 
@@ -1617,11 +1618,12 @@ button as disabled.
 This is the same pattern as DivKit's action catalog: the server can describe
 what actions exist, but the client decides which are allowed.
 
-Additional security constraints for remote IR:
-- No `eval` or dynamic code in any layer.
-- Action arguments are validated against the registered schema before dispatch.
-- The IR validator rejects unknown node types and unknown properties.
-- Rate limiting on IR updates (prevent DoS via rapid re-compilation).
+Remote IR executes no dynamic code. Every action registration supplies a
+synchronous argument validator when that action accepts arguments. Core clones
+and freezes the validated arguments before dispatch, while authorization stays
+in the host handler. The versioned structural validator rejects unknown node
+types and properties. The update session bounds input work and rate limits
+updates.
 
 ## 14. Package Structure
 
@@ -1711,10 +1713,10 @@ The primary threats come from remote IR (server-driven UI, AI-generated UI):
 
 ### Mitigations
 
-**IR validation.** Every `UIDocument` from an external source is validated
-against a strict JSON Schema for the IR itself. Unknown properties are rejected.
-Node types must be from the known set. Action types must exist in the host's
-action registry.
+**IR validation.** Every external `UIDocument` is validated against its
+versioned structural contract. Unknown properties and node types are rejected.
+An action with no host registration renders disabled, and direct invocation is
+rejected. Actions that accept arguments have a registered argument validator.
 
 **Schema expansion limits.** A recursive schema's projection past the data has two
 fixed limits per projection, 16 objects and 512 nodes, and a schema that applies
@@ -1911,6 +1913,14 @@ Components. Build, typecheck, package verification, site validation, and the ful
 test suite passed with 5,529 tests across 159 files. ChatGPT reviewed the ADR,
 runtime, and renderer changes and found no remaining actionable issues. This
 work is local and unreleased. Forms remain on version 1 and `FormRuntime`.
+
+ADR-013 accepts bounded versioned updates for those display documents. Core now
+provides snapshot replacement, a restricted patch session, monotonic revisions,
+fixed JSON and collection limits, explicit action argument validators, and
+atomic runtime publication. ChatGPT reviewed the protocol and implementation
+and found no remaining actionable issues. The full suite passed 5,547 tests
+across 160 files. Typecheck, build, package verification and site build pass.
+The work is complete locally on `feat/non-form-node-types` and unreleased.
 
 PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
 and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
@@ -2131,7 +2141,9 @@ this order:
 3. Non-form node types: tables, lists and layouts. The design is accepted in
    [ADR-012](docs/adr/012-non-form-ui-runtime.md); implementation is complete
    locally on `feat/non-form-node-types` and is unreleased.
-4. Server-driven UI tooling
+4. Server-driven UI tooling. The protocol is accepted in
+   [ADR-013](docs/adr/013-server-driven-document-updates.md); implementation is
+   complete locally on `feat/non-form-node-types` and is unreleased.
 5. AI generation tooling
 6. Visual form builder
 7. Drag-and-drop array reorder

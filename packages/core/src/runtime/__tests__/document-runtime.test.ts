@@ -203,7 +203,17 @@ describe('DocumentRuntime', () => {
     const handler = vi.fn()
     const runtime = createDocumentRuntime(document(), {
       initialData: initialData(),
-      actions: { 'open-item': handler },
+      actions: {
+        'open-item': {
+          validateArgs(args) {
+            if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+              throw new TypeError('open-item args must be an object')
+            }
+            return args
+          },
+          handler,
+        },
+      },
     })
     expect(runtime.hasActionHandler('open-item')).toBe(true)
     expect(runtime.hasActionHandler('missing')).toBe(false)
@@ -217,6 +227,97 @@ describe('DocumentRuntime', () => {
     const withoutHandler = createDocumentRuntime(document())
     expect(withoutHandler.hasActionHandler('open-item')).toBe(false)
     await expect(withoutHandler.invokeAction(id('action'))).rejects.toThrow(/No host action/)
+  })
+
+  it('requires a validator for action arguments and freezes the validated result', async () => {
+    expect(() => createDocumentRuntime(document(), { actions: { 'open-item': vi.fn() } }))
+      .toThrow(/no validateArgs registration/)
+
+    const handler = vi.fn()
+    const runtime = createDocumentRuntime(document(), {
+      actions: {
+        'open-item': {
+          validateArgs(args) {
+            if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+              throw new TypeError('open-item args must be an object')
+            }
+            return { source: args.source, allowed: true }
+          },
+          handler,
+        },
+      },
+    })
+    await runtime.invokeAction(id('action'))
+    expect(handler.mock.calls[0]![0]).toEqual({ source: 'results', allowed: true })
+    expect(Object.isFrozen(handler.mock.calls[0]![0])).toBe(true)
+  })
+
+  it('replaces document and data as one atomic snapshot', () => {
+    const runtime = createDocumentRuntime(document(), { initialData: initialData() })
+    const nextDocument = document()
+    const nextData = initialData([rows[0]])
+    const observations: Array<[unknown, unknown, number]> = []
+    runtime.document.subscribe(() => {
+      observations.push([
+        runtime.document.getSnapshot(),
+        runtime.data.getSnapshot(),
+        runtime.getCollection(id('list'))!.getSnapshot().length,
+      ])
+    })
+    runtime.data.subscribe(() => {
+      observations.push([
+        runtime.document.getSnapshot(),
+        runtime.data.getSnapshot(),
+        runtime.getCollection(id('list'))!.getSnapshot().length,
+      ])
+    })
+
+    runtime.replaceSnapshot(nextDocument, nextData)
+
+    expect(runtime.document.getSnapshot()).not.toBe(nextDocument)
+    expect(runtime.data.getSnapshot()).not.toBe(nextData)
+    expect(observations.length).toBeGreaterThan(0)
+    expect(observations.every(([, data, length]) => data === runtime.data.getSnapshot() && length === 1)).toBe(true)
+  })
+
+  it('rejects JSON and document resource limits before publishing', () => {
+    const runtime = createDocumentRuntime(document(), {
+      initialData: initialData(),
+      limits: { maxJsonDepth: 8, maxDocumentNodes: 4 },
+    })
+    const previousData = runtime.data.getSnapshot()
+    let tooDeep: unknown = true
+    for (let index = 0; index < 10; index += 1) tooDeep = { value: tooDeep }
+    expect(() => runtime.setData(tooDeep)).toThrow(/maximum JSON depth/)
+    const invalidDocument = document()
+    const root = invalidDocument.nodes.root
+    if (root.type !== 'container') throw new Error('expected root container')
+    root.children.push(id('extra'))
+    invalidDocument.nodes.extra = {
+      id: id('extra'),
+      type: 'text',
+      parentId: id('root'),
+      annotations: {},
+      content: 'Extra',
+      textRole: 'paragraph',
+    }
+    expect(() => runtime.replaceDocument(invalidDocument)).toThrow(/maximum node count/)
+    expect(runtime.data.getSnapshot()).toBe(previousData)
+  })
+
+  it('enforces document tree depth and collection row limits', () => {
+    expect(() => createDocumentRuntime(document(), {
+      initialData: initialData(),
+      limits: { maxDocumentTreeDepth: 1 },
+    })).toThrow(/document tree.*maximum depth/)
+
+    const runtime = createDocumentRuntime(document(), {
+      initialData: initialData([rows[0]]),
+      limits: { maxRowsPerCollection: 1 },
+    })
+    const previous = runtime.data.getSnapshot()
+    expect(() => runtime.setData(initialData(rows))).toThrow(/maximum row count/)
+    expect(runtime.data.getSnapshot()).toBe(previous)
   })
 
   it('rejects unsupported documents and malformed JSON pointers', () => {

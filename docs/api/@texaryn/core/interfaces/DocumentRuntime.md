@@ -110,6 +110,26 @@
 
 ***
 
+### replaceSnapshot()
+
+> **replaceSnapshot**(`document`, `data`): `void`
+
+#### Parameters
+
+##### document
+
+`unknown`
+
+##### data
+
+`unknown`
+
+#### Returns
+
+`void`
+
+***
+
 ### setData()
 
 > **setData**(`data`): `void`
