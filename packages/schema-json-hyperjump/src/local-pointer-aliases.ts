@@ -245,12 +245,7 @@ function hasPreservedTarget(position: string, preservedPointers: ReadonlySet<str
 }
 
 function valueAtPointer(document: unknown, pointer: string): unknown {
-  let fragment = pointer.startsWith('#') ? pointer.slice(1) : pointer
-  try {
-    fragment = decodeURIComponent(fragment)
-  } catch {
-    // Keep malformed URI escapes as authored so the validator can report them.
-  }
+  const fragment = pointer.startsWith('#') ? pointer.slice(1) : pointer
   if (fragment === '') return document
   if (!fragment.startsWith('/')) return undefined
   let value = document
