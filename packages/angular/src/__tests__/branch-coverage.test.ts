@@ -9,6 +9,7 @@ import { ArrayControl, createDefaultRegistry, createForm, FieldWidgetComponent, 
 import type { AngularForm, ArrayControl as ArrayControlType, FormContext } from '@texaryn/angular'
 import { createStore } from '@texaryn/core'
 import type { ContainerNode, FieldNode, FormMessages, JsonPointer, NodeId, NodeState, UIDocument, UINode } from '@texaryn/core'
+import { fieldAria, fieldLabel } from '../field-props.js'
 
 const boundaryDispatch = vi.fn()
 const boundaryNode = {
@@ -22,17 +23,30 @@ const boundaryNode = {
   disabled: false,
   readOnly: false,
   annotations: { title: 'Profile' },
-  children: [],
+  children: ['boundary-child' as NodeId, 'missing-child' as NodeId],
   boundaryTargets: [
     { pointer: '/child' as JsonPointer, reason: 'recursion', token: 'recursive-first' },
     { pointer: '/next' as JsonPointer, reason: 'recursion', token: 'recursive-second' },
     { pointer: '/items' as JsonPointer, reason: 'budget', token: 'budget-first' },
   ],
 } as ContainerNode
+const boundaryChild = {
+  id: 'boundary-child' as NodeId,
+  type: 'text',
+  parentId: boundaryNode.id,
+  dataPointer: null,
+  order: 0,
+  visible: true,
+  disabled: false,
+  readOnly: false,
+  annotations: {},
+  content: 'A child',
+  textRole: 'paragraph',
+} as unknown as UINode
 const boundaryDocument = {
   version: 1,
   rootId: boundaryNode.id,
-  nodes: { [boundaryNode.id]: boundaryNode },
+  nodes: { [boundaryNode.id]: boundaryNode, [boundaryChild.id]: boundaryChild },
 } as UIDocument
 const boundaryForm = {
   document: signal(boundaryDocument),
@@ -146,7 +160,12 @@ const mixedField = {
   readOnly: false,
   annotations: { title: 'Shape' },
   constraints: {},
-  enumValues: [{ value: ['one'] }, { value: { code: 'one' } }, { value: { other: 'one' } }],
+  enumValues: [
+    { value: ['one'] },
+    { value: { code: 'one' } },
+    { value: { other: 'one' } },
+    { value: { code: 'one', other: true } },
+  ],
 } as unknown as FieldNode
 const mixedNodeState: NodeState = {
   value: mixedValue,
@@ -216,6 +235,7 @@ describe('Angular branch coverage', () => {
 
     const actions = fixture.nativeElement.querySelectorAll('button')
     expect(actions).toHaveLength(2)
+    expect(fixture.nativeElement.querySelectorAll('texaryn-node-renderer')).toHaveLength(1)
     actions[0].click()
     expect(boundaryDispatch).toHaveBeenCalledWith({
       type: 'ExpandBoundary',
@@ -283,7 +303,33 @@ describe('Angular branch coverage', () => {
     expect(component.itemTitle(undefined)).toBeUndefined()
     expect(component.itemTitle('missing')).toBeUndefined()
 
+    const form = arrayContext.form()
+    const nodeWithoutMeta = { ...arrayNode, arrayMeta: undefined } as unknown as UINode
+    form.document.set({ version: 1, rootId: arrayNode.id, nodes: { [arrayNode.id]: nodeWithoutMeta } } as UIDocument)
+    await fixture.whenStable()
+    expect(component.array.items()).toEqual([])
+    expect(component.array.canAdd()).toBe(false)
+
     fixture.destroy()
+  })
+
+  it('preserves empty titles and falls back from null data pointers', () => {
+    const field = {
+      id: 'label' as NodeId,
+      type: 'field',
+      fieldType: 'string',
+      dataPointer: null,
+      annotations: { title: '' },
+      constraints: {},
+    } as unknown as FieldNode
+
+    expect(fieldLabel(field)).toBe('')
+    expect(fieldLabel({ ...field, annotations: { title: null } } as unknown as FieldNode)).toBe('label')
+    expect(fieldAria({ ...field, annotations: { title: undefined } } as unknown as FieldNode, {
+      disabled: false,
+      showErrors: false,
+      errors: [],
+    }, 'label').name).toBe('label')
   })
 
   it('matches array and object enum values by their JSON structure', async () => {
@@ -304,7 +350,13 @@ describe('Angular branch coverage', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }))
     await fixture.whenStable()
     expect(mixedValue.getSnapshot()).toEqual({ other: 'one' })
-    expect(mixedDispatch).toHaveBeenCalledTimes(2)
+
+    select.value = 'texaryn-enum-3'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await fixture.whenStable()
+    expect(mixedValue.getSnapshot()).toEqual({ code: 'one', other: true })
+    expect(select.value).toBe('texaryn-enum-3')
+    expect(mixedDispatch).toHaveBeenCalledTimes(3)
 
     fixture.destroy()
     fixture.nativeElement.remove()
