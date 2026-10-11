@@ -14,18 +14,17 @@ Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
 and its minor package release was published through
 [PR #223](https://github.com/texaryn/texaryn/pull/223).
 This completes the current implementation sequence through Draft-04. ADR-018
-and ADR-019 close the IR migration and plugin architecture decisions. Migration
-code waits for a scheduled breaking change within one document family. A shared
-plugin API waits for two independent integrations to demonstrate the same unmet
-need.
+through ADR-021 close the IR migration, plugin architecture, hydration boundary,
+and command history decisions. Migration code waits for a scheduled breaking
+change within one document family. A shared plugin API waits for two independent
+integrations to demonstrate the same unmet need.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
-takes explicit positions. Where the evidence supports a decision, the decision is
-stated. Where it does not, the question is listed as open with the information
-needed to close it.
+takes explicit positions and records the evidence or trigger needed to revisit
+each decision.
 
-The current state and the remaining work are in [Status, 2026-10-11](#status-2026-10-11).
+The current state and follow-up triggers are in [Status, 2026-10-11](#status-2026-10-11).
 
 The `@texaryn/svelte` implementation merged in
 [PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
@@ -894,8 +893,12 @@ type Command =
   | { type: 'Reset';       data?: unknown }
 ```
 
-Commands are serializable. They can be logged, replayed, sent over a wire (for
-collaborative editing), or undone. The command handler is a pure function:
+Commands are tagged values, but `subscribeMutations()` is a data-change feed,
+not a complete command observer. It reports before and after data and documents
+when the data reference changes, and includes the command when dispatch caused
+that change. `Submit`, `SetTouched`, and no-op commands can commit without a
+mutation notification. A command's serializable shape does not define durable
+history, replay, transport, or undo. The command handler is a pure function:
 
 ```typescript
 function processCommand(state: FormState, command: Command): {
@@ -2341,7 +2344,7 @@ form in React with:
 - Arrays with add, remove, and stable identity
 - Local `$defs`/`$ref` (reusable schema fragments)
 - Submit with loading state
-- Deterministic commands (serializable, replayable)
+- Typed commands with supported JSON payloads
 
 This is phases 0-3. Local `$ref` is included because a JSON Schema form builder
 without it looks toy-like in its first release, and local `$ref` resolution is
@@ -2372,6 +2375,10 @@ Deferred from MVP:
 6. Plugin ecosystem milestone complete as a decision in ADR-019. Do not add a
    shared plugin container or transform pipeline unless two independent
    integrations demonstrate the same unmet requirement.
+7. SSR hydration boundary complete as a decision in ADR-020. Recreate runtimes
+   from matching application inputs. Do not serialize runtime objects.
+8. Command history complete as a decision in ADR-021. Persistence, replay, and
+   undo stay in the host application.
 
 ### Why Not Build on TanStack Form?
 
@@ -2495,10 +2502,10 @@ component. If the port interface is wrong, every adapter must be rewritten. Writ
 the ADR, prototype the port with a 10-field schema that has one `if`/`then`/`else`
 conditional, and verify the boundary holds before committing to it.
 
-## Open Questions
+## Questions Closed by Implementation and ADRs
 
-Implementation has resolved questions 1 through 5. Questions 6 and 7 remain open
-because they require an explicit cross-process and persistence contract.
+Questions 1 through 7 are resolved. The decisions leave measured performance
+comparisons and application-specific persistence formats to later evidence.
 
 1. **Should the IR support layout hints (grid columns, flex direction) or leave
    all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
@@ -2527,13 +2534,15 @@ because they require an explicit cross-process and persistence contract.
    through their native state primitives. This establishes functional
    compatibility. Performance comparisons remain unmeasured.
 
-6. **Server rendering across processes.** React and Vue cover server rendering
-   and hydration of stable IDs when both renders reuse the same runtime. Svelte
-   derives a server-safe ID prefix from component identity. No contract defines
-   whether a client recreates the runtime from schema and initial data or
-   receives a serialized document or state snapshot. Decide this before adding
-   a cross-process hydration API.
+6. **Server rendering across processes.** Resolved in
+   [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
+   server and browser create separate runtimes from matching application
+   inputs. Core does not serialize runtime objects or transfer interaction
+   state. Hosts define a versioned payload if they need to restore an
+   in-progress form.
 
-7. **Command history persistence.** The runtime does not retain a command log.
-   Whether hosts need a persistent JSON command history for replay or undo
-   remains open. Action handlers and runtime state stay host-owned.
+7. **Command history persistence.** Resolved in
+   [ADR-021](docs/adr/021-keep-command-history-host-owned.md): persistence,
+   replay, and undo stay host-owned. `subscribeMutations()` reports data changes
+   and the command when one caused the change. It is not a complete command or
+   audit feed. Capturing commands dispatched by renderers needs a separate contract.
