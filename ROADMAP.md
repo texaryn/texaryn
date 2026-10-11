@@ -1905,6 +1905,11 @@ verification, the full test suite, and site build pass. The full suite passes
 object enum comparison issues. Both fixes have regression coverage, and the
 follow-up review found no remaining actionable issues.
 
+ADR-012 accepts a standalone, schema independent display document runtime for
+tables, lists, layouts, and actions. The first implementation is in progress on
+local branch `feat/non-form-node-types`. ChatGPT reviewed the ADR and found no
+remaining actionable issues. Forms remain on version 1 and `FormRuntime`.
+
 PR #211 remains open. Its build, typecheck, tests, Changeset, Dependency review,
 and CI Gate pass. The `codecov/patch` check fails. That is a remaining gate on
 the Angular PR, and the Svelte merge depends on that base.
@@ -2121,7 +2126,8 @@ this order:
 
 1. Additional schema adapters: Zod in PR #210, then TypeBox
 2. Additional renderers: Angular in PR #211, Svelte in `feat/svelte-renderer`, and Solid in `feat/solid-renderer`
-3. Non-form node types: tables, lists and layouts
+3. Non-form node types: tables, lists and layouts. The design is accepted in
+   [ADR-012](docs/adr/012-non-form-ui-runtime.md); implementation is in progress.
 4. Server-driven UI tooling
 5. AI generation tooling
 6. Visual form builder
@@ -2395,11 +2401,9 @@ These questions are not resolved by the research and require implementation
 experience or user feedback to answer:
 
 1. **Should the IR support layout hints (grid columns, flex direction) or leave
-   all layout to the renderer?** The research is split: A2UI includes layout;
-   DivKit includes layout; Adaptive Cards includes layout. But all three are
-   server-driven UI systems where the server controls layout. For a form
-   library, the question is whether layout hints in the IR are a feature or a
-   maintenance burden.
+   all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
+   the IR carries semantic layout containers, while each renderer chooses its
+   markup and spacing. Grid and flex hints remain deferred.
 
 2. **Should the validator port include a "resolve applicable sub-schema"
    method?** For oneOf/anyOf discrimination, the adapter needs to know which
