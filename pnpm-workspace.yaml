@@ -9,3 +9,6 @@ allowBuilds:
   msgpackr-extract: false
 minimumReleaseAgeExclude:
   - '@texaryn/json-schema-library@11.6.6'
+overrides:
+  # GHSA-238p-pmpm-9mq7 is fixed in 0.18.2; mermaid 11 still asks for ^0.16.
+  'mermaid@11>katex': ^0.18.2

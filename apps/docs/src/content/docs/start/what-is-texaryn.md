@@ -48,6 +48,6 @@ checks rather than something the README says.
 
 ## Status
 
-This documentation site is new and still a shell. The written guides currently
-live in the repository, and the API reference is generated separately. Both
-move here as the site grows.
+The guides, concept pages and a generated API reference all live on this
+site. Each package README in the repository stays a quick reference for
+that package.
