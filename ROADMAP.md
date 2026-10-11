@@ -1882,12 +1882,13 @@ dependency on the core.
 
 2. **Diffing.** When the IR is recompiled, the runtime diffs old and new node
    maps to determine which signals to update. A naive diff (iterate all nodes,
-   compare) is O(n) where n is node count. For forms under 200 fields, this is
-   fast enough in the measured compiler baseline. The synthetic 1,000-row array
-   case takes 16.5 to 16.9 ms per structural command at p50 and 18.3 to 19.1 ms
-   at p95. Keep targeted diffing deferred until a representative application
-   workload shows that its forms routinely need this array size or exceed its
-   interaction latency target.
+   compare) is O(n) where n is node count. The 200-field prepared compile is
+   0.1042 ms at p95, but excludes runtime node diffing and renderer updates. The
+   synthetic 1,000-row array case measures aggregate projection and compilation
+   inside a structural command: 16.5 to 16.9 ms at p50 and 18.3 to 19.1 ms at
+   p95. It does not isolate diffing cost. Keep targeted diffing deferred until a
+   representative application workload shows that its forms routinely need
+   this array size or exceed its interaction latency target.
 
 3. **Validation.** Async validation introduces latency by definition. The
    scheduling strategy (section 8) controls when validation runs. The runtime
