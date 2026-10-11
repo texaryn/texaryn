@@ -331,7 +331,12 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     const located = pointerTargetWithBase(scope.schema, fragment, scope.base, scope.position, dialect)
     const target = located?.schema
     if (!isRecord(target) && typeof target !== 'boolean') continue
-    if (isPre2019Dialect(dialect) && located!.resourceRootPosition !== scope.position && located!.base !== undefined) {
+    if (
+      isPre2019Dialect(dialect) &&
+      recognizedPositions.has(located!.position) &&
+      located!.resourceRootPosition !== scope.position &&
+      located!.base !== undefined
+    ) {
       const suffix = located!.position.slice(located!.resourceRootPosition.length)
       setOwn(schema, '$ref', `${located!.base}#${suffix}`)
       continue

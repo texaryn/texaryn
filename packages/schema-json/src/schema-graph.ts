@@ -101,19 +101,22 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
     return found
   }
-  const hasIf = 'if' in schema
   if (isRecord(schema.not)) found.push({ position: `${position}/not`, via: 'not', inPlace: true })
-  if (isRecord(schema.if)) found.push({ position: `${position}/if`, via: 'if', inPlace: true })
-  if (isRecord(schema.then) && (lexical || (hasIf && schema.if !== false))) found.push({ position: `${position}/then`, via: 'then', inPlace: true })
-  if (isRecord(schema.else) && (lexical || (hasIf && schema.if !== true))) found.push({ position: `${position}/else`, via: 'else', inPlace: true })
+  if (dialect !== 'draft-04') {
+    const hasIf = 'if' in schema
+    if (isRecord(schema.if)) found.push({ position: `${position}/if`, via: 'if', inPlace: true })
+    if (isRecord(schema.then) && (lexical || (hasIf && schema.if !== false))) found.push({ position: `${position}/then`, via: 'then', inPlace: true })
+    if (isRecord(schema.else) && (lexical || (hasIf && schema.if !== true))) found.push({ position: `${position}/else`, via: 'else', inPlace: true })
+  }
   for (const keyword of IN_PLACE_LIST) {
     const list = schema[keyword]
     if (Array.isArray(list)) list.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: true }))
   }
-  // json-schema-library keeps evaluating 'dependencies' past draft-07 for backward compatibility.
+  // json-schema-library keeps evaluating 'dependencies' in later drafts for backward compatibility.
   addMap('dependencies', true)
   if (!isPre2019Dialect(dialect)) addMap('dependentSchemas', true)
   for (const keyword of INSTANCE_SINGLE) {
+    if (dialect === 'draft-04' && keyword !== 'additionalProperties') continue
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
   if (dialect !== '2020-12' && Array.isArray(schema.items) && isRecord(schema.additionalItems)) {

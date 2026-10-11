@@ -100,16 +100,25 @@ function compositionHasRenderableAlternative(node: SchemaNode): boolean {
   })
 }
 
-function extractConstraints(schema: Record<string, unknown>): FieldConstraints {
+function extractConstraints(schema: Record<string, unknown>, dialect: ProjectionCache['dialect']): FieldConstraints {
   const constraints: FieldConstraints = {}
   if (typeof schema.minLength === 'number') constraints.minLength = schema.minLength
   if (typeof schema.maxLength === 'number') constraints.maxLength = schema.maxLength
-  if (typeof schema.minimum === 'number') constraints.minimum = schema.minimum
-  if (typeof schema.maximum === 'number') constraints.maximum = schema.maximum
-  if (typeof schema.exclusiveMinimum === 'number') {
+  const draft04 = dialect === 'draft-04'
+  if (typeof schema.minimum === 'number' && !(draft04 && schema.exclusiveMinimum === true)) {
+    constraints.minimum = schema.minimum
+  }
+  if (typeof schema.maximum === 'number' && !(draft04 && schema.exclusiveMaximum === true)) {
+    constraints.maximum = schema.maximum
+  }
+  if (draft04 && schema.exclusiveMinimum === true && typeof schema.minimum === 'number') {
+    constraints.exclusiveMinimum = schema.minimum
+  } else if (typeof schema.exclusiveMinimum === 'number') {
     constraints.exclusiveMinimum = schema.exclusiveMinimum
   }
-  if (typeof schema.exclusiveMaximum === 'number') {
+  if (draft04 && schema.exclusiveMaximum === true && typeof schema.maximum === 'number') {
+    constraints.exclusiveMaximum = schema.maximum
+  } else if (typeof schema.exclusiveMaximum === 'number') {
     constraints.exclusiveMaximum = schema.exclusiveMaximum
   }
   if (typeof schema.multipleOf === 'number') constraints.multipleOf = schema.multipleOf
@@ -2009,7 +2018,7 @@ function walk(
     nodes.set(toPointer(pointer), {
       type,
       format: typeof schema.format === 'string' ? schema.format : undefined,
-      constraints: extractConstraints(schema),
+      constraints: extractConstraints(schema, ctx.cache.dialect),
       children,
       enumValues: extractEnumValues(schema),
       active: nodeActive,
@@ -2157,7 +2166,7 @@ function walk(
   nodes.set(toPointer(pointer), {
     type,
     format: typeof schema.format === 'string' ? schema.format : undefined,
-    constraints: extractConstraints(schema),
+    constraints: extractConstraints(schema, ctx.cache.dialect),
     children: undefined,
     enumValues: extractEnumValues(schema),
     active: nodeActive,
