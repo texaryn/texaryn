@@ -23,6 +23,7 @@ const alias = {
   '@texaryn/vue': resolve(root, 'packages/vue/src/index.ts'),
   '@texaryn/svelte': resolve(root, 'packages/svelte/src/lib/index.ts'),
   '@texaryn/angular': resolve(root, 'packages/angular/dist/index.js'),
+  '@texaryn/solid': resolve(root, 'packages/solid/src/index.ts'),
   '@texaryn/web-components': resolve(root, 'packages/web-components/src/index.ts'),
   '@texaryn/hints-rjsf': resolve(root, 'packages/hints-rjsf/src/index.ts'),
   '@texaryn/examples': resolve(root, 'packages/examples/src/index.ts'),
@@ -229,7 +230,10 @@ export default defineConfig({
         },
       },
       {
-        plugins: [svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') })],
+        plugins: [
+          svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') }),
+          solid({ include: /[\\/]packages[\\/]solid[\\/].*\.tsx$/ }),
+        ],
         resolve: { alias, conditions: ['development', 'browser'] },
         test: {
           name: 'playground',
