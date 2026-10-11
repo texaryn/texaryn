@@ -13,8 +13,11 @@ seven previously published versions that lacked GitHub releases. Draft-04 JSON
 Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
 and its minor package release was published through
 [PR #223](https://github.com/texaryn/texaryn/pull/223).
-This completes the current implementation sequence through Draft-04. The next
-roadmap subjects are IR migrations and the plugin ecosystem.
+This completes the current implementation sequence through Draft-04. ADR-018
+and ADR-019 close the IR migration and plugin architecture decisions. Migration
+code waits for a scheduled breaking change within one document family. A shared
+plugin API waits for two independent integrations to demonstrate the same unmet
+need.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -2203,7 +2206,9 @@ neutrality with named risks is honest; scoping them as a primary target is not.
 
 MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
 and TypeBox coverage, and `@texaryn/schema-zod` 0.1.2 is published. The
-additional renderer phase is complete. Continue the open work in this order:
+additional renderer phase is complete. The items below are shipped or closed by
+an accepted ADR. IR migration and plugin API implementation remain gated by the
+triggers recorded in ADR-018 and ADR-019.
 
 1. Additional renderers: Angular in PR #211, Svelte in PR #212, and Solid in PR #213. Complete.
 2. Standalone display documents in PR #214 under ADR-012.
@@ -2215,10 +2220,12 @@ additional renderer phase is complete. Continue the open work in this order:
 8. Draft-04 JSON Schema support is complete in PR #222. Its mandatory official
    validation suite passed 618 of 618 cases in each adapter. PR #223 published
    `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
-9. IR migration decisions are recorded in ADR-018. Form and display document
-   IRs remain separate families.
-10. The plugin ecosystem decision is recorded in ADR-019. Core has no shared
-    plugin container or transform pipeline.
+9. IR versioning is complete as a decision in ADR-018. Form and display
+   documents remain separate families. Migration code waits for a scheduled
+   breaking change within one family.
+10. The plugin ecosystem decision is complete in ADR-019. Core has no shared
+    plugin container or transform pipeline. Revisit only after two independent
+    integrations demonstrate the same unmet extension requirement.
 11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs; configure
     trusted publishing for each package; and recover seven existing published
     versions with missing GitHub releases. Complete. The five package releases
@@ -2359,8 +2366,12 @@ Deferred from MVP:
    reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
 4. Draft-04 JSON Schema support is complete in PR #222. PR #223 published
    `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
-5. IR migrations.
-6. Plugin ecosystem.
+5. IR migration milestone complete as a decision in ADR-018. No cross-family
+   migration is planned. Add same-family migration code only with a scheduled
+   breaking format change.
+6. Plugin ecosystem milestone complete as a decision in ADR-019. Do not add a
+   shared plugin container or transform pipeline unless two independent
+   integrations demonstrate the same unmet requirement.
 
 ### Why Not Build on TanStack Form?
 
@@ -2486,55 +2497,43 @@ conditional, and verify the boundary holds before committing to it.
 
 ## Open Questions
 
-These questions are not resolved by the research and require implementation
-experience or user feedback to answer:
+Implementation has resolved questions 1 through 5. Questions 6 and 7 remain open
+because they require an explicit cross-process and persistence contract.
 
 1. **Should the IR support layout hints (grid columns, flex direction) or leave
    all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
    the IR carries semantic layout containers, while each renderer chooses its
    markup and spacing. Grid and flex hints remain deferred.
 
-2. **Should the validator port include a "resolve applicable sub-schema"
-   method?** For oneOf/anyOf discrimination, the adapter needs to know which
-   sub-schema the current data matches. This could be a validator
-   responsibility (validate against each and pick the one that passes) or an
-   adapter responsibility (match on discriminator properties). The validator
-   approach is more correct; the discriminator approach is faster.
+2. **Applicable sub-schema selection.** Resolved by the existing
+   `SchemaEvaluationPort.project(data)` boundary in
+   [`packages/core/src/schema/port.ts`](packages/core/src/schema/port.ts).
+   Adapters determine the active projection and keep dialect-specific
+   composition semantics out of core. The port exposes projection and
+   validation, with no separate branch-selection method.
 
-3. **What is the right granularity for validation scheduling?** Per-field
-   debounce timers? Per-form batching? Both? The answer depends on the
-   validator's latency profile, which varies between AJV (microseconds) and
-   server-side validation (milliseconds).
+3. **Validation scheduling.** Resolved in
+   [`packages/core/src/runtime/validation-scheduler.ts`](packages/core/src/runtime/validation-scheduler.ts).
+   Change validation is debounced by 300 milliseconds by default, configurable
+   through `validationDebounceMs`. Blur and submit validate immediately.
+   Per-field hints select the trigger.
 
-4. **Should the React binding use React context or direct signal subscription
-   for deeply nested forms?** Context avoids prop drilling but couples the
-   component tree to the form tree. Direct subscription is more flexible but
-   requires each widget to independently connect to the runtime.
+4. **React binding lifecycle.** Resolved. React Context provides the runtime to
+   nested components, and `useSyncExternalStore` connects components to core
+   stores. The two mechanisms serve different purposes.
 
-5. **Is the `getSnapshot+subscribe` contract sufficient for frameworks with
-   pull-based reactivity (Solid, Svelte 5)?** These frameworks may perform
-   better with direct signal integration rather than the push-based subscription
-   adapter. This is a question for the third or fourth renderer, not the first.
+5. **Store contract across renderer frameworks.** The shipped React, Vue,
+   Angular, Solid, and Svelte adapters consume `getSnapshot` and `subscribe`
+   through their native state primitives. This establishes functional
+   compatibility. Performance comparisons remain unmeasured.
 
-6. **How should SSR work?** The headless core runs in Node.js by construction
-   (no DOM, no browser globals). Schema compilation and initial IR generation work
-   on the server. The open questions are: (a) should the server send the serialized
-   UIDocument to the client for hydration, or should the client re-compile from
-   the schema? Sending the UIDocument saves compilation time on the client but
-   doubles the payload. (b) How do signals hydrate? The server cannot subscribe to
-   signals, but it can produce a snapshot of all node states. The React binding
-   would need to hydrate from that snapshot using `useSyncExternalStore`'s server
-   snapshot argument. (c) Validation on the server is sync-only (no user
-   interaction to trigger async validation). The first render shows no validation
-   state, which is correct. This needs prototyping with React Server Components
-   and Next.js before committing to a design.
+6. **Server rendering across processes.** React and Vue cover server rendering
+   and hydration of stable IDs when both renders reuse the same runtime. Svelte
+   derives a server-safe ID prefix from component identity. No contract defines
+   whether a client recreates the runtime from schema and initial data or
+   receives a serialized document or state snapshot. Decide this before adding
+   a cross-process hydration API.
 
-7. **What is serializable and what is not?** Commands, IR documents, and form data
-   are serializable by design (plain JSON, no functions, no DOM references). The
-   signal graph and the identity map are runtime-only structures that can be
-   reconstructed from a serialized UIDocument. Action handlers are host-registered
-   functions and are not serializable. This division (data and descriptions cross
-   the wire; behavior stays on the host) is the correct boundary for server-driven
-   UI. The open question is whether the full command log should be persisted for
-   replay and undo: the commands themselves are serializable, but a long session
-   accumulates thousands of SetValue commands that may not be worth storing.
+7. **Command history persistence.** The runtime does not retain a command log.
+   Whether hosts need a persistent JSON command history for replay or undo
+   remains open. Action handlers and runtime state stay host-owned.
