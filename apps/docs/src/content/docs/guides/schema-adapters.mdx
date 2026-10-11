@@ -1,0 +1,76 @@
+---
+title: Schema adapters
+description: Use TypeBox or Zod schemas with Texaryn's framework-neutral runtime.
+---
+
+Texaryn's runtime accepts a `SchemaEvaluationPort`. JSON Schema is the native
+interchange format: `@texaryn/schema-json` projects fields and validates JSON
+Schema across Draft 7, 2019-09 and 2020-12.
+
+## TypeBox
+
+TypeBox builds JSON Schema objects, so pass its result directly to the existing
+adapter. There is no TypeBox-specific runtime package or validator.
+
+```ts
+import { Type } from '@sinclair/typebox'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+
+const schema = Type.Object({
+  name: Type.String({ minLength: 2, title: 'Name' }),
+  active: Type.Optional(Type.Boolean()),
+})
+
+const adapter = await createJsonSchemaAdapter(schema)
+```
+
+## Zod 4
+
+Install the adapter and Zod:
+
+```bash
+pnpm add @texaryn/core @texaryn/schema-zod zod
+```
+
+Convert a Zod input schema for field projection. Zod remains the validation
+authority, including async refinements and custom error messages.
+
+```ts
+import * as z from 'zod'
+import { createZodAdapter } from '@texaryn/schema-zod'
+
+const schema = z.object({
+  name: z.string().min(2).meta({ title: 'Name' }),
+  email: z.email(),
+})
+
+const adapter = await createZodAdapter(schema)
+```
+
+Zod's JSON Schema conversion omits custom refinements and transform behavior.
+Those checks still run during Zod validation, but they do not become projected
+field constraints. The adapter uses the Zod input shape, and it does not expose
+`projectSubmission` because Zod parsing and JSON Schema branch projection have
+different object and transform semantics.
+
+Some Zod schema types have no JSON Schema equivalent. Conversion rejects those
+by default. Set `unrepresentable: 'any'` only when showing a less constrained
+field is acceptable; Zod still enforces the original schema during validation.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+  TypeBox[TypeBox schema] -->|JSON Schema object| JSONAdapter[@texaryn/schema-json]
+  JSON[JSON Schema] --> JSONAdapter
+  Zod[Zod 4 schema] -->|input schema to JSON Schema| ZodAdapter[@texaryn/schema-zod]
+  ZodAdapter -->|project| JSONAdapter
+  ZodAdapter -->|validate| ZodValidator[Zod parser]
+  JSONAdapter --> Port[SchemaEvaluationPort]
+  Port --> Core[Texaryn core runtime]
+  Core --> Renderer[React, Vue, Web Components]
+```
+
+Use JSON Schema directly when schemas must be exchanged between services or
+languages. Use TypeBox when writing JSON Schema in TypeScript. Use Zod when its
+TypeScript-first parsing and refinement APIs are important to the application.

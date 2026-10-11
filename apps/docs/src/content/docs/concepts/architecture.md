@@ -12,6 +12,7 @@ one can be understood without reading the others.
 | --- | --- |
 | `@texaryn/core` | The framework-neutral runtime: IR, commands, validation and submission lifecycle |
 | `@texaryn/schema-json` | JSON Schema evaluation behind the schema port, across three dialects |
+| `@texaryn/schema-zod` | Zod 4 validation with projection through JSON Schema |
 | `@texaryn/react` | The React binding: hooks, prop getters and the default widgets |
 | `@texaryn/react-bootstrap` | Bootstrap 5 widgets over the React binding |
 | `@texaryn/react-mui` | Material UI v9 widgets over the React binding |
@@ -23,7 +24,9 @@ one can be understood without reading the others.
 Core never imports a schema library. It talks to a port that projects data
 into a `SchemaProjection` and validates it. `@texaryn/schema-json` is one
 implementation, which is what keeps JSON Schema from becoming an assumption
-rather than a choice.
+rather than a choice. TypeBox supplies JSON Schema directly. The optional
+`@texaryn/schema-zod` package uses Zod for validation and the JSON Schema
+adapter for field projection.
 
 ## Independent versions
 

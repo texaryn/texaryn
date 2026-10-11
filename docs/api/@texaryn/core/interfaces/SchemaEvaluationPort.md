@@ -6,6 +6,10 @@
 
 # Interface: SchemaEvaluationPort
 
+## Extended by
+
+- [`ZodSchemaAdapter`](../../schema-zod/interfaces/ZodSchemaAdapter.md)
+
 ## Methods
 
 ### project()

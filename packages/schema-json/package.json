@@ -37,13 +37,17 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md"],
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "THIRD-PARTY-NOTICES.md"
+  ],
   "dependencies": {
     "@sagold/json-pointer": "^7.2.1",
     "@texaryn/core": "workspace:^",
+    "@texaryn/json-schema-library": "^11.6.6",
     "fast-copy": "^4.0.4",
     "fast-deep-equal": "^3.1.3",
-    "@texaryn/json-schema-library": "^11.6.6",
     "valid-url": "^1.0.9"
   },
   "scripts": {
@@ -51,6 +55,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@sinclair/typebox": "^0.34.52",
     "tsx": "^4.23.12",
     "vitest": "^3.0.0"
   }

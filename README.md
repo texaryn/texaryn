@@ -164,6 +164,7 @@ Product documentation is published at
 
 - [Getting started](https://texaryn.github.io/texaryn/start/getting-started/)
 - [JSON Schema support](https://texaryn.github.io/texaryn/guides/json-schema-support/)
+- [Schema adapters](https://texaryn.github.io/texaryn/guides/schema-adapters/)
 - [Architecture](https://texaryn.github.io/texaryn/concepts/architecture/)
 - [Migrating from RJSF](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/)
 - [API reference](https://texaryn.github.io/texaryn/api/)
@@ -180,6 +181,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | --- | --- | --- |
 | [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI IR, compiler, runtime, state, commands, identity, renderer registry |
 | [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
+| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
 | [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
 | [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
@@ -212,6 +214,12 @@ The JSON Schema adapter currently understands these dialects:
 - Draft 7
 - 2019-09
 - 2020-12
+
+TypeBox schemas can be passed directly to `createJsonSchemaAdapter` because
+TypeBox produces JSON Schema. Zod 4 users can install `@texaryn/schema-zod`,
+which uses Zod for validation and JSON Schema conversion for projection. See
+the [schema adapters guide](https://texaryn.github.io/texaryn/guides/schema-adapters/)
+for conversion limits.
 
 ### 2. UI IR
 

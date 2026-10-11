@@ -17,6 +17,7 @@ import { BASE, BASE_PATH, PLAYGROUND_MOUNT, PLAYGROUND_PATH } from '../../site.c
 const API_ENTRY_POINTS = [
   '../../packages/core',
   '../../packages/schema-json',
+  '../../packages/schema-zod',
   '../../packages/react',
   '../../packages/react-bootstrap',
   '../../packages/react-mui',
@@ -74,7 +75,7 @@ export default defineConfig({
         },
       ],
       description:
-        'A framework-neutral runtime for schema-driven interfaces. JSON Schema in, any renderer out.',
+        'A framework-neutral runtime for schema-driven interfaces. Schema adapters in, any renderer out.',
       // A broken link fails the build from the first commit. Turning this on
       // once a site already has content means starting with a backlog and
       // learning to ignore it.
@@ -108,9 +109,9 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Texaryn',
           description:
-            'Texaryn is a framework-neutral, headless runtime that turns a JSON Schema (Draft 7, 2019-09 or 2020-12) into a working form. A schema adapter projects the schema, the core runtime owns state, validation and submission, and a React, Vue or Web Components binding renders the result.',
+            'Texaryn is a framework-neutral, headless runtime that turns schemas into working forms. A schema adapter projects and validates schema input, the core runtime owns state, validation and submission, and a React, Vue or Web Components binding renders the result.',
           details: [
-            'Texaryn is pre-1.0 and every package versions on its own. An application installs `@texaryn/core` (the headless runtime) and `@texaryn/schema-json` (the JSON Schema adapter) together with one binding: `@texaryn/react`, `@texaryn/vue` or `@texaryn/web-components`.',
+            'Texaryn is pre-1.0 and every package versions on its own. An application installs `@texaryn/core` (the headless runtime) and a schema adapter: `@texaryn/schema-json` for JSON Schema or `@texaryn/schema-zod` for Zod 4. It also installs one binding: `@texaryn/react`, `@texaryn/vue` or `@texaryn/web-components`. TypeBox emits JSON Schema and works with `@texaryn/schema-json`. The per-binding usage lives in each package README in the GitHub repository.',
             '`@texaryn/react-bootstrap` and `@texaryn/react-mui` are widget registries over `@texaryn/react`, not bindings of their own. The per-binding usage lives in each package README in the GitHub repository.',
           ].join('\n\n'),
           promote: [
@@ -158,6 +159,7 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
+            { label: 'Schema adapters', slug: 'guides/schema-adapters' },
             {
               label: 'JSON Schema validation compatibility',
               slug: 'guides/json-schema-conformance',

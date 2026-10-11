@@ -128,8 +128,8 @@ for (const pkg of packages) {
 
     console.log(`\n  import smoke test:`)
     const extractDir =
-      pkg.name === '@texaryn/schema-json'
-        ? (isolatedConsumerDir = mkdtempSync(join(tmpdir(), 'texaryn-schema-json-consumer-')))
+      pkg.name === '@texaryn/schema-json' || pkg.name === '@texaryn/schema-zod'
+        ? (isolatedConsumerDir = mkdtempSync(join(tmpdir(), `texaryn-${pkg.name.split('/').at(-1)}-consumer-`)))
         : join(tmp, 'extracted')
     execSync(`mkdir -p ${extractDir} && tar xzf ${tarball} -C ${extractDir}`)
     if (pkg.name === '@texaryn/schema-json') {
@@ -157,6 +157,21 @@ for (const pkg of packages) {
       if (existsSync(join(isolatedNodeModules, 'json-schema-library'))) {
         console.error('schema-json packed consumer smoke must not resolve json-schema-library from the workspace')
         failed = true
+      }
+    }
+    if (pkg.name === '@texaryn/schema-zod') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      for (const dependency of ['core', 'schema-json']) {
+        symlinkSync(join(process.cwd(), 'packages', dependency), join(texarynScope, dependency), 'dir')
+      }
+      const zod = join(process.cwd(), pkg.dir, 'node_modules', 'zod')
+      if (!existsSync(zod)) {
+        console.error('MISSING workspace peer dependency: zod')
+        failed = true
+      } else {
+        symlinkSync(zod, join(isolatedNodeModules, 'zod'), 'dir')
       }
     }
     try {
@@ -188,6 +203,18 @@ for (const pkg of packages) {
           failed = true
         } else {
           console.log('  ok: packed consumer projects and rejects invalid oneOf dependencies')
+        }
+      }
+      if (pkg.name === '@texaryn/schema-zod') {
+        const zod = await import(join(process.cwd(), pkg.dir, 'node_modules', 'zod', 'index.js'))
+        const adapter = await mod.createZodAdapter(zod.object({ name: zod.string().min(2) }))
+        const projection = adapter.project({})
+        const validation = await adapter.validate({ name: 'A' })
+        if (!projection.nodes.has('/name') || validation.valid) {
+          console.error('Packed schema-zod consumer regression failed')
+          failed = true
+        } else {
+          console.log('  ok: packed consumer projects and validates with Zod')
         }
       }
     } catch (err) {
