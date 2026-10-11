@@ -1,5 +1,11 @@
 # @texaryn/schema-json
 
+## 0.9.0
+
+### Minor Changes
+
+- 3f91516: Adds native Draft 4 detection, validation, reference resolution, and metaschema support.
+
 ## 0.8.3
 
 ### Patch Changes
