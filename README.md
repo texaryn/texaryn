@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Angular, Vue, Svelte, or another framework binding.
+  Compile data semantics into a UI IR, run it through a headless runtime, and render it through React, Angular, Vue, Svelte, SolidJS, or another framework binding.
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@ Deterministic Runtime
     ↓
 Renderer Binding
     ↓
-React / Angular / Vue / Svelte / ...
+React / Angular / Vue / Svelte / SolidJS / ...
 ```
 
 The core has no dependency on React, Vue, the DOM, or an AI SDK.
@@ -186,6 +186,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 | [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
 | [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn%2Fsvelte) | Planned 0.1.0 | Svelte 5 bindings, renderer, and default widgets |
+| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn%2Fsolid) | Planned 0.1.0 | SolidJS bindings, renderer, and default widgets |
 | [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | A `<texaryn-form>` custom element and native default widgets, usable from any framework or none |
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Three private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port, and `@texaryn/hints-rjsf`, which converts an RJSF uiSchema into Texaryn UI hints and reports what it cannot carry.
@@ -260,7 +261,7 @@ The React package provides:
 - accessible prop getters
 - a default widget registry
 
-`@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`. `@texaryn/svelte` provides a Svelte 5 store bridge, context, component registry, and default widget set over the same runtime.
+`@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`. `@texaryn/svelte` provides a Svelte 5 store bridge, context, component registry, and default widget set over the same runtime. `@texaryn/solid` provides accessor based subscriptions and Solid components over that runtime.
 
 `@texaryn/angular` provides standalone components and signals over the same
 runtime stores. Its API and usage are documented in the

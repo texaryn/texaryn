@@ -61,7 +61,7 @@ describe('parseLocation', () => {
   })
 
   it('falls back for an unknown renderer rather than breaking', () => {
-    expect(parseLocation('/playground/x', '?renderer=solid', DEV).renderer).toBe('default')
+    expect(parseLocation('/playground/x', '?renderer=unknown', DEV).renderer).toBe('default')
     expect(parseLocation('/playground/x', '?renderer=', DEV).renderer).toBe('default')
   })
 

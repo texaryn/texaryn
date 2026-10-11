@@ -10,6 +10,7 @@
     "packages/react-mui",
     "packages/vue",
     "packages/svelte",
+    "packages/solid",
     "packages/web-components"
   ],
   "plugin": ["typedoc-plugin-markdown"],

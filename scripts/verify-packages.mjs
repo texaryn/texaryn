@@ -5,6 +5,7 @@ import { dirname, join, posix } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import solid from 'vite-plugin-solid'
 import { build } from 'vite'
 import { publishedPackages } from './packages.mjs'
 
@@ -28,6 +29,8 @@ for (const pkg of packages) {
 
   const tmp = mkdtempSync(join(process.cwd(), pkg.dir, '.verify-'))
   let isolatedConsumerDir
+  let solidDom
+  let solidDomGlobalDescriptors
   try {
     execSync(`pnpm pack --pack-destination ${tmp}`, {
       cwd: pkg.dir,
@@ -194,6 +197,17 @@ for (const pkg of packages) {
         'dir',
       )
     }
+    if (pkg.name === '@texaryn/solid') {
+      const isolatedNodeModules = join(extractDir, 'node_modules')
+      const texarynScope = join(isolatedNodeModules, '@texaryn')
+      mkdirSync(texarynScope, { recursive: true })
+      symlinkSync(join(process.cwd(), 'packages/core'), join(texarynScope, 'core'), 'dir')
+      symlinkSync(
+        join(process.cwd(), pkg.dir, 'node_modules', 'solid-js'),
+        join(isolatedNodeModules, 'solid-js'),
+        'dir',
+      )
+    }
     try {
       let mod
       if (pkg.name === '@texaryn/angular') {
@@ -224,11 +238,44 @@ for (const pkg of packages) {
           },
         })
         mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href)
+      } else if (pkg.name === '@texaryn/solid') {
+        const entry = join(extractDir, 'consumer.js')
+        writeFileSync(join(extractDir, 'package.json'), JSON.stringify({ type: 'module' }))
+        writeFileSync(
+          entry,
+          "import { createForm, createDefaultRegistry, FormRoot } from './package/dist/index.js'; export { createForm, createDefaultRegistry, FormRoot }",
+        )
+        await build({
+          configFile: false,
+          root: extractDir,
+          plugins: [solid()],
+          resolve: { conditions: ['browser'] },
+          build: {
+            lib: { entry, formats: ['es'], fileName: 'consumer' },
+            outDir: 'consumer-dist',
+            rollupOptions: { external: ['@texaryn/core'] },
+          },
+        })
+        const consumerRequire = createRequire(join(process.cwd(), pkg.dir, 'package.json'))
+        const { JSDOM } = consumerRequire('jsdom')
+        solidDom = new JSDOM('', { url: 'http://localhost/' })
+        solidDomGlobalDescriptors = new Map()
+        for (const key of ['window', 'document', 'Node', 'Element', 'HTMLElement', 'SVGElement', 'Event', 'MutationObserver']) {
+          solidDomGlobalDescriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
+          Object.defineProperty(globalThis, key, {
+            configurable: true,
+            writable: true,
+            value: solidDom.window[key],
+          })
+        }
+        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href)
       } else {
         mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
       }
       const expectedExports = pkg.name === '@texaryn/svelte'
         ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
+        : pkg.name === '@texaryn/solid'
+          ? ['createForm', 'createDefaultRegistry', 'FormRoot']
         : [pkg.expectedExport]
       for (const expectedExport of expectedExports) {
         if (!(expectedExport in mod)) {
@@ -266,6 +313,13 @@ for (const pkg of packages) {
       failed = true
     }
   } finally {
+    if (solidDom) {
+      solidDom.window.close()
+      for (const [key, descriptor] of solidDomGlobalDescriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+        else delete globalThis[key]
+      }
+    }
     rmSync(tmp, { recursive: true, force: true })
     if (isolatedConsumerDir) rmSync(isolatedConsumerDir, { recursive: true, force: true })
   }

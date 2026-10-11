@@ -1,0 +1,68 @@
+---
+title: SolidJS renderer
+description: Render Texaryn forms in SolidJS with fine grained store subscriptions.
+---
+
+The `@texaryn/solid` package renders Texaryn UI documents with Solid components.
+It subscribes to the framework neutral runtime stores, so schema projection,
+validation, and submission stay in `@texaryn/core` and the schema adapter.
+
+## Install
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/solid solid-js
+```
+
+Solid 1.9 or newer is required.
+
+## Create and render a form
+
+Create a schema adapter, then pass its runtime to `FormRoot` inside a Solid
+owner. The default registry includes field, object, and array widgets.
+
+```tsx
+import { render } from 'solid-js/web'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import { createDefaultRegistry, createForm, FormRoot } from '@texaryn/solid'
+
+const adapter = await createJsonSchemaAdapter({
+  type: 'object',
+  title: 'Profile',
+  required: ['name'],
+  properties: {
+    name: { type: 'string', title: 'Name', minLength: 2 },
+    age: { type: 'integer', title: 'Age', minimum: 18 },
+  },
+})
+
+const form = createForm(adapter, { initialData: { name: '', age: 18 } })
+const dispose = render(
+  () => <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />,
+  document.getElementById('app')!,
+)
+```
+
+Call `dispose()` when the owning application unmounts. `FormRoot` destroys the
+runtime by default. Set `destroyOnUnmount={false}` when another owner controls
+the runtime lifetime, such as when a React shell hosts the Solid renderer.
+
+## Read runtime state
+
+Use `useFormContext()` from a custom widget below `FormRoot`. Its `form`,
+`document`, `registry`, `messages`, and `idPrefix` values are Solid accessors.
+Use `useStore` inside an owned component to subscribe to any Texaryn store.
+
+```tsx
+import type { UINode } from '@texaryn/core'
+import { useFormContext } from '@texaryn/solid'
+
+export function InspectNode(props: { node: UINode }) {
+  const context = useFormContext()
+  return <output>{context.document().nodes[props.node.id]?.annotations.title}</output>
+}
+```
+
+`useField(() => props.node.id)` provides accessor based field values, labels,
+visible errors, and update methods for custom field widgets. Register custom
+Solid components in a `RendererRegistry<WidgetComponent>` and pass it to
+`FormRoot`.
