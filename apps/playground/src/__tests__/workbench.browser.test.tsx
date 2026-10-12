@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { page, userEvent } from '@vitest/browser/context'
+import { EditorView } from '@codemirror/view'
 import { THEME_STORAGE_KEY } from '../../../../theme.config.mjs'
 import { App } from '../App.js'
 import { PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
@@ -269,6 +270,31 @@ describe('the schema editor in Chromium', () => {
     expect(readSchemaText()).not.toBe(typed)
     await userEvent.keyboard('{Tab}')
     expect(document.activeElement?.closest('.cm-editor')).toBeNull()
+  })
+
+  it('accepts a keyword completion with Enter into one key, one colon and one undo step', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    editSchema('{\n  \n}')
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[1]!)
+    await userEvent.keyboard('{End}"ty')
+    const typed = readSchemaText()
+    expect(typed).toBe('{\n  "ty"\n}')
+    await waitFor(() => expect(document.querySelector('.cm-tooltip-autocomplete')).toBeTruthy())
+    // CodeMirror ignores Enter for its interactionDelay (75 ms) after the list opens.
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await userEvent.keyboard('{Enter}')
+
+    const accepted = readSchemaText()
+    expect(accepted.match(/"type"/g)).toHaveLength(1)
+    expect(accepted.match(/:/g)).toHaveLength(1)
+    const view = EditorView.findFromDOM(document.querySelector<HTMLElement>('.cm-editor')!)!
+    const valueAt = view.state.selection.main.head
+    expect(JSON.parse(`${accepted.slice(0, valueAt)}"x"${accepted.slice(valueAt)}`)).toEqual({ type: 'x' })
+
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).toBe(typed)
   })
 
   it('keeps the same editor, its undo history and its click positions across the breakpoint', async () => {
