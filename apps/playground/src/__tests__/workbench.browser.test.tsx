@@ -289,7 +289,7 @@ describe('the schema editor in Chromium', () => {
     expect(readSchemaText()).toBe(before)
   })
 
-  it('draws the caret, the focused selection and the search panel in the dark theme colors', async () => {
+  it('draws the caret, the focused selection and the search panel controls in the dark theme colors', async () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
     await page.viewport(1512, 900)
     render(<App />)
@@ -301,9 +301,15 @@ describe('the schema editor in Chromium', () => {
     const probe = document.createElement('div')
     probe.style.color = 'var(--tx-text)'
     probe.style.backgroundColor = 'var(--tx-code-selection)'
-    probe.style.borderColor = 'var(--tx-surface-raised)'
+    probe.style.borderTopColor = 'var(--tx-surface-raised)'
+    probe.style.borderBottomColor = 'var(--tx-surface)'
     document.body.append(probe)
-    const { color: text, backgroundColor: selection, borderTopColor: raised } = getComputedStyle(probe)
+    const {
+      color: text,
+      backgroundColor: selection,
+      borderTopColor: raised,
+      borderBottomColor: surface,
+    } = getComputedStyle(probe)
     probe.remove()
 
     await waitFor(() => {
@@ -321,6 +327,14 @@ describe('the schema editor in Chromium', () => {
       expect(panels).toBeTruthy()
       expect(getComputedStyle(panels!).backgroundColor).toBe(raised)
       expect(getComputedStyle(panels!).color).toBe(text)
+      const search = panels!.querySelector<HTMLInputElement>('input.cm-textfield[name="search"]')
+      expect(search).toBeTruthy()
+      expect(getComputedStyle(search!).backgroundColor).toBe(surface)
+      expect(getComputedStyle(search!).color).toBe(text)
+      const next = panels!.querySelector<HTMLButtonElement>('button.cm-button[name="next"]')
+      expect(next).toBeTruthy()
+      expect(getComputedStyle(next!).color).toBe(text)
+      expect(getComputedStyle(next!).backgroundImage).toBe('none')
     })
   })
 })

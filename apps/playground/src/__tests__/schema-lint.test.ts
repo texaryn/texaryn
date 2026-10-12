@@ -48,4 +48,23 @@ describe('schemaLintSource', () => {
 
     expect(counts).toEqual([])
   })
+
+  it('drops the count of a check a later check on the same document has started after', async () => {
+    const counts: (number | null)[] = []
+    const source = schemaLintSource((count) => counts.push(count))
+    const view = { state: EditorState.create({ doc: '{"type":"strin"}', extensions: [json()] }) } as { state: EditorState }
+
+    const first = source(view as unknown as EditorView)
+    const second = source(view as unknown as EditorView)
+    pending[0]!([{ pointer: '/type', code: 'schema-error', message: 'a' }])
+    await first
+    expect(counts).toEqual([])
+
+    pending[1]!([
+      { pointer: '/type', code: 'schema-error', message: 'b' },
+      { pointer: '/type', code: 'schema-error', message: 'c' },
+    ])
+    await second
+    expect(counts).toEqual([2])
+  })
 })

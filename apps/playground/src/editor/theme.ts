@@ -12,6 +12,17 @@ export const editorTheme = EditorView.theme({
   },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--tx-text)' },
   '.cm-panels': { backgroundColor: 'var(--tx-surface-raised)', color: 'var(--tx-text)' },
+  '.cm-textfield': {
+    backgroundColor: 'var(--tx-surface)',
+    color: 'var(--tx-text)',
+    border: '1px solid var(--tx-border-strong)',
+  },
+  '.cm-button, .cm-button:active': {
+    backgroundImage: 'none',
+    backgroundColor: 'var(--tx-surface)',
+    color: 'var(--tx-text)',
+    border: '1px solid var(--tx-border-strong)',
+  },
   '&.cm-focused': { outline: '2px solid var(--tx-accent)', outlineOffset: '-2px' },
   '.cm-tooltip': {
     backgroundColor: 'var(--tx-surface-raised)',
