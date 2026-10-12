@@ -4015,7 +4015,7 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
 `apps/playground/src/palette-slot.tsx`:
 
 ```tsx
-import { Component, Suspense, lazy, useEffect } from 'react'
+import { Component, Suspense, lazy, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { CommandPaletteProps } from './palette/CommandPalette.js'
 
