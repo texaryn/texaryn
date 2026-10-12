@@ -1200,9 +1200,15 @@ body {
   background: var(--tx-border);
 }
 
+  min-width: 4px;
 .pg-separator:hover,
 .pg-separator:focus-visible {
   background: var(--tx-accent);
+.pg-separator--row {
+  min-width: 0;
+  min-height: 4px;
+}
+
 }
 
 .pg-overlay {

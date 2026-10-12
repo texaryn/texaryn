@@ -76,6 +76,18 @@ describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
 
 describe('the desktop workbench in Chromium', () => {
   it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
+  it('gives every separator its 4px thickness', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await screen.findByLabelText('Name')
+    const separators = screen.getAllByRole('separator')
+    expect(separators).toHaveLength(3)
+    for (const separator of separators) {
+      const box = separator.getBoundingClientRect()
+      expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(4)
+    }
+  })
+
     await page.viewport(1512, 900)
     render(<App />)
     await screen.findByLabelText('Name')

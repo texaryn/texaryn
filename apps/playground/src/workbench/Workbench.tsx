@@ -138,7 +138,7 @@ export function Workbench({
             </section>
           </Panel>
           <Separator className="pg-separator" aria-label="Resize examples and workspace" />
-          <Panel id="main" minSize={600}>
+          <Panel id="main" minSize={604}>
             <Group orientation="vertical" defaultLayout={rows.defaultLayout} onLayoutChanged={rows.onLayoutChanged}>
               <Panel id="top" panelRef={topRef} defaultSize="72">
                 <Group orientation="horizontal" defaultLayout={split.defaultLayout} onLayoutChanged={split.onLayoutChanged}>
