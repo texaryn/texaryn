@@ -3856,7 +3856,7 @@ git commit -m "feat(playground): build the command palette's command list"
 
 **Interfaces:**
 - Consumes: `buildCommands`, `PaletteCommand` (Task 14); `usePresetSelection` inside `FormWorkspace` (Task 13); `StatusBar` `hint` (Task 5).
-- Produces: `CommandPalette` props `{ open: boolean; onOpenChange: (open: boolean) => void; commands: readonly PaletteCommand[] }`, `useCommandPaletteShortcut(onOpen: () => void): void`, `CommandPaletteSlot` with the same props, `interface WorkspaceActions { applyPreset(preset: ExamplePreset | null): void; getData(): unknown }`; `FormWorkspace` gains `onActions: (actions: WorkspaceActions | null) => void`.
+- Produces: `CommandPalette` props `{ open: boolean; onOpenChange: (open: boolean) => void; commands: readonly PaletteCommand[] }`, `useCommandPaletteShortcut(onOpen: () => void): void`, `CommandPaletteSlot` with the same props plus `onRestoreFocus: () => void`, `interface WorkspaceActions { applyPreset(preset: ExamplePreset | null): void; getData(): unknown }`; `FormWorkspace` gains `onActions: (actions: WorkspaceActions | null) => void`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -4048,12 +4048,21 @@ export function useCommandPaletteShortcut(onOpen: () => void): void {
 }
 
 // The chunk loads on the first open, so a visitor who never opens it pays nothing.
-export function CommandPaletteSlot(props: CommandPaletteProps) {
+export function CommandPaletteSlot(props: CommandPaletteProps & { onRestoreFocus: () => void }) {
+  const wasOpen = useRef(props.open)
+  useEffect(() => {
+    if (wasOpen.current && !props.open) {
+      const frame = window.requestAnimationFrame(props.onRestoreFocus)
+      wasOpen.current = props.open
+      return () => window.cancelAnimationFrame(frame)
+    }
+    wasOpen.current = props.open
+  }, [props.open, props.onRestoreFocus])
   if (!props.open) return null
   return (
-    <PaletteBoundary>
+    <PaletteBoundary onDismiss={() => props.onOpenChange(false)}>
       <Suspense fallback={null}>
-        <CommandPalette {...props} />
+        <CommandPalette open={props.open} onOpenChange={props.onOpenChange} commands={props.commands} />
       </Suspense>
     </PaletteBoundary>
   )
@@ -4108,7 +4117,7 @@ const commands = buildCommands({
 })
 ```
 
-Pass `onActions={setWorkspaceActions}` to `FormWorkspace`. Render `<CommandPaletteSlot open={paletteOpen} onOpenChange={setPaletteOpen} commands={commands} />` at the end of `.pg-app`; a Commands button `<button type="button" className="pg-header__button" aria-label="Open command palette" onClick={openPalette}>Commands</button>` in the header nav on desktop and in `pg-mobile-workspace` on phones; and `hint={<kbd>Ctrl K</kbd>}` on `StatusBar`.
+Pass `onActions={setWorkspaceActions}` to `FormWorkspace`. Before opening the palette, save `document.activeElement` and pass a callback that focuses it after close. Render `<CommandPaletteSlot open={paletteOpen} onOpenChange={setPaletteOpen} onRestoreFocus={restorePaletteFocus} commands={commands} />` at the end of `.pg-app`; a Commands button `<button type="button" className="pg-header__button" aria-label="Open command palette" onClick={openPalette}>Commands</button>` in the header nav on desktop and in `pg-mobile-workspace` on phones; and `hint={<kbd>Ctrl K</kbd>}` on `StatusBar`.
 
 `playground.css`:
 
