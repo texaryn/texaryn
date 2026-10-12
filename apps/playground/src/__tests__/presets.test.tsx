@@ -6,7 +6,10 @@ import { App } from '../App.js'
 import { applyPreset } from '../workbench/presets.js'
 import { editSchema, readSchemaText } from './schema-text.js'
 
-beforeEach(() => window.localStorage.clear())
+beforeEach(() => {
+  window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
+})
 afterEach(cleanup)
 
 async function open(title: string): Promise<void> {
