@@ -2071,9 +2071,11 @@ Resizable panes, keyboard separators, and saved layouts merged in PR #245.
 Edited schema sharing and the CodeMirror 6 JSON editor complete the remaining
 playground follow ups in issue #239. Shared links carry custom schemas up to
 12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
-that browser. The editor loads on demand in a separate 311.28 KB raw,
-101.91 KB gzip chunk. The production playground entry chunk is 566.41 KB raw
-and 167.28 KB gzip; renderer code remains in separate chunks.
+that browser. The editor checks the schema with `checkSchema`, completes
+keywords for the declared dialect, and loads on demand in a separate 410.50 KB
+raw, 133.3 KB gzip chunk. The first load is 164.7 KB gzip across the entry and
+a shared chunk; renderer code remains in separate chunks. `site:build` fails
+when the first load passes 175 KB gzip or the editor passes 150 KB gzip.
 
 No UI library package is scheduled. Container binding primitives remain
 deferred until integrations show duplicated composition beyond field and array
