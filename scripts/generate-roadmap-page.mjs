@@ -8,7 +8,7 @@ const outputPath = resolve(root, 'apps/docs/src/content/docs/roadmap.md')
 const githubSource = 'https://github.com/texaryn/texaryn/blob/main/'
 const websitePath = '/texaryn/concepts/performance/'
 
-const source = await readFile(sourcePath, 'utf8')
+const source = (await readFile(sourcePath, 'utf8')).replace(/\r\n?/g, '\n')
 const title = '# Texaryn: Technical Roadmap\n'
 if (!source.startsWith(title)) {
   throw new Error(`Expected ${sourcePath} to begin with ${JSON.stringify(title)}.`)
