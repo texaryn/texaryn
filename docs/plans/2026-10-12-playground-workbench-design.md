@@ -37,13 +37,13 @@ All made by the maintainer on 2026-10-12, after an independent review with web s
 
 ```
 App
-├─ Toolbar          brand, example title, renderer select, Focus, theme, layout reset
+├─ Toolbar          brand, example title, Focus, theme, layout reset
 ├─ Workbench        react-resizable-panels
 │  ├─ ExampleRail   Examples and Command palette buttons; opens ExampleDrawer
 │  └─ Group (vertical)
 │     ├─ Group (horizontal)
 │     │  ├─ Panel "schema"     SchemaPane: JSON editor or Visual builder
-│     │  └─ Panel "preview"    PreviewPane: width presets, data presets, RendererSurface
+│     │  └─ Panel "preview"    PreviewPane: renderer select, width presets, data presets, RendererSurface
 │     └─ Panel "inspector"     the current Inspector, collapsible
 └─ StatusBar        dialect, JSON state, schema error count, cursor position, Ctrl K hint
 ```
