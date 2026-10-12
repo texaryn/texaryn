@@ -2062,14 +2062,30 @@ last valid preview, and form data has an explicit reset action. The example
 browser, mobile layout, styling boundaries, validation copy, form ownership,
 and accessible data inspector are resolved. Renderer packages load on demand.
 Resizable panes, keyboard separators, and saved layouts merged in PR #245.
-Edited schema sharing and the CodeMirror 6 JSON editor complete the remaining
-playground follow ups in issue #239. Shared links carry custom schemas up to
+Edited schema sharing in PR #246 and the CodeMirror 6 JSON editor in PR #247
+keep custom schemas in the workbench. Shared links carry custom schemas up to
 12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
 that browser. The editor checks the schema with `checkSchema`, completes
-keywords for the declared dialect, and loads on demand in a separate 410.76 KB
-raw, 133.4 KB gzip chunk. The first load is 165.0 KB gzip across the entry and
-a shared chunk; renderer code remains in separate chunks. `site:build` fails
-when the first load passes 175 KB gzip or the editor passes 150 KB gzip.
+keywords for the declared dialect, and loads on demand in a separate 133.4 KB
+gzip payload.
+
+PR #248 adds example data presets, a public `Validate` command, and responsive
+preview width controls. Invalid example states show field errors across all
+nine renderer implementations without submitting the form. Phone, tablet, and
+fit widths report both the selected maximum and the effective rendered width.
+Preset labels continue to match carried data when an edited example schema is
+restored.
+
+PR #249 adds a lazy keyboard command palette for examples, renderers, data
+presets, layout, theme, schema formatting and copying, data copying, and docs.
+The palette opens with Ctrl K or Command K and from the desktop or phone
+controls. It restores focus after closing and shows a recoverable message if
+its chunk fails to load.
+
+The first load is 167.9 KB gzip across the entry and a shared chunk; renderer
+code remains in separate chunks. `site:build` keeps the first load under 175 KB
+gzip, the editor under 150 KB gzip, and the command palette under 25 KB gzip.
+These two PRs complete the playground follow ups in issue #239.
 
 No UI library package is scheduled. Container binding primitives remain
 deferred until integrations show duplicated composition beyond field and array

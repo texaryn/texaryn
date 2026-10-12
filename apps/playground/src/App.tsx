@@ -26,6 +26,9 @@ import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
 import { DataPresetSelect, usePresetSelection } from './workbench/presets.js'
 import { PREVIEW_WIDTHS, WidthPresets } from './workbench/WidthPresets.js'
+import { buildCommands } from './workbench/palette-commands.js'
+import type { CommandActions } from './workbench/palette-commands.js'
+import { CommandPaletteSlot, useCommandPaletteShortcut } from './palette-slot.js'
 import { docsHref, encodeSharedSchema, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import type { RendererProps } from './renderer-types.js'
@@ -62,6 +65,11 @@ const rendererLoaders: Record<RendererKey, () => Promise<{ default: ComponentTyp
 }
 
 const rendererCache = new Map<RendererKey, ComponentType<RendererProps>>()
+
+interface WorkspaceActions {
+  applyPreset(preset: ExamplePreset | null): void
+  getData(): unknown
+}
 
 function formatSchema(schema: unknown): string {
   return JSON.stringify(schema, null, 2)
@@ -171,6 +179,7 @@ function FormWorkspace({
   previewNotice,
   presets,
   exampleInitialData,
+  onActions,
   onDataChange,
   onTabChange,
 }: {
@@ -189,6 +198,7 @@ function FormWorkspace({
   previewNotice: string | null
   presets: TexarynExample['presets']
   exampleInitialData: unknown
+  onActions: (actions: WorkspaceActions | null) => void
   onDataChange: (data: unknown) => void
   onTabChange: (tab: Tab) => void
 }) {
@@ -209,6 +219,14 @@ function FormWorkspace({
     },
   })
   const presetSelection = usePresetSelection(form.runtime, presets ?? NO_PRESETS, exampleInitialData)
+
+  useEffect(() => {
+    onActions({
+      applyPreset: (preset) => presetSelection.select(preset ? preset.id : 'initial'),
+      getData: () => form.runtime.data.getSnapshot(),
+    })
+    return () => onActions(null)
+  }, [form.runtime, onActions, presetSelection.select])
 
   useEffect(() => {
     const store = form.runtime.data
@@ -417,6 +435,12 @@ export function App() {
   const narrow = useNarrowViewport()
   const [layout, dispatchLayout] = useLayout()
   const [effectivePreviewWidth, setEffectivePreviewWidth] = useState(0)
+  const [clipboardStatus, setClipboardStatus] = useState('')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const paletteOpenRef = useRef(false)
+  const [workspaceActions, setWorkspaceActions] = useState<WorkspaceActions | null>(null)
+  const paletteReturnFocus = useRef<HTMLElement | null>(null)
+  const clipboardStatusTimer = useRef<number | undefined>(undefined)
   const [resetSignal, setResetSignal] = useState(0)
   const [schemaIssues, setSchemaIssues] = useState<number | null>(null)
   const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null)
@@ -430,6 +454,38 @@ export function App() {
     dispatchLayout({ type: 'reset' })
     setResetSignal((signal) => signal + 1)
   }, [dispatchLayout])
+  const openPalette = useCallback(() => {
+    if (paletteOpenRef.current) return
+    paletteReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    paletteOpenRef.current = true
+    setPaletteOpen(true)
+  }, [])
+  const handlePaletteOpenChange = useCallback((open: boolean) => {
+    paletteOpenRef.current = open
+    setPaletteOpen(open)
+  }, [])
+  const restorePaletteFocus = useCallback(() => {
+    paletteReturnFocus.current?.focus()
+  }, [])
+  useCommandPaletteShortcut(openPalette)
+
+  useEffect(() => () => window.clearTimeout(clipboardStatusTimer.current), [])
+
+  const announceClipboard = useCallback((copied: boolean) => {
+    window.clearTimeout(clipboardStatusTimer.current)
+    setClipboardStatus(copied ? 'Copied' : 'Copy failed')
+    clipboardStatusTimer.current = window.setTimeout(() => setClipboardStatus(''), 2000)
+  }, [])
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      if (!window.navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable')
+      await window.navigator.clipboard.writeText(text)
+      announceClipboard(true)
+    } catch {
+      announceClipboard(false)
+    }
+  }, [announceClipboard])
 
   useEffect(() => {
     const cached = rendererCache.get(rendererKey)
@@ -579,6 +635,21 @@ export function App() {
     latestData.current = data
   }, [])
 
+  const handleFormatSchema = useCallback(() => {
+    if (parseError) return
+    const formatted = JSON.stringify(parsedDraft.schema, null, 2)
+    if (formatted !== schemaText) handleSchemaChange(formatted)
+  }, [handleSchemaChange, parseError, parsedDraft.schema, schemaText])
+
+  const handleCopySchema = useCallback(() => {
+    void copyToClipboard(schemaText)
+  }, [copyToClipboard, schemaText])
+
+  const handleCopyData = useCallback(() => {
+    const data = workspaceActions?.getData()
+    void copyToClipboard(JSON.stringify(data, null, 2) ?? 'null')
+  }, [copyToClipboard, workspaceActions])
+
   const handleReset = useCallback(() => {
     preserveCurrentData.current = false
     latestData.current = undefined
@@ -616,6 +687,42 @@ export function App() {
       : applying
         ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
         : null
+
+  const paletteCommands = useMemo(() => {
+    const actions: CommandActions = {
+      selectExample: handleSelectExample,
+      selectRenderer: setRendererKey,
+      applyPreset: (preset) => workspaceActions?.applyPreset(preset),
+      layout: dispatchLayout,
+      resetLayout,
+      setTheme: theme.setPreference,
+      formatSchema: handleFormatSchema,
+      copySchema: handleCopySchema,
+      copyData: handleCopyData,
+      openDocs: () => window.open(DOCS_URL, '_blank', 'noopener,noreferrer'),
+    }
+    return buildCommands({
+      examples,
+      renderers: Object.entries(rendererLabels).map(([key, label]) => ({ key: key as RendererKey, label })),
+      presets: workspaceActions ? presets : [],
+      canFormat: parseError === null,
+      canCopyData: workspaceActions !== null,
+      desktop: !narrow,
+      actions,
+    })
+  }, [
+    dispatchLayout,
+    handleCopyData,
+    handleCopySchema,
+    handleFormatSchema,
+    handleSelectExample,
+    narrow,
+    parseError,
+    presets,
+    resetLayout,
+    theme.setPreference,
+    workspaceActions,
+  ])
 
   useEffect(() => {
     const px = PREVIEW_WIDTHS.find((entry) => entry.id === layout.previewWidth)?.px ?? null
@@ -724,13 +831,12 @@ export function App() {
             className="pg-button pg-button--quiet"
             disabled={parseError !== null}
             onClick={() => {
-              const formatted = JSON.stringify(JSON.parse(schemaText), null, 2)
-              if (formatted !== schemaText) handleSchemaChange(formatted)
+              handleFormatSchema()
             }}
           >
             Format
           </button>
-          <CopyButton text={schemaText} />
+          <CopyButton onCopy={handleCopySchema} />
         </div>
       </div>
       <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
@@ -806,6 +912,9 @@ export function App() {
               <button type="button" className="pg-header__button" onClick={resetLayout}>
                 Reset layout
               </button>
+              <button type="button" className="pg-header__button" aria-label="Open command palette" onClick={openPalette}>
+                Commands
+              </button>
             </>
           )}
           <ThemeSelect preference={theme.preference} onChange={theme.setPreference} />
@@ -843,6 +952,9 @@ export function App() {
                 </button>
               ))}
             </div>
+            <button type="button" className="pg-mobile-workspace__commands" aria-label="Open command palette" onClick={openPalette}>
+              Commands
+            </button>
           </div>
 
           <div className="pg-columns" data-mobile-panel={mobilePanel}>
@@ -906,6 +1018,7 @@ export function App() {
           previewNotice={previewNotice}
           presets={presets}
           exampleInitialData={baseExample?.initialData}
+          onActions={setWorkspaceActions}
           onDataChange={handleDataChange}
           onTabChange={setInspectorTab}
         />
@@ -917,8 +1030,16 @@ export function App() {
           pending={applying}
           schemaIssues={schemaIssues}
           cursor={cursor}
+          hint={<kbd>Ctrl K</kbd>}
         />
       )}
+      <p role="status" aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</p>
+      <CommandPaletteSlot
+        open={paletteOpen}
+        onOpenChange={handlePaletteOpenChange}
+        onRestoreFocus={restorePaletteFocus}
+        commands={paletteCommands}
+      />
     </div>
   )
 }
