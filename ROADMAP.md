@@ -2066,8 +2066,8 @@ Edited schema sharing in PR #246 and the CodeMirror 6 JSON editor in PR #247
 keep custom schemas in the workbench. Shared links carry custom schemas up to
 12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
 that browser. The editor checks the schema with `checkSchema`, completes
-keywords for the declared dialect, and loads on demand in a separate 410.76 KB
-raw, 133.4 KB gzip chunk.
+keywords for the declared dialect, and loads on demand in a separate 133.4 KB
+gzip payload.
 
 PR #248 adds example data presets, a public `Validate` command, and responsive
 preview width controls. Invalid example states show field errors across all
@@ -2082,7 +2082,7 @@ The palette opens with Ctrl K or Command K and from the desktop or phone
 controls. It restores focus after closing and shows a recoverable message if
 its chunk fails to load.
 
-The first load is 165.0 KB gzip across the entry and a shared chunk; renderer
+The first load is 167.9 KB gzip across the entry and a shared chunk; renderer
 code remains in separate chunks. `site:build` keeps the first load under 175 KB
 gzip, the editor under 150 KB gzip, and the command palette under 25 KB gzip.
 These two PRs complete the playground follow ups in issue #239.
