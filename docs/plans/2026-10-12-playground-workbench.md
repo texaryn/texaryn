@@ -3335,7 +3335,7 @@ git commit -m "feat(examples): add named data presets to the examples where stat
 - Create: `apps/playground/src/workbench/WidthPresets.tsx`
 - Modify: `apps/playground/src/App.tsx` (`baseExampleId`; preset availability; `FormWorkspace` renders the preset select in its controls; the preview header; the preview host width)
 - Modify: `apps/playground/src/playground.css`
-- Modify: `packages/core/src/commands/types.ts`, `packages/core/src/commands/handler.ts`, `packages/core/src/runtime/runtime.ts`, and `packages/core/README.md`
+- Modify: `packages/core/src/commands/types.ts`, `packages/core/src/commands/handler.ts`, `packages/core/src/runtime/runtime.ts`, `packages/core/src/runtime/validation-scheduler.ts`, and `packages/core/README.md`
 - Test: `packages/core/src/runtime/__tests__/runtime.test.ts`
 - Create: a minor `@texaryn/core` changeset and regenerate `docs/api`
 - Test: `apps/playground/src/__tests__/presets.test.tsx`
@@ -3350,7 +3350,10 @@ git commit -m "feat(examples): add named data presets to the examples where stat
 ```tsx
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { createFormRuntime } from '@texaryn/core'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { App } from '../App.js'
+import { applyPreset } from '../workbench/presets.js'
 import { editSchema, readSchemaText } from './schema-text.js'
 
 beforeEach(() => window.localStorage.clear())
@@ -3385,6 +3388,14 @@ describe('data presets', () => {
       expect(screen.getByLabelText('Validated on blur').getAttribute('aria-invalid')).toBe('true')
       expect(screen.getByLabelText('Validated on submit').getAttribute('aria-invalid')).toBe('true')
     })
+  })
+
+  it('resets to an empty object when an example has no initial data', async () => {
+    const port = await createJsonSchemaAdapter({ type: 'object' })
+    const runtime = createFormRuntime(port, { initialData: undefined })
+    applyPreset(runtime, undefined, false)
+    expect(runtime.data.getSnapshot()).toEqual({})
+    runtime.destroy()
   })
 
   it('read Custom after the user edits', async () => {
@@ -3438,7 +3449,7 @@ Expected: FAIL, no "Data preset" control.
 
 - [ ] **Step 3: Implement**
 
-In core, add `{ type: 'Validate' }` to `Command` and `manual` to the validation-effect trigger union. Its handler marks every field node touched and emits one full-form validation effect with trigger `manual`. The runtime schedules it immediately regardless of per-field automatic trigger hints. A manual result updates field and visible errors, but leaves submission status and attempt count alone and never calls `onSubmit`. Keep `SetTouched` as blur validation gated by the existing blur hints. Add a runtime test with fields that have no hints and fields with change, blur and submit hints; one Validate must produce errors for all invalid fields without submitting.
+In core, add `{ type: 'Validate' }` to `Command` and `manual` to the validation-effect trigger union and `ValidationTrigger` in `validation-scheduler.ts`. Its handler marks every data-bearing node touched and emits one full-form validation effect with trigger `manual`. The runtime schedules it immediately regardless of per-field automatic trigger hints. A manual result updates field and visible errors, but leaves submission status and attempt count alone and never calls `onSubmit`. Keep `SetTouched` as blur validation gated by the existing blur hints; leave `UIHints.validationTrigger` unchanged. Add runtime tests with fields that have no hints and fields with change, blur and submit hints, including a queued change validation that remains debounced when Validate runs. One Validate must produce errors for all invalid fields without submitting.
 
 `apps/playground/src/workbench/presets.tsx`:
 
@@ -3626,9 +3637,9 @@ useEffect(() => {
 }
 ```
 
-- [ ] **Step 4: Run the playground project**
+- [ ] **Step 4: Run the core and playground projects**
 
-Run: `pnpm vitest run --project playground && pnpm vitest run --project playground-browser`
+Run: `pnpm vitest run --project core && pnpm vitest run --project examples && pnpm vitest run --project playground && pnpm vitest run --project playground-browser`
 Expected: PASS.
 
 The jsdom test may assert the inline maximum style and stored choice. In `presets.browser.test.tsx`, also measure `getBoundingClientRect().width` in Chromium at both 820px and a wide viewport. When Tablet is selected at 820px, show the selected 768px maximum separately from the smaller effective width. After resizing the pane, the effective width label must track the measured host width.
@@ -3640,9 +3651,11 @@ Run: `pnpm --filter @texaryn/playground dev`, open String constraints, apply Too
 - [ ] **Step 6: Commit and open the pull request**
 
 ```bash
-git add apps/playground/src
+git add packages/examples/src apps/playground/src packages/core/src packages/core/README.md .changeset docs/api
 git commit -m "feat(playground): data presets in the controls and preview width presets"
 ```
+
+This commit includes the public `Validate` command, its runtime and scheduler changes, core regression tests, the `@texaryn/core` changeset and generated API documentation.
 
 Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and open the pull request referencing #239.
 
@@ -3909,7 +3922,9 @@ describe('the command palette', () => {
     const input = dialog.querySelector('input')!
     fireEvent.change(input, { target: { value: 'Copy schema' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(await screen.findByText(/copy failed/i)).toBeTruthy()
+    const status = await screen.findByRole('status', { name: 'Clipboard status' })
+    expect(status.textContent).toMatch(/copy failed/i)
+    expect(status.closest('[data-pane]')).toBeNull()
   })
 
   it('applies a data preset through the workspace', async () => {
@@ -4008,7 +4023,11 @@ const CommandPalette = lazy(() => import('./palette/CommandPalette.js'))
 export class PaletteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError(): { failed: boolean } { return { failed: true } }
-  render(): ReactNode { return this.state.failed ? null : this.props.children }
+  render(): ReactNode {
+    return this.state.failed
+      ? <p className="pg-palette__error" role="status">The command palette is unavailable. Use the visible controls instead.</p>
+      : this.props.children
+  }
 }
 
 export function useCommandPaletteShortcut(onOpen: () => void): void {
@@ -4037,7 +4056,7 @@ export function CommandPaletteSlot(props: CommandPaletteProps) {
 }
 ```
 
-In `palette-slot.test.tsx`, place a child that throws inside `PaletteBoundary` beside a rendered playground. The error stays inside the boundary and the form remains mounted.
+In `palette-slot.test.tsx`, place a child that throws inside `PaletteBoundary` beside a rendered playground. The boundary shows a polite status message that the palette is unavailable, and the form remains mounted.
 
 In `FormWorkspace`, register the actions that need the runtime while it is mounted:
 
@@ -4052,9 +4071,9 @@ useEffect(() => {
 }, [form.runtime, presetSelection.select, onActions])
 ```
 
-In `App.tsx`, define one `handleFormatSchema` and one `handleCopySchema` with the toolbar's current formatting behavior and clipboard success or failure feedback. Reuse the same clipboard helper for `handleCopyData`. Use these same handlers from the toolbar and palette; do not reimplement clipboard writes or formatting in `buildCommands`:
+In `App.tsx`, define one `handleFormatSchema` and one `handleCopySchema` with the toolbar's current formatting behavior and clipboard success or failure feedback. Reuse the same clipboard helper for `handleCopyData`. Use these same handlers from the toolbar and palette; do not reimplement clipboard writes or formatting in `buildCommands`. Store clipboard feedback in one polite live region at the app shell so it remains visible when the schema pane is hidden on a phone:
 
-The Chromium test in `command-palette.browser.test.tsx` focuses CodeMirror, opens the palette with Ctrl K, types and accepts a command, then opens it again and closes with Escape. Assert that focus returns to the editor. Also test Cmd K and the Commands button on a phone. This covers the actual `cmdk` dialog focus behavior, not only synthetic key events in jsdom.
+The Chromium test in `command-palette.browser.test.tsx` focuses CodeMirror, uses the browser keyboard to open the palette with Ctrl K, types and accepts a command, then opens it again and uses Escape. Assert that `document.activeElement` is the editor after both close paths. Also use the browser keyboard for Cmd K and test the Commands button and visible clipboard status on a phone. This covers the actual `cmdk` dialog focus behavior, not only synthetic key events in jsdom.
 
 ```tsx
 const workspaceActions = useRef<WorkspaceActions | null>(null)
