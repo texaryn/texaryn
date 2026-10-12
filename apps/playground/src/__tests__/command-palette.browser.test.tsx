@@ -31,6 +31,8 @@ describe('the command palette in Chromium', () => {
     await userEvent.keyboard('{Control>}k{/Control}')
     const reopened = await screen.findByRole('dialog', { name: 'Command palette' })
     expect(reopened).toBeTruthy()
+    await userEvent.keyboard('{Control>}k{/Control}')
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBe(reopened)
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(editor))

@@ -437,6 +437,7 @@ export function App() {
   const [effectivePreviewWidth, setEffectivePreviewWidth] = useState(0)
   const [clipboardStatus, setClipboardStatus] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const paletteOpenRef = useRef(false)
   const [workspaceActions, setWorkspaceActions] = useState<WorkspaceActions | null>(null)
   const paletteReturnFocus = useRef<HTMLElement | null>(null)
   const clipboardStatusTimer = useRef<number | undefined>(undefined)
@@ -454,8 +455,14 @@ export function App() {
     setResetSignal((signal) => signal + 1)
   }, [dispatchLayout])
   const openPalette = useCallback(() => {
+    if (paletteOpenRef.current) return
     paletteReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    paletteOpenRef.current = true
     setPaletteOpen(true)
+  }, [])
+  const handlePaletteOpenChange = useCallback((open: boolean) => {
+    paletteOpenRef.current = open
+    setPaletteOpen(open)
   }, [])
   const restorePaletteFocus = useCallback(() => {
     paletteReturnFocus.current?.focus()
@@ -699,6 +706,7 @@ export function App() {
       renderers: Object.entries(rendererLabels).map(([key, label]) => ({ key: key as RendererKey, label })),
       presets: workspaceActions ? presets : [],
       canFormat: parseError === null,
+      canCopyData: workspaceActions !== null,
       desktop: !narrow,
       actions,
     })
@@ -1028,7 +1036,7 @@ export function App() {
       <p role="status" aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</p>
       <CommandPaletteSlot
         open={paletteOpen}
-        onOpenChange={setPaletteOpen}
+        onOpenChange={handlePaletteOpenChange}
         onRestoreFocus={restorePaletteFocus}
         commands={paletteCommands}
       />

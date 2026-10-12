@@ -31,11 +31,12 @@ export interface CommandInput {
   renderers: readonly { key: RendererKey; label: string }[]
   presets: readonly ExamplePreset[]
   canFormat: boolean
+  canCopyData: boolean
   desktop: boolean
   actions: CommandActions
 }
 
-export function buildCommands({ examples, renderers, presets, canFormat, desktop, actions }: CommandInput): PaletteCommand[] {
+export function buildCommands({ examples, renderers, presets, canFormat, canCopyData, desktop, actions }: CommandInput): PaletteCommand[] {
   const commands: PaletteCommand[] = []
   for (const example of examples) {
     commands.push({
@@ -81,10 +82,8 @@ export function buildCommands({ examples, renderers, presets, canFormat, desktop
     commands.push({ id: `theme:${preference}`, group: 'Theme', label: `Theme: ${preference}`, run: () => actions.setTheme(preference) })
   }
   if (canFormat) commands.push({ id: 'schema:format', group: 'Schema', label: 'Format schema', run: actions.formatSchema })
-  commands.push(
-    { id: 'schema:copy', group: 'Schema', label: 'Copy schema', run: actions.copySchema },
-    { id: 'schema:copy-data', group: 'Schema', label: 'Copy data', run: actions.copyData },
-    { id: 'help:docs', group: 'Help', label: 'Open the documentation', run: actions.openDocs },
-  )
+  commands.push({ id: 'schema:copy', group: 'Schema', label: 'Copy schema', run: actions.copySchema })
+  if (canCopyData) commands.push({ id: 'schema:copy-data', group: 'Schema', label: 'Copy data', run: actions.copyData })
+  commands.push({ id: 'help:docs', group: 'Help', label: 'Open the documentation', run: actions.openDocs })
   return commands
 }

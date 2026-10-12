@@ -4,7 +4,10 @@ import { App } from '../App.js'
 import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
 import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
 
-beforeEach(() => window.localStorage.clear())
+beforeEach(() => {
+  window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
+})
 afterEach(() => {
   cleanup()
   resetMediaQueries()
