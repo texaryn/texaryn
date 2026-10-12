@@ -120,3 +120,7 @@ if (!Range.prototype.getClientRects) {
     return new DOMRect()
   }
 }
+
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = function scrollIntoView() {}
+}
