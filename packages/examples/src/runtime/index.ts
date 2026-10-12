@@ -29,6 +29,10 @@ export const validationTriggers: TexarynExample = {
     '/onSubmit': { validationTrigger: 'submit' },
   },
   initialData: { onChange: '', onBlur: '', onSubmit: '' },
+  presets: [
+    { id: 'valid', label: 'All valid', data: { onChange: 'abc', onBlur: 'abc', onSubmit: 'abc' } },
+    { id: 'too-short', label: 'All too short', data: { onChange: 'a', onBlur: 'a', onSubmit: 'a' }, invalid: true },
+  ],
 }
 
 export const arrayInteractions: TexarynExample = {
@@ -56,6 +60,10 @@ export const arrayInteractions: TexarynExample = {
     },
   },
   initialData: { items: ['milk', 'bread'] },
+  presets: [
+    { id: 'empty', label: 'Empty list', data: { items: [] } },
+    { id: 'five', label: 'Five items', data: { items: ['milk', 'bread', 'eggs', 'apples', 'coffee'] } },
+  ],
 }
 
 export const numericCoercion: TexarynExample = {
@@ -113,6 +121,10 @@ export const submissionLifecycle: TexarynExample = {
     required: ['email'],
   },
   initialData: { email: '' },
+  presets: [
+    { id: 'ready', label: 'Ready to submit', data: { email: 'ada@example.com' } },
+    { id: 'too-short', label: 'Too short', data: { email: 'ab' }, invalid: true },
+  ],
 }
 
 export const runtimeExamples = [

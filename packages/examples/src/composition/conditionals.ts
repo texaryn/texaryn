@@ -39,6 +39,10 @@ export const ifThenElse: TexarynExample = {
     },
   },
   initialData: { accountType: 'business' },
+  presets: [
+    { id: 'business', label: 'Business', data: { accountType: 'business', companyName: 'Acme', taxId: 'FR123' } },
+    { id: 'personal', label: 'Personal', data: { accountType: 'personal', nickname: 'ada' } },
+  ],
 }
 
 export const conditionalExamples = [ifThenElse] as const

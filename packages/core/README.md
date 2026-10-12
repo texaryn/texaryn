@@ -139,9 +139,12 @@ The runtime currently understands:
 { type: 'RemoveItem', containerId, index }
 { type: 'MoveItem', containerId, from, to }
 { type: 'SetTouched', nodeId }
+{ type: 'Validate' }
 { type: 'Submit' }
 { type: 'Reset', data? }
 ```
+
+`Validate` marks data-bearing nodes touched and validates the current data immediately, regardless of automatic validation hints. It does not increment submission attempts or call `onSubmit`. `SetTouched` continues to request blur validation, subject to the field's blur hint.
 
 Commands are data. They do not contain renderer or DOM behavior.
 

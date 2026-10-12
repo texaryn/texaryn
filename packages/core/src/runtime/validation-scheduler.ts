@@ -1,6 +1,6 @@
 import type { MaybePromise, ValidationResult } from '../types.js'
 
-export type ValidationTrigger = 'blur' | 'change' | 'submit'
+export type ValidationTrigger = 'blur' | 'change' | 'manual' | 'submit'
 
 export interface SchedulerCallbacks {
   runValidation: (trigger: ValidationTrigger) => MaybePromise<ValidationResult>

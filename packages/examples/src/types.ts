@@ -23,6 +23,14 @@ export type ExampleCategory =
   | 'dialects'
   | 'real-world'
 
+export interface ExamplePreset {
+  id: string
+  label: string
+  data: unknown
+  /** Set when the preset deliberately violates the example's schema. */
+  invalid?: true
+}
+
 // Data only, never renderer UI, so the same example drives the playground,
 // the documentation and the tests without being rewritten for each.
 export interface TexarynExample {
@@ -33,6 +41,8 @@ export interface TexarynExample {
 
   schema: unknown
   initialData?: unknown
+  /** Named data states the playground offers in addition to `initialData`. */
+  presets?: readonly ExamplePreset[]
   hints?: UIHints
 
   /** Defaults to 2020-12 where a specific dialect does not matter. */

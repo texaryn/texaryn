@@ -34,6 +34,11 @@ export const oneOfDiscriminated: TexarynExample = {
     ],
   },
   initialData: { kind: 'circle', radius: 5 },
+  presets: [
+    { id: 'circle', label: 'Circle', data: { kind: 'circle', radius: 5 } },
+    { id: 'rectangle', label: 'Rectangle', data: { kind: 'rectangle', width: 4, height: 3 } },
+    { id: 'missing-height', label: 'Rectangle without height', data: { kind: 'rectangle', width: 4 }, invalid: true },
+  ],
 }
 
 export const oneOfExamples = [oneOfDiscriminated] as const

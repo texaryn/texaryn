@@ -40,6 +40,10 @@ export const requiredAndOptional: TexarynExample = {
     required: ['email'],
   },
   initialData: { email: '', referral: '' },
+  presets: [
+    { id: 'valid', label: 'Valid', data: { email: 'ada@example.com', referral: 'A friend' } },
+    { id: 'missing-email', label: 'Missing email', data: { referral: 'A friend' }, invalid: true },
+  ],
 }
 
 export const enumAndRequiredExamples = [stringEnum, requiredAndOptional] as const

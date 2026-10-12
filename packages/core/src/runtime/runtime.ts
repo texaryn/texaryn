@@ -716,7 +716,11 @@ export function createFormRuntime(
     if (state.submission.status === 'submitting' && effect.trigger !== 'submit') {
       return
     }
-    if (effect.trigger !== 'submit' && !hintMatchesTrigger(effect.nodeIds, effect.trigger)) {
+    if (
+      effect.trigger !== 'submit' &&
+      effect.trigger !== 'manual' &&
+      !hintMatchesTrigger(effect.nodeIds, effect.trigger)
+    ) {
       return
     }
     scheduler.schedule(effect.trigger)

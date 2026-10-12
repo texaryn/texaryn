@@ -8,11 +8,12 @@ export type Command =
   | { type: 'MoveItem'; containerId: NodeId; from: number; to: number }
   | { type: 'ExpandBoundary'; containerId: NodeId; targetToken: string }
   | { type: 'SetTouched'; nodeId: NodeId }
+  | { type: 'Validate' }
   | { type: 'Submit' }
   | { type: 'Reset'; data?: unknown }
 
 export type Effect =
-  | { type: 'validate'; nodeIds: NodeId[]; trigger: 'blur' | 'change' | 'submit' }
+  | { type: 'validate'; nodeIds: NodeId[]; trigger: 'blur' | 'change' | 'manual' | 'submit' }
   | { type: 'recompile'; reason: 'data-changed' | 'schema-changed' | 'projection-expanded' }
   | { type: 'executeAction'; actionType: string; args: unknown }
   | { type: 'notify'; event: string; payload: unknown }

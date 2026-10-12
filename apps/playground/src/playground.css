@@ -707,9 +707,49 @@ body {
 
 .pg-submit-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
   margin: 0.5rem 0 0;
+}
+
+.pg-pane-host[data-pane-host='preview'] {
+  width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.pg-width-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pg-width-presets button {
+  font: inherit;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  background: none;
+  color: var(--tx-text-muted);
+  cursor: pointer;
+}
+
+.pg-width-presets button[aria-pressed='true'] {
+  background: var(--tx-accent-soft);
+  color: var(--tx-text);
+}
+
+.pg-width-presets__label,
+.pg-width-presets__effective {
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .pg-checkbox-label {

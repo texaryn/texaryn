@@ -50,5 +50,44 @@ describe.each(examples.map((example) => [example.id, example] as const))(
         ).toEqual([])
       }
     })
+
+    it('declares presets whose validity matches the declaration', async () => {
+      if (!example.presets) return
+      const port = await createJsonSchemaAdapter(example.schema, { defaultDialect: example.dialect })
+      const ids = new Set<string>()
+      for (const preset of example.presets) {
+        expect(ids.has(preset.id), `${example.id} repeats preset id ${preset.id}`).toBe(false)
+        expect(['initial', 'custom'], `${example.id} uses a reserved preset id`).not.toContain(preset.id)
+        expect(preset.data, `${example.id} preset ${preset.id} has undefined data`).not.toBeUndefined()
+        ids.add(preset.id)
+        const result = await port.validate(preset.data)
+        if (preset.invalid) {
+          expect(result.errors.length, `${example.id} preset ${preset.id} is marked invalid but passes`).toBeGreaterThan(0)
+        } else {
+          expect(result.errors, `${example.id} preset ${preset.id} violates its schema`).toEqual([])
+        }
+      }
+    })
   },
 )
+
+describe('presets', () => {
+  it('exist for the examples where form states matter', () => {
+    const ids = [
+      'basics-required',
+      'validation-string-constraints',
+      'validation-numeric-constraints',
+      'validation-exclusive-numeric-constraints',
+      'validation-array-constraints',
+      'conditional-if-then-else',
+      'composition-one-of',
+      'composition-any-of',
+      'runtime-array-interactions',
+      'runtime-validation-triggers',
+      'runtime-submission',
+    ]
+    for (const id of ids) {
+      expect(examples.find((example) => example.id === id)?.presets?.length, id).toBeGreaterThan(0)
+    }
+  })
+})
