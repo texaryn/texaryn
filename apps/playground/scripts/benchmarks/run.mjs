@@ -109,10 +109,20 @@ function projectionCounts(projection) {
   return counts
 }
 
+function compareStrings(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
+function sortedPointers(nodes) {
+  return [...nodes.keys()].sort(compareStrings)
+}
+
 function projectionShape(projection) {
   return {
     ...projectionCounts(projection),
-    pointers: [...projection.nodes.keys()].sort(),
+    pointers: sortedPointers(projection.nodes),
   }
 }
 
@@ -255,7 +265,7 @@ async function compileBenchmarks() {
         if (
           result.nodes.size !== projection.nodes.size ||
           !result.nodes.has('/field_0') ||
-          JSON.stringify([...result.nodes.keys()].sort()) !== JSON.stringify([...projection.nodes.keys()].sort())
+          JSON.stringify(sortedPointers(result.nodes)) !== JSON.stringify(sortedPointers(projection.nodes))
         ) {
           throw new Error(`Flat ${fieldCount}-field projection changed shape.`)
         }
@@ -291,8 +301,8 @@ async function conditionalProjectionBenchmark() {
   if (inactive.nodes.size !== active.nodes.size) {
     throw new Error('Conditional projection fixture changed its candidate node count.')
   }
-  const expectedPointers = [...active.nodes.keys()].sort()
-  if (JSON.stringify([...inactive.nodes.keys()].sort()) !== JSON.stringify(expectedPointers)) {
+  const expectedPointers = sortedPointers(active.nodes)
+  if (JSON.stringify(sortedPointers(inactive.nodes)) !== JSON.stringify(expectedPointers)) {
     throw new Error('Conditional projection fixture changed its candidate pointers.')
   }
 
@@ -303,7 +313,7 @@ async function conditionalProjectionBenchmark() {
       if (
         extra?.active !== snapshots[index].enabled ||
         projection.nodes.size !== active.nodes.size ||
-        JSON.stringify([...projection.nodes.keys()].sort()) !== JSON.stringify(expectedPointers)
+        JSON.stringify(sortedPointers(projection.nodes)) !== JSON.stringify(expectedPointers)
       ) {
         throw new Error('Conditional projection did not match the input discriminator.')
       }

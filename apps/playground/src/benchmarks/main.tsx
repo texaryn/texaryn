@@ -165,6 +165,112 @@ async function start(): Promise<void> {
     inputObserver = null
   }
 
+  function formRuntimeForMount(): FormRuntime {
+    if (!runtime) throw new Error('Texaryn runtime is missing.')
+    return runtime
+  }
+
+  function mountRjsf(): void {
+    const root = createRoot(host)
+    root.render(createElement(RjsfForm, {
+      schema: schema as RjsfFormProps['schema'],
+      validator: rjsfValidator,
+      formData: rjsfData,
+      idPrefix: 'texaryn-benchmark',
+      tagName: 'div',
+      liveValidate: false,
+      onChange: (event) => { rjsfData = event.formData },
+    }, createElement(Fragment)))
+    cleanupRenderer = () => root.unmount()
+  }
+
+  function mountReact(): void {
+    const root = createRoot(host)
+    root.render(createElement(
+      FormProvider,
+      { value: formRuntimeForMount() },
+      createElement(ReactFormRoot, { registry: registries.react }),
+    ))
+    cleanupRenderer = () => root.unmount()
+  }
+
+  function mountVue(): void {
+    const currentRuntime = formRuntimeForMount()
+    const app = createApp(defineComponent({
+      setup() {
+        provideFormRuntime(currentRuntime)
+        return () => h(VueFormRoot, { registry: registries.vue })
+      },
+    }))
+    app.mount(host)
+    cleanupRenderer = () => app.unmount()
+  }
+
+  function mountSvelteRenderer(): void {
+    const component = mountSvelte(SvelteFormRoot, {
+      target: host,
+      props: {
+        form: bindSvelteFormRuntime(formRuntimeForMount()),
+        registry: registries.svelte,
+        destroyOnUnmount: false,
+        showErrorSummary: false,
+      },
+    })
+    cleanupRenderer = () => unmountSvelte(component)
+  }
+
+  function mountSolid(): void {
+    cleanupRenderer = renderSolid(() => createSolidComponent(SolidFormRoot, {
+      form: formRuntimeForMount(),
+      registry: registries.solid,
+      destroyOnUnmount: false,
+      showErrorSummary: false,
+    }), host)
+  }
+
+  function mountWebComponents(): void {
+    const element = document.createElement('texaryn-form') as TexarynFormElement
+    element.registry = registries['web-components']
+    element.runtime = formRuntimeForMount()
+    host.append(element)
+    cleanupRenderer = () => element.remove()
+  }
+
+  async function mountAngular(): Promise<void> {
+    const currentRuntime = formRuntimeForMount()
+    const application = await createApplication({
+      providers: [provideZonelessChangeDetection()],
+    })
+    const form = runInInjectionContext(
+      application.injector,
+      () => bindAngularFormRuntime(currentRuntime),
+    )
+    const component = createAngularComponent(AngularFormRoot, {
+      environmentInjector: application.injector,
+      hostElement: document.createElement('texaryn-form-root'),
+    })
+    component.setInput('form', form)
+    component.setInput('registry', registries.angular)
+    component.setInput('idPrefix', 'texaryn-benchmark')
+    host.append(component.location.nativeElement)
+    application.attachView(component.hostView)
+    cleanupRenderer = () => {
+      application.detachView(component.hostView)
+      component.destroy()
+      application.destroy()
+    }
+  }
+
+  const mountRenderers: Record<BenchmarkTarget, () => void | Promise<void>> = {
+    rjsf: mountRjsf,
+    react: mountReact,
+    vue: mountVue,
+    svelte: mountSvelteRenderer,
+    solid: mountSolid,
+    'web-components': mountWebComponents,
+    angular: mountAngular,
+  }
+
   window.__texarynBench = {
     async prepare(renderer): Promise<void> {
       if (runtime || cleanupRenderer) throw new Error('Unmount the current benchmark before preparing another.')
@@ -183,109 +289,12 @@ async function start(): Promise<void> {
     },
 
     async mount(): Promise<number> {
-      if (!currentRenderer || cleanupRenderer || (currentRenderer !== 'rjsf' && !runtime)) {
+      const renderer = currentRenderer
+      if (!renderer || cleanupRenderer || (renderer !== 'rjsf' && !runtime)) {
         throw new Error('Prepare one renderer before mounting the benchmark form.')
       }
 
-      const currentRuntime = runtime
-      switch (currentRenderer) {
-        case 'rjsf': {
-          const root = createRoot(host)
-          root.render(createElement(RjsfForm, {
-            schema: schema as RjsfFormProps['schema'],
-            validator: rjsfValidator,
-            formData: rjsfData,
-            idPrefix: 'texaryn-benchmark',
-            tagName: 'div',
-            liveValidate: false,
-            children: createElement(Fragment),
-            onChange: (event) => { rjsfData = event.formData },
-          }))
-          cleanupRenderer = () => root.unmount()
-          break
-        }
-        case 'react': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          const root = createRoot(host)
-          root.render(createElement(
-            FormProvider,
-            { value: currentRuntime },
-            createElement(ReactFormRoot, { registry: registries.react }),
-          ))
-          cleanupRenderer = () => root.unmount()
-          break
-        }
-        case 'vue': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          const app = createApp(defineComponent({
-            setup() {
-              provideFormRuntime(currentRuntime)
-              return () => h(VueFormRoot, { registry: registries.vue })
-            },
-          }))
-          app.mount(host)
-          cleanupRenderer = () => app.unmount()
-          break
-        }
-        case 'svelte': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          const component = mountSvelte(SvelteFormRoot, {
-            target: host,
-            props: {
-              form: bindSvelteFormRuntime(currentRuntime),
-              registry: registries.svelte,
-              destroyOnUnmount: false,
-              showErrorSummary: false,
-            },
-          })
-          cleanupRenderer = () => unmountSvelte(component)
-          break
-        }
-        case 'solid': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          cleanupRenderer = renderSolid(() => createSolidComponent(SolidFormRoot, {
-            form: currentRuntime,
-            registry: registries.solid,
-            destroyOnUnmount: false,
-            showErrorSummary: false,
-          }), host)
-          break
-        }
-        case 'web-components': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          const element = document.createElement('texaryn-form') as TexarynFormElement
-          element.registry = registries['web-components']
-          element.runtime = currentRuntime
-          host.append(element)
-          cleanupRenderer = () => element.remove()
-          break
-        }
-        case 'angular': {
-          if (!currentRuntime) throw new Error('Texaryn runtime is missing.')
-          const application = await createApplication({
-            providers: [provideZonelessChangeDetection()],
-          })
-          const form = runInInjectionContext(
-            application.injector,
-            () => bindAngularFormRuntime(currentRuntime),
-          )
-          const component = createAngularComponent(AngularFormRoot, {
-            environmentInjector: application.injector,
-            hostElement: document.createElement('texaryn-form-root'),
-          })
-          component.setInput('form', form)
-          component.setInput('registry', registries.angular)
-          component.setInput('idPrefix', 'texaryn-benchmark')
-          host.append(component.location.nativeElement)
-          application.attachView(component.hostView)
-          cleanupRenderer = () => {
-            application.detachView(component.hostView)
-            component.destroy()
-            application.destroy()
-          }
-          break
-        }
-      }
+      await mountRenderers[renderer]()
 
       await afterTwoFrames()
 
@@ -296,12 +305,12 @@ async function start(): Promise<void> {
         const details = inputs.map((input) =>
           `${input.type}:${input.name}:${input.labels?.[0]?.textContent?.trim() ?? ''}${input.closest('[hidden]') ? ' (hidden)' : ''}`,
         ).join(', ')
-        throw new Error(`${currentRenderer} rendered ${visibleInputs.length} visible controls and ${checkboxes.length} checkboxes: ${details}`)
+        throw new Error(`${renderer} rendered ${visibleInputs.length} visible controls and ${checkboxes.length} checkboxes: ${details}`)
       }
-      if (hasExtraControl()) throw new Error(`${currentRenderer} rendered the conditional control before activation.`)
+      if (hasExtraControl()) throw new Error(`${renderer} rendered the conditional control before activation.`)
 
-      return currentRuntime
-        ? Object.keys(currentRuntime.document.getSnapshot().nodes).length
+      return runtime
+        ? Object.keys(runtime.document.getSnapshot().nodes).length
         : visibleInputs.length
     },
 
