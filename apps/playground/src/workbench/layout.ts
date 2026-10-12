@@ -113,11 +113,11 @@ export function writeStoredLayout(state: LayoutState): void {
 export const PANEL_STORAGE_PREFIX = 'texaryn-playground-panels:'
 
 function isPanelSizes(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const sizes = Object.values(value)
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every((size) => typeof size === 'number' && Number.isFinite(size))
+    sizes.every((size) => typeof size === 'number' && Number.isFinite(size) && size >= 0) &&
+    sizes.reduce((total: number, size: number) => total + size, 0) > 0
   )
 }
 

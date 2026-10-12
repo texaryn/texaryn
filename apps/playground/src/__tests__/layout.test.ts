@@ -87,7 +87,7 @@ describe('stored layout', () => {
   })
 
   it('hands the panel library only well formed sizes', () => {
-    for (const stored of ['{broken', 'null', '[20,80]', '{"examples":"20"}', '{"examples":null}']) {
+    for (const stored of ['{broken', 'null', '[20,80]', '{"examples":"20"}', '{"examples":null}', '{"schema":0,"preview":0}', '{"schema":-10,"preview":110}', '{}']) {
       window.localStorage.setItem(`${PANEL_STORAGE_PREFIX}columns`, stored)
       expect(panelStorage.getItem('columns')).toBeNull()
     }
