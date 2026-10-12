@@ -57,15 +57,12 @@ function main(dist) {
     console.log(`${key}: ${(sizes[key] / 1024).toFixed(1)} KB gzipped, limit ${LIMITS[key] / 1024} KB`)
   }
   const over = overLimit(sizes)
-  if (over.length > 0) {
-    console.error(`check-playground-size: over the limit: ${over.join(', ')}`)
-    process.exit(1)
-  }
   const leaks = lazyLeaks(JSON.parse(readFileSync(join(root, '.vite', 'manifest.json'), 'utf8')))
+  if (over.length > 0) console.error(`check-playground-size: over the limit: ${over.join(', ')}`)
   if (leaks.length > 0) {
     console.error(`check-playground-size: loaded on first visit but meant to be lazy: ${leaks.join(', ')}`)
-    process.exit(1)
   }
+  if (over.length > 0 || leaks.length > 0) process.exit(1)
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv[2] ?? 'apps/playground/dist')
