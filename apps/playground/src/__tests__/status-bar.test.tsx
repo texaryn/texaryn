@@ -15,6 +15,14 @@ describe('dialectLabel', () => {
 
   it('says draft 7 is assumed when nothing is declared, as the adapter does', () => {
     expect(dialectLabel({ type: 'object' })).toBe('Draft 7 (no $schema)')
+    expect(dialectLabel({ $schema: 42 })).toBe('Draft 7 (no $schema)')
+  })
+
+  it('says draft 7 is assumed when the declared $schema is not recognised', () => {
+    expect(dialectLabel({ $schema: 'https://example.com/custom' })).toBe('Draft 7 (unrecognized $schema)')
+    expect(dialectLabel({ $schema: 'http://json-schema.org/draft-06/schema#' })).toBe(
+      'Draft 7 (unrecognized $schema)',
+    )
   })
 })
 
