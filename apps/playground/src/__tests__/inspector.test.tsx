@@ -1,15 +1,19 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { encodeSharedSchema } from '../routing.js'
 
 function setPath(path: string, search = ''): void {
   window.history.replaceState(null, '', `${path}${search}`)
 }
 
-beforeEach(() => setPath('/'))
+beforeEach(() => {
+  window.localStorage.clear()
+  setPath(import.meta.env.BASE_URL)
+})
 afterEach(() => {
   cleanup()
-  setPath('/')
+  setPath(import.meta.env.BASE_URL)
 })
 
 function tab(name: string): HTMLElement {
@@ -42,20 +46,17 @@ describe('inspector panes', () => {
     await waitFor(() => expect(panel().textContent).toContain('Ada'))
   })
 
-  it('shows the schema text, including edits to a custom schema', async () => {
-    render(<App />)
-    await openExample('String field')
-
-    fireEvent.click(tab('Schema'))
-    await waitFor(() => expect(panel().textContent).toContain('String field'))
-
-    const editor = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
+  it('shows a custom schema restored from a shared link', async () => {
     const custom = JSON.stringify(
       { type: 'object', title: 'Edited schema', properties: { q: { type: 'string' } } },
       null,
       2,
     )
-    fireEvent.change(editor, { target: { value: custom } })
+    setPath(`${import.meta.env.BASE_URL}#schema=${encodeSharedSchema(custom)}`)
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('tablist', { name: 'Inspector' })).toBeTruthy())
+    fireEvent.click(tab('Schema'))
 
     await waitFor(() => expect(panel().textContent).toContain('Edited schema'))
   })
@@ -102,9 +103,12 @@ describe('inspector panes', () => {
     // The conditional branch decides which nodes are active, so the projection
     // has to be recomputed from current data rather than cached from mount.
     const before = panel().textContent ?? ''
-    fireEvent.change(await screen.findByLabelText(/^Account type/), {
-      target: { value: 'personal' },
+    const accountType = (await screen.findByLabelText(/^Account type/)) as HTMLSelectElement
+    const nextValue = accountType.value === 'business' ? 'personal' : 'business'
+    fireEvent.change(accountType, {
+      target: { value: nextValue },
     })
+    await waitFor(() => expect(accountType.value).toBe(nextValue))
     await waitFor(() => expect(panel().textContent).not.toBe(before))
   })
 

@@ -15,7 +15,7 @@ describe('crossing the phone breakpoint', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
     const name = (await screen.findByLabelText('Name')) as HTMLInputElement
     fireEvent.change(name, { target: { value: 'Ada' } })
-    const editor = screen.getByLabelText(/^JSON Schema/)
+    const editor = await screen.findByLabelText(/^JSON Schema/)
 
     act(() => setMediaQuery(NARROW_QUERY, true))
     expect(document.querySelector('.pg-workbench')).toBeNull()

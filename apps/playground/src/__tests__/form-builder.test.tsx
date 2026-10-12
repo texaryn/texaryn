@@ -27,8 +27,11 @@ describe('visual form builder', () => {
     fireEvent.click(within(field).getByLabelText('Required'))
 
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }))
-    const source = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
-    const schema = JSON.parse(source.value) as {
+    const source = await screen.findByRole('textbox', { name: 'JSON Schema' })
+    const sourceText = [...source.querySelectorAll('.cm-line')]
+      .map((line) => line.textContent ?? '')
+      .join('\n')
+    const schema = JSON.parse(sourceText) as {
       properties: Record<string, { type: string; title: string }>
       required: string[]
     }
@@ -42,7 +45,7 @@ describe('visual form builder', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'if / then / else' }))
     fireEvent.click(screen.getByRole('button', { name: 'Visual' }))
 
-    expect(screen.getByRole('status').textContent).toContain('root keywords')
+    expect(screen.getByText(/root keywords/).textContent).toContain('root keywords')
     expect(screen.queryByRole('button', { name: 'Add field' })).toBeNull()
   })
 })

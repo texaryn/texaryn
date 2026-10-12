@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, FormEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
@@ -21,7 +21,7 @@ import { dialectLabel } from './workbench/dialect-label.js'
 import { StatusBar } from './workbench/StatusBar.js'
 import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
-import { docsHref, formatLocation, parseLocation } from './routing.js'
+import { docsHref, encodeSharedSchema, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import type { RendererProps } from './renderer-types.js'
 import './playground.css'
@@ -57,6 +57,9 @@ const rendererLoaders: Record<RendererKey, () => Promise<{ default: ComponentTyp
 }
 
 const rendererCache = new Map<RendererKey, ComponentType<RendererProps>>()
+const JsonSchemaEditor = lazy(() =>
+  import('./JsonSchemaEditor.js').then((module) => ({ default: module.JsonSchemaEditor })),
+)
 
 function formatSchema(schema: unknown): string {
   return JSON.stringify(schema, null, 2)
@@ -332,6 +335,7 @@ function FormWorkspace({
 
 const CUSTOM_KEY = 'custom'
 const customEntry = { initialData: undefined, hints: undefined }
+const CUSTOM_SCHEMA_STORAGE_KEY = 'texaryn:playground:custom-schema'
 
 const BASE_URL = import.meta.env.BASE_URL ?? '/'
 const DOCS_URL = docsHref(BASE_URL)
@@ -343,25 +347,51 @@ function resolveExample(id: string | null): TexarynExample | undefined {
   return getExample(id) ?? examples[0]
 }
 
+function savedCustomSchema(): string | undefined {
+  try {
+    return window.localStorage.getItem(CUSTOM_SCHEMA_STORAGE_KEY) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+function schemaFromText(text: string | undefined, fallback: unknown): unknown {
+  if (text === undefined) return fallback
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return fallback
+  }
+}
+
 export function App() {
-  const initial = parseLocation(window.location.pathname, window.location.search, BASE_URL)
-  const initialExample = resolveExample(initial.exampleId)
+  const initial = parseLocation(
+    window.location.pathname,
+    window.location.search,
+    BASE_URL,
+    window.location.hash,
+  )
+  const initialSchemaText = initial.schemaText ?? (initial.exampleId === null ? savedCustomSchema() : undefined)
+  const initialExample = initialSchemaText === undefined ? resolveExample(initial.exampleId) : undefined
   const [rendererKey, setRendererKey] = useState<RendererKey>(initial.renderer)
   const [defaultStyleMode, setDefaultStyleMode] = useState<'baseline' | 'unstyled'>('baseline')
   const [selectedId, setSelectedId] = useState<string | null>(
-    () => initialExample?.id ?? null,
+    () => initialSchemaText === undefined ? initialExample?.id ?? null : CUSTOM_KEY,
   )
   const [query, setQuery] = useState('')
   const [inspectorTab, setInspectorTab] = useState<Tab>(DEFAULT_TAB)
   const [schemaMode, setSchemaMode] = useState<'visual' | 'json'>('json')
   const [mobilePanel, setMobilePanel] = useState<'preview' | 'schema' | 'inspector'>('preview')
-  const [activeHints, setActiveHints] = useState<TexarynExample['hints']>(initialExample?.hints)
+  const [activeHints, setActiveHints] = useState<TexarynExample['hints']>(
+    initialSchemaText === undefined ? initialExample?.hints : undefined,
+  )
   const [appliedSchema, setAppliedSchema] = useState<unknown>(
-    () => initialExample?.schema ?? {},
+    () => schemaFromText(initialSchemaText, initialExample?.schema ?? {}),
   )
   const [schemaText, setSchemaText] = useState(() =>
-    formatSchema(initialExample?.schema ?? {}),
+    initialSchemaText ?? formatSchema(initialExample?.schema ?? {}),
   )
+  const [shareStatus, setShareStatus] = useState('')
   const [exampleRevision, setExampleRevision] = useState(0)
   const [resetRevision, setResetRevision] = useState(0)
   const [loadedRenderers, setLoadedRenderers] = useState<Partial<Record<RendererKey, ComponentType<RendererProps>>>>({})
@@ -428,23 +458,59 @@ export function App() {
     return () => window.clearTimeout(timeout)
   }, [draftHasChanges, parseError, parsedDraft.schema])
 
-  // The URL follows the visible state. Data is deliberately not in it: a
-  // shared link reproduces what someone was looking at, not what they typed.
+  const customSchemaToken = selectedId === CUSTOM_KEY ? encodeSharedSchema(schemaText) : undefined
+  const shareUrl = new URL(formatLocation(
+    {
+      exampleId: selectedId === CUSTOM_KEY ? null : selectedId,
+      renderer: rendererKey,
+      ...(selectedId === CUSTOM_KEY && customSchemaToken !== null
+        ? { schemaText }
+        : {}),
+    },
+    BASE_URL,
+  ), window.location.origin).href
+
+  // The URL carries custom schema text, but deliberately omits form data.
   useEffect(() => {
-    const url = formatLocation(
-      { exampleId: selectedId === CUSTOM_KEY ? null : selectedId, renderer: rendererKey },
-      BASE_URL,
-    )
-    if (`${window.location.pathname}${window.location.search}` !== url) {
-      window.history.replaceState(null, '', url)
-    }
-  }, [selectedId, rendererKey])
+    const timer = window.setTimeout(() => {
+      const url = new URL(shareUrl)
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      const next = `${url.pathname}${url.search}${url.hash}`
+      try {
+        if (current !== next) window.history.replaceState(null, '', next)
+        if (selectedId === CUSTOM_KEY) {
+          window.localStorage.setItem(CUSTOM_SCHEMA_STORAGE_KEY, schemaText)
+        }
+      } catch {
+        setShareStatus('This browser could not save the custom schema locally.')
+      }
+    }, 180)
+    return () => window.clearTimeout(timer)
+  }, [schemaText, selectedId, shareUrl])
 
   useEffect(() => {
     function onPopState() {
-      const next = parseLocation(window.location.pathname, window.location.search, BASE_URL)
-      const example = resolveExample(next.exampleId)
+      const next = parseLocation(
+        window.location.pathname,
+        window.location.search,
+        BASE_URL,
+        window.location.hash,
+      )
+      const nextSchemaText = next.schemaText ?? (next.exampleId === null ? savedCustomSchema() : undefined)
       setRendererKey(next.renderer)
+      if (nextSchemaText !== undefined) {
+        preserveCurrentData.current = false
+        latestData.current = undefined
+        setSelectedId(CUSTOM_KEY)
+        setActiveHints(undefined)
+        setSchemaText(nextSchemaText)
+        setAppliedSchema(schemaFromText(nextSchemaText, {}))
+        setExampleRevision((revision) => revision + 1)
+        setMobilePanel('preview')
+        return
+      }
+
+      const example = resolveExample(next.exampleId)
       if (example) {
         preserveCurrentData.current = false
         latestData.current = example.initialData
@@ -463,13 +529,20 @@ export function App() {
   const handleSchemaChange = useCallback((text: string) => {
     preserveCurrentData.current = true
     setSelectedId(CUSTOM_KEY)
+    setShareStatus('')
     setSchemaText(text)
   }, [])
 
   const handleSelectExample = useCallback((example: TexarynExample) => {
     preserveCurrentData.current = false
+    try {
+      window.localStorage.removeItem(CUSTOM_SCHEMA_STORAGE_KEY)
+    } catch {
+      // Selecting an example still works when storage is unavailable.
+    }
     latestData.current = example.initialData
     setSelectedId(example.id)
+    setShareStatus('')
     setActiveHints(example.hints)
     setSchemaText(formatSchema(example.schema))
     setAppliedSchema(example.schema)
@@ -486,6 +559,15 @@ export function App() {
     latestData.current = undefined
     setResetRevision((revision) => revision + 1)
   }, [])
+
+  const handleCopyShareLink = useCallback(async () => {
+    try {
+      await window.navigator.clipboard.writeText(shareUrl)
+      setShareStatus('Link copied')
+    } catch {
+      setShareStatus('Copy was blocked. Copy the URL from the address bar.')
+    }
+  }, [shareUrl])
 
   const adapterState = useAdapter(appliedSchema)
   const selectedExample = selectedId === null ? undefined : getExample(selectedId)
@@ -563,9 +645,22 @@ export function App() {
     <>
       <div className="pg-schema-heading">
         <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
-        <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
-          Reset data
-        </button>
+        <div className="pg-schema-heading__actions">
+          <button
+            className="pg-button pg-button--quiet"
+            type="button"
+            onClick={handleCopyShareLink}
+            disabled={selectedId === CUSTOM_KEY && customSchemaToken === null}
+            title={selectedId === CUSTOM_KEY && customSchemaToken === null
+              ? 'Custom schemas over 12 KB cannot be shared in a URL.'
+              : undefined}
+          >
+            Copy link
+          </button>
+          <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
+            Reset data
+          </button>
+        </div>
       </div>
       <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
         <button
@@ -589,17 +684,20 @@ export function App() {
         {schemaMode === 'visual' ? (
           <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
         ) : (
-          <textarea
-            aria-labelledby="schema-editor-label"
-            className="pg-schema-editor"
-            value={schemaText}
-            onChange={(e) => handleSchemaChange(e.target.value)}
-            spellCheck={false}
-            wrap="off"
-          />
+          <Suspense fallback={<div className="pg-editor-loading" role="status">Loading JSON editor…</div>}>
+            <JsonSchemaEditor
+              labelledBy="schema-editor-label"
+              value={schemaText}
+              onChange={handleSchemaChange}
+            />
+          </Suspense>
         )}
       </div>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
+      {selectedId === CUSTOM_KEY && customSchemaToken === null && (
+        <p className="pg-schema-share-note">This schema is too large to share in a link. It remains saved in this browser.</p>
+      )}
+      {shareStatus && <p className="pg-schema-share-status" role="status">{shareStatus}</p>}
     </>
   )
 
