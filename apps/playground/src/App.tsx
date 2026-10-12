@@ -17,6 +17,8 @@ import type { ResolvedTheme } from './theme.js'
 import { clearStoredPanelSizes, useLayout } from './workbench/layout.js'
 import { PaneSlot, usePaneHosts } from './workbench/pane-hosts.js'
 import type { PaneHosts } from './workbench/pane-hosts.js'
+import { dialectLabel } from './workbench/dialect-label.js'
+import { StatusBar } from './workbench/StatusBar.js'
 import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
 import { docsHref, formatLocation, parseLocation } from './routing.js'
@@ -720,6 +722,9 @@ export function App() {
           onDataChange={handleDataChange}
           onTabChange={setInspectorTab}
         />
+      )}
+      {!narrow && (
+        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={draftHasChanges} />
       )}
     </div>
   )

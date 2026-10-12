@@ -1223,3 +1223,21 @@ body {
   color: var(--tx-text-muted);
   border-bottom: 1px solid var(--tx-border);
 }
+
+.pg-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 24px;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+  border-top: 1px solid var(--tx-border);
+  background: var(--tx-surface);
+}
+
+.pg-status__end {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
