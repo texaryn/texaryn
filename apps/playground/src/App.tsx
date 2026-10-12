@@ -7,6 +7,7 @@ import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
 import { SchemaEditorSlot } from './editor-slot.js'
+import { CopyButton } from './CopyButton.js'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { FormBuilder } from './FormBuilder.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
@@ -675,9 +676,7 @@ export function App() {
           >
             Format
           </button>
-          <button type="button" className="pg-button pg-button--quiet" onClick={() => void navigator.clipboard?.writeText(schemaText).catch(() => {})}>
-            Copy
-          </button>
+          <CopyButton text={schemaText} />
         </div>
       </div>
       <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">

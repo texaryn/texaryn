@@ -607,6 +607,17 @@ body {
 }
 
 .pg-schema-share-note,
+.pg-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pg-copy__status {
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+}
+
 .pg-schema-share-status {
   margin: 0.4rem 0;
   color: var(--tx-text-muted);
