@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { App } from '../App.js'
+import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
+import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
 
 const MOUNT = import.meta.env.BASE_URL
 
@@ -11,6 +13,7 @@ function setPath(path: string): void {
 beforeEach(() => setPath(MOUNT))
 afterEach(() => {
   cleanup()
+  resetMediaQueries()
   setPath(MOUNT)
 })
 
@@ -69,6 +72,7 @@ describe('schema editor lifecycle', () => {
   })
 
   it('provides a compact mobile panel selector and starts on the preview', async () => {
+    setMediaQuery(NARROW_QUERY, true)
     render(<App />)
     const columns = document.querySelector('.pg-columns') as HTMLElement
     expect(columns.dataset.mobilePanel).toBe('preview')

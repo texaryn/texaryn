@@ -101,3 +101,13 @@ Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (media: string) => queryFor(media),
 })
+
+if (!('ResizeObserver' in window)) {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
+  Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
+}

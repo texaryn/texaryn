@@ -14,8 +14,11 @@ import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
 import { useTheme } from './theme.js'
 import type { ResolvedTheme } from './theme.js'
+import { clearStoredPanelSizes, useLayout } from './workbench/layout.js'
 import { PaneSlot, usePaneHosts } from './workbench/pane-hosts.js'
 import type { PaneHosts } from './workbench/pane-hosts.js'
+import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
+import { Workbench } from './workbench/Workbench.js'
 import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import type { RendererProps } from './renderer-types.js'
@@ -365,6 +368,14 @@ export function App() {
   const preserveCurrentData = useRef(false)
   const theme = useTheme()
   const hosts = usePaneHosts()
+  const narrow = useNarrowViewport()
+  const [layout, dispatchLayout] = useLayout()
+  const [resetSignal, setResetSignal] = useState(0)
+  const resetLayout = useCallback(() => {
+    clearStoredPanelSizes()
+    dispatchLayout({ type: 'reset' })
+    setResetSignal((signal) => signal + 1)
+  }, [dispatchLayout])
 
   useEffect(() => {
     const cached = rendererCache.get(rendererKey)
@@ -602,53 +613,79 @@ export function App() {
           <a className="pg-header__link" href={REPOSITORY_URL}>
             GitHub
           </a>
+          {!narrow && (
+            <>
+              <button
+                type="button"
+                className="pg-header__button"
+                aria-pressed={layout.focus}
+                onClick={() => dispatchLayout({ type: 'toggleFocus' })}
+              >
+                Focus
+              </button>
+              <button type="button" className="pg-header__button" onClick={resetLayout}>
+                Reset layout
+              </button>
+            </>
+          )}
           <ThemeSelect preference={theme.preference} onChange={theme.setPreference} />
         </nav>
       </header>
 
-      <div className="pg-mobile-workspace">
-        <label className="pg-mobile-workspace__example">
-          Example
-          <select
-            className="pg-select"
-            value={selectedId ?? CUSTOM_KEY}
-            onChange={(event) => {
-              const example = getExample(event.target.value)
-              if (example) handleSelectExample(example)
-            }}
-          >
-            {selectedId === CUSTOM_KEY && <option value={CUSTOM_KEY}>Custom schema</option>}
-            {examples.map((example) => (
-              <option key={example.id} value={example.id}>{example.title}</option>
-            ))}
-          </select>
-        </label>
-        <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
-          {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
-            <button
-              key={panelName}
-              type="button"
-              aria-pressed={mobilePanel === panelName}
-              onClick={() => setMobilePanel(panelName)}
-            >
-              {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
-            </button>
-          ))}
-        </div>
-      </div>
+      {narrow ? (
+        <>
+          <div className="pg-mobile-workspace">
+            <label className="pg-mobile-workspace__example">
+              Example
+              <select
+                className="pg-select"
+                value={selectedId ?? CUSTOM_KEY}
+                onChange={(event) => {
+                  const example = getExample(event.target.value)
+                  if (example) handleSelectExample(example)
+                }}
+              >
+                {selectedId === CUSTOM_KEY && <option value={CUSTOM_KEY}>Custom schema</option>}
+                {examples.map((example) => (
+                  <option key={example.id} value={example.id}>{example.title}</option>
+                ))}
+              </select>
+            </label>
+            <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
+              {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
+                <button
+                  key={panelName}
+                  type="button"
+                  aria-pressed={mobilePanel === panelName}
+                  onClick={() => setMobilePanel(panelName)}
+                >
+                  {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div className="pg-columns" data-mobile-panel={mobilePanel}>
-        <aside className="pg-col pg-col--source" aria-label="Examples and schema">
-          <PaneSlot host={hosts.examples} />
-          <PaneSlot host={hosts.schema} />
-        </aside>
-        <section className="pg-col pg-col--preview">
-          <PaneSlot host={hosts.preview} />
-        </section>
-        <aside className="pg-col pg-col--inspect" aria-label="Inspector">
-          <PaneSlot host={hosts.inspector} />
-        </aside>
-      </div>
+          <div className="pg-columns" data-mobile-panel={mobilePanel}>
+            <aside className="pg-col pg-col--source" aria-label="Examples and schema">
+              <PaneSlot host={hosts.examples} />
+              <PaneSlot host={hosts.schema} />
+            </aside>
+            <section className="pg-col pg-col--preview">
+              <PaneSlot host={hosts.preview} />
+            </section>
+            <aside className="pg-col pg-col--inspect" aria-label="Inspector">
+              <PaneSlot host={hosts.inspector} />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <Workbench
+          hosts={hosts}
+          layout={layout}
+          dispatch={dispatchLayout}
+          resetSignal={resetSignal}
+        />
+      )}
       {createPortal(examplesContent, hosts.examples)}
       {createPortal(schemaContent, hosts.schema)}
 
