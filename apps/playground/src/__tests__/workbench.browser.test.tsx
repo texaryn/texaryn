@@ -35,6 +35,12 @@ function panelKeys(): string[] {
   return keys
 }
 
+const SAVE_DEBOUNCE_MS = 100
+
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, SAVE_DEBOUNCE_MS * 2.5))
+}
+
 function savedSizes(): Record<string, string | null> {
   return Object.fromEntries(panelKeys().map((key) => [key, window.localStorage.getItem(key)]))
 }
@@ -113,6 +119,7 @@ describe('the desktop workbench in Chromium', () => {
       fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: renderer } })
       await screen.findByRole('region', { name: renderer === 'default' ? 'Rendered by React · Default' : 'Rendered by React · Bootstrap 5' })
       if (renderer === 'bootstrap') {
+        // Submit does nothing until the Bootstrap form ref is set, so wait for the form.
         await waitFor(() =>
           expect(document.querySelector('.pg-bootstrap-shadow-host')?.shadowRoot?.querySelector('form')).toBeTruthy(),
         )
@@ -154,8 +161,11 @@ describe('the desktop workbench in Chromium', () => {
     cleanup()
     render(<App />)
     await screen.findByLabelText('Name')
+    await settle()
     expect(screen.getByRole('button', { name: 'Expand inspector' })).toBeTruthy()
     expect(document.querySelector('[data-pane-host="inspector"]')!.closest('.pg-pane__body')!.hasAttribute('inert')).toBe(true)
+    const panel = document.querySelector('[data-pane="inspector"]')!.closest('[data-panel]')!
+    expect(Math.abs(panel.getBoundingClientRect().height - 32)).toBeLessThanOrEqual(1)
   })
 
   it('leaves saved sizes and rendered widths unchanged across Maximize and Restore with the examples collapsed', async () => {
@@ -167,6 +177,7 @@ describe('the desktop workbench in Chromium', () => {
     screen.getByRole('separator', { name: 'Resize schema and preview' }).focus()
     await userEvent.keyboard('{ArrowRight}{ArrowRight}')
     await waitFor(() => expect(panelKeys().length).toBeGreaterThan(0))
+    await settle()
     const sizes = savedSizes()
     const schema = paneWidth('schema')
     const preview = paneWidth('preview')
@@ -175,6 +186,8 @@ describe('the desktop workbench in Chromium', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore preview' }))
     await waitFor(() => expect(Math.abs(paneWidth('schema') - schema)).toBeLessThanOrEqual(1))
     expect(Math.abs(paneWidth('preview') - preview)).toBeLessThanOrEqual(1)
+    await settle()
     expect(savedSizes()).toEqual(sizes)
+    expect(Math.abs(paneWidth('schema') - schema)).toBeLessThanOrEqual(1)
   })
 })
