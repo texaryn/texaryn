@@ -11,9 +11,7 @@ function createHost(id: PaneHostId): HTMLDivElement {
   return host
 }
 
-// A portal remounts its children when its container changes. These containers
-// never change: layouts move them instead, which keeps every pane's React
-// subtree and DOM alive across panels, overlays and the phone columns.
+// Never replaced: a portal remounts its children when its container changes.
 export function usePaneHosts(): PaneHosts {
   const [hosts] = useState<PaneHosts>(() => ({
     examples: createHost('examples'),
@@ -24,8 +22,7 @@ export function usePaneHosts(): PaneHosts {
   return hosts
 }
 
-// Fired on the host after it moves. Content that caches geometry, such as
-// CodeMirror, re-measures on it.
+// Content that caches geometry, such as CodeMirror, re-measures on this event.
 export const PANE_ATTACH_EVENT = 'pg-pane-attach'
 
 export function PaneSlot({ host, className, style }: { host: HTMLElement; className?: string; style?: CSSProperties }) {
