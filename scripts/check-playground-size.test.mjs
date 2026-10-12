@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { randomBytes } from 'node:crypto'
-import { gzipSize, lazyLeaks, measure, overLimit, LIMITS } from './check-playground-size.mjs'
+import { gzipSize, insideDist, lazyLeaks, measure, overLimit, LIMITS } from './check-playground-size.mjs'
 
 const MANIFEST = {
   'index.html': {
@@ -90,6 +90,13 @@ describe('check-playground-size', () => {
       'initial',
       'palette',
     ])
+  })
+
+  it('refuses a manifest file outside the dist directory', () => {
+    expect(insideDist('/site/dist', 'assets/index-a.js')).toBe('/site/dist/assets/index-a.js')
+    for (const file of ['../secret.js', 'assets/../../secret.js', '/etc/passwd', '']) {
+      expect(() => insideDist('/site/dist', file)).toThrow(/outside/)
+    }
   })
 
   it('finds a lazy chunk the entry imports statically', () => {

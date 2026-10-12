@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { relative, isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
@@ -44,14 +44,23 @@ export function overLimit(sizes, limits = LIMITS) {
   return Object.keys(limits).filter((key) => sizes[key] > limits[key])
 }
 
+export function insideDist(root, file) {
+  const path = resolve(root, file)
+  const fromRoot = relative(root, path)
+  if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
+    throw new Error(`check-playground-size: ${file} is outside ${root}`)
+  }
+  return path
+}
+
 export function lazyLeaks(manifest) {
   return [...staticClosure(manifest, entryKeys(manifest))].filter((file) => /(^|\/)(editor|palette)-[^/]*\.js$/.test(file))
 }
 
 function main(dist) {
-  const root = resolve(dist)
-  const manifest = JSON.parse(readFileSync(join(root, '.vite', 'manifest.json'), 'utf8'))
-  const sizes = measure({ manifest, read: (file) => readFileSync(join(root, file)) })
+  const root = insideDist(process.cwd(), dist)
+  const manifest = JSON.parse(readFileSync(insideDist(root, '.vite/manifest.json'), 'utf8'))
+  const sizes = measure({ manifest, read: (file) => readFileSync(insideDist(root, file)) })
   for (const key of Object.keys(LIMITS)) {
     console.log(`${key}: ${(sizes[key] / 1024).toFixed(1)} KB gzipped, limit ${LIMITS[key] / 1024} KB`)
   }
