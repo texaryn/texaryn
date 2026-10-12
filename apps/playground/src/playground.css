@@ -121,6 +121,32 @@ body {
   background: var(--tx-surface);
 }
 
+.pg-pane-slot {
+  display: contents;
+}
+
+.pg-pane-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pg-pane-host[data-pane-host='examples'],
+.pg-pane-host[data-pane-host='schema'] {
+  gap: 0;
+}
+
+.pg-pane-host[data-pane-host='examples'] {
+  flex: 1 1 0;
+}
+
+.pg-pane-host[data-pane-host='schema'] {
+  flex: 0 0 auto;
+}
+
 /* Header */
 
 .pg-header {
