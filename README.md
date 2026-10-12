@@ -41,111 +41,60 @@
 
 ## Why Texaryn?
 
-Most schema-driven UI libraries tightly couple schema interpretation, form state, and a specific rendering framework.
+Most schema-driven form libraries tie three things together: how the schema is read, where form state lives, and which framework renders it. Changing one means changing all three.
 
-Texaryn separates them.
+Texaryn keeps them apart:
 
-```text
-JSON Schema
-    ↓
-Schema Evaluation
-    ↓
-SchemaProjection
-    ↓
-IR Compiler
-    ↓
-UIDocument
-    ↓
-Deterministic Runtime
-    ↓
-Renderer Binding
-    ↓
-React / Angular / Vue / Svelte / SolidJS / ...
-```
-
-The core has no dependency on React, Vue, the DOM, or an AI SDK.
-
-That makes the UI definition portable, inspectable, testable, and safe to transform without generating or evaluating framework code.
+- **Schema semantics stay in the adapter.** The JSON Schema adapter, which also takes TypeBox output, and the Zod adapter resolve conditionals, composition and references in one place. They re-project as the data changes, and no renderer reimplements them.
+- **State lives in a headless runtime.** Values, validation, touched and dirty state, submission and array identity sit in `@texaryn/core`, which imports no framework, no DOM and no AI SDK.
+- **Renderers only render.** Each framework binding draws a typed UI document. The same form runs unchanged in React, Angular, Vue, Svelte, SolidJS or plain custom elements.
+- **The UI is data.** Documents are serializable, so a server, a visual builder or a model can produce one without generating or evaluating code.
 
 ## Quick start
 
 ```bash
-pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/react react react-dom
 ```
 
-React 18 or newer is required by `@texaryn/react`.
+In a Vite React TypeScript app, replace `src/main.tsx` with the code below and run `pnpm dev`. The template's `index.html` already has the `root` element.
 
 ```tsx
 import { createRoot } from 'react-dom/client'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
+  ErrorSummary,
   FormProvider,
   FormRoot,
-  ErrorSummary,
   createDefaultRegistry,
   useForm,
 } from '@texaryn/react'
 
-const schema = {
+const adapter = await createJsonSchemaAdapter({
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
   title: 'Profile',
   required: ['name'],
   properties: {
-    name: {
-      type: 'string',
-      title: 'Name',
-      minLength: 2,
-    },
-    age: {
-      type: 'integer',
-      title: 'Age',
-      minimum: 18,
-    },
-    newsletter: {
-      type: 'boolean',
-      title: 'Subscribe to newsletter',
-    },
+    name: { type: 'string', title: 'Name', minLength: 2 },
+    age: { type: 'integer', title: 'Age', minimum: 18 },
+    newsletter: { type: 'boolean', title: 'Subscribe to newsletter' },
   },
-}
-
-const adapter = await createJsonSchemaAdapter(schema)
+})
 const registry = createDefaultRegistry()
 
 function App() {
   const form = useForm(adapter, {
-    initialData: {
-      name: '',
-      age: 18,
-      newsletter: false,
-    },
-    hints: {
-      '/name': { validationTrigger: 'blur' },
-    },
-    onSubmit: async (data) => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log('Submitted:', data)
-    },
+    initialData: { name: '', newsletter: false },
+    onSubmit: async (data) => console.log('Submitted', data),
   })
 
   return (
     <FormProvider value={form.runtime}>
       <ErrorSummary />
       <FormRoot registry={registry} />
-
-      <button
-        type="button"
-        disabled={
-          form.submission.status === 'validating' ||
-          form.submission.status === 'submitting'
-        }
-        onClick={() => form.dispatch({ type: 'Submit' })}
-      >
-        {form.submission.status === 'submitting' ? 'Submitting...' : 'Submit'}
+      <button type="button" onClick={() => form.dispatch({ type: 'Submit' })}>
+        Submit
       </button>
-
-      <h2>Data</h2>
-      <pre>{JSON.stringify(form.data, null, 2)}</pre>
     </FormProvider>
   )
 }
@@ -153,303 +102,86 @@ function App() {
 createRoot(document.getElementById('root')!).render(<App />)
 ```
 
-The schema is evaluated independently from React. React observes the runtime and renders the resulting UI document.
+The adapter reads the schema, `useForm` creates the runtime, and `FormRoot` renders one field per property with the default widgets. Submitting validates first, so an empty name shows an error instead of reaching `onSubmit`.
 
-See [Getting started](https://texaryn.github.io/texaryn/start/getting-started/) for a longer walkthrough, including validation triggers and the full submission lifecycle.
-
-## Documentation
-
-Product documentation is published at
-[texaryn.github.io/texaryn](https://texaryn.github.io/texaryn/):
-
-- [Getting started](https://texaryn.github.io/texaryn/start/getting-started/)
-- [JSON Schema support](https://texaryn.github.io/texaryn/guides/json-schema-support/)
-- [Schema adapters](https://texaryn.github.io/texaryn/guides/schema-adapters/)
-- [Architecture](https://texaryn.github.io/texaryn/concepts/architecture/)
-- [Migrating from RJSF](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/)
-- [API reference](https://texaryn.github.io/texaryn/api/)
-- [Playground](https://texaryn.github.io/texaryn/playground/)
-- [llms.txt](https://texaryn.github.io/texaryn/llms.txt) for coding agents, with the whole documentation as Markdown in [llms-full.txt](https://texaryn.github.io/texaryn/llms-full.txt)
-
-Its sources live in [`apps/docs`](apps/docs). Maintainer material stays in
-[`docs/`](docs/README.md): the [release runbook](docs/releasing.md), design
-records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
-
-## Packages
-
-| Package | Version | Purpose |
-| --- | --- | --- |
-| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI IR, compiler, runtime, state, commands, identity, renderer registry |
-| [`@texaryn/collaboration-yjs`](packages/collaboration-yjs/README.md) | Planned 0.1.0 | Optional Yjs adapter for convergent scalar field edits |
-| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
-| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
-| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
-| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fangular?label=) | Angular signal bindings, renderer, and default widgets |
-| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
-| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
-| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
-| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn%2Fsvelte) | Planned 0.1.0 | Svelte 5 bindings, renderer, and default widgets |
-| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn%2Fsolid) | Planned 0.1.0 | SolidJS bindings, renderer, and default widgets |
-| [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | A `<texaryn-form>` custom element and native default widgets, usable from any framework or none |
-
-The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Three private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port, and `@texaryn/hints-rjsf`, which converts an RJSF uiSchema into Texaryn UI hints and reports what it cannot carry.
+[Getting started](https://texaryn.github.io/texaryn/start/getting-started/) adds validation triggers, UI hints and the full submission lifecycle. The [playground](https://texaryn.github.io/texaryn/playground/) runs the example catalog in React, Vue, Svelte, SolidJS and Web Components.
 
 ## Architecture
 
-Texaryn deliberately keeps four concerns separate.
+Texaryn has two kinds of document. Forms start from a schema. Display documents are written directly and have no editable fields. Both reach the same framework bindings.
 
-### 1. Schema evaluation
-
-A schema adapter implements the framework-neutral `SchemaEvaluationPort`.
-
-```ts
-interface SchemaEvaluationPort {
-  project(data: unknown): SchemaProjection
-  validate(data: unknown): ValidationResult | Promise<ValidationResult>
-  validateAt?(
-    data: unknown,
-    pointer: JsonPointer,
-  ): ValidationResult | Promise<ValidationResult>
-}
+```mermaid
+flowchart TD
+  accTitle: Texaryn document paths
+  accDescr: Forms go from a JSON Schema, TypeBox or Zod schema through a schema adapter to a version 1 form document run by FormRuntime. Display documents are version 2 documents run by createDocumentRuntime with no schema adapter. Both are rendered by the framework bindings.
+  subgraph Forms
+    Schema["JSON Schema, TypeBox or Zod"] --> Adapter[Schema adapter]
+    Adapter --> FormDoc["Form document v1, FormRuntime"]
+  end
+  subgraph Display
+    DisplayDoc["Display document v2"] --> DocRuntime[createDocumentRuntime]
+  end
+  FormDoc --> Bindings["React, Angular, Vue, Svelte, SolidJS, Web Components"]
+  DocRuntime --> Bindings
 ```
 
-The JSON Schema adapter currently understands these dialects:
+The [architecture page](https://texaryn.github.io/texaryn/concepts/architecture/) covers the package boundaries, and [What is Texaryn?](https://texaryn.github.io/texaryn/start/what-is-texaryn/) walks through each stage.
 
-- Draft 7
-- 2019-09
-- 2020-12
+## Capabilities
 
-TypeBox schemas can be passed directly to `createJsonSchemaAdapter` because
-TypeBox produces JSON Schema. Zod 4 users can install `@texaryn/schema-zod`,
-which uses Zod for validation and JSON Schema conversion for projection. See
-the [schema adapters guide](https://texaryn.github.io/texaryn/guides/schema-adapters/)
-for conversion limits.
+| Area | Support |
+| --- | --- |
+| Schema sources | JSON Schema Draft 4, Draft 7, 2019-09 and 2020-12 with dialect detection. TypeBox through its JSON Schema output. Zod 4 through `@texaryn/schema-zod`. |
+| JSON Schema features | Conditionals, `oneOf` and `anyOf`, dependencies, local, static external and recursive `$ref`, with errors mapped to JSON Pointers. [Support and limits](https://texaryn.github.io/texaryn/guides/json-schema-support/). |
+| Framework bindings | React, Angular, Vue, Svelte, SolidJS and Web Components, each with default widgets for forms and display documents. |
+| Widget integrations | Bootstrap 5 and Material UI v9, both for React. Any binding accepts custom widgets through its registry. |
+| Display documents | Lists, tables, layouts, text and host actions, with no schema. [Guide](https://texaryn.github.io/texaryn/guides/display-documents/). |
+| Collaboration | Optional Yjs binding for shared scalar field edits. |
+| AI generation | A versioned output contract for model-generated forms and display documents, checked by the same validators. [Guide](https://texaryn.github.io/texaryn/guides/ai-generation/). |
+| Migration | A [guide from react-jsonschema-form](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/). |
 
-### 2. UI IR
+## Packages
 
-Schema evaluation produces a projection which is compiled into a versioned UI document.
+Every package versions on its own.
 
-```ts
-interface UIDocument {
-  version: 1
-  rootId: NodeId
-  nodes: Record<NodeId, UINode>
-}
-```
+| Package | Version | Purpose |
+| --- | --- | --- |
+| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI documents, compiler, form and document runtimes, renderer registry |
+| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
+| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
+| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React hooks, renderer and default widgets |
+| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets for `@texaryn/react` |
+| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets for `@texaryn/react` |
+| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fangular?label=) | Angular signals, standalone components and default widgets |
+| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 composables, renderer and default widgets |
+| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn/svelte) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsvelte?label=) | Svelte 5 store bridge, components and default widgets |
+| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn/solid) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsolid?label=) | SolidJS components and default widgets |
+| [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | `<texaryn-form>` custom element with native widgets, for any framework or none |
+| [`@texaryn/collaboration-yjs`](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcollaboration-yjs?label=) | Optional Yjs adapter for shared scalar field edits |
 
-The IR describes **what the UI means**, not how React, Vue, or the DOM should render it.
+## Documentation
 
-### 3. Runtime
+The documentation lives at [texaryn.github.io/texaryn](https://texaryn.github.io/texaryn/), with a generated [API reference](https://texaryn.github.io/texaryn/api/). Coding agents can read [llms.txt](https://texaryn.github.io/texaryn/llms.txt), or the whole site as Markdown in [llms-full.txt](https://texaryn.github.io/texaryn/llms-full.txt).
 
-`FormRuntime` owns behavior and state:
-
-- values
-- validation
-- dirty state
-- touched state
-- visibility
-- disabled state
-- submission state
-- stable array identity
-
-Bindings consume this state instead of owning it.
-
-### 4. Renderer binding
-
-A binding maps semantic UI nodes to concrete components.
-
-The React package provides:
-
-- `useForm`
-- `useField`
-- `useFieldArray`
-- `useFieldBinding`, the hook custom widgets are built on
-- `FormProvider`
-- `FormRoot`
-- `NodeRenderer`
-- accessible prop getters
-- a default widget registry
-
-`@texaryn/vue` provides the same surface in Vue's own idiom: composables, `provideFormRuntime` where React uses a provider component, and the same `FormRoot` and `NodeRenderer`. `@texaryn/svelte` provides a Svelte 5 store bridge, context, component registry, and default widget set over the same runtime. `@texaryn/solid` provides accessor based subscriptions and Solid components over that runtime.
-
-`@texaryn/angular` provides standalone components and signals over the same
-runtime stores. Its API and usage are documented in the
-[Angular renderer guide](https://texaryn.github.io/texaryn/guides/angular/).
-
-The registry is extensible, so applications can replace or add widgets without modifying the runtime.
-
-## Default React widgets
-
-`@texaryn/react` currently includes:
-
-- text input
-- number input
-- checkbox
-- select
-- textarea
-- object layout
-- array control
-
-The default set is intentionally small. Texaryn's renderer registry is designed for applications and design systems to provide their own components.
-
-## JSON Schema support
-
-Texaryn's JSON Schema adapter currently covers the schema features needed by the first runtime and renderer implementation, including:
-
-- primitive and object schemas
-- arrays
-- enums
-- local `$ref`
-- `if` / `then` / `else`
-- `dependentSchemas`
-- `dependentRequired`
-- Draft 7 `dependencies`
-- `oneOf`
-- `anyOf`
-- annotations and constraints
-- validation errors mapped to JSON Pointers
-
-Validation remains the responsibility of the schema adapter. The core runtime does not attempt to become a JSON Schema validator.
-
-## UI hints
-
-Data semantics and presentation are intentionally separate.
-
-JSON Schema describes the data.
-
-Texaryn UI hints can describe presentation choices such as:
-
-```ts
-const hints = {
-  '/email': {
-    placeholder: 'you@example.com',
-    order: 1,
-  },
-  '/bio': {
-    widget: 'textarea',
-    helpText: 'Tell us a little about yourself.',
-    order: 2,
-  },
-}
-```
-
-Pass hints to the runtime:
-
-```ts
-const form = useForm(adapter, {
-  initialData,
-  hints,
-})
-```
-
-Schema meaning remains intact while renderers retain control over presentation.
-
-## Headless by design
-
-`@texaryn/core` does not depend on React, Vue, or the DOM.
-
-```text
-      @texaryn/schema-json
-               ↓
-         @texaryn/core
-          ↑         ↑
-@texaryn/react   @texaryn/angular   @texaryn/vue   @texaryn/svelte
-```
-
-Framework packages are consumers of the core contracts.
-
-React and Vue are framework bindings over the same runtime contracts, not part of the runtime architecture itself. Neither is privileged: the core has no import of either.
-
-## Designed for dynamic UI
-
-Texaryn uses a serializable, deterministic UI representation instead of generated framework code.
-
-This makes the same runtime model suitable for UI definitions coming from:
-
-- static application schemas
-- servers
-- configuration systems
-- visual builders
-- agents and AI systems
-
-An external system can produce or modify structured UI data while the Texaryn runtime remains responsible for validation, state, identity, and deterministic execution.
-
-No generated JavaScript or `eval()` is required.
+Each package README is a quick reference for that package. The site's sources are in [`apps/docs`](apps/docs), and maintainer material such as the [release runbook](docs/releasing.md) and design records is in [`docs/`](docs/README.md).
 
 ## Development
 
-Texaryn is a pnpm monorepo.
+Texaryn is a pnpm monorepo. Workspace packages resolve through their compiled output, so build before running anything else.
 
 ```bash
 pnpm install
 pnpm build
 pnpm typecheck
 pnpm test
-```
-
-Run the playground:
-
-```bash
 pnpm --filter @texaryn/playground dev
 ```
 
-It browses the example catalog, renders each example through any of the four renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
+## Status
 
-## Principles
+Texaryn is pre-1.0, and public APIs may change before 1.0, so pin exact versions. The [roadmap](ROADMAP.md) records what is planned.
 
-Texaryn is built around a few constraints:
-
-- **Framework-neutral core:** rendering frameworks stay at the edge.
-- **Schema semantics first:** presentation does not redefine data meaning.
-- **Deterministic runtime:** behavior is explicit and testable.
-- **Serializable UI:** UI definitions are data, not generated framework code.
-- **Stable identity:** dynamic arrays should not destroy component identity.
-- **Extensible rendering:** semantic nodes map to replaceable widgets.
-- **No protocol lock-in:** the core does not depend on an AI/UI transport protocol.
-
-## Roadmap
-
-Texaryn is being built incrementally.
-
-### Completed
-
-- Core IR and runtime foundations
-- stable array identity
-- JSON Schema evaluation layer
-- Draft 4 / Draft 7 / 2019-09 / 2020-12 dialect boundary
-- conditionals and schema composition
-- React runtime bindings
-- React hooks
-- accessible prop getters
-- widget registry
-- default React widgets
-- renderer conformance tests
-- end-to-end demo
-- validation triggers and debounce
-- display-policy-aware error presentation
-- submission lifecycle with snapshot semantics
-- Vue renderer sharing one runtime with React, proving framework neutrality
-
-### Next
-
-- additional schema adapters
-- further runtime capabilities based on real usage
-
-See [`ROADMAP.md`](./ROADMAP.md) for the detailed implementation roadmap.
-
-## Project status
-
-Texaryn is pre-1.0 and under active development. Public APIs may change before 1.0.
-
-The architecture is established, but APIs are expected to evolve as the runtime is exercised by real applications and additional renderers.
-
-If you are experimenting with Texaryn today, pin exact versions.
-
-## Contributing
-
-Issues, design discussions, and focused pull requests are welcome.
-
-For architectural changes, please open a discussion or issue first so changes can be evaluated against the framework-neutral runtime boundaries.
+Issues and focused pull requests are welcome. For a change to a package boundary, open an issue first.
 
 ---
 
