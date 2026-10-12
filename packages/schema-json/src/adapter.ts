@@ -28,7 +28,8 @@ import { DRAFTS } from './bare-maps.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions, POSITION } from './schema-graph.js'
 import { pointerResolver, type PointerResolver } from './instance-pointer.js'
 import { validationParameters } from './validation-parameters.js'
-import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
+import { toSchemaIssue } from './schema-issues.js'
+import type { AdapterConfig, JsonSchemaAdapter, SchemaIssue } from './types.js'
 
 export async function createJsonSchemaAdapter(
   schema: unknown,
@@ -37,11 +38,7 @@ export async function createJsonSchemaAdapter(
   return createAdapter(schema, config, DEFAULT_LIMITS)
 }
 
-export async function createAdapter(
-  schema: unknown,
-  config: AdapterConfig | undefined,
-  limits: ProjectionLimits,
-): Promise<JsonSchemaAdapter> {
+async function prepareValidation(schema: unknown, config: AdapterConfig | undefined) {
   const dialect = detectDialect(schema, {
     defaultDialect: config?.defaultDialect ?? 'draft-07',
   })
@@ -55,6 +52,23 @@ export async function createAdapter(
   const metaschemas = referenced.length > 0 ? await loadMetaschemas(referenced) : []
   const remotes = [...metaschemas, ...externalRemotes] as JsonSchema[]
   const graph = buildSchemaGraph(schema, dialect, remotes)
+  rejectSameLocationCycles(graph)
+  const validated = await prepareSchema(schema, dialect, remotes)
+  return { dialect, externalRemotes, metaschemas, remotes, graph, validated }
+}
+
+/** Returns the schema's own errors as JSON Pointers, without building an adapter. Rejects like `createJsonSchemaAdapter` for a same-location `$ref` cycle (`SameLocationCycleError`) or a `resolveResource` that cannot supply a schema (`SchemaResourceResolutionError`). */
+export async function checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]> {
+  const { validated } = await prepareValidation(schema, config)
+  return (validated.schemaErrors ?? []).map((error) => toSchemaIssue(schema, error))
+}
+
+export async function createAdapter(
+  schema: unknown,
+  config: AdapterConfig | undefined,
+  limits: ProjectionLimits,
+): Promise<JsonSchemaAdapter> {
+  const { dialect, externalRemotes, metaschemas, remotes, graph, validated } = await prepareValidation(schema, config)
   const referencesByDocument = new Map<string, string[]>()
   for (const target of graph.references.values()) {
     const hash = target.indexOf('#')
@@ -74,9 +88,7 @@ export async function createAdapter(
       return withoutUnreachableBranches(remote, referencesByDocument.get(base) ?? [], dialect)
     }),
   ] as JsonSchema[]
-  rejectSameLocationCycles(graph)
   const marked = markPositions(graph, document, projectionRemotes)
-  const validated = await prepareSchema(schema, dialect, remotes)
   const projected = await prepareSchema(marked.document, dialect, marked.remotes as JsonSchema[])
   const dynamicReferenceProjection = config?.dynamicReferenceProjection === 'local'
   if (dynamicReferenceProjection) {
@@ -529,7 +541,7 @@ async function prepareSchema(
   schema: unknown,
   dialect: Dialect,
   remotes: JsonSchema[] | undefined,
-): Promise<SchemaNode> {
+): Promise<ReturnType<typeof compileSchema>> {
   // json-schema-library asserts `format` in every dialect. Draft 7 permits that:
   // assertion is the conventional behaviour there and the specification only asks
   // that it can be disabled. From 2019-09 the default inverted, and `format` is an

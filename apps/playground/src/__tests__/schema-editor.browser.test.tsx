@@ -25,12 +25,20 @@ async function openStringExample(): Promise<void> {
   await screen.findByLabelText('Name')
 }
 
+async function codeEditor(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const editor = screen.getByRole('textbox', { name: 'JSON Schema' })
+    expect(editor.classList.contains('cm-content')).toBe(true)
+    return editor
+  })
+}
+
 describe('schema editor lifecycle', () => {
   it('keeps form data while applying a changed schema', async () => {
     await openStringExample()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Grace' } })
 
-    const editor = await screen.findByRole('textbox', { name: 'JSON Schema' })
+    const editor = await codeEditor()
     await userEvent.fill(
       editor,
       JSON.stringify(
@@ -53,10 +61,12 @@ describe('schema editor lifecycle', () => {
 
   it('keeps the last valid form and inspector visible for invalid JSON', async () => {
     await openStringExample()
-    const editor = await screen.findByRole('textbox', { name: 'JSON Schema' })
+    const editor = await codeEditor()
     await userEvent.fill(editor, '{\n  "type": ')
 
-    expect((await screen.findByRole('status')).textContent).toMatch(/last valid schema/i)
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toMatch(/last valid schema/i),
+    )
     expect(screen.getByLabelText('Name')).toBeTruthy()
     expect(screen.getByRole('tablist', { name: 'Inspector' })).toBeTruthy()
     expect(screen.getAllByText(/invalid json/i).length).toBeGreaterThan(0)
@@ -75,7 +85,7 @@ describe('schema editor lifecycle', () => {
   it('keeps the selected example when CodeMirror receives its schema', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
-    await screen.findByRole('textbox', { name: 'JSON Schema' })
+    await codeEditor()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Boolean field' }))
 
@@ -88,7 +98,7 @@ describe('schema editor lifecycle', () => {
 
   it('restores browser history without turning a route into a custom schema', async () => {
     await openStringExample()
-    await screen.findByRole('textbox', { name: 'JSON Schema' })
+    await codeEditor()
     window.history.replaceState(null, '', `${MOUNT}basics-boolean`)
     fireEvent.popState(window)
 
@@ -110,13 +120,13 @@ describe('schema editor lifecycle', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Schema$/ }))
     expect(columns.dataset.mobilePanel).toBe('schema')
-    expect(await screen.findByRole('textbox', { name: 'JSON Schema' })).toBeTruthy()
+    expect(await codeEditor()).toBeTruthy()
   })
 
   it('restores an edited schema from its shared URL after a reload', async () => {
     await page.viewport(1512, 900)
     await openStringExample()
-    const editor = await screen.findByRole('textbox', { name: 'JSON Schema' })
+    const editor = await codeEditor()
     await userEvent.fill(editor, JSON.stringify({
       type: 'object',
       properties: { nickname: { type: 'string', title: 'Nickname' } },
@@ -131,6 +141,6 @@ describe('schema editor lifecycle', () => {
     render(<App />)
 
     expect(await screen.findByLabelText('Nickname')).toBeTruthy()
-    expect(await screen.findByRole('textbox', { name: 'JSON Schema' })).toBeTruthy()
+    expect(await codeEditor()).toBeTruthy()
   })
 })

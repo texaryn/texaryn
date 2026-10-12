@@ -111,3 +111,12 @@ if (!('ResizeObserver' in window)) {
   Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
   Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
 }
+
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = function getClientRects(): DOMRectList {
+    return { length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] } as unknown as DOMRectList
+  }
+  Range.prototype.getBoundingClientRect = function getBoundingClientRect(): DOMRect {
+    return new DOMRect()
+  }
+}

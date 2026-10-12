@@ -1,11 +1,14 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, FormEvent, ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
+import { SchemaEditorSlot } from './editor-slot.js'
+import type { SchemaEditorActions } from './editor/SchemaEditor.js'
+import { CopyButton } from './CopyButton.js'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { FormBuilder } from './FormBuilder.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
@@ -18,7 +21,7 @@ import { clearStoredPanelSizes, useLayout } from './workbench/layout.js'
 import { PaneSlot, usePaneHosts } from './workbench/pane-hosts.js'
 import type { PaneHosts } from './workbench/pane-hosts.js'
 import { dialectLabel } from './workbench/dialect-label.js'
-import { StatusBar } from './workbench/StatusBar.js'
+import { StatusBar, schemaIssueSentence } from './workbench/StatusBar.js'
 import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
 import { docsHref, encodeSharedSchema, formatLocation, parseLocation } from './routing.js'
@@ -57,9 +60,6 @@ const rendererLoaders: Record<RendererKey, () => Promise<{ default: ComponentTyp
 }
 
 const rendererCache = new Map<RendererKey, ComponentType<RendererProps>>()
-const JsonSchemaEditor = lazy(() =>
-  import('./JsonSchemaEditor.js').then((module) => ({ default: module.JsonSchemaEditor })),
-)
 
 function formatSchema(schema: unknown): string {
   return JSON.stringify(schema, null, 2)
@@ -403,6 +403,13 @@ export function App() {
   const narrow = useNarrowViewport()
   const [layout, dispatchLayout] = useLayout()
   const [resetSignal, setResetSignal] = useState(0)
+  const [schemaIssues, setSchemaIssues] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null)
+  const [editorActions, setEditorActions] = useState<SchemaEditorActions | null>(null)
+  const [loadEditor, setLoadEditor] = useState(false)
+  useEffect(() => {
+    if (!narrow || mobilePanel === 'schema') setLoadEditor(true)
+  }, [narrow, mobilePanel])
   const resetLayout = useCallback(() => {
     clearStoredPanelSizes()
     dispatchLayout({ type: 'reset' })
@@ -646,6 +653,18 @@ export function App() {
       <div className="pg-schema-heading">
         <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
         <div className="pg-schema-heading__actions">
+          {narrow && editorActions && schemaIssues !== null && schemaIssues > 0 && (
+            <button
+              type="button"
+              className="pg-button pg-button--quiet"
+              onClick={() => {
+                flushSync(() => setSchemaMode('json'))
+                editorActions.openProblems()
+              }}
+            >
+              {schemaIssues === 1 ? '1 problem' : `${schemaIssues} problems`}
+            </button>
+          )}
           <button
             className="pg-button pg-button--quiet"
             type="button"
@@ -660,6 +679,18 @@ export function App() {
           <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
             Reset data
           </button>
+          <button
+            type="button"
+            className="pg-button pg-button--quiet"
+            disabled={parseError !== null}
+            onClick={() => {
+              const formatted = JSON.stringify(JSON.parse(schemaText), null, 2)
+              if (formatted !== schemaText) handleSchemaChange(formatted)
+            }}
+          >
+            Format
+          </button>
+          <CopyButton text={schemaText} />
         </div>
       </div>
       <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
@@ -681,18 +712,23 @@ export function App() {
         </button>
       </div>
       <div id="schema-editor-panel">
-        {schemaMode === 'visual' ? (
-          <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
-        ) : (
-          <Suspense fallback={<div className="pg-editor-loading" role="status">Loading JSON editor…</div>}>
-            <JsonSchemaEditor
-              labelledBy="schema-editor-label"
-              value={schemaText}
-              onChange={handleSchemaChange}
-            />
-          </Suspense>
-        )}
+        {schemaMode === 'visual' && <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />}
+        <div hidden={schemaMode === 'visual'} className="pg-code-editor-frame">
+          <SchemaEditorSlot
+            load={loadEditor}
+            value={schemaText}
+            onChange={handleSchemaChange}
+            labelledBy="schema-editor-label"
+            documentKey={exampleRevision}
+            onSchemaIssues={setSchemaIssues}
+            onCursor={setCursor}
+            onReady={setEditorActions}
+          />
+        </div>
       </div>
+      <p role="status" aria-label="Schema problems" className="pg-sr-only">
+        {schemaIssueSentence(schemaIssues, !narrow)}
+      </p>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       {selectedId === CUSTOM_KEY && customSchemaToken === null && (
         <p className="pg-schema-share-note">This schema is too large to share in a link. It remains saved in this browser.</p>
@@ -826,7 +862,13 @@ export function App() {
         />
       )}
       {!narrow && (
-        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={applying} />
+        <StatusBar
+          dialect={dialectLabel(appliedSchema)}
+          parseError={parseError}
+          pending={applying}
+          schemaIssues={schemaIssues}
+          cursor={cursor}
+        />
       )}
     </div>
   )

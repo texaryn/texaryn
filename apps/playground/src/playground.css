@@ -31,6 +31,14 @@
   --tx-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
   --tx-font: system-ui, -apple-system, sans-serif;
   --tx-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tx-code-bg: #ffffff;
+  --tx-code-gutter: #237893;
+  --tx-code-key: #0070c1;
+  --tx-code-string: #a31515;
+  --tx-code-number: #098658;
+  --tx-code-keyword: #0000ff;
+  --tx-code-selection: #add6ff;
+  --tx-code-active-line: #99999926;
 }
 
 /* Dark keeps the same surface order as light: the canvas is furthest back,
@@ -55,6 +63,14 @@
   /* Heavier than light, because a shadow that reads on white is invisible on
    * a dark column and the raised card would lose its lift. */
   --tx-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 16px rgb(0 0 0 / 32%);
+  --tx-code-bg: #1e1e1e;
+  --tx-code-gutter: #838383;
+  --tx-code-key: #9cdcfe;
+  --tx-code-string: #ce9178;
+  --tx-code-number: #b5cea8;
+  --tx-code-keyword: #569cd6;
+  --tx-code-selection: #6199ff2f;
+  --tx-code-active-line: #ffffff0f;
 }
 
 html,
@@ -504,47 +520,22 @@ body {
   resize: vertical;
 }
 
-.pg-editor-loading {
-  display: grid;
+.pg-code-editor-frame,
+.pg-code-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-height: 220px;
-  place-items: center;
-  color: var(--tx-text-muted);
+  overflow: hidden;
 }
 
-.pg-schema-editor .cm-editor {
-  width: 100%;
-  height: 100%;
-  min-height: inherit;
-  color: var(--tx-text);
-  background: var(--tx-surface-raised);
+.pg-code-editor {
+  border: 1px solid var(--tx-border);
   border-radius: var(--tx-radius);
-  font-family: var(--tx-font-mono);
-  font-size: 0.85rem;
 }
 
-.pg-schema-editor .cm-scroller {
-  font-family: inherit;
-}
-
-.pg-schema-editor .cm-content {
-  min-height: 220px;
-  padding: 0.65rem;
-  caret-color: var(--tx-text);
-}
-
-.pg-schema-editor .cm-gutters {
-  color: var(--tx-text-muted);
-  background: var(--tx-surface-raised);
-  border-right: 1px solid var(--tx-border);
-}
-
-.pg-schema-editor .cm-activeLine,
-.pg-schema-editor .cm-activeLineGutter {
-  background: var(--tx-surface);
-}
-
-.pg-schema-editor .cm-cursor {
-  border-left-color: var(--tx-text);
+.pg-code-editor-frame[hidden] {
+  display: none;
 }
 
 .pg-button {
@@ -608,12 +599,25 @@ body {
 
 .pg-schema-heading__actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.35rem;
   margin-top: 0.5rem;
 }
 
 .pg-schema-share-note,
+.pg-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pg-copy__status {
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+}
+
 .pg-schema-share-status {
   margin: 0.4rem 0;
   color: var(--tx-text-muted);
@@ -987,7 +991,7 @@ body {
  * showing what a renderer produces. */
 .pg-select:focus-visible,
 .pg-search:focus-visible,
-.pg-schema-editor:focus-within,
+.pg-schema-editor:focus-visible,
 .pg-editor-tabs__item:focus-visible,
 .pg-builder__input:focus-visible,
 .pg-button:focus-visible,
@@ -1107,6 +1111,10 @@ body {
   .pg-col--source .pg-schema-editor {
     min-height: 55dvh;
     resize: vertical;
+  }
+
+  .pg-col--source .pg-code-editor-frame {
+    min-height: 55dvh;
   }
 
   .pg-col--preview {

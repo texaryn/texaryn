@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
 import { encodeSharedSchema } from '../routing.js'
+import { editSchema } from './schema-text.js'
 
 function setPath(path: string, search = ''): void {
   window.history.replaceState(null, '', `${path}${search}`)
@@ -44,6 +45,23 @@ describe('inspector panes', () => {
 
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Ada' } })
     await waitFor(() => expect(panel().textContent).toContain('Ada'))
+  })
+
+  it('shows the schema text, including edits to a custom schema', async () => {
+    render(<App />)
+    await openExample('String field')
+
+    fireEvent.click(tab('Schema'))
+    await waitFor(() => expect(panel().textContent).toContain('String field'))
+
+    const custom = JSON.stringify(
+      { type: 'object', title: 'Edited schema', properties: { q: { type: 'string' } } },
+      null,
+      2,
+    )
+    editSchema(custom)
+
+    await waitFor(() => expect(panel().textContent).toContain('Edited schema'))
   })
 
   it('shows a custom schema restored from a shared link', async () => {

@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
 import { dialectLabel } from '../workbench/dialect-label.js'
 import { encodeSharedSchema } from '../routing.js'
+import { editSchema, readSchemaText } from './schema-text.js'
 
 afterEach(() => {
   cleanup()
@@ -32,6 +33,16 @@ describe('dialectLabel', () => {
 
 describe('the status bar', () => {
   it('reports the dialect and the JSON state', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    const status = screen.getByRole('contentinfo', { name: 'Status' })
+    expect(status.textContent).toContain('Draft 2020-12')
+    expect(status.textContent).toContain('JSON valid')
+    editSchema('{')
+    expect(status.textContent).toContain('JSON error')
+  })
+
+  it('reports the JSON state of a schema restored from a shared link', () => {
     window.history.replaceState(
       null,
       '',
@@ -41,5 +52,21 @@ describe('the status bar', () => {
     const status = screen.getByRole('contentinfo', { name: 'Status' })
     expect(status.textContent).toContain('Draft 7')
     expect(status.textContent).toContain('JSON error')
+  })
+
+  it('announces the schema error count in a polite status region', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    const footer = screen.getByRole('contentinfo', { name: 'Status' })
+    expect(within(footer).queryByRole('status')).toBeNull()
+    const status = screen.getByRole('status', { name: 'Schema problems' })
+    expect(status.textContent).toBe('')
+    const valid = readSchemaText()
+    editSchema(valid.replace('"type": "string"', '"type": "strin"'))
+    await waitFor(() => expect(status.textContent).toBe('1 schema error. Press F8 to go to it.'), { timeout: 3000 })
+    expect(footer.textContent).toContain('1 schema error. Press F8 to go to it.')
+    expect(screen.queryByRole('button', { name: /problem/ })).toBeNull()
+    editSchema(valid)
+    await waitFor(() => expect(status.textContent).toBe(''), { timeout: 3000 })
   })
 })

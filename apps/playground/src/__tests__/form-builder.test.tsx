@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { readSchemaText } from './schema-text.js'
 
 function setPath(path: string): void {
   window.history.replaceState(null, '', path)
@@ -27,11 +28,7 @@ describe('visual form builder', () => {
     fireEvent.click(within(field).getByLabelText('Required'))
 
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }))
-    const source = await screen.findByRole('textbox', { name: 'JSON Schema' })
-    const sourceText = [...source.querySelectorAll('.cm-line')]
-      .map((line) => line.textContent ?? '')
-      .join('\n')
-    const schema = JSON.parse(sourceText) as {
+    const schema = JSON.parse(readSchemaText()) as {
       properties: Record<string, { type: string; title: string }>
       required: string[]
     }
@@ -45,7 +42,7 @@ describe('visual form builder', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'if / then / else' }))
     fireEvent.click(screen.getByRole('button', { name: 'Visual' }))
 
-    expect(screen.getByText(/root keywords/).textContent).toContain('root keywords')
+    expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toContain('root keywords')
     expect(screen.queryByRole('button', { name: 'Add field' })).toBeNull()
   })
 })

@@ -1,9 +1,11 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { page, userEvent } from '@vitest/browser/context'
+import { EditorView } from '@codemirror/view'
 import { THEME_STORAGE_KEY } from '../../../../theme.config.mjs'
 import { App } from '../App.js'
 import { PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
+import { editSchema, readSchemaText } from './schema-text.js'
 
 const SIZES = [
   [1512, 900],
@@ -239,5 +241,141 @@ describe('the desktop workbench in Chromium', () => {
     await settle()
     expect(savedSizes()).toEqual(sizes)
     expect(Math.abs(paneWidth('schema') - schema)).toBeLessThanOrEqual(1)
+  })
+})
+
+const MOD = navigator.platform.includes('Mac') ? 'Meta' : 'Control'
+
+describe('the schema editor in Chromium', () => {
+  it('draws an underline under an invalid keyword value', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+    editSchema(readSchemaText().replace('"type": "string"', '"type": "strin"'))
+    await waitFor(() => expect(document.querySelector('.cm-lintRange-error')?.textContent).toBe('"strin"'), {
+      timeout: 3000,
+    })
+  })
+
+  it('takes real typing, undoes it, and lets Tab leave', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    const content = document.querySelector<HTMLElement>('.cm-content')!
+    await userEvent.click(content)
+    await userEvent.keyboard('{End} ')
+    const typed = readSchemaText()
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).not.toBe(typed)
+    await userEvent.keyboard('{Tab}')
+    expect(document.activeElement?.closest('.cm-editor')).toBeNull()
+  })
+
+  it('accepts a keyword completion with Enter into one key, one colon and one undo step', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    editSchema('{\n  \n}')
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[1]!)
+    await userEvent.keyboard('{End}"ty')
+    const typed = readSchemaText()
+    expect(typed).toBe('{\n  "ty"\n}')
+    await waitFor(() => expect(document.querySelector('.cm-tooltip-autocomplete')).toBeTruthy())
+    // CodeMirror ignores Enter for its interactionDelay (75 ms) after the list opens.
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await userEvent.keyboard('{Enter}')
+
+    const accepted = readSchemaText()
+    expect(accepted.match(/"type"/g)).toHaveLength(1)
+    expect(accepted.match(/:/g)).toHaveLength(1)
+    const view = EditorView.findFromDOM(document.querySelector<HTMLElement>('.cm-editor')!)!
+    const valueAt = view.state.selection.main.head
+    expect(JSON.parse(`${accepted.slice(0, valueAt)}"x"${accepted.slice(valueAt)}`)).toEqual({ type: 'x' })
+
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).toBe(typed)
+  })
+
+  it('keeps the same editor, its undo history and its click positions across the breakpoint', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    const editor = document.querySelector('.cm-editor')
+    const before = readSchemaText()
+    await userEvent.click(document.querySelector<HTMLElement>('.cm-content')!)
+    await userEvent.keyboard('{End} ')
+    await toPhoneAndBack()
+    expect(document.querySelector('.cm-editor')).toBe(editor)
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[2]!)
+    await waitFor(() =>
+      expect(screen.getByRole('contentinfo', { name: 'Status' }).textContent).toContain('Ln 3,'),
+    )
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).toBe(before)
+  })
+
+  it.each([
+    [390, 844],
+    [1512, 900],
+  ] as const)('fills the editor frame at %sx%s', async (width, height) => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+    await page.viewport(width, height)
+    render(<App />)
+    if (width < 820) fireEvent.click(await screen.findByRole('button', { name: 'Schema' }))
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+    const frame = document.querySelector('.pg-code-editor')!.getBoundingClientRect().height
+    await waitFor(() =>
+      expect(Math.abs(document.querySelector('.cm-editor')!.getBoundingClientRect().height - frame)).toBeLessThanOrEqual(2),
+    )
+  })
+
+  it('draws the caret, the focused selection and the search panel controls in the dark theme colors', async () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'))
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[1]!)
+    await userEvent.keyboard('{Home}{Shift>}{End}{/Shift}')
+
+    const probe = document.createElement('div')
+    probe.style.color = 'var(--tx-text)'
+    probe.style.backgroundColor = 'var(--tx-code-selection)'
+    probe.style.borderTopColor = 'var(--tx-surface-raised)'
+    probe.style.borderBottomColor = 'var(--tx-surface)'
+    document.body.append(probe)
+    const {
+      color: text,
+      backgroundColor: selection,
+      borderTopColor: raised,
+      borderBottomColor: surface,
+    } = getComputedStyle(probe)
+    probe.remove()
+
+    await waitFor(() => {
+      const caret = document.querySelector('.cm-cursor-primary')
+      expect(caret).toBeTruthy()
+      expect(getComputedStyle(caret!).borderLeftColor).toBe(text)
+      const selected = document.querySelector('.cm-selectionLayer .cm-selectionBackground')
+      expect(selected).toBeTruthy()
+      expect(getComputedStyle(selected!).backgroundColor).toBe(selection)
+    })
+
+    await userEvent.keyboard(`{${MOD}>}f{/${MOD}}`)
+    await waitFor(() => {
+      const panels = document.querySelector('.cm-panels')
+      expect(panels).toBeTruthy()
+      expect(getComputedStyle(panels!).backgroundColor).toBe(raised)
+      expect(getComputedStyle(panels!).color).toBe(text)
+      const search = panels!.querySelector<HTMLInputElement>('input.cm-textfield[name="search"]')
+      expect(search).toBeTruthy()
+      expect(getComputedStyle(search!).backgroundColor).toBe(surface)
+      expect(getComputedStyle(search!).color).toBe(text)
+      const next = panels!.querySelector<HTMLButtonElement>('button.cm-button[name="next"]')
+      expect(next).toBeTruthy()
+      expect(getComputedStyle(next!).color).toBe(text)
+      expect(getComputedStyle(next!).backgroundImage).toBe('none')
+    })
   })
 })

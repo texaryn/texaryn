@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { PLAYGROUND_PATH } from '../../site.config.mjs'
 import { themeBootScript } from '../../theme.config.mjs'
+import { manualChunks } from './src/chunking'
 
 // The theme has to be on the document before the first paint, which means an
 // inline script in the head rather than anything the application bundle can
@@ -79,4 +80,8 @@ export default defineConfig(({ mode }) => ({
     svelte(),
     react(),
   ],
+  build: {
+    manifest: true,
+    rollupOptions: { output: { manualChunks } },
+  },
 }))
