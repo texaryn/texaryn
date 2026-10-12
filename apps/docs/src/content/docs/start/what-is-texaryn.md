@@ -59,12 +59,12 @@ The default React widgets can also be styled with Emotion or Tailwind, as the
 
 A renderer receives a typed document rather than a schema, so a design system
 integration never reimplements schema semantics. Conditionals, composition and
-dependencies are resolved once, in one place, and every renderer inherits the
+dependencies are resolved in one place, and every renderer inherits the
 result.
 
-That is also what makes the claim testable. The same example runs through
-every supported renderer, so "framework neutral" is something the build
-checks rather than something the README says.
+That is also what makes the claim testable. CI runs the shared example
+catalog through the React, Vue, Svelte and Web Components renderers, and the
+Angular and SolidJS bindings have renderer suites of their own.
 
 ## Status
 

@@ -45,7 +45,7 @@ Most schema-driven form libraries tie three things together: how the schema is r
 
 Texaryn keeps them apart:
 
-- **Schema semantics stay in the adapter.** JSON Schema, TypeBox and Zod adapters resolve conditionals, composition and references once. No renderer reimplements them.
+- **Schema semantics stay in the adapter.** The JSON Schema adapter, which also takes TypeBox output, and the Zod adapter resolve conditionals, composition and references in one place. They re-project as the data changes, and no renderer reimplements them.
 - **State lives in a headless runtime.** Values, validation, touched and dirty state, submission and array identity sit in `@texaryn/core`, which imports no framework, no DOM and no AI SDK.
 - **Renderers only render.** Each framework binding draws a typed UI document. The same form runs unchanged in React, Angular, Vue, Svelte, SolidJS or plain custom elements.
 - **The UI is data.** Documents are serializable, so a server, a visual builder or a model can produce one without generating or evaluating code.
@@ -55,6 +55,8 @@ Texaryn keeps them apart:
 ```bash
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/react react react-dom
 ```
+
+In a Vite React TypeScript app, replace `src/main.tsx` with the code below and run `pnpm dev`. The template's `index.html` already has the `root` element.
 
 ```tsx
 import { createRoot } from 'react-dom/client'
