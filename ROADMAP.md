@@ -75,7 +75,7 @@ and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/
 6. [Stable Identity Model](#6-stable-identity-model)
 7. [State and Reactivity Model](#7-state-and-reactivity-model)
 8. [Validation Architecture](#8-validation-architecture)
-9. [Schema Adapter Architecture](#9-schema-adapter-architecture)
+9. [Schema Evaluation Architecture](#9-schema-evaluation-architecture)
 10. [Renderer Contract](#10-renderer-contract)
 11. [Actions and Effects](#11-actions-and-effects)
 12. [Extensibility](#12-extensibility)
