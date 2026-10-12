@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkSchema, SameLocationCycleError } from '../index.js'
+import { checkSchema, SameLocationCycleError, SchemaResourceResolutionError } from '../index.js'
 import { resolveUnescapedPath } from '../schema-issues.js'
 
 const D2020 = 'https://json-schema.org/draft/2020-12/schema'
@@ -67,6 +67,14 @@ describe('checkSchema', () => {
     await expect(
       checkSchema({ $schema: D2020, $defs: { a: { $ref: '#/$defs/a' } }, type: 'object', properties: { x: { $ref: '#/$defs/a' } } }),
     ).rejects.toBeInstanceOf(SameLocationCycleError)
+  })
+
+  it('rejects when the configured resolver cannot supply a remote schema', async () => {
+    const schema = { $schema: D2020, type: 'object', properties: { x: { $ref: 'https://example.com/missing.json' } } }
+    await expect(checkSchema(schema)).resolves.toEqual([])
+    await expect(checkSchema(schema, { resolveResource: async () => 42 })).rejects.toBeInstanceOf(
+      SchemaResourceResolutionError,
+    )
   })
 })
 

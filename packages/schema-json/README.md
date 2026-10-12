@@ -205,7 +205,7 @@ const issues = await checkSchema({ type: 'object', properties: { name: { type: '
 // [{ pointer: '/properties/name/type', code: 'schema-error', message: '...' }]
 ```
 
-It rejects, as `createJsonSchemaAdapter` does, for a same-location `$ref` cycle (`SameLocationCycleError`) and for unresolved remote resources, rather than returning issues for them.
+It rejects, as `createJsonSchemaAdapter` does, for a same-location `$ref` cycle (`SameLocationCycleError`) and when a configured `resolveResource` cannot supply a referenced schema (`SchemaResourceResolutionError`), rather than returning issues for them. Without `resolveResource`, remote references are not followed.
 
 ### `AdapterConfig`
 

@@ -61,8 +61,8 @@ async function prepareValidation(schema: unknown, config: AdapterConfig | undefi
  * Returns the schema's own errors as JSON Pointers into it, without building an adapter.
  *
  * Rejects, as `createJsonSchemaAdapter` does, for a same-location `$ref` cycle
- * (`SameLocationCycleError`) and for unresolved remote resources, rather than
- * returning issues for them.
+ * (`SameLocationCycleError`) and when a configured `resolveResource` cannot supply a
+ * referenced schema (`SchemaResourceResolutionError`), rather than returning issues for them.
  */
 export async function checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]> {
   const { validated } = await prepareValidation(schema, config)
