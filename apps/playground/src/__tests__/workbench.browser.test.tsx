@@ -289,6 +289,21 @@ describe('the schema editor in Chromium', () => {
     expect(readSchemaText()).toBe(before)
   })
 
+  it.each([
+    [390, 844],
+    [1512, 900],
+  ] as const)('fills the editor frame at %sx%s', async (width, height) => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+    await page.viewport(width, height)
+    render(<App />)
+    if (width < 820) fireEvent.click(await screen.findByRole('button', { name: 'Schema' }))
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+    const frame = document.querySelector('.pg-code-editor')!.getBoundingClientRect().height
+    await waitFor(() =>
+      expect(Math.abs(document.querySelector('.cm-editor')!.getBoundingClientRect().height - frame)).toBeLessThanOrEqual(2),
+    )
+  })
+
   it('draws the caret, the focused selection and the search panel controls in the dark theme colors', async () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
     await page.viewport(1512, 900)

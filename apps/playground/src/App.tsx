@@ -573,18 +573,17 @@ export function App() {
         <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
           Reset data
         </button>
-        {parseError === null && (
-          <button
-            type="button"
-            className="pg-button pg-button--quiet"
-            onClick={() => {
-              const formatted = JSON.stringify(JSON.parse(schemaText), null, 2)
-              if (formatted !== schemaText) handleSchemaChange(formatted)
-            }}
-          >
-            Format
-          </button>
-        )}
+        <button
+          type="button"
+          className="pg-button pg-button--quiet"
+          disabled={parseError !== null}
+          onClick={() => {
+            const formatted = JSON.stringify(JSON.parse(schemaText), null, 2)
+            if (formatted !== schemaText) handleSchemaChange(formatted)
+          }}
+        >
+          Format
+        </button>
         <button type="button" className="pg-button pg-button--quiet" onClick={() => void navigator.clipboard?.writeText(schemaText).catch(() => {})}>
           Copy
         </button>

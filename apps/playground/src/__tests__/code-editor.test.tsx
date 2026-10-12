@@ -102,6 +102,15 @@ describe('the schema editor', () => {
 })
 
 describe('the schema editor toolbar', () => {
+  it('keeps the Format button in place and disables it while the JSON does not parse', async () => {
+    await openStringField()
+    const format = screen.getByRole('button', { name: 'Format' })
+    expect(format).toHaveProperty('disabled', false)
+    editSchema('{')
+    expect(screen.getByRole('button', { name: 'Format' })).toBe(format)
+    expect(format).toHaveProperty('disabled', true)
+  })
+
   it('leaves an already formatted example selected when Format changes nothing', async () => {
     await openStringField()
     const example = screen.getByRole('button', { name: 'String field' })

@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
 import { dialectLabel } from '../workbench/dialect-label.js'
-import { editSchema } from './schema-text.js'
+import { editSchema, readSchemaText } from './schema-text.js'
 
 afterEach(cleanup)
 
@@ -36,5 +36,17 @@ describe('the status bar', () => {
     expect(status.textContent).toContain('JSON valid')
     editSchema('{')
     expect(status.textContent).toContain('JSON error')
+  })
+
+  it('announces the schema error count in a polite status region', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    const status = within(screen.getByRole('contentinfo', { name: 'Status' })).getByRole('status')
+    expect(status.textContent).toBe('')
+    const valid = readSchemaText()
+    editSchema(valid.replace('"type": "string"', '"type": "strin"'))
+    await waitFor(() => expect(status.textContent).toBe('1 schema error. Press F8 to go to it.'), { timeout: 3000 })
+    editSchema(valid)
+    await waitFor(() => expect(status.textContent).toBe(''), { timeout: 3000 })
   })
 })

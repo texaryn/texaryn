@@ -3,7 +3,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 
 export const editorTheme = EditorView.theme({
-  '&': { height: '100%', backgroundColor: 'var(--tx-code-bg)', color: 'var(--tx-text)', fontSize: '13px' },
+  '&': { flex: '1 1 auto', minHeight: 0,backgroundColor: 'var(--tx-code-bg)', color: 'var(--tx-text)', fontSize: '13px' },
   '.cm-scroller': { fontFamily: 'var(--tx-font-mono)', lineHeight: '1.55' },
   '.cm-gutters': { backgroundColor: 'var(--tx-code-bg)', color: 'var(--tx-code-gutter)', border: 'none' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--tx-code-active-line)' },
