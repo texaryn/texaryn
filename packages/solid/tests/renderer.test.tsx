@@ -251,7 +251,7 @@ describe('Solid renderer', () => {
       <FieldProbe nodeId={nodeId} />
     </FormRoot>)
 
-    expect(screen.getByTestId('field-label').textContent).toBe('/age')
+    expect(screen.getByTestId('field-label').textContent).toBe('Age')
     expect(screen.getByTestId('field-description').textContent).toBe('Age in years')
     expect(screen.getByTestId('field-input-id').textContent).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Set number' }))

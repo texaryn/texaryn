@@ -78,6 +78,24 @@ Optional localized label for boundary expansion controls.
 
 ***
 
+### fieldLabel()?
+
+> `optional` **fieldLabel**(`context`): `string`
+
+Optional localized fallback for a field label without a schema title.
+
+#### Parameters
+
+##### context
+
+[`FieldLabelContext`](FieldLabelContext.md)
+
+#### Returns
+
+`string`
+
+***
+
 ### moveItemDown()
 
 > **moveItemDown**(`context`): [`ActionMessage`](ActionMessage.md)

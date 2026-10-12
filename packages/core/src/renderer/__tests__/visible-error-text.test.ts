@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { englishMessages } from '../../messages/english.js'
+import type { FormMessages } from '../../messages/types.js'
 import type { JsonPointer, NodeId, VisibleError } from '../../types.js'
-import { visibleErrorLabel, visibleErrorMessages } from '../visible-error-text.js'
+import { visibleErrorLabel, visibleErrorMessages, visibleFieldLabel } from '../visible-error-text.js'
 
 const base: VisibleError = {
   nodeId: 'node_2' as NodeId,
@@ -22,6 +23,18 @@ describe('visibleErrorLabel', () => {
     expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/items/0' as JsonPointer })).toBe('Item 1')
     expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/-_' as JsonPointer })).toBe('Field')
     expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: null })).toBe('Field')
+  })
+
+  it('uses localized fallback words for untitled fields and array items', () => {
+    const french: FormMessages = {
+      ...englishMessages,
+      fieldLabel: ({ fieldName, itemPosition }) =>
+        fieldName ?? (itemPosition === undefined ? 'Champ' : `Élément ${itemPosition}`),
+    }
+
+    expect(visibleFieldLabel(undefined, '/first_name', french)).toBe('First name')
+    expect(visibleFieldLabel(undefined, '/items/0', french)).toBe('Élément 1')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: null }, french)).toBe('Champ')
   })
 })
 

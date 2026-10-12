@@ -18,22 +18,6 @@
 
 ## Properties
 
-### errorLabel
-
-> `readonly` **errorLabel**: (`error`) => `string` = `visibleErrorLabel`
-
-#### Parameters
-
-##### error
-
-[`VisibleError`](../../core/interfaces/VisibleError.md)
-
-#### Returns
-
-`string`
-
-***
-
 ### focus
 
 > `readonly` **focus**: `InputSignal`\<`boolean`\>
@@ -93,6 +77,22 @@
 > `readonly` **messageSet**: `Signal`\<[`FormMessages`](../../core/interfaces/FormMessages.md)\>
 
 ## Methods
+
+### errorLabel()
+
+> `readonly` **errorLabel**(`entry`): `string`
+
+#### Parameters
+
+##### entry
+
+[`VisibleError`](../../core/interfaces/VisibleError.md)
+
+#### Returns
+
+`string`
+
+***
 
 ### errorMessages()
 

@@ -44,7 +44,7 @@ export class ErrorSummary {
   readonly focus = input(true)
   readonly messageSet = computed(() => this.messages() ?? englishMessages)
   readonly headingId = computed(() => makeId(this.idPrefix(), 'error-summary', 'heading'))
-  readonly errorLabel = visibleErrorLabel
+  readonly errorLabel = (entry: VisibleError): string => visibleErrorLabel(entry, this.messageSet())
   readonly errorMessages = (entry: VisibleError): string[] => visibleErrorMessages(entry, this.messageSet())
   readonly makeId = makeId
   private readonly injector = inject(Injector)

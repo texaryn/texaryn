@@ -1,4 +1,5 @@
-import type { FieldNode, ValidationError } from '@texaryn/core'
+import { englishMessages, visibleFieldLabel } from '@texaryn/core'
+import type { FieldNode, FormMessages, ValidationError } from '@texaryn/core'
 
 export interface FieldAria {
   id: string
@@ -48,6 +49,6 @@ export function fieldAria(
   }
 }
 
-export function fieldLabel(node: FieldNode): string {
-  return node.annotations.title ?? node.dataPointer ?? node.id
+export function fieldLabel(node: FieldNode, messages: FormMessages = englishMessages): string {
+  return visibleFieldLabel(node.annotations.title, node.dataPointer, messages)
 }

@@ -205,12 +205,14 @@ describe('ErrorSummary over a live runtime', () => {
     port,
     focus,
     messages,
+    initialData,
   }: {
     port: SchemaEvaluationPort
     focus?: boolean
     messages?: FormMessages
+    initialData?: unknown
   }) {
-    const form = useForm(port, { initialData: { name: '' }, validationDebounceMs: 0 })
+    const form = useForm(port, { initialData: initialData ?? { name: '' }, validationDebounceMs: 0 })
     return (
       <FormProvider value={form.runtime} messages={messages}>
         <ErrorSummary focus={focus} />
@@ -222,11 +224,17 @@ describe('ErrorSummary over a live runtime', () => {
     )
   }
 
-  async function renderForm(props: { focus?: boolean; messages?: FormMessages } = {}) {
-    const port = await createJsonSchemaAdapter(schema)
-    render(<Form port={port} {...props} />)
+  async function renderForm(props: {
+    focus?: boolean
+    messages?: FormMessages
+    schema?: unknown
+    initialData?: unknown
+    expectedLabel?: RegExp
+  } = {}) {
+    const port = await createJsonSchemaAdapter(props.schema ?? schema)
+    render(<Form port={port} focus={props.focus} messages={props.messages} initialData={props.initialData} />)
     await waitFor(() => {
-      expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
+      expect(screen.getByLabelText(props.expectedLabel ?? /^Full Name/)).toBeTruthy()
     })
   }
 
@@ -284,5 +292,33 @@ describe('ErrorSummary over a live runtime', () => {
       expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
     })
     expect(screen.getByRole('listitem').textContent).toMatch(/^Full Name : ./)
+  })
+
+  it('uses the same localized fallback label for an untitled field and its summary link', async () => {
+    const french: FormMessages = {
+      ...englishMessages,
+      errorSummaryHeading: () => 'Il y a un problème',
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      fieldLabel: ({ fieldName, itemPosition }) =>
+        fieldName ?? (itemPosition === undefined ? 'Champ' : `Élément ${itemPosition}`),
+      validationMessage: () => 'Ce champ est invalide.',
+    }
+    await renderForm({
+      schema: {
+        type: 'object',
+        properties: { first_name: { type: 'string', minLength: 1 } },
+        required: ['first_name'],
+      },
+      initialData: { first_name: '' },
+      messages: french,
+      expectedLabel: /^First name/,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
+    })
+    expect(screen.getByRole('link', { name: 'First name' })).toBeTruthy()
+    expect(screen.getByLabelText(/^First name/)).toBeTruthy()
   })
 })

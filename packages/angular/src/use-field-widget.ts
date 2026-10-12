@@ -75,7 +75,7 @@ export function useFieldWidget(nodeSource: AngularWidget['node']): FieldWidget {
     kind,
     value,
     display: computed(() => displayValue(kind(), value())),
-    label: computed(() => fieldLabel(node())),
+    label: computed(() => fieldLabel(node(), messages())),
     description: computed(() => node().helpText ?? node().annotations.description),
     descriptionId: computed(() => makeId(idPrefix(), node().id, 'description')),
     errorId: computed(() => makeId(idPrefix(), node().id, 'error')),

@@ -72,7 +72,7 @@ export function createFieldBinding(
     $showErrors ? $errors : NO_ERRORS,
   )
   const display = derived([kind, value], ([$kind, $value]) => displayValue($kind, $value))
-  const label = derived(node, ($node) => $node ? fieldLabel($node) : '')
+  const label = derived([node, messages], ([$node, $messages]) => $node ? fieldLabel($node, $messages) : '')
   const description = derived(node, ($node) => $node?.helpText ?? $node?.annotations.description)
   const labelFor = derived(node, ($node) => makeId(idPrefix, $node?.id ?? get(nodeId), 'input'))
   const descriptionId = derived(node, ($node) => makeId(idPrefix, $node?.id ?? get(nodeId), 'description'))

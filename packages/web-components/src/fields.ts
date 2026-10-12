@@ -1,3 +1,4 @@
+import { visibleFieldLabel } from '@texaryn/core'
 import type { FieldNode, FormMessages, UINode } from '@texaryn/core'
 import { FieldState } from './field-state.js'
 import { makeId } from './ids.js'
@@ -121,7 +122,7 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
   function render(): void {
     writeLabel(
       label,
-      node.annotations.title ?? node.dataPointer ?? node.id,
+      visibleFieldLabel(node.annotations.title, node.dataPointer, ctx.messages),
       node.constraints.required === true,
       ctx.messages,
     )

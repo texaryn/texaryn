@@ -53,7 +53,7 @@ export function ErrorSummary({ focus = true }: ErrorSummaryProps) {
                 }
               }}
             >
-              {visibleErrorLabel(entry)}
+              {visibleErrorLabel(entry, messages)}
             </a>
             {messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages) })}
           </li>

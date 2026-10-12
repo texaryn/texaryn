@@ -1,3 +1,4 @@
+import { visibleFieldLabel } from '@texaryn/core'
 import type { FieldNode, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
 import { useFormIdPrefix } from '../id-prefix.js'
@@ -163,7 +164,7 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     readOnly: node.readOnly,
     visible: field.visible,
     required: Boolean(node.constraints.required),
-    label: node.annotations.title ?? node.dataPointer ?? node.id,
+    label: visibleFieldLabel(node.annotations.title, node.dataPointer, messages),
     description: node.helpText ?? node.annotations.description,
     placeholder: node.placeholder,
     errors,

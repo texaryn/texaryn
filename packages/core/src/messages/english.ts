@@ -103,5 +103,7 @@ export const englishMessages: FormMessages & Required<Pick<FormMessages, 'expand
   requiredIndicator: () => ({ text: '(required)', placement: 'after' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),
   errorSummaryDetail: ({ messages }) => `: ${messages.join(', ')}`,
+  fieldLabel: ({ fieldName, itemPosition }) =>
+    fieldName ?? (itemPosition === undefined ? 'Field' : `Item ${itemPosition}`),
   validationMessage,
 }

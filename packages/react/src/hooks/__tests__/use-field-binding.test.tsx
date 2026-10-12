@@ -82,12 +82,12 @@ afterEach(() => {
 })
 
 describe('useFieldBinding: derivations', () => {
-  it('derives label from title, then falls back to the pointer', () => {
+  it('derives label from title, then a readable pointer name', () => {
     const { binding } = mount({ type: 'string', annotations: { title: 'Full Name' } })
     expect(binding().label).toBe('Full Name')
     cleanup()
     const { binding: b2 } = mount({ type: 'string' })
-    expect(b2().label).toBe('/f')
+    expect(b2().label).toBe('F')
   })
 
   it('prefers helpText over the schema description and ignores validation state', () => {

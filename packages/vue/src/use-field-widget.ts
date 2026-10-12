@@ -67,6 +67,7 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
   const field = useField(() => node.value.id)
   const idPrefix = useFormIdPrefix()
   const kind = computed(() => fieldKind(node.value))
+  const messages = useFormMessages()
 
   const errors = computed(() => (field.showErrors.value ? field.errors.value : NO_ERRORS))
   const invalid = computed(() => errors.value.length > 0)
@@ -76,7 +77,7 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
     kind,
     value: field.value,
     display: computed(() => displayValue(kind.value, field.value.value)),
-    label: computed(() => fieldLabel(node.value)),
+    label: computed(() => fieldLabel(node.value, messages.value)),
     description: computed(() => node.value.helpText ?? node.value.annotations.description),
     descriptionId: computed(() => makeId(idPrefix, node.value.id, 'description')),
     errorId: computed(() => makeId(idPrefix, node.value.id, 'error')),
@@ -93,7 +94,7 @@ export function useFieldWidget(nodeSource: MaybeRefOrGetter<FieldNode>): FieldWi
         kind.value !== 'enum' && kind.value !== 'boolean',
       ),
     ),
-    messages: useFormMessages(),
+    messages,
     errors,
     invalid,
     // The runtime rejects the write too. Stopping here as well keeps the DOM

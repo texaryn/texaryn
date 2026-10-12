@@ -49,11 +49,11 @@ describe('Angular field behavior', () => {
     expect(displayValue('boolean', undefined)).toBe('')
   })
 
-  it('builds labels from title, pointer, and id', () => {
+  it('builds readable labels from title and pointer', () => {
     expect(fieldLabel(node({ annotations: { title: 'Name' } }))).toBe('Name')
-    expect(fieldLabel(node({ dataPointer: '/profile/name' }))).toBe('/profile/name')
-    expect(fieldLabel(node({ dataPointer: undefined }))).toBe('name')
-    expect(fieldLabel(node({ annotations: { title: undefined }, dataPointer: undefined }))).toBe('name')
+    expect(fieldLabel(node({ dataPointer: '/profile/name' }))).toBe('Name')
+    expect(fieldLabel(node({ dataPointer: undefined }))).toBe('Field')
+    expect(fieldLabel(node({ annotations: { title: undefined }, dataPointer: undefined }))).toBe('Field')
   })
 
   it('builds ARIA metadata for descriptions, visible errors, and read-only controls', () => {

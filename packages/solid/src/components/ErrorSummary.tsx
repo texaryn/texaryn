@@ -31,7 +31,7 @@ export function ErrorSummary(props: { focus?: boolean }) {
         <ul>
           <For each={errors()}>{(entry) => (
             <li>
-              <a href={`#${makeId(context.idPrefix(), entry.nodeId, 'input')}`}>{visibleErrorLabel(entry)}</a>
+              <a href={`#${makeId(context.idPrefix(), entry.nodeId, 'input')}`}>{visibleErrorLabel(entry, context.messages())}</a>
               {details(entry)}
             </li>
           )}</For>

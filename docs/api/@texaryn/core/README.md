@@ -43,6 +43,7 @@
 - [FailedSubmitTracker](interfaces/FailedSubmitTracker.md)
 - [FieldConstraints](interfaces/FieldConstraints.md)
 - [FieldHints](interfaces/FieldHints.md)
+- [FieldLabelContext](interfaces/FieldLabelContext.md)
 - [FieldNode](interfaces/FieldNode.md)
 - [FormCommandGuardContext](interfaces/FormCommandGuardContext.md)
 - [FormMessages](interfaces/FormMessages.md)
@@ -142,3 +143,4 @@
 - [setAtPointer](functions/setAtPointer.md)
 - [visibleErrorLabel](functions/visibleErrorLabel.md)
 - [visibleErrorMessages](functions/visibleErrorMessages.md)
+- [visibleFieldLabel](functions/visibleFieldLabel.md)
