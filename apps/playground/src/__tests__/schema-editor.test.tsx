@@ -52,7 +52,9 @@ describe('schema editor lifecycle', () => {
     await openStringExample()
     editSchema('{\n  "type": ')
 
-    expect((await screen.findByRole('status')).textContent).toMatch(/last valid schema/i)
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toMatch(/last valid schema/i),
+    )
     expect(screen.getByLabelText('Name')).toBeTruthy()
     expect(screen.getByRole('tablist', { name: 'Inspector' })).toBeTruthy()
     expect(screen.getAllByText(/invalid json/i).length).toBeGreaterThan(0)

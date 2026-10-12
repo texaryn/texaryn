@@ -42,7 +42,7 @@ describe('visual form builder', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'if / then / else' }))
     fireEvent.click(screen.getByRole('button', { name: 'Visual' }))
 
-    expect(screen.getByRole('status').textContent).toContain('root keywords')
+    expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toContain('root keywords')
     expect(screen.queryByRole('button', { name: 'Add field' })).toBeNull()
   })
 })
