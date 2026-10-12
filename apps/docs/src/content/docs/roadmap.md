@@ -2067,7 +2067,7 @@ Schema drafts survive edits and renderer changes, invalid drafts preserve the
 last valid preview, and form data has an explicit reset action. The example
 browser, mobile layout, styling boundaries, validation copy, form ownership,
 and accessible data inspector are resolved. Renderer packages load on demand.
-The production playground entry chunk is 504.64 KB raw and 147.43 KB gzip, with
+The production playground entry chunk is 505.76 KB raw and 147.88 KB gzip, with
 renderer code in separate chunks. Issue #239 retains edited schema sharing,
 resizable panes, and a code editor as possible future work.
 
