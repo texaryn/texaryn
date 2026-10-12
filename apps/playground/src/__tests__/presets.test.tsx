@@ -86,7 +86,9 @@ describe('data presets', () => {
 
     editSchema(initialSchema)
     await waitFor(() => expect(presetSelect().value).toBe('too-short'), { timeout: 3000 })
-    expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('ab')
+    const username = (screen.getByLabelText('Username') as HTMLInputElement)
+    expect(username.value).toBe('ab')
+    await waitFor(() => expect(username.getAttribute('aria-invalid')).toBe('true'))
   })
 
   it('does not appear for an example without presets', async () => {

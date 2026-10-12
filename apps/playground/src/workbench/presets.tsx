@@ -37,10 +37,18 @@ export function usePresetSelection(
   initialData: unknown,
 ): { selected: string; select: (id: string) => void } {
   const data = useStore(runtime.data)
-  const [selected, setSelected] = useState(() =>
-    selectedForData(runtime.data.getSnapshot(), initialData, presets),
+  const initialSelection = selectedForData(runtime.data.getSnapshot(), initialData, presets)
+  const [selected, setSelected] = useState(initialSelection)
+  const restoreInvalidState = useRef(
+    presets.some((preset) => preset.id === initialSelection && preset.invalid === true),
   )
   const applied = useRef<unknown>(runtime.data.getSnapshot())
+
+  useEffect(() => {
+    if (!restoreInvalidState.current) return
+    restoreInvalidState.current = false
+    runtime.dispatch({ type: 'Validate' })
+  }, [runtime])
 
   useEffect(() => {
     if (data !== applied.current) setSelected('custom')
