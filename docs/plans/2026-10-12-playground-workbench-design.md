@@ -56,7 +56,7 @@ Default sizes: schema 46% and preview 54% of the top row; top row 72% and inspec
 
 This is the rule that makes everything else safe: **a layout change never remounts the editor or the form.**
 
-- **Runtime.** The adapter and `FormRuntime` move out of `FormWorkspace` into a `useWorkspace` hook at the top of `App`, shared through context. Panes read from it. Only `RendererSurface` inside the preview pane is keyed by runtime identity, because the Vue, Svelte, Solid and Web Components hosts mount once per runtime.
+- **Runtime.** The adapter and `FormRuntime` move out of `FormWorkspace` into a `useWorkspace` hook at the top of `App`, shared through context. Panes read from it. The hook calls `createFormRuntime` itself, because `useForm` creates its runtime once per mount and would need a remount to change it. Only `RendererSurface` inside the preview pane is keyed by runtime identity, because the Vue, Svelte, Solid and Web Components hosts mount once per runtime.
 - **Schema text.** Stays in `App` state as the one source. The editor reports changes up and receives replacements (example switch, Format) as a transaction on its existing view.
 - **Layout.** A `useLayout` reducer holds panel sizes, the collapsed inspector, the maximized pane, Focus mode, the pinned drawer and the preview width. It persists under the key `texaryn-playground-layout` with a version field. Unreadable or outdated storage falls back to the defaults, inside the same `try` guard `theme.ts` uses.
 
@@ -66,7 +66,7 @@ This is the rule that makes everything else safe: **a layout change never remoun
 | --- | --- | --- |
 | Collapse | Inspector | Shrinks to its tab header; a click on the header expands it |
 | Maximize | Schema, preview, inspector | The pane fills the workbench; its header shows Restore |
-| Focus | Whole workbench | Hides the rail and the inspector; schema and preview keep their split |
+| Focus | Whole workbench | Hides the example list, the rail and the inspector; schema and preview keep their split |
 | Restore | Maximized pane, Focus | Returns to the previous layout exactly |
 | Reset layout | Whole workbench | Default sizes and visibility, and clears the stored layout |
 
@@ -74,7 +74,7 @@ Nothing hides on its own. Hover-triggered panels fail on touch screens and for k
 
 ### The example drawer
 
-The rail's Examples button opens the existing `ExampleBrowser` (search plus categories) as a 260px overlay. Selecting an example closes it unless it is pinned. Escape closes it and returns focus to the rail button. Pin docks it as a collapsible panel on the left. The selected example is scrolled into view with `scrollIntoView({ block: 'nearest' })`.
+The existing `ExampleBrowser` (search plus categories) starts pinned: a 216px panel on the left, so a first visit shows the catalog. Unpinning it leaves the rail, whose Examples button then opens the list as a 260px overlay. In the overlay, selecting an example closes it, and Escape closes it and returns focus to the rail button. The selected example is scrolled into view with `scrollIntoView({ block: 'nearest' })`.
 
 ### Phones and narrow windows
 
@@ -93,9 +93,11 @@ The editor lives in `apps/playground/src/editor/` and loads as its own chunk the
 Two lint sources run 300ms after the last keystroke:
 
 1. **Syntax**: CodeMirror's JSON parse linter.
-2. **Schema**: a new export from `@texaryn/schema-json`, `checkSchema(schema: unknown): SchemaIssue[]`, where `SchemaIssue` is `{ pointer: JsonPointer; code: string; message: string }`. It compiles the schema with the vendored `json-schema-library` and the adapter's own options (dialect from `$schema`, the same draft mapping) and returns `schemaErrors`.
+2. **Schema**: a new export from `@texaryn/schema-json`, `checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]>`, where `SchemaIssue` is `{ pointer: JsonPointer; code: string; message: string }`. It runs the same preparation as `createJsonSchemaAdapter` (dialect detection, bundled metaschemas, `prepareSchema`) and returns the compiled root's `schemaErrors`.
 
-Each issue's pointer is mapped to a range by walking the Lezer JSON tree: object members by property name, array elements by index. A segment that cannot be found attaches the issue to the deepest node that was.
+`json-schema-library` reports those locations as `#/properties/a/b/minLength` for a property named `a/b`: it does not escape `/` or `~` (the same defect as [#184](https://github.com/texaryn/texaryn/issues/184)). `checkSchema` resolves each path against the schema's actual keys and returns an RFC 6901 pointer, `/properties/a~1b/minLength`. The message is the library's `data.message`, without its "Invalid schema found at" prefix.
+
+The editor maps each pointer to a range by walking the Lezer JSON tree: object members by property name, array elements by index. A segment that cannot be found attaches the issue to the deepest node that was.
 
 Why a helper in `schema-json` rather than a direct import: the playground resolves `@texaryn/schema-json` through its build output, which rewrites `json-schema-library` imports to a vendored copy in `dist/vendor`. Importing the library directly would ship a second copy and could compile with different options. `checkSchema` is new public API, so it needs a changeset and a regenerated `docs/api`.
 
@@ -114,7 +116,7 @@ Messages are `json-schema-library`'s own text. That is acceptable in a developer
 
 ### Keyword autocomplete
 
-A static module, `editor/keywords.ts`, lists the keywords of each dialect (2020-12, 2019-09, draft-07, draft-04) with a one-line description and value type. The dialect comes from `$schema`, defaulting to 2020-12.
+A static module, `editor/keywords.ts`, lists the keywords of each dialect (2020-12, 2019-09, draft-07, draft-04) with a one-line description and value type. The dialect comes from `$schema`, defaulting to draft-07, which is what the adapter assumes when a schema declares none.
 
 - **Keywords complete** as property names inside any schema object.
 - **No keyword completion** directly inside `properties`, `patternProperties`, `$defs`, `definitions` or `dependentSchemas`, whose keys are names, not keywords.
