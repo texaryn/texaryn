@@ -3,7 +3,7 @@ title: Texaryn
 description: A framework-neutral runtime for schema-driven interfaces.
 template: splash
 hero:
-  tagline: Describe a form once. Render it with any framework, through any design system.
+  tagline: Describe a form or a display once. Render it with React, Angular, Vue, Svelte, SolidJS or Web Components.
   actions:
     - text: What is Texaryn?
       link: /texaryn/start/what-is-texaryn/
@@ -27,12 +27,13 @@ See [JSON Schema support](/texaryn/guides/json-schema-support/) for capabilities
 
 <CardGrid>
   <Card title="Schema in, UI out">
-    A JSON Schema becomes a projection, a typed UI document, then a rendered
-    form. Each stage is inspectable and none of them knows about React.
+    A JSON Schema, TypeBox or Zod schema becomes a projection, a typed UI
+    document, then a rendered form. Lists, tables and layouts skip the schema
+    as display documents. No stage knows about React.
   </Card>
-  <Card title="One form, many renderers">
-    The same document renders through React, Angular or Vue, with multiple widget sets.
-    Switching renderer changes presentation, not state.
+  <Card title="One document, many renderers">
+    The same document renders through React, Angular, Vue, Svelte, SolidJS or
+    Web Components. Switching renderer changes presentation, not state.
   </Card>
   <Card title="Proven, not asserted">
     Every advertised capability carries an executable example, and the build
@@ -40,7 +41,6 @@ See [JSON Schema support](/texaryn/guides/json-schema-support/) for capabilities
   </Card>
   <Card title="Framework neutral by construction">
     The runtime is plain TypeScript. React is one binding over it rather than
-    an assumption baked into the core. Angular also binds the runtime through
-    signals and standalone components.
+    an assumption baked into the core.
   </Card>
 </CardGrid>
