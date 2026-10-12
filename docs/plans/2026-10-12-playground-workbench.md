@@ -2,17 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status on 2026-10-12:** PR 1, [#245](https://github.com/texaryn/texaryn/pull/245), and PR 2, [#247](https://github.com/texaryn/texaryn/pull/247), are merged. Their task steps and code snippets below are historical and superseded by `main`. Do not execute them. In particular, Task 11's HTML-regex size checker is obsolete; the current checker measures static import closures from Vite's manifest. Only PR 3 and PR 4 remain active.
+
 **Goal:** Give the playground a desktop workbench on top of #241: resizable panes with Maximize, Focus and a collapsible inspector, a CodeMirror schema editor checked by Texaryn's own schema library, data and width presets, and a command palette, while phones keep #241's layout.
 
-**Architecture:** Four pull requests, each from `main`. PR 1 renders every pane's content through React portals into persistent host elements, so the desktop panels (`react-resizable-panels`), the Maximize and Focus overlays and #241's phone columns can each hold the content without remounting it; `FormWorkspace` keeps owning the runtime exactly as #241 tested. PR 2 adds a lazily loaded CodeMirror editor whose diagnostics come from a new `checkSchema` export of `@texaryn/schema-json`. PR 3 adds data presets to the `@texaryn/examples` contract and the playground controls, plus width presets. PR 4 adds a `cmdk` palette.
+**Architecture:** PR 1, the persistent workbench shell, and PR 2, the lazy CodeMirror editor with public `checkSchema`, are complete in #245 and #247. PR 3 adds data presets to the `@texaryn/examples` contract and the playground controls, plus width presets. PR 4 adds a `cmdk` palette.
 
 **Tech Stack:** React 19, Vite 6, Vitest 3.2 (jsdom and Playwright Chromium browser mode), `react-resizable-panels` 4.14.4, CodeMirror 6 (`@codemirror/*`, `@lezer/json`), `cmdk` 1.1.1, `@texaryn/json-schema-library` 11.6.6 through `@texaryn/schema-json`.
 
-**Spec:** `docs/plans/2026-10-12-playground-workbench-design.md` ([#242](https://github.com/texaryn/texaryn/pull/242)). Read it before any task. The baseline is `main` at `3e79b3e` (#241).
+**Spec:** `docs/plans/2026-10-12-playground-workbench-design.md` ([#242](https://github.com/texaryn/texaryn/pull/242)). Read it before any task. The baseline is `main` at `fe20255` (#247).
 
 ## Global Constraints
 
-- One pull request per PR below, each on a fresh branch from `main`: `feat/playground-workbench-shell`, `feat/playground-code-editor`, `feat/playground-presets`, `feat/playground-command-palette`.
+- One pull request per remaining PR, each on a fresh branch from `main`: `feat/playground-presets`, `feat/playground-command-palette`.
 - Conventional commit subjects. No `Co-Authored-By` or agent attribution in commits, branches or pull requests. SSH remotes.
 - No dash punctuation in prose, comments, commit messages or pull request descriptions. Hyphens in compound words stay.
 - Code comments only for invariants, external contracts or intentional limits.
@@ -25,7 +27,7 @@
 - Storage keys: layout state under `texaryn-playground-layout` (version 1); panel sizes under the prefix `texaryn-playground-panels:`. Every storage read and write sits in a `try` block, as `theme.ts` does.
 - Preview widths: Phone 375px, Tablet 768px, Fit.
 - Size limits enforced by `scripts/check-playground-size.mjs`: first-load scripts at most 175 KB gzipped, the `editor` chunk at most 150 KB, the `palette` chunk at most 25 KB.
-- Changesets: only `@texaryn/schema-json` changes publish (minor, PR 2). `@texaryn/playground` and `@texaryn/examples` are in the changeset `ignore` list. After changing `@texaryn/schema-json` exports, run `pnpm docs` and commit `docs/api`.
+- Changesets: PR 2 added a minor `@texaryn/schema-json` changeset. PR 3 adds the public `Validate` command to `@texaryn/core`, so it needs a minor changeset and regenerated `docs/api`. `@texaryn/playground` and private `@texaryn/examples` do not publish changesets.
 - UI copy is sentence case.
 - Before each pull request: `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm site:build`. Pages deploys only from `main`, so after each merge check the change on https://texaryn.github.io/texaryn/playground/.
 
@@ -49,7 +51,9 @@ Every task's tests protect these. A change that breaks one is wrong even if its 
 
 ---
 
-## PR 1: Workbench shell
+## PR 1: Workbench shell, completed in #245
+
+The implementation below is historical. Its code snippets are superseded by the merged implementation in [#245](https://github.com/texaryn/texaryn/pull/245). The current source on `main` is authoritative.
 
 Branch `feat/playground-workbench-shell`.
 
@@ -62,7 +66,7 @@ Branch `feat/playground-workbench-shell`.
 **Interfaces:**
 - Produces: `type PaneId = 'schema' | 'preview' | 'inspector'`, `type PreviewWidth = 'phone' | 'tablet' | 'fit'`, `interface LayoutState { version: 1; inspectorCollapsed: boolean; examplesCollapsed: boolean; maximized: PaneId | null; focus: boolean; previewWidth: PreviewWidth }`, `DEFAULT_LAYOUT`, `type LayoutAction`, `layoutReducer(state, action): LayoutState`, `type WorkbenchView = { kind: 'panels' } | { kind: 'focus' } | { kind: 'maximized'; pane: PaneId }`, `activeView(state): WorkbenchView`, `LAYOUT_STORAGE_KEY`, `parseStoredLayout(raw: string | null): LayoutState`, `readStoredLayout(): LayoutState`, `writeStoredLayout(state): void`, `PANEL_STORAGE_PREFIX`, `panelStorage: { getItem(key: string): string | null; setItem(key: string, value: string): void }`, `clearStoredPanelSizes(): void`, `useLayout(): [LayoutState, (action: LayoutAction) => void]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -148,12 +152,12 @@ describe('stored layout', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/layout.test.ts`
 Expected: FAIL, cannot resolve `../workbench/layout.js`.
 
-- [ ] **Step 3: Implement `apps/playground/src/workbench/layout.ts`**
+- [x] **Step 3: Implement `apps/playground/src/workbench/layout.ts`**
 
 ```ts
 import { useEffect, useReducer } from 'react'
@@ -306,12 +310,12 @@ export function useLayout(): [LayoutState, (action: LayoutAction) => void] {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm vitest run --project playground src/__tests__/layout.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/playground/src/workbench/layout.ts apps/playground/src/__tests__/layout.test.ts
@@ -332,7 +336,7 @@ This task changes no layout. It moves each column's content into a portal so lat
 - Produces: `type PaneHostId = 'examples' | 'schema' | 'preview' | 'inspector'`, `type PaneHosts = Readonly<Record<PaneHostId, HTMLDivElement>>`, `usePaneHosts(): PaneHosts`, `PaneSlot` props `{ host: HTMLElement; className?: string; style?: CSSProperties }`, `PANE_ATTACH_EVENT = 'pg-pane-attach'`, dispatched on a host each time a slot attaches it.
 - Changes: `NotReady` and `FormWorkspace` take `hosts: PaneHosts`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 import { describe, it, expect, afterEach } from 'vitest'
@@ -400,12 +404,12 @@ describe('pane hosts', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/pane-hosts.test.tsx`
 Expected: FAIL, cannot resolve `../workbench/pane-hosts.js`.
 
-- [ ] **Step 3: Implement `apps/playground/src/workbench/pane-hosts.tsx`**
+- [x] **Step 3: Implement `apps/playground/src/workbench/pane-hosts.tsx`**
 
 ```tsx
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -531,12 +535,12 @@ followed by the existing `NotReady` or `FormWorkspace` branch, each given `hosts
 }
 ```
 
-- [ ] **Step 4: Run the whole playground project**
+- [x] **Step 4: Run the whole playground project**
 
 Run: `pnpm vitest run --project playground`
 Expected: PASS, including every #241 test, because nothing visible changed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/playground/src
@@ -561,7 +565,7 @@ git commit -m "refactor(playground): render pane content into persistent hosts"
 - Produces: `Workbench` props `{ hosts: PaneHosts; layout: LayoutState; dispatch: (action: LayoutAction) => void; resetSignal: number; previewHeader?: ReactNode; rail?: ReactNode }`. Panes render as `<section data-pane="<id>" aria-label="<Title>">`; overlays as `<div className="pg-overlay" data-view="focus|maximized">`.
 - Produces: `PaneHeader` props `{ title: string; children?: ReactNode; actions?: ReactNode }`, `MaximizeButton` props `{ pane: PaneId; label: string; maximized: boolean; dispatch: (action: LayoutAction) => void; buttonRef?: Ref<HTMLButtonElement> }`, `NARROW_QUERY = '(max-width: 819px)'`, `useNarrowViewport(): boolean`.
 
-- [ ] **Step 1: Add the `ResizeObserver` stub to `test-setup.ts`**
+- [x] **Step 1: Add the `ResizeObserver` stub to `test-setup.ts`**
 
 `react-resizable-panels` constructs a `ResizeObserver`, which jsdom 25 lacks; without it the group fails to render with "is not a constructor" (checked 2026-10-12).
 
@@ -577,7 +581,7 @@ if (!('ResizeObserver' in window)) {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 ```tsx
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
@@ -712,12 +716,12 @@ function panelKeys(): string[] {
 }
 ```
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/workbench.test.tsx`
 Expected: FAIL, no "Maximize preview" button.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `apps/playground/src/workbench/PaneHeader.tsx`:
 
@@ -1197,12 +1201,12 @@ In `playground.css`: change #241's `@media (max-width: 760px)` to `@media (max-w
 }
 ```
 
-- [ ] **Step 5: Run the playground project**
+- [x] **Step 5: Run the playground project**
 
 Run: `pnpm vitest run --project playground`
 Expected: PASS, including every #241 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/playground pnpm-lock.yaml
@@ -1220,7 +1224,7 @@ Task 3 already chooses the tree by width. This task pins Contract 1 across that 
 **Interfaces:**
 - Consumes: `NARROW_QUERY` (Task 3), `setMediaQuery` and `resetMediaQueries` from `test-setup.ts`.
 
-- [ ] **Step 1: Write the tests**
+- [x] **Step 1: Write the tests**
 
 ```tsx
 import { describe, it, expect, afterEach } from 'vitest'
@@ -1230,9 +1234,13 @@ import { App } from '../App.js'
 import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
 import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
 
+const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
 afterEach(() => {
   cleanup()
   resetMediaQueries()
+  if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard)
+  else Reflect.deleteProperty(navigator, 'clipboard')
 })
 
 describe('crossing the phone breakpoint', () => {
@@ -1266,12 +1274,12 @@ describe('crossing the phone breakpoint', () => {
 })
 ```
 
-- [ ] **Step 2: Run them**
+- [x] **Step 2: Run them**
 
 Run: `pnpm vitest run --project playground src/__tests__/breakpoint.test.tsx`
 Expected: PASS. A failure means a portal or the `FormWorkspace` branch moved inside one of the two trees in Task 3; move it back outside both, rather than changing the test.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/playground/src
@@ -1289,7 +1297,7 @@ git commit -m "test(playground): pin that crossing the phone breakpoint remounts
 **Interfaces:**
 - Produces: `dialectLabel(schema: unknown): string`; `StatusBar` props `{ dialect: string; parseError: string | null; pending: boolean; schemaIssues?: number | null; cursor?: { line: number; column: number } | null; hint?: ReactNode }`. PR 2 fills `schemaIssues` and `cursor`; PR 4 fills `hint`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 import { describe, it, expect, afterEach } from 'vitest'
@@ -1325,12 +1333,12 @@ describe('the status bar', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/status-bar.test.tsx`
 Expected: FAIL, cannot resolve `dialect-label.js`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `apps/playground/src/workbench/dialect-label.ts`:
 
@@ -1406,12 +1414,12 @@ In `App.tsx`, render `<StatusBar dialect={dialectLabel(appliedSchema)} parseErro
 }
 ```
 
-- [ ] **Step 4: Run the playground project**
+- [x] **Step 4: Run the playground project**
 
 Run: `pnpm vitest run --project playground`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/playground/src
@@ -1427,7 +1435,7 @@ git commit -m "feat(playground): status bar with dialect and JSON state"
 **Interfaces:**
 - Consumes: the shell from Tasks 1 to 5; `THEME_STORAGE_KEY` from `theme.config.mjs`.
 
-- [ ] **Step 1: Configure the project**
+- [x] **Step 1: Configure the project**
 
 In the `playground` project add `exclude: [...configDefaults.exclude, 'src/**/*.browser.test.{ts,tsx}']`, the same pattern as `web-components`. Then add, after it, a project with the same plugins and resolve settings as `playground`:
 
@@ -1453,7 +1461,7 @@ In the `playground` project add `exclude: [...configDefaults.exclude, 'src/**/*.
 },
 ```
 
-- [ ] **Step 2: Write the browser tests**
+- [x] **Step 2: Write the browser tests**
 
 ```tsx
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
@@ -1582,12 +1590,12 @@ describe('the desktop workbench in Chromium', () => {
 
 The submission checks count `console.log('Submitted:', data)` calls because that is what `FormWorkspace`'s `onSubmit` does on `main`; if that log changes, count whatever `onSubmit` records instead.
 
-- [ ] **Step 3: Run the browser project**
+- [x] **Step 3: Run the browser project**
 
 Run: `pnpm vitest run --project playground-browser`
 Expected: PASS, 14 tests. Playwright's Chromium comes with the root `playwright` dev dependency; run `pnpm exec playwright install chromium` if the runner reports it missing.
 
-- [ ] **Step 4: Commit and open the pull request**
+- [x] **Step 4: Commit and open the pull request**
 
 ```bash
 git add vitest.config.ts apps/playground/src/__tests__/workbench.browser.test.tsx
@@ -1598,7 +1606,9 @@ Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and op
 
 ---
 
-## PR 2: CodeMirror editor with schema checking
+## PR 2: CodeMirror editor with schema checking, completed in #247
+
+The implementation below is historical. Its code snippets are superseded by the merged implementation in [#247](https://github.com/texaryn/texaryn/pull/247). The current source on `main` is authoritative. Task 11's HTML-regex examples do not describe the manifest-based size checker that shipped.
 
 Branch `feat/playground-code-editor`, from `main` after PR 1 merges.
 
@@ -1616,7 +1626,7 @@ Branch `feat/playground-code-editor`, from `main` after PR 1 merges.
 **Interfaces:**
 - Produces: `checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]>`, `interface SchemaIssue { pointer: JsonPointer; code: string; message: string }`, `resolveUnescapedPath(document: unknown, path: string): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -1724,12 +1734,12 @@ describe('resolveUnescapedPath', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run --project schema-json src/__tests__/check-schema.test.ts`
 Expected: FAIL, `checkSchema` is not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `packages/schema-json/src/schema-issues.ts`:
 
@@ -1860,17 +1870,17 @@ export type { AdapterConfig, SchemaIssue } from './types.js'
 Adds `checkSchema`, which reports where a schema itself is invalid. It runs the same preparation as `createJsonSchemaAdapter` and returns RFC 6901 pointers into the schema, escaping property names that contain `/` or `~`, and stopping at the shared prefix when the library's location is ambiguous.
 ```
 
-- [ ] **Step 4: Run the schema-json suite**
+- [x] **Step 4: Run the schema-json suite**
 
 Run: `pnpm vitest run --project schema-json`
 Expected: PASS, every existing test plus 12 new ones. A changed existing result means the extraction altered the adapter; fix that before going on.
 
-- [ ] **Step 5: Regenerate the API docs**
+- [x] **Step 5: Regenerate the API docs**
 
 Run: `pnpm build && pnpm docs`
 Expected: `docs/api` gains `checkSchema` and `SchemaIssue`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/schema-json .changeset/schema-json-check-schema.md docs/api
@@ -1887,7 +1897,7 @@ git commit -m "feat(schema-json): add checkSchema for locating invalid schema ke
 **Interfaces:**
 - Produces: `interface TextRange { from: number; to: number }`, `rangeForPointer(tree: Tree, doc: string, pointer: string): TextRange`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -1939,12 +1949,12 @@ describe('rangeForPointer', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/pointer-range.test.ts`
 Expected: FAIL, cannot resolve `../editor/pointer-range.js`.
 
-- [ ] **Step 3: Implement `apps/playground/src/editor/pointer-range.ts`**
+- [x] **Step 3: Implement `apps/playground/src/editor/pointer-range.ts`**
 
 ```ts
 import type { SyntaxNode, Tree } from '@lezer/common'
@@ -2006,12 +2016,12 @@ export function rangeForPointer(tree: Tree, doc: string, pointer: string): TextR
 }
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `pnpm vitest run --project playground src/__tests__/pointer-range.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/playground/package.json pnpm-lock.yaml apps/playground/src/editor/pointer-range.ts apps/playground/src/__tests__/pointer-range.test.ts
@@ -2028,7 +2038,7 @@ git commit -m "feat(playground): map schema pointers to editor ranges"
 **Interfaces:**
 - Produces: `type EditorDialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'`, `interface KeywordInfo { name: string; detail: string }`, `keywordsFor(dialect: EditorDialect): readonly KeywordInfo[]`, `dialectOf(text: string): EditorDialect`, `TYPE_VALUES`, `SCHEMA_URIS`, `FORMATS`, `NAME_MAPS`, `schemaCompletionSource(context: CompletionContext): CompletionResult | null`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -2079,12 +2089,12 @@ describe('schemaCompletionSource', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/completion.test.ts`
 Expected: FAIL, cannot resolve `../editor/completion.js`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `apps/playground/src/editor/keywords.ts`:
 
@@ -2305,12 +2315,12 @@ export function schemaCompletionSource(context: CompletionContext): CompletionRe
 }
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `pnpm vitest run --project playground src/__tests__/completion.test.ts`
 Expected: PASS, 5 tests. If the "property names" case completes inside `properties`, print `syntaxTree(state).resolveInner(pos, -1)` and its parents for that document and adjust `enclosingKey` to the node the parser actually recovers; do not loosen the test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/playground/src/editor/keywords.ts apps/playground/src/editor/completion.ts apps/playground/src/__tests__/completion.test.ts
@@ -2336,7 +2346,7 @@ git commit -m "feat(playground): complete JSON Schema keywords for the declared 
 - Consumes: `checkSchema` (Task 7), `rangeForPointer` (Task 8), `schemaCompletionSource` (Task 9), `StatusBar` `schemaIssues` and `cursor` (Task 5).
 - Produces: `interface SchemaEditorProps { value: string; onChange: (text: string) => void; labelledBy: string; documentKey: number; onSchemaIssues?: (count: number | null) => void; onCursor?: (cursor: { line: number; column: number } | null) => void }`, `SchemaEditorSlot(props: SchemaEditorProps & { load: boolean })`, `schemaLintSource(onCount: (count: number | null) => void): (view: EditorView) => Promise<Diagnostic[]>`, test helpers `readSchemaText(): string` and `editSchema(text: string): void`.
 
-- [ ] **Step 1: Add the `Range` stubs to `test-setup.ts`**
+- [x] **Step 1: Add the `Range` stubs to `test-setup.ts`**
 
 CodeMirror measures text through `Range.prototype.getClientRects`, which jsdom 25 lacks (checked 2026-10-12).
 
@@ -2351,7 +2361,7 @@ if (!Range.prototype.getClientRects) {
 }
 ```
 
-- [ ] **Step 2: Add the test helpers and move existing tests onto them**
+- [x] **Step 2: Add the test helpers and move existing tests onto them**
 
 `apps/playground/src/__tests__/schema-text.ts`:
 
@@ -2389,7 +2399,7 @@ export function editSchema(text: string): void {
 
 Replace every `getByLabelText(/^JSON Schema/) as HTMLTextAreaElement` followed by `.value` or `fireEvent.change` in the files listed above with `readSchemaText()` and `editSchema(text)`. Where a test asserts the element's identity, as `breakpoint.test.tsx` does, keep `screen.getByLabelText(/^JSON Schema/)`: with CodeMirror it returns the editor's content element, which must also survive the crossing.
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 `apps/playground/src/__tests__/code-editor.test.tsx`:
 
@@ -2529,12 +2539,12 @@ describe('schemaLintSource', () => {
 })
 ```
 
-- [ ] **Step 4: Run to verify they fail**
+- [x] **Step 4: Run to verify they fail**
 
 Run: `pnpm vitest run --project playground src/__tests__/code-editor.test.tsx src/__tests__/schema-lint.test.ts`
 Expected: FAIL, no `.cm-editor` and no `schema-lint.js`.
 
-- [ ] **Step 5: Implement**
+- [x] **Step 5: Implement**
 
 `apps/playground/src/editor/theme.ts`:
 
@@ -2886,7 +2896,7 @@ and after `.pg-schema-editor`:
 }
 ```
 
-- [ ] **Step 6: Add the browser checks to `workbench.browser.test.tsx`**
+- [x] **Step 6: Add the browser checks to `workbench.browser.test.tsx`**
 
 ```tsx
 const MOD = navigator.platform.includes('Mac') ? 'Meta' : 'Control'
@@ -2939,12 +2949,12 @@ describe('the schema editor in Chromium', () => {
 
 with `waitFor` added to the `@testing-library/react` import and `editSchema`, `readSchemaText` imported from `./schema-text.js`.
 
-- [ ] **Step 7: Run both playground projects**
+- [x] **Step 7: Run both playground projects**
 
 Run: `pnpm vitest run --project playground && pnpm vitest run --project playground-browser`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/playground/src
@@ -2962,7 +2972,7 @@ git commit -m "feat(playground): CodeMirror schema editor checked by checkSchema
 **Interfaces:**
 - Produces: `LIMITS`, `gzipSize(source: Buffer | string): number`, `initialScripts(html: string): string[]`, `measure({ html, assets, read }): { initial: number; editor: number; palette: number }`, `overLimit(sizes, limits?): string[]`, `eagerChunks(manifest): string[]`, `lazyLeaks(manifest): string[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 import { describe, it, expect } from 'vitest'
@@ -3015,12 +3025,12 @@ describe('check-playground-size', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm vitest run --project scripts check-playground-size`
 Expected: FAIL, module not found.
 
-- [ ] **Step 3: Implement `scripts/check-playground-size.mjs`**
+- [x] **Step 3: Implement `scripts/check-playground-size.mjs`**
 
 ```js
 import { readFileSync, readdirSync } from 'node:fs'
@@ -3096,7 +3106,7 @@ function main(dist) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv[2] ?? 'apps/playground/dist')
 ```
 
-- [ ] **Step 4: Name the lazy chunks in `apps/playground/vite.config.ts`**
+- [x] **Step 4: Name the lazy chunks in `apps/playground/vite.config.ts`**
 
 Add to the returned config, leaving #241's renderer chunks to Vite's defaults. `manifest: true` writes `dist/.vite/manifest.json`, which the check reads to prove the lazy chunks stay lazy:
 
@@ -3120,16 +3130,16 @@ build: {
 },
 ```
 
-- [ ] **Step 5: Wire it into `site:build`**
+- [x] **Step 5: Wire it into `site:build`**
 
 In the root `package.json`, insert `&& node scripts/check-playground-size.mjs apps/playground/dist` directly after `pnpm --filter @texaryn/playground build:pages`.
 
-- [ ] **Step 6: Run the test and the real check**
+- [x] **Step 6: Run the test and the real check**
 
 Run: `pnpm vitest run --project scripts check-playground-size && pnpm build && pnpm --filter @texaryn/playground build:pages && node scripts/check-playground-size.mjs apps/playground/dist`
 Expected: tests PASS; the check prints three sizes under their limits and exits 0. Record the three numbers in the pull request description.
 
-- [ ] **Step 7: Commit and open the pull request**
+- [x] **Step 7: Commit and open the pull request**
 
 ```bash
 git add apps/playground/vite.config.ts scripts/check-playground-size.mjs scripts/check-playground-size.test.mjs package.json
@@ -3142,7 +3152,7 @@ Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build && pnpm docs:c
 
 ## PR 3: Width presets and data presets
 
-Branch `feat/playground-presets`, from `main` after PR 2 merges.
+Branch `feat/playground-presets`, from `main` after PR 2 merged.
 
 ### Task 12: Presets in the examples contract
 
@@ -3166,6 +3176,8 @@ it('declares presets whose validity matches the declaration', async () => {
   const ids = new Set<string>()
   for (const preset of example.presets) {
     expect(ids.has(preset.id), `${example.id} repeats preset id ${preset.id}`).toBe(false)
+    expect(['initial', 'custom'], `${example.id} uses a reserved preset id`).not.toContain(preset.id)
+    expect(preset.data, `${example.id} preset ${preset.id} has undefined data`).not.toBeUndefined()
     ids.add(preset.id)
     const result = await port.validate(preset.data)
     if (preset.invalid) {
@@ -3323,11 +3335,15 @@ git commit -m "feat(examples): add named data presets to the examples where stat
 - Create: `apps/playground/src/workbench/WidthPresets.tsx`
 - Modify: `apps/playground/src/App.tsx` (`baseExampleId`; preset availability; `FormWorkspace` renders the preset select in its controls; the preview header; the preview host width)
 - Modify: `apps/playground/src/playground.css`
+- Modify: `packages/core/src/commands/types.ts`, `packages/core/src/commands/handler.ts`, `packages/core/src/runtime/runtime.ts`, and `packages/core/README.md`
+- Test: `packages/core/src/runtime/__tests__/runtime.test.ts`
+- Create: a minor `@texaryn/core` changeset and regenerate `docs/api`
 - Test: `apps/playground/src/__tests__/presets.test.tsx`
+- Test: `apps/playground/src/__tests__/presets.browser.test.tsx` for rendered preview dimensions
 
 **Interfaces:**
 - Consumes: `ExamplePreset` (Task 12), `PreviewWidth` and `LayoutAction` (Task 1), `Workbench` `previewHeader` (Task 3).
-- Produces: `applyPreset(runtime: FormRuntime, data: unknown, invalid: boolean): void`, `usePresetSelection(runtime: FormRuntime, presets: readonly ExamplePreset[], initialData: unknown): { selected: string; select: (id: string) => void }`, `DataPresetSelect` props `{ presets: readonly ExamplePreset[]; selected: string; onSelect: (id: string) => void }`, `PREVIEW_WIDTHS: readonly { id: PreviewWidth; label: string; px: number | null }[]`, `WidthPresets` props `{ width: PreviewWidth; onChange: (width: PreviewWidth) => void }`. `FormWorkspace` gains `presets: readonly ExamplePreset[]` and `exampleInitialData: unknown`.
+- Produces: a public `Validate` command that marks fields touched and validates current data immediately, regardless of automatic trigger hints, without incrementing submission attempts or invoking `onSubmit`; `applyPreset(runtime: FormRuntime, data: unknown, invalid: boolean): void`; `usePresetSelection(runtime: FormRuntime, presets: readonly ExamplePreset[], initialData: unknown): { selected: string; select: (id: string) => void }`; `DataPresetSelect` props `{ presets: readonly ExamplePreset[]; selected: string; onSelect: (id: string) => void }`; `PREVIEW_WIDTHS: readonly { id: PreviewWidth; label: string; px: number | null }[]`; `WidthPresets` props `{ width: PreviewWidth; effectiveWidth: number; onChange: (width: PreviewWidth) => void }`. `FormWorkspace` gains `presets: readonly ExamplePreset[]` and `exampleInitialData: unknown`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3359,6 +3375,16 @@ describe('data presets', () => {
     fireEvent.change(presetSelect(), { target: { value: 'valid' } })
     await waitFor(() => expect(username.value).toBe('grace'))
     expect(username.getAttribute('aria-invalid')).not.toBe('true')
+  })
+
+  it('validates presets with no hints and with change, blur and submit hints', async () => {
+    await open('Validation triggers')
+    fireEvent.change(await screen.findByLabelText('Data preset'), { target: { value: 'too-short' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Validated on change').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByLabelText('Validated on blur').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByLabelText('Validated on submit').getAttribute('aria-invalid')).toBe('true')
+    })
   })
 
   it('read Custom after the user edits', async () => {
@@ -3393,11 +3419,11 @@ describe('data presets', () => {
 })
 
 describe('width presets', () => {
-  it('narrow the preview host and remember the choice', async () => {
+  it('applies the selected maximum, reports effective width and remembers the choice', async () => {
     await open('String field')
     fireEvent.click(screen.getByRole('button', { name: 'Phone' }))
     expect(document.querySelector<HTMLElement>('[data-pane-host="preview"]')!.style.maxWidth).toBe('375px')
-    expect(screen.getByText('375px')).toBeTruthy()
+    expect(screen.getByText('Maximum 375px')).toBeTruthy()
     cleanup()
     await open('String field')
     expect(screen.getByRole('button', { name: 'Phone', pressed: true })).toBeTruthy()
@@ -3412,6 +3438,8 @@ Expected: FAIL, no "Data preset" control.
 
 - [ ] **Step 3: Implement**
 
+In core, add `{ type: 'Validate' }` to `Command` and `manual` to the validation-effect trigger union. Its handler marks every field node touched and emits one full-form validation effect with trigger `manual`. The runtime schedules it immediately regardless of per-field automatic trigger hints. A manual result updates field and visible errors, but leaves submission status and attempt count alone and never calls `onSubmit`. Keep `SetTouched` as blur validation gated by the existing blur hints. Add a runtime test with fields that have no hints and fields with change, blur and submit hints; one Validate must produce errors for all invalid fields without submitting.
+
 `apps/playground/src/workbench/presets.tsx`:
 
 ```tsx
@@ -3420,14 +3448,9 @@ import type { FormRuntime } from '@texaryn/core'
 import { useStore } from '@texaryn/react'
 import type { ExamplePreset } from '@texaryn/examples'
 
-// SetTouched on every field shows an invalid preset's errors the way leaving
-// each field would, without submitting.
 export function applyPreset(runtime: FormRuntime, data: unknown, invalid: boolean): void {
-  runtime.dispatch({ type: 'Reset', data })
-  if (!invalid) return
-  for (const node of Object.values(runtime.document.getSnapshot().nodes)) {
-    if (node.type === 'field') runtime.dispatch({ type: 'SetTouched', nodeId: node.id })
-  }
+  runtime.dispatch({ type: 'Reset', data: data === undefined ? {} : data })
+  if (invalid) runtime.dispatch({ type: 'Validate' })
 }
 
 // The one place a preset is applied and remembered, so the Data select and the
@@ -3449,7 +3472,7 @@ export function usePresetSelection(
   const select = useCallback(
     (id: string) => {
       const preset = presets.find((candidate) => candidate.id === id)
-      applyPreset(runtime, preset ? preset.data : initialData, preset?.invalid === true)
+      applyPreset(runtime, preset ? preset.data : initialData === undefined ? {} : initialData, preset?.invalid === true)
       applied.current = runtime.data.getSnapshot()
       setSelected(preset ? id : 'initial')
     },
@@ -3502,7 +3525,7 @@ export const PREVIEW_WIDTHS: readonly { id: PreviewWidth; label: string; px: num
   { id: 'fit', label: 'Fit', px: null },
 ]
 
-export function WidthPresets({ width, onChange }: { width: PreviewWidth; onChange: (width: PreviewWidth) => void }) {
+export function WidthPresets({ width, effectiveWidth, onChange }: { width: PreviewWidth; effectiveWidth: number; onChange: (width: PreviewWidth) => void }) {
   const px = PREVIEW_WIDTHS.find((entry) => entry.id === width)?.px ?? null
   return (
     <div className="pg-width-presets" role="group" aria-label="Preview width">
@@ -3511,7 +3534,8 @@ export function WidthPresets({ width, onChange }: { width: PreviewWidth; onChang
           {label}
         </button>
       ))}
-      {px !== null && <span className="pg-width-presets__label">{px}px</span>}
+      {px !== null && <span className="pg-width-presets__label">Maximum {px}px</span>}
+      <span className="pg-width-presets__effective">Effective {effectiveWidth}px</span>
     </div>
   )
 }
@@ -3540,11 +3564,13 @@ and render inside its `pg-submit-row`, after the Simulate failure label:
 <DataPresetSelect presets={presets} selected={presetSelection.selected} onSelect={presetSelection.select} />
 ```
 
-4. Give the workbench its preview header and size the preview host:
+4. Measure the effective host width, give the workbench its preview header, and size the preview host:
 
 ```tsx
-previewHeader={<WidthPresets width={layout.previewWidth} onChange={(width) => dispatchLayout({ type: 'setPreviewWidth', width })} />}
+previewHeader={<WidthPresets width={layout.previewWidth} effectiveWidth={effectivePreviewWidth} onChange={(width) => dispatchLayout({ type: 'setPreviewWidth', width })} />}
 ```
+
+Observe `hosts.preview` with `ResizeObserver`, round its `getBoundingClientRect().width`, and pass that value as `effectivePreviewWidth`. This reports the actual host width when a selected maximum is wider than its pane.
 
 ```tsx
 useEffect(() => {
@@ -3588,6 +3614,11 @@ useEffect(() => {
   color: var(--tx-text-muted);
 }
 
+.pg-width-presets__effective {
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+}
+
 .pg-preset {
   display: inline-flex;
   align-items: center;
@@ -3597,8 +3628,10 @@ useEffect(() => {
 
 - [ ] **Step 4: Run the playground project**
 
-Run: `pnpm vitest run --project playground`
+Run: `pnpm vitest run --project playground && pnpm vitest run --project playground-browser`
 Expected: PASS.
+
+The jsdom test may assert the inline maximum style and stored choice. In `presets.browser.test.tsx`, also measure `getBoundingClientRect().width` in Chromium at both 820px and a wide viewport. When Tablet is selected at 820px, show the selected 768px maximum separately from the smaller effective width. After resizing the pane, the effective width label must track the measured host width.
 
 - [ ] **Step 5: Check every renderer by hand once**
 
@@ -3804,10 +3837,12 @@ git commit -m "feat(playground): build the command palette's command list"
 - Modify: `apps/playground/src/App.tsx` (open state, commands, the `FormWorkspace` action handle, Commands buttons, status hint)
 - Modify: `apps/playground/src/playground.css`
 - Test: `apps/playground/src/__tests__/command-palette.test.tsx`
+- Test: `apps/playground/src/__tests__/command-palette.browser.test.tsx` for keyboard use and focus restoration
+- Test: `apps/playground/src/__tests__/palette-slot.test.tsx` for lazy-load failure isolation
 
 **Interfaces:**
 - Consumes: `buildCommands`, `PaletteCommand` (Task 14); `usePresetSelection` inside `FormWorkspace` (Task 13); `StatusBar` `hint` (Task 5).
-- Produces: `CommandPalette` props `{ open: boolean; onOpenChange: (open: boolean) => void; commands: readonly PaletteCommand[] }`, `useCommandPaletteShortcut(onOpen: () => void): void`, `CommandPaletteSlot` with the same props, `interface WorkspaceActions { applyPreset(preset: ExamplePreset | null): void; copyData(): void }`; `FormWorkspace` gains `onActions: (actions: WorkspaceActions | null) => void`.
+- Produces: `CommandPalette` props `{ open: boolean; onOpenChange: (open: boolean) => void; commands: readonly PaletteCommand[] }`, `useCommandPaletteShortcut(onOpen: () => void): void`, `CommandPaletteSlot` with the same props, `interface WorkspaceActions { applyPreset(preset: ExamplePreset | null): void; getData(): unknown }`; `FormWorkspace` gains `onActions: (actions: WorkspaceActions | null) => void`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3847,6 +3882,34 @@ describe('the command palette', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
     fireEvent.keyDown(dialog, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull())
+  })
+
+  it('formats an unchanged example without switching it to Custom', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await screen.findByLabelText('Name')
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    const input = dialog.querySelector('input')!
+    fireEvent.change(input, { target: { value: 'Format schema' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(window.location.hash).toBe(''))
+    expect(window.location.pathname).toMatch(/basics-string/)
+  })
+
+  it('reports when the palette cannot copy the schema', async () => {
+    render(<App />)
+    await screen.findByLabelText('Name')
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('denied')) },
+    })
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    const input = dialog.querySelector('input')!
+    fireEvent.change(input, { target: { value: 'Copy schema' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByText(/copy failed/i)).toBeTruthy()
   })
 
   it('applies a data preset through the workspace', async () => {
@@ -3936,10 +3999,17 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
 `apps/playground/src/palette-slot.tsx`:
 
 ```tsx
-import { Suspense, lazy, useEffect } from 'react'
+import { Component, Suspense, lazy, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import type { CommandPaletteProps } from './palette/CommandPalette.js'
 
 const CommandPalette = lazy(() => import('./palette/CommandPalette.js'))
+
+export class PaletteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } { return { failed: true } }
+  render(): ReactNode { return this.state.failed ? null : this.props.children }
+}
 
 export function useCommandPaletteShortcut(onOpen: () => void): void {
   useEffect(() => {
@@ -3958,12 +4028,16 @@ export function useCommandPaletteShortcut(onOpen: () => void): void {
 export function CommandPaletteSlot(props: CommandPaletteProps) {
   if (!props.open) return null
   return (
-    <Suspense fallback={null}>
-      <CommandPalette {...props} />
-    </Suspense>
+    <PaletteBoundary>
+      <Suspense fallback={null}>
+        <CommandPalette {...props} />
+      </Suspense>
+    </PaletteBoundary>
   )
 }
 ```
+
+In `palette-slot.test.tsx`, place a child that throws inside `PaletteBoundary` beside a rendered playground. The error stays inside the boundary and the form remains mounted.
 
 In `FormWorkspace`, register the actions that need the runtime while it is mounted:
 
@@ -3972,13 +4046,15 @@ useEffect(() => {
   onActions({
     // Through the same selection the Data select uses, so it shows the preset by name.
     applyPreset: (preset) => presetSelection.select(preset ? preset.id : 'initial'),
-    copyData: () => void navigator.clipboard?.writeText(JSON.stringify(form.runtime.data.getSnapshot(), null, 2)),
+    getData: () => form.runtime.data.getSnapshot(),
   })
   return () => onActions(null)
 }, [form.runtime, presetSelection.select, onActions])
 ```
 
-In `App.tsx`:
+In `App.tsx`, define one `handleFormatSchema` and one `handleCopySchema` with the toolbar's current formatting behavior and clipboard success or failure feedback. Reuse the same clipboard helper for `handleCopyData`. Use these same handlers from the toolbar and palette; do not reimplement clipboard writes or formatting in `buildCommands`:
+
+The Chromium test in `command-palette.browser.test.tsx` focuses CodeMirror, opens the palette with Ctrl K, types and accepts a command, then opens it again and closes with Escape. Assert that focus returns to the editor. Also test Cmd K and the Commands button on a phone. This covers the actual `cmdk` dialog focus behavior, not only synthetic key events in jsdom.
 
 ```tsx
 const workspaceActions = useRef<WorkspaceActions | null>(null)
@@ -4001,9 +4077,9 @@ const commands = buildCommands({
     layout: dispatchLayout,
     resetLayout,
     setTheme: theme.setPreference,
-    formatSchema: () => handleSchemaChange(JSON.stringify(JSON.parse(schemaText), null, 2)),
-    copySchema: () => void navigator.clipboard?.writeText(schemaText),
-    copyData: () => workspaceActions.current?.copyData(),
+    formatSchema: handleFormatSchema,
+    copySchema: handleCopySchema,
+    copyData: handleCopyData,
     openDocs: () => window.open(DOCS_URL, '_self'),
   },
 })
@@ -4071,7 +4147,7 @@ Pass `onActions={setWorkspaceActions}` to `FormWorkspace`. Render `<CommandPalet
 
 - [ ] **Step 4: Run the playground project and the size check**
 
-Run: `pnpm vitest run --project playground && pnpm build && pnpm --filter @texaryn/playground build:pages && node scripts/check-playground-size.mjs apps/playground/dist`
+Run: `pnpm vitest run --project playground && pnpm vitest run --project playground-browser && pnpm build && pnpm --filter @texaryn/playground build:pages && node scripts/check-playground-size.mjs apps/playground/dist`
 Expected: PASS, and the `palette` chunk under 25 KB.
 
 - [ ] **Step 5: Commit and open the pull request**
