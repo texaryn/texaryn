@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { createStore, englishMessages } from '@texaryn/core'
 import type {
   FormRuntime,
@@ -74,9 +75,9 @@ describe('ErrorSummary', () => {
     expect(group.firstElementChild).toBe(heading)
     expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
     expect(heading.id).toMatch(/^texaryn-[0-9a-z_]+-error-summary-heading$/)
-    expect(screen.getByRole('listitem').textContent).toBe('Name: Required')
+    expect(screen.getByRole('listitem').textContent).toBe('Name: This field is required.')
     expect(screen.getByText(/Name/)).toBeTruthy()
-    expect(screen.getByText(/Required/)).toBeTruthy()
+    expect(screen.getByText(/This field is required/)).toBeTruthy()
   })
 
   it('links each error to the field input by anchor', () => {
@@ -92,7 +93,34 @@ describe('ErrorSummary', () => {
     expect(link.getAttribute('href')).toMatch(/^#texaryn-[0-9a-z_]+-node_2-input$/)
   })
 
-  it('falls back to pointer when fieldTitle is undefined', () => {
+  it('focuses a linked field inside the summary shadow root', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+    const errors: VisibleError[] = [{
+      nodeId: 'node_2' as NodeId,
+      fieldTitle: 'Email',
+      pointer: '/email' as JsonPointer,
+      errors: [{ instancePointer: '/email', keyword: 'format', message: 'Invalid email', params: {} }],
+    }]
+    render(createPortal(
+      <FormProvider value={makeMockRuntime(errors)}>
+        <ErrorSummary />
+      </FormProvider>,
+      shadow,
+    ))
+
+    const link = shadow.querySelector('a')!
+    const input = document.createElement('input')
+    input.id = link.hash.slice(1)
+    shadow.append(input)
+    fireEvent.click(link)
+
+    expect(shadow.activeElement).toBe(input)
+    host.remove()
+  })
+
+  it('uses a readable label when fieldTitle is undefined', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: undefined,
@@ -100,10 +128,10 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/\/name/)).toBeTruthy()
+    expect(screen.getByText(/Name/)).toBeTruthy()
   })
 
-  it('falls back to nodeId when both fieldTitle and pointer are null', () => {
+  it('uses a generic label when fieldTitle and pointer are absent', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: undefined,
@@ -111,10 +139,10 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/node_2/)).toBeTruthy()
+    expect(screen.getByText(/Field/)).toBeTruthy()
   })
 
-  it('falls back to keyword when message is undefined', () => {
+  it('uses safe copy when message is undefined', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: 'Name',
@@ -122,7 +150,7 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/minLength/)).toBeTruthy()
+    expect(screen.getByText(/This value is too short/)).toBeTruthy()
   })
 
   it('renders multiple fields with errors', () => {
@@ -177,12 +205,14 @@ describe('ErrorSummary over a live runtime', () => {
     port,
     focus,
     messages,
+    initialData,
   }: {
     port: SchemaEvaluationPort
     focus?: boolean
     messages?: FormMessages
+    initialData?: unknown
   }) {
-    const form = useForm(port, { initialData: { name: '' }, validationDebounceMs: 0 })
+    const form = useForm(port, { initialData: initialData ?? { name: '' }, validationDebounceMs: 0 })
     return (
       <FormProvider value={form.runtime} messages={messages}>
         <ErrorSummary focus={focus} />
@@ -194,11 +224,17 @@ describe('ErrorSummary over a live runtime', () => {
     )
   }
 
-  async function renderForm(props: { focus?: boolean; messages?: FormMessages } = {}) {
-    const port = await createJsonSchemaAdapter(schema)
-    render(<Form port={port} {...props} />)
+  async function renderForm(props: {
+    focus?: boolean
+    messages?: FormMessages
+    schema?: unknown
+    initialData?: unknown
+    expectedLabel?: RegExp
+  } = {}) {
+    const port = await createJsonSchemaAdapter(props.schema ?? schema)
+    render(<Form port={port} focus={props.focus} messages={props.messages} initialData={props.initialData} />)
     await waitFor(() => {
-      expect(screen.getByLabelText(/^Full Name/)).toBeTruthy()
+      expect(screen.getByLabelText(props.expectedLabel ?? /^Full Name/)).toBeTruthy()
     })
   }
 
@@ -248,6 +284,7 @@ describe('ErrorSummary over a live runtime', () => {
       ...englishMessages,
       errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      validationMessage: () => 'Champ invalide.',
     }
     await renderForm({ messages: french })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -255,5 +292,33 @@ describe('ErrorSummary over a live runtime', () => {
       expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
     })
     expect(screen.getByRole('listitem').textContent).toMatch(/^Full Name : ./)
+  })
+
+  it('uses the same localized fallback label for an untitled field and its summary link', async () => {
+    const french: FormMessages = {
+      ...englishMessages,
+      errorSummaryHeading: () => 'Il y a un problème',
+      errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      fieldLabel: ({ fieldName, itemPosition }) =>
+        fieldName ?? (itemPosition === undefined ? 'Champ' : `Élément ${itemPosition}`),
+      validationMessage: () => 'Ce champ est invalide.',
+    }
+    await renderForm({
+      schema: {
+        type: 'object',
+        properties: { first_name: { type: 'string', minLength: 1 } },
+        required: ['first_name'],
+      },
+      initialData: { first_name: '' },
+      messages: french,
+      expectedLabel: /^First name/,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await waitFor(() => {
+      expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
+    })
+    expect(screen.getByRole('link', { name: 'First name' })).toBeTruthy()
+    expect(screen.getByLabelText(/^First name/)).toBeTruthy()
   })
 })

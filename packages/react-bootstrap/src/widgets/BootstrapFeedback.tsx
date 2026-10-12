@@ -13,8 +13,8 @@ export function BootstrapFeedback({ field }: { field: FieldBinding }) {
           its content already in place is not reliably announced. */}
       <div {...field.errorProps}>
         {field.invalid
-          ? field.errors.map((error, index) => (
-              <div key={index} className="invalid-feedback d-block">{error.message ?? error.keyword}</div>
+          ? field.errorMessages.map((message, index) => (
+              <div key={index} className="invalid-feedback d-block">{message}</div>
             ))
           : null}
       </div>

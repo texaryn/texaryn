@@ -104,7 +104,7 @@ import { useFieldWidget } from '../use-field-widget.js'
       }
       <div [id]="field.errorId()" aria-live="polite" aria-atomic="true">
         @for (error of field.errors(); track $index) {
-          <div>{{ error.message ?? error.keyword }}</div>
+          <div>{{ field.messages().validationMessage(error) }}</div>
         }
       </div>
     </div>

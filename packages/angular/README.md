@@ -51,6 +51,10 @@ export class ProfileForm {
 
 The `idPrefix` must be unique among Texaryn forms on the same page. This makes every label and error reference deterministic across server rendering and hydration.
 
+`FormRoot` renders the field tree only. Wrap it in the application's native
+`<form novalidate>` and dispatch `{ type: 'Submit' }` from the form submit
+handler when the user submits.
+
 ## Custom widgets
 
 Register standalone component classes that expose a required `node` input. Container components can inject `FORM_CONTEXT` through `useFormContext()` and render children with `NodeRenderer`.

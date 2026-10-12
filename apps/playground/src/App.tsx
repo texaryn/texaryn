@@ -1,87 +1,68 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ComponentType, ReactNode } from 'react'
-import type { FormRuntime, RendererRegistry, SchemaEvaluationPort } from '@texaryn/core'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentType, FormEvent, ReactNode } from 'react'
+import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import {
-  useForm,
-  FormProvider,
-  FormRoot,
-  ErrorSummary,
-  createDefaultRegistry,
-} from '@texaryn/react'
-import type { WidgetComponent } from '@texaryn/react'
-import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
-import { createMuiRegistry } from '@texaryn/react-mui'
+import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { FormBuilder } from './FormBuilder.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
 import type { Tab } from './Inspector.js'
-import { VueHost } from './VueHost.js'
-import { SvelteHost } from './SvelteHost.js'
-import { SolidHost } from './SolidHost.js'
-import { WcHost } from './WcHost.js'
 import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
 import { useTheme } from './theme.js'
 import type { ResolvedTheme } from './theme.js'
 import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
+import type { RendererProps } from './renderer-types.js'
 import './playground.css'
 
-const BOOTSTRAP_CSS = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'
 const REPOSITORY_URL = 'https://github.com/texaryn/texaryn'
 
 // Every label names its framework and its widget set, because three of these
 // are React and two are not, and a list that says `Material UI` beside `Vue`
 // invites reading the others as the only ones with a framework.
 //
-// These framework hosts are not React registries: they are different render
-// surfaces over the same runtime, mounted by a host that borrows the runtime
-// rather than by FormRoot. The discriminant says which, so the table stays the
-// one place a renderer is declared and no combination of the two is possible.
-type RendererSpec =
-  | { kind: 'react'; label: string; registry: RendererRegistry<WidgetComponent> }
-  | { kind: 'host'; label: string; Host: ComponentType<{ runtime: FormRuntime }> }
-
-const renderers: Record<RendererKey, RendererSpec> = {
-  default: { kind: 'react', label: 'React · Default', registry: createDefaultRegistry() },
-  bootstrap: { kind: 'react', label: 'React · Bootstrap 5', registry: createBootstrapRegistry() },
-  mui: { kind: 'react', label: 'React · Material UI', registry: createMuiRegistry() },
-  emotion: {
-    kind: 'react',
-    label: 'React · Emotion styles',
-    registry: createDefaultRegistry(),
-  },
-  tailwind: {
-    kind: 'react',
-    label: 'React · Tailwind CSS',
-    registry: createDefaultRegistry(),
-  },
-  vue: { kind: 'host', label: 'Vue · Default', Host: VueHost },
-  svelte: { kind: 'host', label: 'Svelte · Default', Host: SvelteHost },
-  solid: { kind: 'host', label: 'Solid · Default', Host: SolidHost },
-  wc: { kind: 'host', label: 'Web Components · Default', Host: WcHost },
+const rendererLabels: Record<RendererKey, string> = {
+  default: 'React · Default',
+  bootstrap: 'React · Bootstrap 5',
+  mui: 'React · Material UI',
+  emotion: 'React · Emotion styles',
+  tailwind: 'React · Tailwind CSS',
+  vue: 'Vue · Default',
+  svelte: 'Svelte · Default',
+  solid: 'Solid · Default',
+  wc: 'Web Components · Default',
 }
 
-// The demo owns stylesheet loading. The Bootstrap package never loads CSS, and
-// loading it globally would restyle the Default renderer too.
-function useBootstrapStylesheet(active: boolean) {
-  useEffect(() => {
-    if (!active) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = BOOTSTRAP_CSS
-    document.head.appendChild(link)
-    return () => {
-      link.remove()
-    }
-  }, [active])
+const rendererLoaders: Record<RendererKey, () => Promise<{ default: ComponentType<RendererProps> }>> = {
+  default: () => import('./renderers/ReactDefaultRenderer.js'),
+  bootstrap: () => import('./renderers/ReactBootstrapRenderer.js'),
+  mui: () => import('./renderers/ReactMuiRenderer.js'),
+  emotion: () => import('./renderers/ReactEmotionRenderer.js'),
+  tailwind: () => import('./renderers/ReactTailwindRenderer.js'),
+  vue: () => import('./renderers/VueRenderer.js'),
+  svelte: () => import('./renderers/SvelteRenderer.js'),
+  solid: () => import('./renderers/SolidRenderer.js'),
+  wc: () => import('./renderers/WebComponentsRenderer.js'),
 }
+
+const rendererCache = new Map<RendererKey, ComponentType<RendererProps>>()
 
 function formatSchema(schema: unknown): string {
   return JSON.stringify(schema, null, 2)
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
+    return `{${entries.join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'undefined'
 }
 
 function errorMessage(err: unknown): string {
@@ -90,46 +71,48 @@ function errorMessage(err: unknown): string {
 
 type AdapterState =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; port: SchemaEvaluationPort; id: number }
+  | { status: 'error'; message: string; schemaKey: string }
+  | {
+      status: 'ready'
+      port: SchemaEvaluationPort
+      id: number
+      schemaKey: string
+      error?: string
+    }
 
-function useAdapter(schemaText: string, parseError: string | null): AdapterState {
+function useAdapter(schema: unknown): AdapterState {
   const [state, setState] = useState<AdapterState>({ status: 'loading' })
   const nextId = useRef(0)
+  const schemaKey = stableJson(schema)
 
   useEffect(() => {
-    if (parseError) {
-      return
-    }
-
     let cancelled = false
-    setState({ status: 'loading' })
+    setState((previous) =>
+      previous.status === 'ready' ? { ...previous, error: undefined } : previous,
+    )
 
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(schemaText)
-    } catch (err) {
-      setState({ status: 'error', message: errorMessage(err) })
-      return
-    }
-
-    createJsonSchemaAdapter(parsed)
+    createJsonSchemaAdapter(schema)
       .then((port) => {
         if (!cancelled) {
           nextId.current += 1
-          setState({ status: 'ready', port, id: nextId.current })
+          setState({ status: 'ready', port, id: nextId.current, schemaKey })
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setState({ status: 'error', message: errorMessage(err) })
+          const message = errorMessage(err)
+          setState((previous) =>
+            previous.status === 'ready'
+              ? { ...previous, error: message }
+              : { status: 'error', message, schemaKey },
+          )
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [schemaText, parseError])
+  }, [schema, schemaKey])
 
   return state
 }
@@ -156,22 +139,32 @@ function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNo
 function FormWorkspace({
   port,
   entry,
-  renderer,
   rendererKey,
+  rendererLabel,
+  rendererComponent: Renderer,
+  rendererLoadError,
+  defaultStyleMode,
   resolvedTheme,
   schemaText,
   tab,
   toolbar,
+  previewNotice,
+  onDataChange,
   onTabChange,
 }: {
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
-  renderer: RendererSpec
   rendererKey: RendererKey
+  rendererLabel: string
+  rendererComponent: ComponentType<RendererProps> | null
+  rendererLoadError: string | null
+  defaultStyleMode: 'baseline' | 'unstyled'
   resolvedTheme: ResolvedTheme
   schemaText: string
   tab: Tab
   toolbar: ReactNode
+  previewNotice: string | null
+  onDataChange: (data: unknown) => void
   onTabChange: (tab: Tab) => void
 }) {
   const simulateFailureRef = useRef(false)
@@ -191,77 +184,112 @@ function FormWorkspace({
     },
   })
 
+  useEffect(() => {
+    const store = form.runtime.data
+    onDataChange(store.getSnapshot())
+    return store.subscribe(() => onDataChange(store.getSnapshot()))
+  }, [form.runtime, onDataChange])
+
+  const isBootstrap = rendererKey === 'bootstrap'
+  const hasReactSummary = ['default', 'mui', 'emotion', 'tailwind'].includes(rendererKey)
+  const bootstrapFormRef = useRef<HTMLFormElement | null>(null)
+  const setBootstrapForm = useCallback((element: HTMLFormElement | null) => {
+    bootstrapFormRef.current = element
+  }, [])
+  const submit = () => form.runtime.dispatch({ type: 'Submit' })
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    submit()
+  }
+  const rendererSurface = (
+    <RendererSurface
+      rendererKey={rendererKey}
+      label={rendererLabel}
+      theme={resolvedTheme}
+      defaultStyleMode={defaultStyleMode}
+    >
+      {rendererLoadError ? (
+        <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
+      ) : Renderer ? (
+        <Renderer
+          runtime={form.runtime}
+          theme={resolvedTheme}
+          onSubmit={handleSubmit}
+          onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
+        />
+      ) : (
+        <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
+      )}
+    </RendererSurface>
+  )
+  const controls = (
+    <section className="pg-controls" aria-labelledby="playground-controls">
+      <h2 className="pg-controls__title" id="playground-controls">
+        Playground controls
+      </h2>
+
+      <div className="pg-submit-row">
+        <button
+          type={isBootstrap ? 'button' : 'submit'}
+          className="pg-button"
+          onClick={isBootstrap ? () => bootstrapFormRef.current?.requestSubmit() : undefined}
+          disabled={
+            form.submission.status === 'validating' ||
+            form.submission.status === 'submitting'
+          }
+        >
+          {form.submission.status === 'validating'
+            ? 'Validating...'
+            : form.submission.status === 'submitting'
+              ? 'Submitting...'
+              : 'Submit'}
+        </button>
+
+        <label className="pg-checkbox-label">
+          <input
+            type="checkbox"
+            checked={simulateFailure}
+            onChange={(e) => setSimulateFailure(e.target.checked)}
+          />
+          Simulate failure
+        </label>
+      </div>
+
+      {form.submission.status === 'submitted' && (
+        <p className="pg-success">Submitted successfully.</p>
+      )}
+      {form.submission.error != null && (
+        <p className="pg-error">
+          {form.submission.error instanceof Error
+            ? form.submission.error.message
+            : String(form.submission.error)}
+        </p>
+      )}
+    </section>
+  )
+
   return (
     <>
       <section className="pg-col pg-col--preview">
         {toolbar}
+        {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
         <FormProvider value={form.runtime}>
-          <ErrorSummary />
-
-          {/* The boundary, named so it can be seen and asserted. Everything
-              inside is the chosen renderer's output; everything outside is the
-              React shell, whichever renderer is selected. */}
-          <RendererSurface
-            rendererKey={rendererKey}
-            label={renderer.label}
-            theme={resolvedTheme}
-          >
-            {renderer.kind === 'react' ? (
-              <FormRoot registry={renderer.registry} />
-            ) : (
-              // Same runtime, different framework. The host mounts a Vue
-              // application or a custom element over this exact instance
-              // rather than building one of its own, so switching renderer
-              // keeps the form.
-              <renderer.Host runtime={form.runtime} />
-            )}
-          </RendererSurface>
-
-          {/* Inside the provider, outside the box: these read the runtime, and
-              the playground owns them rather than the renderer. */}
-          <section className="pg-controls" aria-labelledby="playground-controls">
-            <h2 className="pg-controls__title" id="playground-controls">
-              Playground controls
-            </h2>
-
-            <div className="pg-submit-row">
-              <button
-                type="button"
-                className="pg-button"
-                disabled={
-                  form.submission.status === 'validating' ||
-                  form.submission.status === 'submitting'
-                }
-                onClick={() => form.dispatch({ type: 'Submit' })}
-              >
-                {form.submission.status === 'validating'
-                  ? 'Validating...'
-                  : form.submission.status === 'submitting'
-                    ? 'Submitting...'
-                    : 'Submit'}
-              </button>
-
-              <label className="pg-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={simulateFailure}
-                  onChange={(e) => setSimulateFailure(e.target.checked)}
-                />
-                Simulate failure
-              </label>
-            </div>
-
-            {form.submission.status === 'submitted' && (
-              <p className="pg-success">Submitted successfully.</p>
-            )}
-            {form.submission.error != null && (
-              <p className="pg-error">
-                {form.submission.error instanceof Error
-                  ? form.submission.error.message
-                  : String(form.submission.error)}
-              </p>
-            )}
-          </section>
+          {isBootstrap ? (
+            <>
+              {rendererSurface}
+              {controls}
+            </>
+          ) : (
+            <form
+              className="pg-runtime-form"
+              noValidate
+              onSubmit={handleSubmit}
+            >
+              {hasReactSummary && <ErrorSummary />}
+              {rendererSurface}
+              {controls}
+            </form>
+          )}
         </FormProvider>
       </section>
 
@@ -297,20 +325,79 @@ function resolveExample(id: string | null): TexarynExample | undefined {
 
 export function App() {
   const initial = parseLocation(window.location.pathname, window.location.search, BASE_URL)
+  const initialExample = resolveExample(initial.exampleId)
   const [rendererKey, setRendererKey] = useState<RendererKey>(initial.renderer)
+  const [defaultStyleMode, setDefaultStyleMode] = useState<'baseline' | 'unstyled'>('baseline')
   const [selectedId, setSelectedId] = useState<string | null>(
-    () => resolveExample(initial.exampleId)?.id ?? null,
+    () => initialExample?.id ?? null,
   )
   const [query, setQuery] = useState('')
   const [inspectorTab, setInspectorTab] = useState<Tab>(DEFAULT_TAB)
   const [schemaMode, setSchemaMode] = useState<'visual' | 'json'>('json')
-  const [schemaText, setSchemaText] = useState(() =>
-    formatSchema(resolveExample(initial.exampleId)?.schema ?? {}),
+  const [mobilePanel, setMobilePanel] = useState<'preview' | 'schema' | 'inspector'>('preview')
+  const [activeHints, setActiveHints] = useState<TexarynExample['hints']>(initialExample?.hints)
+  const [appliedSchema, setAppliedSchema] = useState<unknown>(
+    () => initialExample?.schema ?? {},
   )
-  const [parseError, setParseError] = useState<string | null>(null)
+  const [schemaText, setSchemaText] = useState(() =>
+    formatSchema(initialExample?.schema ?? {}),
+  )
+  const [exampleRevision, setExampleRevision] = useState(0)
+  const [resetRevision, setResetRevision] = useState(0)
+  const [loadedRenderers, setLoadedRenderers] = useState<Partial<Record<RendererKey, ComponentType<RendererProps>>>>({})
+  const [rendererErrors, setRendererErrors] = useState<Partial<Record<RendererKey, string>>>({})
+  const latestData = useRef<unknown>(initialExample?.initialData)
+  const preserveCurrentData = useRef(false)
   const theme = useTheme()
 
-  useBootstrapStylesheet(rendererKey === 'bootstrap')
+  useEffect(() => {
+    const cached = rendererCache.get(rendererKey)
+    if (cached) {
+      setLoadedRenderers((previous) => ({ ...previous, [rendererKey]: cached }))
+      setRendererErrors((previous) => ({ ...previous, [rendererKey]: undefined }))
+      return
+    }
+
+    let cancelled = false
+    setRendererErrors((previous) => ({ ...previous, [rendererKey]: undefined }))
+    rendererLoaders[rendererKey]()
+      .then((module) => {
+        rendererCache.set(rendererKey, module.default)
+        if (!cancelled) {
+          setLoadedRenderers((previous) => ({ ...previous, [rendererKey]: module.default }))
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRendererErrors((previous) => ({
+            ...previous,
+            [rendererKey]: errorMessage(error),
+          }))
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [rendererKey])
+
+  const parsedDraft = useMemo(() => {
+    try {
+      return { schema: JSON.parse(schemaText) as unknown, error: null }
+    } catch (err) {
+      return { schema: undefined, error: errorMessage(err) }
+    }
+  }, [schemaText])
+  const parseError = parsedDraft.error
+  const appliedSchemaKey = stableJson(appliedSchema)
+  const draftHasChanges =
+    parsedDraft.error === null && stableJson(parsedDraft.schema) !== appliedSchemaKey
+
+  useEffect(() => {
+    if (parseError || !draftHasChanges) return
+    const timeout = window.setTimeout(() => setAppliedSchema(parsedDraft.schema), 300)
+    return () => window.clearTimeout(timeout)
+  }, [draftHasChanges, parseError, parsedDraft.schema])
 
   // The URL follows the visible state. Data is deliberately not in it: a
   // shared link reproduces what someone was looking at, not what they typed.
@@ -330,9 +417,14 @@ export function App() {
       const example = resolveExample(next.exampleId)
       setRendererKey(next.renderer)
       if (example) {
+        preserveCurrentData.current = false
+        latestData.current = example.initialData
         setSelectedId(example.id)
+        setActiveHints(example.hints)
         setSchemaText(formatSchema(example.schema))
-        setParseError(null)
+        setAppliedSchema(example.schema)
+        setExampleRevision((revision) => revision + 1)
+        setMobilePanel('preview')
       }
     }
     window.addEventListener('popstate', onPopState)
@@ -340,47 +432,86 @@ export function App() {
   }, [])
 
   const handleSchemaChange = useCallback((text: string) => {
+    preserveCurrentData.current = true
     setSelectedId(CUSTOM_KEY)
     setSchemaText(text)
-    try {
-      JSON.parse(text)
-      setParseError(null)
-    } catch (err) {
-      setParseError(errorMessage(err))
-    }
   }, [])
 
   const handleSelectExample = useCallback((example: TexarynExample) => {
+    preserveCurrentData.current = false
+    latestData.current = example.initialData
     setSelectedId(example.id)
+    setActiveHints(example.hints)
     setSchemaText(formatSchema(example.schema))
-    setParseError(null)
+    setAppliedSchema(example.schema)
+    setExampleRevision((revision) => revision + 1)
+    setMobilePanel('preview')
   }, [])
 
-  const adapterState = useAdapter(schemaText, parseError)
+  const handleDataChange = useCallback((data: unknown) => {
+    latestData.current = data
+  }, [])
+
+  const handleReset = useCallback(() => {
+    preserveCurrentData.current = false
+    latestData.current = undefined
+    setResetRevision((revision) => revision + 1)
+  }, [])
+
+  const adapterState = useAdapter(appliedSchema)
   const selectedExample = selectedId === null ? undefined : getExample(selectedId)
-  const entry = selectedExample ?? customEntry
-  const selectedKey = selectedId ?? CUSTOM_KEY
+  const entry = selectedId === CUSTOM_KEY
+    ? { initialData: customEntry.initialData, hints: activeHints }
+    : selectedExample ?? customEntry
+  const initialData = preserveCurrentData.current ? latestData.current : entry.initialData
+  const adapterMatchesDraft =
+    adapterState.status === 'ready' && adapterState.schemaKey === appliedSchemaKey
+  const previewNotice = parseError
+    ? 'Invalid JSON. This preview shows the last valid schema.'
+    : adapterState.status === 'ready' && adapterState.error
+      ? `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
+      : draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft)
+        ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
+        : null
 
   // The control sits on the region it governs, and says what that region is,
   // because the answer is narrower than the page implies: choosing Vue swaps
   // the form subtree and leaves the shell around it in React.
+  const usesDefaultStyles =
+    rendererKey === 'default' ||
+    rendererKey === 'vue' ||
+    rendererKey === 'svelte' ||
+    rendererKey === 'solid' ||
+    rendererKey === 'wc'
   const toolbar = (
     <div className="pg-toolbar">
-      <label className="pg-toolbar__label" htmlFor="renderer-select">
-        Form renderer
-      </label>
-      <select
-        id="renderer-select"
-        className="pg-select"
-        value={rendererKey}
-        onChange={(e) => setRendererKey(e.target.value as RendererKey)}
-      >
-        {Object.entries(renderers).map(([key, { label }]) => (
-          <option key={key} value={key}>
-            {label}
-          </option>
-        ))}
-      </select>
+      <div className="pg-toolbar__group">
+        <label className="pg-toolbar__label" htmlFor="renderer-select">Form renderer</label>
+        <select
+          id="renderer-select"
+          className="pg-select"
+          value={rendererKey}
+          onChange={(e) => setRendererKey(e.target.value as RendererKey)}
+        >
+          {Object.entries(rendererLabels).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
+      </div>
+      {usesDefaultStyles && (
+        <div className="pg-toolbar__group">
+          <label className="pg-toolbar__label" htmlFor="default-style-select">Presentation</label>
+          <select
+            id="default-style-select"
+            className="pg-select"
+            value={defaultStyleMode}
+            onChange={(event) => setDefaultStyleMode(event.target.value as 'baseline' | 'unstyled')}
+          >
+            <option value="baseline">Playground baseline</option>
+            <option value="unstyled">Unstyled</option>
+          </select>
+        </div>
+      )}
       <p className="pg-toolbar__note">Applies to the form below. The page around it stays React.</p>
     </div>
   )
@@ -404,7 +535,38 @@ export function App() {
         </nav>
       </header>
 
-      <div className="pg-columns">
+      <div className="pg-mobile-workspace">
+        <label className="pg-mobile-workspace__example">
+          Example
+          <select
+            className="pg-select"
+            value={selectedId ?? CUSTOM_KEY}
+            onChange={(event) => {
+              const example = getExample(event.target.value)
+              if (example) handleSelectExample(example)
+            }}
+          >
+            {selectedId === CUSTOM_KEY && <option value={CUSTOM_KEY}>Custom schema</option>}
+            {examples.map((example) => (
+              <option key={example.id} value={example.id}>{example.title}</option>
+            ))}
+          </select>
+        </label>
+        <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
+          {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
+            <button
+              key={panelName}
+              type="button"
+              aria-pressed={mobilePanel === panelName}
+              onClick={() => setMobilePanel(panelName)}
+            >
+              {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="pg-columns" data-mobile-panel={mobilePanel}>
         <aside className="pg-col pg-col--source" aria-label="Examples and schema">
           <ExampleBrowser
             query={query}
@@ -417,9 +579,12 @@ export function App() {
             <p className="pg-description">{selectedExample.description}</p>
           )}
 
-          <h2 className="pg-heading" id="schema-editor-label">
-            JSON Schema
-          </h2>
+          <div className="pg-schema-heading">
+            <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
+            <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
+              Reset data
+            </button>
+          </div>
           <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
             <button
               aria-pressed={schemaMode === 'visual'}
@@ -448,17 +613,14 @@ export function App() {
                 value={schemaText}
                 onChange={(e) => handleSchemaChange(e.target.value)}
                 spellCheck={false}
+                wrap="off"
               />
             )}
           </div>
           {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
         </aside>
 
-        {parseError ? (
-          <NotReady toolbar={toolbar}>
-            <p className="pg-error">Fix the schema JSON to see the form.</p>
-          </NotReady>
-        ) : adapterState.status === 'loading' ? (
+        {adapterState.status === 'loading' ? (
           <NotReady toolbar={toolbar}>
             <p className="pg-empty">Loading…</p>
           </NotReady>
@@ -466,21 +628,26 @@ export function App() {
           <NotReady toolbar={toolbar}>
             <p className="pg-error">{adapterState.message}</p>
           </NotReady>
+        ) : selectedId !== CUSTOM_KEY && !adapterMatchesDraft ? (
+          <NotReady toolbar={toolbar}>
+            <p className="pg-empty">Loading the selected example…</p>
+          </NotReady>
         ) : (
           <FormWorkspace
-            // Deliberately excludes the renderer. The runtime belongs to the
-            // selected example and its schema; the renderer is presentation
-            // over it, so switching one must not remount the form and discard
-            // live data. Changing example or schema does mean a new runtime.
-            key={`${selectedKey}:${adapterState.id}`}
+            key={`${adapterState.id}:${exampleRevision}:${resetRevision}`}
             port={adapterState.port}
-            entry={entry}
-            renderer={renderers[rendererKey]}
+            entry={{ initialData, hints: entry.hints }}
             rendererKey={rendererKey}
+            rendererLabel={rendererLabels[rendererKey]}
+            rendererComponent={loadedRenderers[rendererKey] ?? null}
+            rendererLoadError={rendererErrors[rendererKey] ?? null}
+            defaultStyleMode={defaultStyleMode}
             resolvedTheme={theme.resolved}
             schemaText={schemaText}
             tab={inspectorTab}
             toolbar={toolbar}
+            previewNotice={previewNotice}
+            onDataChange={handleDataChange}
             onTabChange={setInspectorTab}
           />
         )}

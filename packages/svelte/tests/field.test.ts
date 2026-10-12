@@ -94,7 +94,7 @@ describe('Svelte field helpers', () => {
 
     expect(get(binding.kind)).toBe('number')
     expect(get(binding.display)).toBe(7)
-    expect(get(binding.label)).toBe('/age')
+    expect(get(binding.label)).toBe('Age')
     expect(get(binding.description)).toBe('Years old')
     expect(get(binding.labelFor)).toBe('test-age-input')
     expect(get(binding.aria)?.['aria-required']).toBe(true)

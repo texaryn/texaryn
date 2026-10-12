@@ -49,6 +49,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
               <button
                 type="button"
                 aria-label={moveUp.accessibleName}
+                data-action="move-up"
                 data-reorder-direction="up"
                 onClick={(event) => {
                   const wasFocused = globalThis.document.activeElement === event.currentTarget
@@ -64,6 +65,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
               <button
                 type="button"
                 aria-label={moveDown.accessibleName}
+                data-action="move-down"
                 data-reorder-direction="down"
                 onClick={(event) => {
                   const wasFocused = globalThis.document.activeElement === event.currentTarget
@@ -82,6 +84,7 @@ function ArrayControlImpl({ node }: WidgetProps) {
               <button
                 type="button"
                 aria-label={remove.accessibleName}
+                data-action="remove"
                 onClick={() => fieldArray.remove(index)}
               >
                 {remove.label}
@@ -91,7 +94,12 @@ function ArrayControlImpl({ node }: WidgetProps) {
         )
       })}
       {fieldArray.canAdd ? (
-        <button type="button" aria-label={actions.add.accessibleName} onClick={() => fieldArray.add()}>
+        <button
+          type="button"
+          aria-label={actions.add.accessibleName}
+          data-action="add"
+          onClick={() => fieldArray.add()}
+        >
           {actions.add.label}
         </button>
       ) : null}

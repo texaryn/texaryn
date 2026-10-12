@@ -7,3 +7,5 @@
 # Variable: FormRoot
 
 > `const` **FormRoot**: `DefineComponent`\<`ExtractPropTypes`\<\{ `registry`: \{ `required`: `true`; `type`: `PropType`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>; \}; \}\>, () => `VNode`\<`RendererNode`, `RendererElement`, \{\[`key`: `string`\]: `any`; \}\> \| `null`, \{ \}, \{ \}, \{ \}, `ComponentOptionsMixin`, `ComponentOptionsMixin`, \{ \}, `string`, `PublicProps`, `ToResolvedProps`\<`ExtractPropTypes`\<\{ `registry`: \{ `required`: `true`; `type`: `PropType`\<[`RendererRegistry`](../../core/interfaces/RendererRegistry.md)\<[`WidgetComponent`](../type-aliases/WidgetComponent.md), [`UINode`](../../core/type-aliases/UINode.md)\>\>; \}; \}\>, \{ \}\>, \{ \}, \{ \}, \{ \}, \{ \}, `string`, `ComponentProvideOptions`, `true`, \{ \}, `any`\>
+
+Renders the UI document tree. The consumer owns any native form element and submit handler.

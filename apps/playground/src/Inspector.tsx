@@ -5,6 +5,8 @@
 // The one computed value is the projection: the runtime does not expose the
 // projection it used, so this calls port.project(data) for the current data.
 // It is labelled as exactly that rather than implying a hidden snapshot.
+import { useRef } from 'react'
+import type { KeyboardEvent } from 'react'
 import type {
   FormRuntime,
   SchemaEvaluationPort,
@@ -14,7 +16,7 @@ import type {
   UINode,
 } from '@texaryn/core'
 import { useStore } from '@texaryn/react'
-import { inspect } from './serialize.js'
+import { InspectorTree } from './InspectorTree.js'
 
 const TABS = [
   'Data',
@@ -31,7 +33,7 @@ export const DEFAULT_TAB: Tab = 'Data'
 
 // The pipeline the panes follow, shown so the tabs read as stages of one
 // transformation rather than seven unrelated JSON dumps.
-const PIPELINE = 'JSON Schema → SchemaProjection → UIDocument → Runtime state → Renderer'
+const PIPELINE = ['JSON Schema', 'SchemaProjection', 'UIDocument', 'Runtime state', 'Renderer']
 
 // The selected tab is owned above this component. Editing the schema builds a
 // new runtime and remounts the form, and losing the open pane on every
@@ -58,20 +60,49 @@ export function Inspector({
   onTabChange: (tab: Tab) => void
 }) {
   const setTab = onTabChange
+  const tabButtons = useRef<Array<HTMLButtonElement | null>>([])
+
+  function moveTabFocus(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex = index
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % TABS.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = TABS.length - 1
+    else return
+
+    event.preventDefault()
+    const nextTab = TABS[nextIndex]!
+    setTab(nextTab)
+    tabButtons.current[nextIndex]?.focus()
+  }
 
   return (
     <div className="pg-inspector">
-      <div className="pg-inspector__pipeline" title="The stages each tab shows">
-        {PIPELINE}
+      <div
+        className="pg-inspector__pipeline"
+        aria-label="Schema processing pipeline"
+        title="The stages each tab shows"
+      >
+        {PIPELINE.map((stage, index) => (
+          <span className="pg-inspector__pipeline-step" key={stage}>
+            {index > 0 && <span aria-hidden="true">→</span>}
+            <span>{stage}</span>
+          </span>
+        ))}
       </div>
 
-      <div role="tablist" aria-label="Inspector" className="pg-tabs">
-        {TABS.map((name) => (
+      <div role="tablist" aria-label="Inspector" aria-orientation="horizontal" className="pg-tabs">
+        {TABS.map((name, index) => (
           <button
             key={name}
             type="button"
             role="tab"
+            id={`inspector-tab-${name.toLowerCase()}`}
+            aria-controls="inspector-panel"
             aria-selected={tab === name}
+            tabIndex={tab === name ? 0 : -1}
+            ref={(element) => { tabButtons.current[index] = element }}
+            onKeyDown={(event) => moveTabFocus(event, index)}
             onClick={() => setTab(name)}
             className="pg-tab"
           >
@@ -80,8 +111,14 @@ export function Inspector({
         ))}
       </div>
 
-      <div role="tabpanel" aria-label={tab} className="pg-inspector__body">
-        {tab === 'Data' && <pre className="pg-pre">{inspect(data)}</pre>}
+      <div
+        id="inspector-panel"
+        role="tabpanel"
+        aria-labelledby={`inspector-tab-${tab.toLowerCase()}`}
+        tabIndex={0}
+        className="pg-inspector__body"
+      >
+        {tab === 'Data' && <InspectorTree label="Data" value={data} />}
         {tab === 'Validation' && <ValidationPane runtime={runtime} />}
         {tab === 'Projection' && <ProjectionPane port={port} data={data} />}
         {tab === 'IR' && <IrPane document={document} />}
@@ -90,7 +127,7 @@ export function Inspector({
         )}
         {tab === 'Schema' && <pre className="pg-pre">{schemaText}</pre>}
         {tab === 'Hints' && (
-          <pre className="pg-pre">{hints ? inspect(hints) : 'No hints for this example.'}</pre>
+          hints ? <InspectorTree label="Hints" value={hints} /> : <p className="pg-empty">No hints for this example.</p>
         )}
       </div>
     </div>
@@ -106,7 +143,7 @@ function ValidationPane({ runtime }: { runtime: FormRuntime }) {
   if (visibleErrors.length === 0) {
     return <p className="pg-empty">No visible errors.</p>
   }
-  return <pre className="pg-pre">{inspect(visibleErrors)}</pre>
+  return <InspectorTree label="Validation errors" value={visibleErrors} />
 }
 
 function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
@@ -120,7 +157,7 @@ function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unkn
         from the runtime.
       </p>
       <p className="pg-pointers">{pointers.length} pointers: {pointers.join(', ')}</p>
-      <pre className="pg-pre">{inspect(projection)}</pre>
+      <InspectorTree label="Projection" value={projection} />
     </>
   )
 }
@@ -151,7 +188,7 @@ function IrPane({ document }: { document: UIDocument }) {
           ))}
         </tbody>
       </table>
-      <pre className="pg-pre">{inspect(document)}</pre>
+      <InspectorTree label="UIDocument" value={document} />
     </>
   )
 }
@@ -170,7 +207,7 @@ function RuntimePane({
   return (
     <>
       <h3 className="pg-subheading">Submission</h3>
-      <pre className="pg-pre">{inspect(submission)}</pre>
+      <InspectorTree label="Submission" value={submission} />
 
       <h3 className="pg-subheading">Per-node state</h3>
       <table className="pg-table">

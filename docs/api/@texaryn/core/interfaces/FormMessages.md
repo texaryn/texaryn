@@ -78,6 +78,24 @@ Optional localized label for boundary expansion controls.
 
 ***
 
+### fieldLabel()?
+
+> `optional` **fieldLabel**(`context`): `string`
+
+Optional localized fallback for a field label without a schema title.
+
+#### Parameters
+
+##### context
+
+[`FieldLabelContext`](FieldLabelContext.md)
+
+#### Returns
+
+`string`
+
+***
+
 ### moveItemDown()
 
 > **moveItemDown**(`context`): [`ActionMessage`](ActionMessage.md)
@@ -133,3 +151,21 @@ Optional localized label for boundary expansion controls.
 #### Returns
 
 [`IndicatorMessage`](IndicatorMessage.md)
+
+***
+
+### validationMessage()
+
+> **validationMessage**(`error`): `string`
+
+Localized presentation for one validation error. Evaluator message text is diagnostic only.
+
+#### Parameters
+
+##### error
+
+[`ValidationError`](ValidationError.md)
+
+#### Returns
+
+`string`

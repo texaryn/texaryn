@@ -33,6 +33,7 @@ import { NodeRenderer } from './node-renderer.js'
     }
   `,
 })
+/** Renders the UI document tree. The consumer owns any native form element and submit handler. */
 export class FormRoot implements FormContext {
   readonly form = input.required<AngularForm>()
   readonly registry = input.required<RendererRegistry<WidgetComponent>>()

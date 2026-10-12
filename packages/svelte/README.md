@@ -50,13 +50,25 @@ mount(App, {
   const form = createForm(adapter, { initialData: { name: '', age: 18 } })
   const data = form.data
   const registry = createDefaultRegistry()
+
+  function submit(event: SubmitEvent) {
+    event.preventDefault()
+    form.dispatch({ type: 'Submit' })
+  }
 </script>
 
-<FormRoot {form} {registry}>
-  <h2>Data</h2>
-  <pre>{JSON.stringify($data, null, 2)}</pre>
-</FormRoot>
+<form novalidate onsubmit={submit}>
+  <FormRoot {form} {registry} showErrorSummary>
+    <h2>Data</h2>
+    <pre>{JSON.stringify($data, null, 2)}</pre>
+  </FormRoot>
+  <button type="submit">Submit</button>
+</form>
 ```
+
+`FormRoot` renders the tree only. The application owns the native `<form>` and
+connects its submit event to the runtime, so the tree can also be composed
+inside a larger form.
 
 `FormRoot` creates a server rendering safe id prefix with Svelte's component id
 unless `idPrefix` is provided. The prefix must be unique among forms rendered

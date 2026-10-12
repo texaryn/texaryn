@@ -30,6 +30,7 @@
     "@texaryn/svelte": "workspace:*",
     "@texaryn/vue": "workspace:*",
     "@texaryn/web-components": "workspace:*",
+    "bootstrap": "5.3.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "rxjs": "^7.8.2",

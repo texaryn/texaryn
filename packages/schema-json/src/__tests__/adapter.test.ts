@@ -13,6 +13,74 @@ import {
 import type { JsonPointer } from '@texaryn/core'
 
 describe('createJsonSchemaAdapter', () => {
+  it('normalizes validation parameters without exposing submitted values', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: {
+        name: { type: 'string', minLength: 3 },
+        age: { type: 'number', minimum: 18 },
+        email: { type: 'string', format: 'email' },
+      },
+      required: ['email'],
+    })
+    const result = await adapter.validate({ name: 'x', age: 12, email: 'not-an-email' })
+
+    expect(result.errors.find((error) => error.keyword === 'minLength')?.params).toEqual({ limit: 3 })
+    expect(result.errors.find((error) => error.keyword === 'minimum')?.params).toEqual({ limit: 18 })
+    expect(result.errors.find((error) => error.keyword === 'format')?.params).toEqual({ format: 'email' })
+
+    const missing = await adapter.validate({ name: 'valid', age: 20 })
+    expect(missing.errors.find((error) => error.keyword === 'required')?.params).toEqual({ missingProperty: 'email' })
+  })
+
+  it('normalizes numeric bounds for every supported constraint', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: {
+        minText: { type: 'string', minLength: 2 },
+        maxText: { type: 'string', maxLength: 1 },
+        minNumber: { type: 'number', minimum: 2 },
+        maxNumber: { type: 'number', maximum: 1 },
+        exclusiveMin: { type: 'number', exclusiveMinimum: 2 },
+        exclusiveMax: { type: 'number', exclusiveMaximum: 1 },
+        multiple: { type: 'number', multipleOf: 2 },
+        minItems: { type: 'array', minItems: 1 },
+        maxItems: { type: 'array', maxItems: 1 },
+        minProperties: { type: 'object', minProperties: 1 },
+        maxProperties: { type: 'object', maxProperties: 1 },
+        pattern: { type: 'string', pattern: '^x+$' },
+      },
+    })
+    const result = await adapter.validate({
+      minText: '',
+      maxText: 'too long',
+      minNumber: 1,
+      maxNumber: 2,
+      exclusiveMin: 2,
+      exclusiveMax: 1,
+      multiple: 3,
+      minItems: [],
+      maxItems: ['one', 'two'],
+      minProperties: {},
+      maxProperties: { one: true, two: true },
+      pattern: 'not x',
+    })
+
+    const parameters = new Map(result.errors.map(({ keyword, params }) => [keyword, params]))
+    expect(parameters.get('minLength')).toEqual({ limit: 2 })
+    expect(parameters.get('maxLength')).toEqual({ limit: 1 })
+    expect(parameters.get('minimum')).toEqual({ limit: 2 })
+    expect(parameters.get('maximum')).toEqual({ limit: 1 })
+    expect(parameters.get('exclusiveMinimum')).toEqual({ limit: 2 })
+    expect(parameters.get('exclusiveMaximum')).toEqual({ limit: 1 })
+    expect(parameters.get('multipleOf')).toEqual({ limit: 2 })
+    expect(parameters.get('minItems')).toEqual({ limit: 1 })
+    expect(parameters.get('maxItems')).toEqual({ limit: 1 })
+    expect(parameters.get('minProperties')).toEqual({ limit: 1 })
+    expect(parameters.get('maxProperties')).toEqual({ limit: 1 })
+    expect(parameters.get('pattern')).toEqual({})
+  })
+
   describe('flat object projection', () => {
     it('produces root node at empty pointer', async () => {
       const adapter = await createJsonSchemaAdapter(flatObjectSchema)

@@ -27,6 +27,7 @@ import { withoutUnreachableBranches } from './normalize.js'
 import { DRAFTS } from './bare-maps.js'
 import { buildSchemaGraph, rejectSameLocationCycles, cyclicPositions, markPositions, POSITION } from './schema-graph.js'
 import { pointerResolver, type PointerResolver } from './instance-pointer.js'
+import { validationParameters } from './validation-parameters.js'
 import type { AdapterConfig, JsonSchemaAdapter } from './types.js'
 
 export async function createJsonSchemaAdapter(
@@ -626,6 +627,7 @@ function toKeyword(code: string): string {
 
 function mapValidationError(error: JsonError, resolve: PointerResolver): ValidationError {
   const code = typeof error.code === 'string' ? error.code : String(error.code)
+  const keyword = toKeyword(code)
   const data = (error.data ?? {}) as Record<string, unknown>
   const basePointer = typeof data.pointer === 'string' ? data.pointer : '#'
   // required-property-error reports the *parent* object's pointer with the missing property
@@ -640,9 +642,9 @@ function mapValidationError(error: JsonError, resolve: PointerResolver): Validat
         : undefined
   return {
     instancePointer: resolve(basePointer, { code, value: data.value, missingKey, lastKey }),
-    keyword: toKeyword(code),
+    keyword,
     message: error.message,
-    params: (error.data ?? {}) as Record<string, unknown>,
+    params: validationParameters(keyword, data, code),
   }
 }
 

@@ -25,6 +25,7 @@ const french: FormMessages = {
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+  validationMessage: () => 'Cette valeur est invalide.',
 }
 
 let runtime: FormRuntime | undefined

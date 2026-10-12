@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import type { Accessor } from 'solid-js'
+import { visibleFieldLabel } from '@texaryn/core'
 import type { FieldNode, NodeId, Store, ValidationError } from '@texaryn/core'
 import { useFormContext } from './context.js'
 
@@ -38,7 +39,10 @@ export function createFieldBinding(nodeId: Accessor<NodeId>) {
   const disabled = state((id) => context.form().getNodeState(id)?.disabled, false)
   const showErrors = state((id) => context.form().getNodeState(id)?.showErrors, false)
   const visibleErrors = createMemo(() => showErrors() ? errors() : NO_ERRORS)
-  const label = createMemo(() => node()?.annotations.title ?? node()?.dataPointer ?? node()?.id ?? '')
+  const label = createMemo(() => {
+    const current = node()
+    return current ? visibleFieldLabel(current.annotations.title, current.dataPointer, context.messages()) : ''
+  })
   const description = createMemo(() => node()?.helpText ?? node()?.annotations.description)
   const inputId = createMemo(() => makeId(context.idPrefix(), node()?.id ?? nodeId(), 'input'))
   const descriptionId = createMemo(() => makeId(context.idPrefix(), node()?.id ?? nodeId(), 'description'))

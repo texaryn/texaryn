@@ -6,6 +6,7 @@ import { useStore } from '../use-store.js'
 import type { WidgetComponent } from '../widget.js'
 import { NodeRenderer } from './NodeRenderer.js'
 
+/** Renders the UI document tree. The consumer owns any native form element and submit handler. */
 export const FormRoot = defineComponent({
   name: 'FormRoot',
   props: {

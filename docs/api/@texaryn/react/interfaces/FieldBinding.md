@@ -48,7 +48,15 @@
 
 > **error**: `string` \| `undefined`
 
-First visible error as `message ?? keyword`.
+Localized first visible validation message.
+
+***
+
+### errorMessages
+
+> **errorMessages**: readonly `string`[]
+
+Localized visible validation messages in error order.
 
 ***
 

@@ -74,6 +74,10 @@ the way a consumer expects. The runtime owns validation, which is why the
 native `novalidate` is set and required fields carry `aria-required` rather
 than the native `required` attribute.
 
+The `<texaryn-form>` element owns that native form boundary. `mountForm`
+renders the field tree only, so applications can place it inside a form they
+own and route that form's `submit` event to the runtime themselves.
+
 ## Ids
 
 Every id is `<prefix>-<nodeId>-<suffix>`, where the prefix is the element's own

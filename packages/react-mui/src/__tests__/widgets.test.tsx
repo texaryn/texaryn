@@ -190,7 +190,7 @@ describe('MUI field widgets', () => {
     expect(screen.getByText('Legal name')).toBeTruthy()
     fireEvent.blur(name)
     await waitFor(() => {
-      expect(screen.getByText('Too short')).toBeTruthy()
+      expect(screen.getByText('This value is too short.')).toBeTruthy()
     })
     expect(screen.queryByText('Legal name')).toBeNull()
   })
@@ -216,7 +216,7 @@ describe('MUI field widgets', () => {
 
     fireEvent.blur(name)
     await waitFor(() => {
-      expect(region.textContent).toBe('Too short')
+      expect(region.textContent).toBe('This value is too short.')
     })
     expect(document.querySelector('[aria-live="polite"]')).toBe(region)
     expect(document.querySelector('[role="alert"]')).toBeNull()
@@ -426,7 +426,7 @@ describe('MUI field widgets', () => {
     fireEvent.click(cb)
     fireEvent.blur(cb)
     await waitFor(() => {
-      expect(screen.getByText('Must agree')).toBeTruthy()
+      expect(screen.getByText('Choose an allowed value.')).toBeTruthy()
     })
   })
 })

@@ -12,14 +12,18 @@
 // them. A list would have to be edited whenever one is added, and the edit
 // that gets forgotten is the one that leaves a new surface unchecked while
 // every test still passes.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { findRendererInput } from './renderer-test-utils.js'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.history.replaceState(null, '', '/')
+})
 
 function rendererSelect(): HTMLSelectElement {
-  return screen.getByLabelText(/renderer/i) as HTMLSelectElement
+  return screen.getByLabelText('Form renderer') as HTMLSelectElement
 }
 
 function surfaces(): { value: string; label: string }[] {
@@ -29,6 +33,14 @@ function surfaces(): { value: string; label: string }[] {
       value: (option as HTMLOptionElement).value,
       label: option.textContent ?? '',
     }))
+}
+
+function deepQuery<T extends Element>(root: ParentNode, selector: string): T[] {
+  const matches = [...root.querySelectorAll<T>(selector)]
+  for (const element of root.querySelectorAll<HTMLElement>('*')) {
+    if (element.shadowRoot) matches.push(...deepQuery<T>(element.shadowRoot, selector))
+  }
+  return matches
 }
 
 describe('the renderer-owned region', () => {
@@ -45,8 +57,12 @@ describe('the renderer-owned region', () => {
       await waitFor(() => expect(rendererSelect().value).toBe(value))
 
       const region = await screen.findByRole('region', { name: `Rendered by ${label}` })
-      await within(region).findByLabelText('Name')
+      await findRendererInput(region, 'Name')
 
+      const forms = deepQuery<HTMLFormElement>(document, '.pg-runtime-form')
+      expect(forms).toHaveLength(1)
+      expect((await findRendererInput(region, 'Name')).form).toBe(forms[0])
+      expect(region.querySelector('form')).toBeNull()
       expect(
         within(region).queryByRole('button', { name: /^Submit$/ }),
         `Submit is the playground's, not ${label}'s`,
@@ -56,7 +72,7 @@ describe('the renderer-owned region', () => {
         `Simulate failure is the playground's, not ${label}'s`,
       ).toBeNull()
     }
-  })
+  }, 15_000)
 
   // Three of the offered surfaces are React and three are hosted frameworks. A list reading
   // "Material UI" beside "Vue" invites reading the others as the only ones
@@ -86,4 +102,22 @@ describe('the renderer-owned region', () => {
     expect(within(controls).getByRole('button', { name: /^Submit$/ })).toBeTruthy()
     expect(within(controls).getByLabelText(/simulate failure/i)).toBeTruthy()
   })
+
+  it('routes the Bootstrap playground button through the shadow form submit event', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await screen.findByLabelText('Name')
+    fireEvent.change(rendererSelect(), { target: { value: 'bootstrap' } })
+
+    const form = await waitFor(() => {
+      expect(rendererSelect().value).toBe('bootstrap')
+      return deepQuery<HTMLFormElement>(document, '.pg-runtime-form')[0]!
+    })
+    const nativeSubmit = vi.fn((event: Event) => event.preventDefault())
+    form.addEventListener('submit', nativeSubmit)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Submit$/ }))
+
+    expect(nativeSubmit).toHaveBeenCalledTimes(1)
+  }, 15_000)
 })

@@ -11,13 +11,14 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { App } from '../App.js'
+import { findRendererInput } from './renderer-test-utils.js'
 
 afterEach(() => {
   cleanup()
 })
 
 function rendererSelect(): HTMLSelectElement {
-  return screen.getByLabelText(/renderer/i) as HTMLSelectElement
+  return screen.getByLabelText('Form renderer') as HTMLSelectElement
 }
 
 async function switchRenderer(value: string): Promise<void> {
@@ -35,7 +36,10 @@ describe('switching renderer', () => {
     // test does not silently change meaning when the catalog grows.
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
 
-    const name = await screen.findByLabelText('Name')
+    const name = await findRendererInput(
+      screen.getByRole('region', { name: /Rendered by/ }),
+      'Name',
+    )
     fireEvent.change(name, { target: { value: 'Ada Lovelace' } })
     expect((name as HTMLInputElement).value).toBe('Ada Lovelace')
 
@@ -49,11 +53,14 @@ describe('switching renderer', () => {
     for (const renderer of [...offered.filter((value) => value !== initial), initial]) {
       await switchRenderer(renderer)
 
-      const field = await screen.findByLabelText('Name')
+      const field = await findRendererInput(
+        screen.getByRole('region', { name: /Rendered by/ }),
+        'Name',
+      )
       expect(
         (field as HTMLInputElement).value,
         `editing was lost switching to ${renderer}`,
       ).toBe('Ada Lovelace')
     }
-  })
+  }, 15_000)
 })

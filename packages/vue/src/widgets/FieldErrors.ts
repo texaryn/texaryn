@@ -1,6 +1,7 @@
 import { defineComponent, h } from 'vue'
 import type { PropType } from 'vue'
 import type { ValidationError } from '@texaryn/core'
+import { useFormMessages } from '../context.js'
 
 export const FieldErrors = defineComponent({
   name: 'FieldErrors',
@@ -9,6 +10,7 @@ export const FieldErrors = defineComponent({
     errors: { type: Array as PropType<readonly ValidationError[]>, required: true },
   },
   setup(props) {
+    const messages = useFormMessages()
     // Always rendered, and empty while valid. A region inserted with its
     // content already in place is not reliably announced, and polite rather
     // than alert because validation runs on change, blur and submit.
@@ -18,7 +20,7 @@ export const FieldErrors = defineComponent({
         { id: props.id, 'aria-live': 'polite', 'aria-atomic': 'true' },
         props.errors.map((error, index) =>
           h('div', { key: `${error.instancePointer}:${error.keyword}:${index}` },
-            error.message ?? error.keyword),
+            messages.value.validationMessage(error)),
         ),
       )
   },

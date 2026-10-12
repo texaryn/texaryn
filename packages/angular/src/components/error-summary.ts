@@ -10,7 +10,7 @@ import {
   Injector,
   viewChild,
 } from '@angular/core'
-import type { FormMessages } from '@texaryn/core'
+import type { FormMessages, VisibleError } from '@texaryn/core'
 import { createFailedSubmitTracker, englishMessages, visibleErrorLabel, visibleErrorMessages } from '@texaryn/core'
 import type { AngularForm } from '../form.js'
 import { makeId } from '../field-props.js'
@@ -44,8 +44,8 @@ export class ErrorSummary {
   readonly focus = input(true)
   readonly messageSet = computed(() => this.messages() ?? englishMessages)
   readonly headingId = computed(() => makeId(this.idPrefix(), 'error-summary', 'heading'))
-  readonly errorLabel = visibleErrorLabel
-  readonly errorMessages = visibleErrorMessages
+  readonly errorLabel = (entry: VisibleError): string => visibleErrorLabel(entry, this.messageSet())
+  readonly errorMessages = (entry: VisibleError): string[] => visibleErrorMessages(entry, this.messageSet())
   readonly makeId = makeId
   private readonly injector = inject(Injector)
   private readonly container = viewChild<ElementRef<HTMLDivElement>>('container')

@@ -16,8 +16,8 @@ export interface ErrorSummaryMount {
 function updateItem(li: HTMLLIElement, entry: VisibleError, idPrefix: string, messages: FormMessages): void {
   const link = li.firstChild as HTMLAnchorElement
   link.href = `#${makeId(idPrefix, entry.nodeId, 'input')}`
-  link.textContent = visibleErrorLabel(entry)
-  li.lastChild!.textContent = messages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })
+  link.textContent = visibleErrorLabel(entry, messages)
+  li.lastChild!.textContent = messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages) })
 }
 
 function item(entry: VisibleError, idPrefix: string, messages: FormMessages): HTMLLIElement {

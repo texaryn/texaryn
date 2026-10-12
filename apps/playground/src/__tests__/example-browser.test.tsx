@@ -108,13 +108,13 @@ describe('example selection and the URL', () => {
     render(<App />)
 
     await waitFor(() => {
-      expect((screen.getByLabelText(/renderer/i) as HTMLSelectElement).value).toBe('mui')
+      expect((screen.getByLabelText('Form renderer') as HTMLSelectElement).value).toBe('mui')
     })
   })
 
   it('writes a chosen renderer into the query', async () => {
     render(<App />)
-    fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: 'bootstrap' } })
+    fireEvent.change(screen.getByLabelText('Form renderer'), { target: { value: 'bootstrap' } })
 
     await waitFor(() => {
       expect(window.location.search).toBe('?renderer=bootstrap')

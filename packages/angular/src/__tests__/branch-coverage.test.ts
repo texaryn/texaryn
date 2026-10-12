@@ -323,8 +323,8 @@ describe('Angular branch coverage', () => {
       constraints: {},
     } as unknown as FieldNode
 
-    expect(fieldLabel(field)).toBe('')
-    expect(fieldLabel({ ...field, annotations: { title: null } } as unknown as FieldNode)).toBe('label')
+    expect(fieldLabel(field)).toBe('Field')
+    expect(fieldLabel({ ...field, annotations: { title: null } } as unknown as FieldNode)).toBe('Field')
     expect(fieldAria({ ...field, annotations: { title: undefined } } as unknown as FieldNode, {
       disabled: false,
       showErrors: false,

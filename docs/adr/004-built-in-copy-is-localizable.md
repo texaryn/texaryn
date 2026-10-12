@@ -218,10 +218,14 @@ English control.
 
 ## What stays open
 
-**Validation messages are not covered.** They arrive from
-`json-schema-library` through `ValidationError.message`, so they are the
-evaluator's copy rather than Texaryn's. Translating them means either a message
-layer over the port or a change upstream, and neither is decided here.
+**Resolved on 2026-10-12: validation messages use this contract.**
+`FormMessages.validationMessage(error)` owns visible copy in field errors and
+error summaries. `ValidationError.message` remains evaluator diagnostic text
+and is never rendered as user facing copy by built-in widgets. Adapters expose
+only normalized, recognized constraint parameters such as `limit` and
+`format`; unknown keywords use a safe generic message. Locale changes
+reformat current errors without running validation again. This keeps copy
+localization independent of the selected evaluator.
 
 **The error summary's copy is decided in ADR-005**, which adds
 `errorSummaryHeading` and `errorSummaryDetail` to the contract.

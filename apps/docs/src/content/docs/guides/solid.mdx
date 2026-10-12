@@ -36,15 +36,26 @@ const adapter = await createJsonSchemaAdapter({
 })
 
 const form = createForm(adapter, { initialData: { name: '', age: 18 } })
+function submit(event: SubmitEvent) {
+  event.preventDefault()
+  form.dispatch({ type: 'Submit' })
+}
 const dispose = render(
-  () => <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />,
+  () => (
+    <form noValidate onSubmit={submit}>
+      <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />
+      <button type="submit">Submit</button>
+    </form>
+  ),
   document.getElementById('app')!,
 )
 ```
 
-Call `dispose()` when the owning application unmounts. `FormRoot` destroys the
-runtime by default. Set `destroyOnUnmount={false}` when another owner controls
-the runtime lifetime, such as when a React shell hosts the Solid renderer.
+`FormRoot` renders the tree only. The application owns the native form and
+connects its submit event to the runtime. Call `dispose()` when the owning
+application unmounts. `FormRoot` destroys the runtime by default. Set
+`destroyOnUnmount={false}` when another owner controls the runtime lifetime,
+such as when a React shell hosts the Solid renderer.
 
 ## Read runtime state
 

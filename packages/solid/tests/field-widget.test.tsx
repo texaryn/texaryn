@@ -53,7 +53,7 @@ describe('Solid field widget', () => {
 
     render(() => <FormContext.Provider value={context}><FieldWidget node={node} /></FormContext.Provider>)
 
-    const select = screen.getByRole('combobox', { name: 'choice' }) as HTMLSelectElement
+    const select = screen.getByRole('combobox', { name: 'Field' }) as HTMLSelectElement
     expect(select.value).toBe('0')
     fireEvent.change(select, { target: { value: '1' } })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SetValue', nodeId: id, value: { active: true } })

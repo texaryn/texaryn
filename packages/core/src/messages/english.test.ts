@@ -109,4 +109,84 @@ describe('englishMessages', () => {
     expect(englishMessages.errorSummaryDetail({ messages: ['Too short', 'Bad format'] })).toBe(': Too short, Bad format')
     expect(englishMessages.errorSummaryDetail({ messages: [] })).toBe(': ')
   })
+
+  it('uses safe validation copy and ignores evaluator diagnostics', () => {
+    expect(englishMessages.validationMessage({
+      instancePointer: '/secret',
+      keyword: 'required',
+      message: 'secret value at /secret is missing',
+      params: { missingProperty: 'secret' },
+    })).toBe('This field is required.')
+    expect(englishMessages.validationMessage({
+      instancePointer: '/name',
+      keyword: 'minLength',
+      message: 'raw user content from evaluator',
+      params: { limit: 3 },
+    })).toBe('Enter at least 3 characters.')
+    expect(englishMessages.validationMessage({
+      instancePointer: '/name',
+      keyword: 'futureKeyword',
+      message: 'untrusted evaluator copy',
+      params: { submittedValue: 'private' },
+    })).toBe('This value is invalid.')
+  })
+
+  it('formats standard validation keywords from safe parameters', () => {
+    const cases: Array<[string, Record<string, unknown>, string]> = [
+      ['minLength', {}, 'This value is too short.'],
+      ['minLength', { limit: 2 }, 'Enter at least 2 characters.'],
+      ['maxLength', {}, 'This value is too long.'],
+      ['maxLength', { limit: 4 }, 'Enter no more than 4 characters.'],
+      ['minimum', {}, 'This value is below the minimum.'],
+      ['minimum', { limit: 2 }, 'Enter a value of at least 2.'],
+      ['exclusiveMinimum', {}, 'This value must be above the minimum.'],
+      ['exclusiveMinimum', { limit: 2 }, 'Enter a value greater than 2.'],
+      ['maximum', {}, 'This value is above the maximum.'],
+      ['maximum', { limit: 9 }, 'Enter a value of at most 9.'],
+      ['exclusiveMaximum', { limit: 9 }, 'Enter a value less than 9.'],
+      ['exclusiveMaximum', {}, 'This value must be below the maximum.'],
+      ['minItems', {}, 'Add more items.'],
+      ['minItems', { limit: 2 }, 'Add at least 2 items.'],
+      ['maxItems', { limit: 3 }, 'Use no more than 3 items.'],
+      ['maxItems', {}, 'Remove some items.'],
+      ['minProperties', {}, 'Add more fields.'],
+      ['minProperties', { limit: 2 }, 'Provide at least 2 fields.'],
+      ['maxProperties', {}, 'Remove some fields.'],
+      ['maxProperties', { limit: 3 }, 'Provide no more than 3 fields.'],
+      ['format', { format: 'email' }, 'Enter a valid email address.'],
+      ['format', { format: 'uri' }, 'Enter a valid URL.'],
+      ['format', { format: 'url' }, 'Enter a valid URL.'],
+      ['format', { format: 'date' }, 'Enter a valid date.'],
+      ['format', { format: 'date-time' }, 'Enter a valid date and time.'],
+      ['format', {}, 'Enter a value in the required format.'],
+      ['pattern', {}, 'Enter a value in the required format.'],
+      ['type', {}, 'Enter a value of the expected type.'],
+      ['enum', {}, 'Choose an allowed value.'],
+      ['const', {}, 'Choose an allowed value.'],
+      ['uniqueItems', {}, 'Each item must be unique.'],
+      ['dependentRequired', {}, 'Complete the related required fields.'],
+      ['additionalProperties', {}, 'Remove unrecognized fields.'],
+      ['oneOf', {}, 'Choose a value that matches an allowed option.'],
+      ['anyOf', {}, 'Choose a value that matches an allowed option.'],
+      ['not', {}, 'This value is invalid.'],
+    ]
+
+    for (const [keyword, params, expected] of cases) {
+      expect(englishMessages.validationMessage({
+        instancePointer: '/field',
+        keyword,
+        params,
+      })).toBe(expected)
+    }
+  })
+
+  it('uses constraint specific fallback copy for invalid numeric parameters', () => {
+    for (const limit of [-1, Number.NaN, Number.POSITIVE_INFINITY, '3']) {
+      expect(englishMessages.validationMessage({
+        instancePointer: '/field',
+        keyword: 'minLength',
+        params: { limit },
+      })).toBe('This value is too short.')
+    }
+  })
 })

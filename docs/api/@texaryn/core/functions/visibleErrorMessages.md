@@ -6,13 +6,17 @@
 
 # Function: visibleErrorMessages()
 
-> **visibleErrorMessages**(`error`): `string`[]
+> **visibleErrorMessages**(`error`, `messages?`): `string`[]
 
 ## Parameters
 
 ### error
 
 [`VisibleError`](../interfaces/VisibleError.md)
+
+### messages?
+
+[`FormMessages`](../interfaces/FormMessages.md) = `englishMessages`
 
 ## Returns
 

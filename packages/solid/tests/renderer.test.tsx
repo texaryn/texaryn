@@ -3,7 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@solidjs/testing-li
 import { createSignal } from 'solid-js'
 import type { Accessor } from 'solid-js'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-import type { NodeId, UIHints } from '@texaryn/core'
+import type { FormRuntime, NodeId, UIHints } from '@texaryn/core'
+import type { JSX } from 'solid-js'
 import { createForm } from '../src/form.js'
 import { createDefaultRegistry } from '../src/registry.js'
 import { FormRoot } from '../src/components/FormRoot.js'
@@ -11,6 +12,14 @@ import { useField } from '../src/field.js'
 import { createArrayDragTransfer, dispatchArrayDrag } from '../../../tests/renderer-conformance/array-drag.js'
 
 afterEach(cleanup)
+
+function NativeForm(props: { form: FormRuntime; children: JSX.Element }) {
+  function submit(event: SubmitEvent) {
+    event.preventDefault()
+    props.form.dispatch({ type: 'Submit' })
+  }
+  return <form noValidate onSubmit={submit}>{props.children}</form>
+}
 
 async function renderForm(
   schema: Record<string, unknown>,
@@ -30,6 +39,7 @@ describe('Solid renderer', () => {
       properties: { name: { type: 'string', title: 'Name' } },
     })
     const input = screen.getByRole('textbox', { name: 'Name' }) as HTMLInputElement
+    expect(document.querySelector('form')).toBeNull()
 
     fireEvent.input(input, { target: { value: 'Ada' } })
 
@@ -43,7 +53,12 @@ describe('Solid renderer', () => {
       required: ['name'],
     })
     const form = createForm(port, { initialData: { name: '' } })
-    render(() => <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />)
+    render(() => (
+      <NativeForm form={form}>
+        <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />
+        <button type="submit">Submit</button>
+      </NativeForm>
+    ))
 
     fireEvent.submit(document.querySelector('form')!)
 
@@ -236,7 +251,7 @@ describe('Solid renderer', () => {
       <FieldProbe nodeId={nodeId} />
     </FormRoot>)
 
-    expect(screen.getByTestId('field-label').textContent).toBe('/age')
+    expect(screen.getByTestId('field-label').textContent).toBe('Age')
     expect(screen.getByTestId('field-description').textContent).toBe('Age in years')
     expect(screen.getByTestId('field-input-id').textContent).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Set number' }))

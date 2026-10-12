@@ -24,6 +24,7 @@ function encodeId(value: string): string {
   return Array.from(value, (char) => char.codePointAt(0)!.toString(36)).join('_')
 }
 
+/** Renders the UI document tree. The consumer owns any native form element and submit handler. */
 export function FormRoot(props: FormRootProps) {
   const defaultRegistry = createDefaultRegistry()
   const initialForm = props.form
@@ -47,22 +48,16 @@ export function FormRoot(props: FormRootProps) {
   })
 
   const context = { form, document, registry, messages, idPrefix }
-  const submit = (event: SubmitEvent) => {
-    event.preventDefault()
-    form().dispatch({ type: 'Submit' })
-  }
 
   return (
     <FormContext.Provider value={context}>
-      <form onSubmit={submit}>
-        <Show when={props.showErrorSummary && form()} keyed>
-          <ErrorSummary focus={props.summaryFocus !== false} />
-        </Show>
-        <Show when={document().nodes[document().rootId]}>
-          {(root) => <NodeRenderer node={root()} />}
-        </Show>
-        {props.children}
-      </form>
+      <Show when={props.showErrorSummary && form()} keyed>
+        <ErrorSummary focus={props.summaryFocus !== false} />
+      </Show>
+      <Show when={document().nodes[document().rootId]}>
+        {(root) => <NodeRenderer node={root()} />}
+      </Show>
+      {props.children}
     </FormContext.Provider>
   )
 }

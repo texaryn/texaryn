@@ -22,7 +22,7 @@
   }
 
   function details(entry: VisibleError): string {
-    return $messages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })
+    return $messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, $messages) })
   }
 </script>
 
@@ -32,7 +32,7 @@
     <ul>
       {#each $visibleErrors as entry (entry.nodeId)}
         <li>
-          <a href={`#${makeId(context.idPrefix, entry.nodeId, 'input')}`}>{visibleErrorLabel(entry)}</a>
+          <a href={`#${makeId(context.idPrefix, entry.nodeId, 'input')}`}>{visibleErrorLabel(entry, $messages)}</a>
           {details(entry)}
         </li>
       {/each}

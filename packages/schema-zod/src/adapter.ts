@@ -1,7 +1,10 @@
 import * as z from 'zod'
 import type { ValidationError, ValidationResult } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import { validationParameters } from './validation-parameters.js'
 import type { ZodAdapterConfig, ZodSchemaAdapter } from './types.js'
+
+const privateIssueParams = new WeakMap<ValidationError, Record<string, unknown>>()
 
 export async function createZodAdapter(
   schema: z.ZodType,
@@ -69,12 +72,15 @@ function toValidationError(
     .join('')
   const { path: _path, message: _message, input: _input, ...params } = issue
   const code = issue.code ?? 'custom'
-  return {
+  const keyword = keywordForIssue(code, issue)
+  const error: ValidationError = {
     instancePointer,
-    keyword: keywordForIssue(code, issue),
+    keyword,
     message: issue.message,
-    params,
+    params: validationParameters(keyword, params as Record<string, unknown>),
   }
+  privateIssueParams.set(error, params as Record<string, unknown>)
+  return error
 }
 
 function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): string {
@@ -91,6 +97,7 @@ function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): str
     const lower = code === 'too_small'
     if (origin === 'string') return lower ? 'minLength' : 'maxLength'
     if (origin === 'array') return lower ? 'minItems' : 'maxItems'
+    if (origin === 'object') return lower ? 'minProperties' : 'maxProperties'
     if ('inclusive' in issue && issue.inclusive === false) {
       return lower ? 'exclusiveMinimum' : 'exclusiveMaximum'
     }
@@ -143,7 +150,7 @@ function mergeEquivalentBranchErrors(branches: ValidationError[][]): ValidationE
   for (const branch of branches) {
     const branchCounts = new Map<string, number>()
     for (const error of branch) {
-      const serializedParams = stableSerialize(error.params)
+      const serializedParams = stableSerialize(privateIssueParams.get(error) ?? error.params)
       if (serializedParams === undefined) {
         result.push(error)
         continue

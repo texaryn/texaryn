@@ -7,6 +7,9 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import { useTheme as useMuiTheme } from '@mui/material'
 import { App } from '../App.js'
 import { RendererSurface } from '../RendererSurface.js'
+import { MuiThemeBoundary } from '../MuiThemeBoundary.js'
+import { BootstrapBoundary } from '../BootstrapBoundary.js'
+import { findRendererInput } from './renderer-test-utils.js'
 import { setMediaQuery, resetMediaQueries } from '../test-setup.js'
 import { DARK_QUERY, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from '../../../../theme.config.mjs'
 
@@ -84,7 +87,10 @@ describe('the theme and the renderer are independent', () => {
     render(<App />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
-    const name = await screen.findByLabelText('Name')
+    const name = await findRendererInput(
+      screen.getByRole('region', { name: /Rendered by/ }),
+      'Name',
+    )
     fireEvent.change(name, { target: { value: 'Ada Lovelace' } })
 
     await choose('dark')
@@ -93,21 +99,22 @@ describe('the theme and the renderer are independent', () => {
     // Read out of the selector rather than listed, for the same reason the
     // boundary test does: a surface added later has to be covered by the test
     // that already exists, not by remembering to extend a list.
-    const offered = within(screen.getByLabelText(/renderer/i))
+    const offered = within(screen.getByLabelText('Form renderer'))
       .getAllByRole('option')
       .map((option) => (option as HTMLOptionElement).value)
     expect(offered.length).toBeGreaterThan(1)
 
     for (const renderer of offered) {
-      fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: renderer } })
+      fireEvent.change(screen.getByLabelText('Form renderer'), { target: { value: renderer } })
       await waitFor(() => {
-        expect((screen.getByLabelText(/renderer/i) as HTMLSelectElement).value).toBe(renderer)
+        expect((screen.getByLabelText('Form renderer') as HTMLSelectElement).value).toBe(renderer)
       })
 
       expect(documentTheme(), `switching to ${renderer} changed the theme`).toBe('dark')
       expect(themeSelect().value, `switching to ${renderer} changed the preference`).toBe('dark')
+      const region = screen.getByRole('region', { name: /Rendered by/ })
       expect(
-        ((await screen.findByLabelText('Name')) as HTMLInputElement).value,
+        (await findRendererInput(region, 'Name')).value,
         `switching to ${renderer} lost the data`,
       ).toBe('Ada Lovelace')
     }
@@ -118,8 +125,9 @@ describe('the theme and the renderer are independent', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
 
-    fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: 'bootstrap' } })
+    fireEvent.change(screen.getByLabelText('Form renderer'), { target: { value: 'bootstrap' } })
     const region = await screen.findByRole('region', { name: /Bootstrap 5$/ })
+    await findRendererInput(region, 'Name')
     expect(region.getAttribute('data-bs-theme')).toBe('light')
 
     await choose('dark')
@@ -129,8 +137,9 @@ describe('the theme and the renderer are independent', () => {
       ).toBe('dark')
     })
 
-    fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: 'default' } })
+    fireEvent.change(screen.getByLabelText('Form renderer'), { target: { value: 'default' } })
     const plain = await screen.findByRole('region', { name: /React · Default$/ })
+    await findRendererInput(plain, 'Name')
     expect(
       plain.getAttribute('data-bs-theme'),
       'a renderer that does not read the attribute should not be given it',
@@ -145,16 +154,16 @@ function MuiModeProbe() {
 describe('the MUI adapter', () => {
   it('hands MUI the resolved mode as its palette mode', () => {
     const { rerender } = render(
-      <RendererSurface rendererKey="mui" label="React · Material UI" theme="dark">
+      <MuiThemeBoundary theme="dark">
         <MuiModeProbe />
-      </RendererSurface>,
+      </MuiThemeBoundary>,
     )
     expect(screen.getByTestId('mui-mode').textContent).toBe('dark')
 
     rerender(
-      <RendererSurface rendererKey="mui" label="React · Material UI" theme="light">
+      <MuiThemeBoundary theme="light">
         <MuiModeProbe />
-      </RendererSurface>,
+      </MuiThemeBoundary>,
     )
     expect(screen.getByTestId('mui-mode').textContent).toBe('light')
   })
@@ -171,14 +180,12 @@ describe('the MUI adapter', () => {
     ).toBe('light')
   })
 
-  it('scopes both adapters to the renderer-owned region', () => {
-    render(
-      <RendererSurface rendererKey="bootstrap" label="React · Bootstrap 5" theme="dark">
-        <span>form</span>
-      </RendererSurface>,
-    )
-    const region = screen.getByRole('region', { name: 'Rendered by React · Bootstrap 5' })
-    expect(within(region).getByText('form')).toBeTruthy()
+  it('scopes both adapters to the renderer-owned region', async () => {
+    render(<BootstrapBoundary theme="dark"><span>form</span></BootstrapBoundary>)
+    const host = await screen.findByTestId('bootstrap-shadow-host')
+    await waitFor(() => expect(host.shadowRoot?.textContent).toContain('form'))
+    expect(host.shadowRoot?.querySelector('style[data-bootstrap-style]')).not.toBeNull()
+    expect(document.head.querySelector('link[href*="bootstrap"]')).toBeNull()
     expect(document.documentElement.hasAttribute('data-bs-theme')).toBe(false)
   })
 })
