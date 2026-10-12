@@ -137,6 +137,8 @@ export function dialectOf(text: string): EditorDialect {
     const name = member.getChild('PropertyName')
     const colon = member.getChild(':')
     if (!name || !colon || text.slice(name.from, name.to) !== '"$schema"') continue
+    const value = colon.nextSibling
+    if (value?.name === 'String') return matchDialect(JSON.parse(text.slice(value.from, value.to)) as string)
     return matchDialect(DECLARATION.exec(text.slice(colon.to))?.[1] ?? '')
   }
   return 'draft-07'

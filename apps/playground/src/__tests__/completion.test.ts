@@ -31,6 +31,11 @@ describe('schemaCompletionSource', () => {
     expect(names).not.toContain('definitions')
   })
 
+  it('follows a declared dialect written with escaped slashes', () => {
+    const names = labels(complete('{\n  "$schema": "https:\\/\\/json-schema.org\\/draft\\/2020-12\\/schema",\n  "pre'))
+    expect(names).toContain('prefixItems')
+  })
+
   it('offers nothing where keys are property names', () => {
     expect(complete('{\n  "properties": {\n    "na')).toBeNull()
   })
