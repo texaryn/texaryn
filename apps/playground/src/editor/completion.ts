@@ -67,8 +67,10 @@ function keyOf(doc: string, property: SyntaxNode): string | null {
   }
 }
 
+const VALUE_NODES: ReadonlySet<string> = new Set(['Object', 'Array', 'String', 'Number', 'True', 'False', 'Null'])
+
 function isValueNode(node: SyntaxNode): boolean {
-  return !node.type.isError && node.name !== 'PropertyName' && node.name !== ':' && node.name !== ','
+  return VALUE_NODES.has(node.name)
 }
 
 type Position =

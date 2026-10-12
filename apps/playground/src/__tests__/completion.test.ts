@@ -82,6 +82,21 @@ describe('keyword positions follow the schema structure', () => {
     expect(names).not.toContain('maxLength')
   })
 
+  it.each([
+    ['directly after the bracket', '{ "type": ["'],
+    ['while typing the first element', '{ "type": ["str'],
+    ['in a nested schema', '{ "properties": { "a": { "type": ["'],
+  ])('offers type values for the first type array element %s', (_name, doc) => {
+    expect(labels(complete(doc))).toContain('string')
+  })
+
+  it('offers type values between auto-closed quotes in a type array', () => {
+    const doc = '{ "type": [""] }'
+    const names = labels(complete(doc, 12))
+    expect(names).toContain('string')
+    expect(names).not.toContain('maxLength')
+  })
+
   it('offers no values when a property is named like a value keyword', () => {
     expect(complete('{ "properties": { "type": "')).toBeNull()
     expect(complete('{ "properties": { "$schema": "')).toBeNull()
