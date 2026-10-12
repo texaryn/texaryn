@@ -620,6 +620,7 @@ export function App() {
               <button
                 type="button"
                 className="pg-header__button"
+                data-focus-toggle
                 aria-pressed={layout.focus}
                 onClick={() => dispatchLayout({ type: 'toggleFocus' })}
               >

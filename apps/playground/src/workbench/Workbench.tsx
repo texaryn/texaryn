@@ -22,7 +22,7 @@ function follow(ref: RefObject<PanelImperativeHandle | null>, expanded: boolean)
 // The button that opens an overlay, for a Restore with no recorded opener
 // (an overlay already open at mount or after a breakpoint crossing).
 function fallbackTarget(left: string): HTMLElement | null {
-  if (left === 'focus') return document.querySelector<HTMLElement>('.pg-header__button[aria-pressed]')
+  if (left === 'focus') return document.querySelector<HTMLElement>('[data-focus-toggle]')
   return document.querySelector<HTMLElement>(`[aria-label="Maximize ${left.replace('maximized:', '')}"]`)
 }
 

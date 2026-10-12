@@ -1180,13 +1180,16 @@ body {
 .pg-pane__action,
 .pg-header__button {
   font: inherit;
-  font-size: 0.85rem;
   padding: 0.15rem 0.5rem;
   color: var(--tx-text-muted);
   background: none;
   border: 1px solid transparent;
   border-radius: var(--tx-radius);
   cursor: pointer;
+}
+
+.pg-header__button {
+  font-size: 0.85rem;
 }
 
 .pg-pane__action:hover,
