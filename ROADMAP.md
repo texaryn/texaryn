@@ -19,8 +19,9 @@ and command history decisions. Migration code waits for a scheduled breaking
 change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
 ADR-022 closes the schema port review trigger after the Zod adapter shipped.
-Section 18 publishes a local performance baseline, with targeted diffing gated
-on representative workload evidence.
+Section 18 publishes local performance baselines, including isolated flat,
+conditional, and bounded-recursive schema projection. Targeted diffing remains
+gated on representative workload evidence.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -1913,15 +1914,17 @@ dependency on the core.
 
 The core, React, and browser measurements are published in the
 [Performance baseline](apps/docs/src/content/docs/concepts/performance.md):
-schema preparation and React server render, browser input-to-DOM latency,
-individual array commands at three sizes, mounted and retained browser heap,
-validation throughput, and a production browser comparison of React, Vue,
-Svelte, Solid, Angular, and Web Components. That comparison reports mount,
-conditional activation, and conditional removal for one shared 50-field form.
-The run records its hardware, Node.js, Chromium, sample counts, and source
-commit. A separate RJSF comparison measures setup, mount, and conditional
-updates for one shared Draft 7 form. Both are local workload baselines, not CI
-thresholds or general performance rankings.
+schema preparation, isolated flat, conditional, and bounded-recursive schema
+projection, React server render, browser input-to-DOM latency, individual array
+commands at three sizes, mounted and retained browser heap, validation
+throughput, and a production browser comparison of React, Vue, Svelte, Solid,
+Angular, and Web Components. That comparison reports mount, conditional
+activation, and conditional removal for one shared 50-field form. A separate
+RJSF comparison measures setup, mount, and conditional updates for one shared
+Draft 7 form. These are local workload baselines, not CI thresholds or general
+performance rankings. Projection measurements report their schema shape, node
+and boundary counts, sample counts, and environment. They do not infer a
+transferable per-node cost.
 
 ### Targeted Recompilation
 
@@ -1988,16 +1991,20 @@ current port remains experimental. No generalization is planned until an
 integration requires projection semantics the current boundary cannot
 represent faithfully.
 
-Section 18 publishes local baselines for compiler timing, React server render,
-browser input-to-DOM latency, array commands, memory deltas, validation
-throughput, a production comparison of six Texaryn renderer paths, and one
-production RJSF comparison on a conditional form. Other form library
+Section 18 publishes local baselines for flat, conditional, and bounded-
+recursive adapter projection, compiler timing, React server render, browser
+input-to-DOM latency, array commands, memory deltas, validation throughput, a
+production comparison of six Texaryn renderer paths, and one production RJSF
+comparison on a conditional form. Other form library
 comparisons are not planned until a concrete adoption or product decision
 defines equivalent functionality and timing boundaries. The RJSF comparison is
 the only current competitor performance comparison. JSON Forms uses a UI
 Schema and renderer set; TanStack Form is headless and does not generate fields
 from JSON Schema. The RJSF figures are one workload baseline, not a ranking
 across form libraries.
+The Bootstrap and MUI React integrations are complete. No additional UI
+library package is scheduled; container binding primitives remain deferred
+until integrations show duplicated composition beyond field and array hooks.
 Targeted diffing stays deferred until supported application workloads show
 repeated structural operations above the interaction target.
 
@@ -2239,19 +2246,13 @@ by a second consumer before the Vue renderer freezes more of it.
   the same React hooks for field binding and array behavior, so the current
   integrations do not show duplicated non-presentational composition.
 
-### Phase 4: Second Renderer (PRs 21-25)
+### Phase 4: Second Renderer (complete)
 
-**Goal:** Prove the "framework-neutral" claim by shipping a second renderer.
-
-The second renderer should be Vue (large community, different reactivity model)
-or Web Components (framework-neutral proof). Vue is recommended because its
-reactivity model is the most different from React, making it the strongest test
-of the binding contract.
-
-Web Components have known form participation issues (`formAssociated`,
-`ElementInternals`, shadow DOM and `<form>` interaction) that JSFE's current
-codebase demonstrates are unresolved. Scoping Web Components as a proof of
-neutrality with named risks is honest; scoping them as a primary target is not.
+Vue and Web Components shipped as framework-neutral renderer proofs. The
+additional renderer phase later shipped Svelte, Solid, and Angular. React,
+Vue, Svelte, Solid, Angular, and Web Components now share the core renderer
+contract. React UI integrations for Bootstrap and MUI are complete under
+Phase 3.x.
 
 ### Phase 5+: Post-Validation
 

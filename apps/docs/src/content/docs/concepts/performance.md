@@ -53,6 +53,48 @@ transfer, or a browser paint.
 The 50-field compiler result is below the roadmap target of 1 ms. The end to end
 server render includes substantially more work than `compile()` alone.
 
+## Schema projection
+
+These measurements isolate synchronous `project()` calls from the
+`@texaryn/schema-json` adapter. They exclude adapter creation, schema
+preparation, compilation, and result validation. Each workload reuses a
+prepared adapter and prebuilt data snapshots. Five warmups precede the measured
+samples. Flat and recursive cases use 200 timed samples each. The conditional
+case records 200 timed calls total, alternating the discriminator for 100
+inactive and 100 active samples.
+
+| Flat schema fields | Projected nodes | Samples | p50 | p95 |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 11 | 200 | 0.1980 ms | 0.3184 ms |
+| 50 | 51 | 200 | 0.3275 ms | 0.4514 ms |
+| 200 | 201 | 200 | 1.2928 ms | 1.5884 ms |
+
+The 50-field conditional fixture projects 53 candidate nodes in either state.
+Changing `enabled` exercises both branch activation and removal.
+
+| Conditional state | Samples | p50 | p95 |
+| --- | ---: | ---: | ---: |
+| Inactive | 100 | 2.6472 ms | 3.0393 ms |
+| Active | 100 | 2.6448 ms | 3.2204 ms |
+
+The recursive fixture is synthetic and mutually recursive across four schema
+definitions. It uses the adapter's default limits of 16 speculative objects
+and 512 speculative nodes, with boundary generation 0. The expanded case adds
+one budget boundary token at `/p0/p0/p1/p2`. Each case uses its own prepared
+adapter with otherwise matching schema, data, limits, and generation.
+
+| Recursive case | Nodes | Recursion boundary nodes | Budget boundary nodes | Recursive expansion nodes | Samples | p50 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Bounded | 49 | 23 | 18 | 39 | 200 | 8.9555 ms | 12.2237 ms |
+| One budget boundary expanded | 51 | 24 | 19 | 41 | 200 | 9.0030 ms | 9.8089 ms |
+
+These are workload measurements, not a transferable per-node cost or a claim
+about typical form latency. Recursion and budget boundary counts can overlap on
+the same node. The two recursive timings are separate workload measurements;
+the lower p95 in the expanded case does not establish that expansion is faster.
+The recursive fixture specifically exercises both recursion and budget
+boundaries.
+
 ## Browser input to DOM update
 
 The runner measures 200 checkbox input events in a 50-field form. It starts at
