@@ -25,6 +25,7 @@ export type LayoutAction =
   | { type: 'toggleInspector' }
   | { type: 'setInspectorCollapsed'; collapsed: boolean }
   | { type: 'toggleExamples' }
+  | { type: 'setExamplesCollapsed'; collapsed: boolean }
   | { type: 'maximize'; pane: PaneId }
   | { type: 'restore' }
   | { type: 'toggleFocus' }
@@ -39,6 +40,8 @@ export function layoutReducer(state: LayoutState, action: LayoutAction): LayoutS
       return { ...state, inspectorCollapsed: action.collapsed }
     case 'toggleExamples':
       return { ...state, examplesCollapsed: !state.examplesCollapsed }
+    case 'setExamplesCollapsed':
+      return { ...state, examplesCollapsed: action.collapsed }
     case 'maximize':
       return state.maximized === action.pane
         ? { ...state, maximized: null }

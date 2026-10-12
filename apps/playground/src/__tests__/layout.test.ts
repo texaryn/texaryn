@@ -44,6 +44,13 @@ describe('layoutReducer', () => {
     expect(layoutReducer(collapsed, { type: 'toggleExamples' }).examplesCollapsed).toBe(false)
   })
 
+  it('sets the example list collapse state to a given value', () => {
+    const collapsed = layoutReducer(DEFAULT_LAYOUT, { type: 'setExamplesCollapsed', collapsed: true })
+    expect(collapsed.examplesCollapsed).toBe(true)
+    expect(layoutReducer(collapsed, { type: 'setExamplesCollapsed', collapsed: true }).examplesCollapsed).toBe(true)
+    expect(layoutReducer(collapsed, { type: 'setExamplesCollapsed', collapsed: false }).examplesCollapsed).toBe(false)
+  })
+
   it('resets to the defaults', () => {
     const changed = layoutReducer(DEFAULT_LAYOUT, { type: 'setPreviewWidth', width: 'phone' })
     expect(layoutReducer(changed, { type: 'reset' })).toEqual(DEFAULT_LAYOUT)

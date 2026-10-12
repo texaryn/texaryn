@@ -105,7 +105,21 @@ export function Workbench({
       )}
       <div className="pg-workbench__panels" inert={view.kind !== 'panels'}>
         <Group orientation="horizontal" defaultLayout={columns.defaultLayout} onLayoutChanged={columns.onLayoutChanged}>
-          <Panel id="examples" panelRef={examplesRef} defaultSize={216} minSize={160} collapsible collapsedSize={0}>
+          <Panel
+            id="examples"
+            panelRef={examplesRef}
+            defaultSize={216}
+            minSize={160}
+            collapsible
+            collapsedSize={0}
+            onResize={() => {
+              const panel = examplesRef.current
+              if (!panel || view.kind !== 'panels') return
+              if (panel.isCollapsed() !== layout.examplesCollapsed) {
+                dispatch({ type: 'setExamplesCollapsed', collapsed: panel.isCollapsed() })
+              }
+            }}
+          >
             <section className="pg-pane" data-pane="examples" aria-label="Examples" inert={layout.examplesCollapsed}>
               <PaneHeader
                 title="Examples"
