@@ -8,6 +8,8 @@
 
 > **checkSchema**(`schema`, `config?`): `Promise`\<[`SchemaIssue`](../interfaces/SchemaIssue.md)[]\>
 
+Returns the schema's own errors as JSON Pointers into it, without building an adapter.
+
 ## Parameters
 
 ### schema

@@ -57,6 +57,7 @@ async function prepareValidation(schema: unknown, config: AdapterConfig | undefi
   return { dialect, externalRemotes, metaschemas, remotes, graph, validated }
 }
 
+/** Returns the schema's own errors as JSON Pointers into it, without building an adapter. */
 export async function checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]> {
   const { validated } = await prepareValidation(schema, config)
   return (validated.schemaErrors ?? []).map((error) => toSchemaIssue(schema, error))

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkSchema } from '../index.js'
+import { checkSchema, SameLocationCycleError } from '../index.js'
 import { resolveUnescapedPath } from '../schema-issues.js'
 
 const D2020 = 'https://json-schema.org/draft/2020-12/schema'
@@ -57,10 +57,10 @@ describe('checkSchema', () => {
     expect(issue.message).toContain('strin')
   })
 
-  it('rejects what createJsonSchemaAdapter rejects', async () => {
+  it('rejects a same-location cycle as the adapter does', async () => {
     await expect(
       checkSchema({ $schema: D2020, $defs: { a: { $ref: '#/$defs/a' } }, type: 'object', properties: { x: { $ref: '#/$defs/a' } } }),
-    ).rejects.toThrow()
+    ).rejects.toBeInstanceOf(SameLocationCycleError)
   })
 })
 
