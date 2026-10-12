@@ -73,6 +73,22 @@ describe('data presets', () => {
     await waitFor(() => expect(screen.queryByLabelText('Data preset')).toBeNull(), { timeout: 3000 })
   })
 
+  it('restores the matching preset label when the example schema returns', async () => {
+    await open('String constraints')
+    const initialSchema = readSchemaText()
+    fireEvent.change(await screen.findByLabelText('Data preset'), { target: { value: 'too-short' } })
+    await waitFor(() => expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('ab'))
+
+    const editedSchema = JSON.parse(initialSchema) as Record<string, unknown>
+    editedSchema.title = 'Edited'
+    editSchema(JSON.stringify(editedSchema, null, 2))
+    await waitFor(() => expect(screen.queryByLabelText('Data preset')).toBeNull(), { timeout: 3000 })
+
+    editSchema(initialSchema)
+    await waitFor(() => expect(presetSelect().value).toBe('too-short'), { timeout: 3000 })
+    expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('ab')
+  })
+
   it('does not appear for an example without presets', async () => {
     await open('String field')
     await screen.findByLabelText('Name')

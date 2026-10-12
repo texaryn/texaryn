@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
-import { page } from '@vitest/browser/context'
+import { page, userEvent } from '@vitest/browser/context'
 import { App } from '../App.js'
 import { findRendererInput } from './renderer-test-utils.js'
 
@@ -21,12 +21,22 @@ describe('preview width presets in Chromium', () => {
     await waitFor(() => expect(screen.getByText('Maximum 768px')).toBeTruthy())
     await waitFor(() => {
       const effective = Math.round(host.getBoundingClientRect().width)
+      expect(effective).toBeGreaterThan(0)
+      expect(effective).toBeLessThan(768)
       expect(screen.getByText(`Effective ${effective}px`)).toBeTruthy()
     })
 
     await page.viewport(2048, 1080)
     await waitFor(() => expect(host.getBoundingClientRect().width).toBeCloseTo(768, 0))
     await waitFor(() => expect(screen.getByText('Effective 768px')).toBeTruthy())
+
+    screen.getByRole('separator', { name: 'Resize schema and preview' }).focus()
+    await userEvent.keyboard('{ArrowRight}'.repeat(30))
+    await waitFor(() => {
+      const effective = Math.round(host.getBoundingClientRect().width)
+      expect(effective).toBeLessThan(768)
+      expect(screen.getByText(`Effective ${effective}px`)).toBeTruthy()
+    })
   })
 })
 

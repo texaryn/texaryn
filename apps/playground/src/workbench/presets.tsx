@@ -8,13 +8,38 @@ export function applyPreset(runtime: FormRuntime, data: unknown, invalid: boolea
   if (invalid) runtime.dispatch({ type: 'Validate' })
 }
 
+function dataKey(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(dataKey).join(',')}]`
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${dataKey(entry)}`)
+    return `{${entries.join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'undefined'
+}
+
+function selectedForData(
+  data: unknown,
+  initialData: unknown,
+  presets: readonly ExamplePreset[],
+): string {
+  const dataValue = data === undefined ? {} : data
+  const initialValue = initialData === undefined ? {} : initialData
+  const key = dataKey(dataValue)
+  if (key === dataKey(initialValue)) return 'initial'
+  return presets.find((preset) => key === dataKey(preset.data === undefined ? {} : preset.data))?.id ?? 'custom'
+}
+
 export function usePresetSelection(
   runtime: FormRuntime,
   presets: readonly ExamplePreset[],
   initialData: unknown,
 ): { selected: string; select: (id: string) => void } {
   const data = useStore(runtime.data)
-  const [selected, setSelected] = useState('initial')
+  const [selected, setSelected] = useState(() =>
+    selectedForData(runtime.data.getSnapshot(), initialData, presets),
+  )
   const applied = useRef<unknown>(runtime.data.getSnapshot())
 
   useEffect(() => {
