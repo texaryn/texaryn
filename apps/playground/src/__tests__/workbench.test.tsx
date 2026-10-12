@@ -114,6 +114,25 @@ describe('the desktop workbench', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Focus' }))
   })
 
+  it('returns focus to the control behind the latest overlay change', async () => {
+    await openWithData()
+    const maximize = screen.getByRole('button', { name: 'Maximize preview' })
+    maximize.focus()
+    fireEvent.click(maximize)
+    const focus = screen.getByRole('button', { name: 'Focus' })
+    focus.focus()
+    fireEvent.click(focus)
+    fireEvent.click(screen.getByRole('button', { name: 'Exit Focus' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Focus' }))
+
+    screen.getByRole('button', { name: 'Maximize preview' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Maximize preview' }))
+    const reset = screen.getByRole('button', { name: 'Reset layout' })
+    reset.focus()
+    fireEvent.click(reset)
+    expect(document.activeElement).toBe(reset)
+  })
+
   it('restores focus to the pane button when the overlay was already open at mount', async () => {
     window.localStorage.setItem(
       LAYOUT_STORAGE_KEY,

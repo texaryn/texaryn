@@ -88,6 +88,26 @@ describe('the desktop workbench in Chromium', () => {
     }
   })
 
+  it('opens with default sizes when saved panel sizes are malformed', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await screen.findByLabelText('Name')
+    const defaultWidth = paneWidth('schema')
+    screen.getByRole('separator', { name: 'Resize schema and preview' }).focus()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}')
+    await waitFor(() => expect(panelKeys().length).toBeGreaterThan(0))
+    await settle()
+
+    for (const [index, key] of panelKeys().entries()) {
+      window.localStorage.setItem(key, ['{broken', 'null', '{"schema":"wide"}'][index % 3])
+    }
+    cleanup()
+    render(<App />)
+    await screen.findByLabelText('Name')
+    expect(screen.getAllByRole('separator')).toHaveLength(3)
+    expect(paneWidth('schema')).toBeCloseTo(defaultWidth, 0)
+  })
+
   it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
     await page.viewport(1512, 900)
     render(<App />)
@@ -162,6 +182,22 @@ describe('the desktop workbench in Chromium', () => {
     await screen.findByRole('button', { name: 'Expand examples' })
     expect(document.querySelector('[data-pane="examples"]')!.hasAttribute('inert')).toBe(true)
     expect(paneWidth('examples')).toBeLessThan(1)
+  })
+
+  it('moves keyboard focus between the collapse and expand controls of the example list', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await screen.findByLabelText('Name')
+    screen.getByRole('button', { name: 'Collapse examples' }).focus()
+    await userEvent.keyboard('{Enter}')
+    const expand = await screen.findByRole('button', { name: 'Expand examples' })
+    await settle()
+    expect(document.activeElement).toBe(expand)
+
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Expand examples' })).toBeNull())
+    await settle()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Collapse examples' }))
   })
 
   it('keeps the inspector collapsed after a reload', async () => {

@@ -495,11 +495,14 @@ export function App() {
   const initialData = preserveCurrentData.current ? latestData.current : entry.initialData
   const adapterMatchesDraft =
     adapterState.status === 'ready' && adapterState.schemaKey === appliedSchemaKey
+  const applyFailed = adapterState.status === 'ready' && Boolean(adapterState.error)
+  const applying =
+    !parseError && !applyFailed && (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
   const previewNotice = parseError
     ? 'Invalid JSON. This preview shows the last valid schema.'
-    : adapterState.status === 'ready' && adapterState.error
+    : applyFailed
       ? `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
-      : draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft)
+      : applying
         ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
         : null
 
@@ -725,7 +728,7 @@ export function App() {
         />
       )}
       {!narrow && (
-        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={draftHasChanges} />
+        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={applying} />
       )}
     </div>
   )
