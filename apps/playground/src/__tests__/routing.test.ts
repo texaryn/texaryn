@@ -2,7 +2,14 @@
 // Pages it is `/texaryn/playground/`, because the docs site owns the root and
 // the playground owns that subtree.
 import { describe, it, expect } from 'vitest'
-import { docsHref, formatLocation, parseLocation, RENDERER_KEYS } from '../routing.js'
+import {
+  docsHref,
+  encodeSharedSchema,
+  formatLocation,
+  MAX_SHARED_SCHEMA_BYTES,
+  parseLocation,
+  RENDERER_KEYS,
+} from '../routing.js'
 
 describe('docsHref', () => {
   it('points at the parent of the mount in development', () => {
@@ -43,6 +50,25 @@ describe('parseLocation', () => {
     expect(parseLocation('/playground/basics-string', '?renderer=mui', DEV).renderer).toBe(
       'mui',
     )
+  })
+
+  it('reads shared schema text from the fragment without changing the route', () => {
+    const schemaText = '{"title":"Café 🦄"}'
+    const url = formatLocation({ exampleId: null, renderer: 'mui', schemaText }, PAGES)
+    const [path, queryAndHash] = url.split('?')
+    const [search, hash] = queryAndHash!.split('#')
+
+    expect(parseLocation(path!, `?${search}`, PAGES, `#${hash}`)).toEqual({
+      exampleId: null,
+      renderer: 'mui',
+      schemaText,
+    })
+  })
+
+  it('ignores malformed or oversized shared schema fragments', () => {
+    const largeSchema = 'x'.repeat(MAX_SHARED_SCHEMA_BYTES + 1)
+    expect(encodeSharedSchema(largeSchema)).toBeNull()
+    expect(parseLocation('/playground/', '', DEV, '#schema=%%%').schemaText).toBeUndefined()
   })
 
   it('has no example at the mount point itself', () => {

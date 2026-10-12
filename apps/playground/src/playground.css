@@ -504,6 +504,49 @@ body {
   resize: vertical;
 }
 
+.pg-editor-loading {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  color: var(--tx-text-muted);
+}
+
+.pg-schema-editor .cm-editor {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border-radius: var(--tx-radius);
+  font-family: var(--tx-font-mono);
+  font-size: 0.85rem;
+}
+
+.pg-schema-editor .cm-scroller {
+  font-family: inherit;
+}
+
+.pg-schema-editor .cm-content {
+  min-height: 220px;
+  padding: 0.65rem;
+  caret-color: var(--tx-text);
+}
+
+.pg-schema-editor .cm-gutters {
+  color: var(--tx-text-muted);
+  background: var(--tx-surface-raised);
+  border-right: 1px solid var(--tx-border);
+}
+
+.pg-schema-editor .cm-activeLine,
+.pg-schema-editor .cm-activeLineGutter {
+  background: var(--tx-surface);
+}
+
+.pg-schema-editor .cm-cursor {
+  border-left-color: var(--tx-text);
+}
+
 .pg-button {
   font: inherit;
   font-size: 0.9rem;
@@ -560,8 +603,21 @@ body {
 }
 
 .pg-schema-heading .pg-button {
-  margin-top: 0.5rem;
   white-space: nowrap;
+}
+
+.pg-schema-heading__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.pg-schema-share-note,
+.pg-schema-share-status {
+  margin: 0.4rem 0;
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
 }
 
 .pg-builder {
@@ -931,7 +987,7 @@ body {
  * showing what a renderer produces. */
 .pg-select:focus-visible,
 .pg-search:focus-visible,
-.pg-schema-editor:focus-visible,
+.pg-schema-editor:focus-within,
 .pg-editor-tabs__item:focus-visible,
 .pg-builder__input:focus-visible,
 .pg-button:focus-visible,

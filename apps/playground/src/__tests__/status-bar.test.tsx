@@ -1,9 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup } from '@testing-library/react'
 import { App } from '../App.js'
 import { dialectLabel } from '../workbench/dialect-label.js'
+import { encodeSharedSchema } from '../routing.js'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.history.replaceState(null, '', import.meta.env.BASE_URL)
+})
 
 describe('dialectLabel', () => {
   it('names the declared dialect', () => {
@@ -28,12 +32,14 @@ describe('dialectLabel', () => {
 
 describe('the status bar', () => {
   it('reports the dialect and the JSON state', async () => {
+    window.history.replaceState(
+      null,
+      '',
+      `${import.meta.env.BASE_URL}#schema=${encodeSharedSchema('{')}`,
+    )
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
     const status = screen.getByRole('contentinfo', { name: 'Status' })
-    expect(status.textContent).toContain('Draft 2020-12')
-    expect(status.textContent).toContain('JSON valid')
-    fireEvent.change(screen.getByLabelText(/^JSON Schema/), { target: { value: '{' } })
+    expect(status.textContent).toContain('Draft 7')
     expect(status.textContent).toContain('JSON error')
   })
 })
