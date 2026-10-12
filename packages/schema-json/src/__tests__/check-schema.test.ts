@@ -57,6 +57,12 @@ describe('checkSchema', () => {
     expect(issue.message).toContain('strin')
   })
 
+  it('locates an invalid pattern at the root because the library gives no location', async () => {
+    const issues = await checkSchema({ pattern: '(' })
+    expect(issues).toHaveLength(1)
+    expect(issues[0]!.pointer).toBe('')
+  })
+
   it('rejects a same-location cycle as the adapter does', async () => {
     await expect(
       checkSchema({ $schema: D2020, $defs: { a: { $ref: '#/$defs/a' } }, type: 'object', properties: { x: { $ref: '#/$defs/a' } } }),

@@ -176,11 +176,13 @@ The result contains validation errors at that pointer or below it.
 
 ```ts
 import {
+  checkSchema,
   createJsonSchemaAdapter,
   ProjectionValidationDivergenceError,
   SameLocationCycleError,
   type AdapterConfig,
   type Dialect,
+  type SchemaIssue,
 } from '@texaryn/schema-json'
 ```
 
@@ -193,6 +195,17 @@ const adapter = await createJsonSchemaAdapter(schema, {
   defaultDialect: 'draft-07',
 })
 ```
+
+### `checkSchema(schema, config?)`
+
+Reports where a schema itself is invalid, without building an adapter. Each issue carries an RFC 6901 pointer into the schema, a `code` (currently always `schema-error`) and a message. A schema with no errors returns an empty array.
+
+```ts
+const issues = await checkSchema({ type: 'object', properties: { name: { type: 'strin' } } })
+// [{ pointer: '/properties/name/type', code: 'schema-error', message: '...' }]
+```
+
+It rejects, as `createJsonSchemaAdapter` does, for a same-location `$ref` cycle (`SameLocationCycleError`) and for unresolved remote resources, rather than returning issues for them.
 
 ### `AdapterConfig`
 

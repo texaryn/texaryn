@@ -17,6 +17,7 @@ export interface JsonSchemaAdapter extends SchemaEvaluationPort {
 /** A place where a schema itself is invalid, as an RFC 6901 pointer into it. */
 export interface SchemaIssue {
   pointer: JsonPointer
+  /** Currently always `schema-error`; more specific codes may be added. */
   code: string
   message: string
 }
