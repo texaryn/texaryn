@@ -16,6 +16,7 @@
 ## Interfaces
 
 - [AdapterConfig](interfaces/AdapterConfig.md)
+- [SchemaIssue](interfaces/SchemaIssue.md)
 
 ## Type Aliases
 
@@ -24,4 +25,5 @@
 
 ## Functions
 
+- [checkSchema](functions/checkSchema.md)
 - [createJsonSchemaAdapter](functions/createJsonSchemaAdapter.md)
