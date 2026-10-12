@@ -103,6 +103,23 @@ describe('the schema editor', () => {
   })
 })
 
+describe('schema problems on a phone', () => {
+  it('announces the count without F8 and opens the problem list from the schema heading', async () => {
+    setMediaQuery(NARROW_QUERY, true)
+    render(<App />)
+    await screen.findByLabelText('Name')
+    fireEvent.click(screen.getByRole('button', { name: /^Schema$/ }))
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+    const region = screen.getByRole('status', { name: 'Schema problems' })
+    expect(region.textContent).toBe('')
+    expect(screen.queryByRole('button', { name: /problem/ })).toBeNull()
+    editSchema(readSchemaText().replace(/"type": "\w+"/, '"type": "strin"'))
+    await waitFor(() => expect(region.textContent).toBe('1 schema error.'), { timeout: 3000 })
+    fireEvent.click(screen.getByRole('button', { name: '1 problem' }))
+    await waitFor(() => expect(document.querySelector('.cm-panel.cm-panel-lint')).toBeTruthy())
+  })
+})
+
 describe('the schema editor toolbar', () => {
   it('keeps the Format button in place and disables it while the JSON does not parse', async () => {
     await openStringField()

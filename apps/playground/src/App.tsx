@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, FormEvent, ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
 import { SchemaEditorSlot } from './editor-slot.js'
+import type { SchemaEditorActions } from './editor/SchemaEditor.js'
 import { CopyButton } from './CopyButton.js'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { FormBuilder } from './FormBuilder.js'
@@ -20,7 +21,7 @@ import { clearStoredPanelSizes, useLayout } from './workbench/layout.js'
 import { PaneSlot, usePaneHosts } from './workbench/pane-hosts.js'
 import type { PaneHosts } from './workbench/pane-hosts.js'
 import { dialectLabel } from './workbench/dialect-label.js'
-import { StatusBar } from './workbench/StatusBar.js'
+import { StatusBar, schemaIssueSentence } from './workbench/StatusBar.js'
 import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
 import { docsHref, encodeSharedSchema, formatLocation, parseLocation } from './routing.js'
@@ -404,6 +405,7 @@ export function App() {
   const [resetSignal, setResetSignal] = useState(0)
   const [schemaIssues, setSchemaIssues] = useState<number | null>(null)
   const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null)
+  const [editorActions, setEditorActions] = useState<SchemaEditorActions | null>(null)
   const [loadEditor, setLoadEditor] = useState(false)
   useEffect(() => {
     if (!narrow || mobilePanel === 'schema') setLoadEditor(true)
@@ -651,6 +653,18 @@ export function App() {
       <div className="pg-schema-heading">
         <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
         <div className="pg-schema-heading__actions">
+          {narrow && editorActions && schemaIssues !== null && schemaIssues > 0 && (
+            <button
+              type="button"
+              className="pg-button pg-button--quiet"
+              onClick={() => {
+                flushSync(() => setSchemaMode('json'))
+                editorActions.openProblems()
+              }}
+            >
+              {schemaIssues === 1 ? '1 problem' : `${schemaIssues} problems`}
+            </button>
+          )}
           <button
             className="pg-button pg-button--quiet"
             type="button"
@@ -708,9 +722,13 @@ export function App() {
             documentKey={exampleRevision}
             onSchemaIssues={setSchemaIssues}
             onCursor={setCursor}
+            onReady={setEditorActions}
           />
         </div>
       </div>
+      <p role="status" aria-label="Schema problems" className="pg-sr-only">
+        {schemaIssueSentence(schemaIssues, !narrow)}
+      </p>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       {selectedId === CUSTOM_KEY && customSchemaToken === null && (
         <p className="pg-schema-share-note">This schema is too large to share in a link. It remains saved in this browser.</p>

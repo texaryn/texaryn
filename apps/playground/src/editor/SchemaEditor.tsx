@@ -13,12 +13,16 @@ import { defaultKeymap, history, historyKeymap, isolateHistory } from '@codemirr
 import { bracketMatching, foldGutter, foldKeymap, indentOnInput } from '@codemirror/language'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
-import { linter, lintGutter, lintKeymap } from '@codemirror/lint'
+import { linter, lintGutter, lintKeymap, openLintPanel } from '@codemirror/lint'
 import { json, jsonParseLinter } from '@codemirror/lang-json'
 import { PANE_ATTACH_EVENT } from '../workbench/pane-hosts.js'
 import { editorHighlight, editorTheme } from './theme.js'
 import { schemaLintSource } from './schema-lint.js'
 import { schemaCompletionSource } from './completion.js'
+
+export interface SchemaEditorActions {
+  openProblems: () => void
+}
 
 export interface SchemaEditorProps {
   value: string
@@ -27,6 +31,7 @@ export interface SchemaEditorProps {
   documentKey: number
   onSchemaIssues?: (count: number | null) => void
   onCursor?: (cursor: { line: number; column: number } | null) => void
+  onReady?: (actions: SchemaEditorActions | null) => void
 }
 
 export default function SchemaEditor({
@@ -36,13 +41,14 @@ export default function SchemaEditor({
   documentKey,
   onSchemaIssues,
   onCursor,
+  onReady,
 }: SchemaEditorProps) {
   const host = useRef<HTMLDivElement | null>(null)
   const view = useRef<EditorView | null>(null)
   const extensions = useRef<Extension[]>([])
-  const callbacks = useRef({ onChange, onSchemaIssues, onCursor })
+  const callbacks = useRef({ onChange, onSchemaIssues, onCursor, onReady })
   const emitted = useRef(new Set<string>())
-  callbacks.current = { onChange, onSchemaIssues, onCursor }
+  callbacks.current = { onChange, onSchemaIssues, onCursor, onReady }
 
   useEffect(() => {
     extensions.current = [
@@ -97,8 +103,10 @@ export default function SchemaEditor({
     const paneHost = host.current!.closest('.pg-pane-host')
     const remeasure = () => editor.requestMeasure()
     paneHost?.addEventListener(PANE_ATTACH_EVENT, remeasure)
+    callbacks.current.onReady?.({ openProblems: () => openLintPanel(editor) })
     return () => {
       paneHost?.removeEventListener(PANE_ATTACH_EVENT, remeasure)
+      callbacks.current.onReady?.(null)
       editor.destroy()
       view.current = null
     }
