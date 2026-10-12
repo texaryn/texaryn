@@ -65,6 +65,7 @@ describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
       await waitFor(() => expect(document.documentElement.dataset.theme).toBe(theme))
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
       if (width >= 820) {
+        expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
         expect(paneWidth('schema')).toBeGreaterThanOrEqual(280)
         expect(paneWidth('preview')).toBeGreaterThanOrEqual(320)
       } else {
@@ -87,6 +88,7 @@ describe('the desktop workbench in Chromium', () => {
       expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(4)
     }
   })
+  it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
 
     await page.viewport(1512, 900)
     render(<App />)
