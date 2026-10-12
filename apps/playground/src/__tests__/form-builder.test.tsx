@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { readSchemaText } from './schema-text.js'
 
 function setPath(path: string): void {
   window.history.replaceState(null, '', path)
@@ -27,8 +28,7 @@ describe('visual form builder', () => {
     fireEvent.click(within(field).getByLabelText('Required'))
 
     fireEvent.click(screen.getByRole('button', { name: 'JSON' }))
-    const source = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
-    const schema = JSON.parse(source.value) as {
+    const schema = JSON.parse(readSchemaText()) as {
       properties: Record<string, { type: string; title: string }>
       required: string[]
     }

@@ -6,6 +6,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
 import type { TexarynExample } from '@texaryn/examples'
+import { SchemaEditorSlot } from './editor-slot.js'
 import { ExampleBrowser } from './ExampleBrowser.js'
 import { FormBuilder } from './FormBuilder.js'
 import { Inspector, DEFAULT_TAB } from './Inspector.js'
@@ -373,6 +374,12 @@ export function App() {
   const narrow = useNarrowViewport()
   const [layout, dispatchLayout] = useLayout()
   const [resetSignal, setResetSignal] = useState(0)
+  const [schemaIssues, setSchemaIssues] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null)
+  const [loadEditor, setLoadEditor] = useState(false)
+  useEffect(() => {
+    if (!narrow || mobilePanel === 'schema') setLoadEditor(true)
+  }, [narrow, mobilePanel])
   const resetLayout = useCallback(() => {
     clearStoredPanelSizes()
     dispatchLayout({ type: 'reset' })
@@ -566,6 +573,18 @@ export function App() {
         <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
           Reset data
         </button>
+        {parseError === null && (
+          <button
+            type="button"
+            className="pg-button pg-button--quiet"
+            onClick={() => handleSchemaChange(JSON.stringify(JSON.parse(schemaText), null, 2))}
+          >
+            Format
+          </button>
+        )}
+        <button type="button" className="pg-button pg-button--quiet" onClick={() => void navigator.clipboard?.writeText(schemaText)}>
+          Copy
+        </button>
       </div>
       <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
         <button
@@ -586,18 +605,18 @@ export function App() {
         </button>
       </div>
       <div id="schema-editor-panel">
-        {schemaMode === 'visual' ? (
-          <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
-        ) : (
-          <textarea
-            aria-labelledby="schema-editor-label"
-            className="pg-schema-editor"
+        {schemaMode === 'visual' && <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />}
+        <div hidden={schemaMode === 'visual'} className="pg-code-editor-frame">
+          <SchemaEditorSlot
+            load={loadEditor}
             value={schemaText}
-            onChange={(e) => handleSchemaChange(e.target.value)}
-            spellCheck={false}
-            wrap="off"
+            onChange={handleSchemaChange}
+            labelledBy="schema-editor-label"
+            documentKey={exampleRevision}
+            onSchemaIssues={setSchemaIssues}
+            onCursor={setCursor}
           />
-        )}
+        </div>
       </div>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
     </>
@@ -728,7 +747,13 @@ export function App() {
         />
       )}
       {!narrow && (
-        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={applying} />
+        <StatusBar
+          dialect={dialectLabel(appliedSchema)}
+          parseError={parseError}
+          pending={applying}
+          schemaIssues={schemaIssues}
+          cursor={cursor}
+        />
       )}
     </div>
   )

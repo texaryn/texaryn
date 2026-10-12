@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { App } from '../App.js'
 import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
 import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
+import { editSchema } from './schema-text.js'
 
 const MOUNT = import.meta.env.BASE_URL
 
@@ -28,22 +29,19 @@ describe('schema editor lifecycle', () => {
     await openStringExample()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Grace' } })
 
-    const editor = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
-    fireEvent.change(editor, {
-      target: {
-        value: JSON.stringify(
-          {
-            type: 'object',
-            properties: {
-              name: { type: 'string', title: 'Name' },
-              note: { type: 'string', title: 'Note' },
-            },
+    editSchema(
+      JSON.stringify(
+        {
+          type: 'object',
+          properties: {
+            name: { type: 'string', title: 'Name' },
+            note: { type: 'string', title: 'Note' },
           },
-          null,
-          2,
-        ),
-      },
-    })
+        },
+        null,
+        2,
+      ),
+    )
 
     const note = (await screen.findByLabelText('Note', {}, { timeout: 3000 })) as HTMLInputElement
     expect(note).toBeTruthy()
@@ -52,8 +50,7 @@ describe('schema editor lifecycle', () => {
 
   it('keeps the last valid form and inspector visible for invalid JSON', async () => {
     await openStringExample()
-    const editor = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
-    fireEvent.change(editor, { target: { value: '{\n  "type": ' } })
+    editSchema('{\n  "type": ')
 
     expect((await screen.findByRole('status')).textContent).toMatch(/last valid schema/i)
     expect(screen.getByLabelText('Name')).toBeTruthy()

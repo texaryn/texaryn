@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { editSchema } from './schema-text.js'
 
 function setPath(path: string, search = ''): void {
   window.history.replaceState(null, '', `${path}${search}`)
@@ -49,13 +50,12 @@ describe('inspector panes', () => {
     fireEvent.click(tab('Schema'))
     await waitFor(() => expect(panel().textContent).toContain('String field'))
 
-    const editor = screen.getByLabelText(/^JSON Schema/) as HTMLTextAreaElement
     const custom = JSON.stringify(
       { type: 'object', title: 'Edited schema', properties: { q: { type: 'string' } } },
       null,
       2,
     )
-    fireEvent.change(editor, { target: { value: custom } })
+    editSchema(custom)
 
     await waitFor(() => expect(panel().textContent).toContain('Edited schema'))
   })

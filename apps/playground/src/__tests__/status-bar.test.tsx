@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { App } from '../App.js'
 import { dialectLabel } from '../workbench/dialect-label.js'
+import { editSchema } from './schema-text.js'
 
 afterEach(cleanup)
 
@@ -33,7 +34,7 @@ describe('the status bar', () => {
     const status = screen.getByRole('contentinfo', { name: 'Status' })
     expect(status.textContent).toContain('Draft 2020-12')
     expect(status.textContent).toContain('JSON valid')
-    fireEvent.change(screen.getByLabelText(/^JSON Schema/), { target: { value: '{' } })
+    editSchema('{')
     expect(status.textContent).toContain('JSON error')
   })
 })

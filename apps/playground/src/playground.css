@@ -31,6 +31,14 @@
   --tx-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
   --tx-font: system-ui, -apple-system, sans-serif;
   --tx-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tx-code-bg: #ffffff;
+  --tx-code-gutter: #237893;
+  --tx-code-key: #0070c1;
+  --tx-code-string: #a31515;
+  --tx-code-number: #098658;
+  --tx-code-keyword: #0000ff;
+  --tx-code-selection: #add6ff;
+  --tx-code-active-line: #99999926;
 }
 
 /* Dark keeps the same surface order as light: the canvas is furthest back,
@@ -55,6 +63,14 @@
   /* Heavier than light, because a shadow that reads on white is invisible on
    * a dark column and the raised card would lose its lift. */
   --tx-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 16px rgb(0 0 0 / 32%);
+  --tx-code-bg: #1e1e1e;
+  --tx-code-gutter: #838383;
+  --tx-code-key: #9cdcfe;
+  --tx-code-string: #ce9178;
+  --tx-code-number: #b5cea8;
+  --tx-code-keyword: #569cd6;
+  --tx-code-selection: #6199ff2f;
+  --tx-code-active-line: #ffffff0f;
 }
 
 html,
@@ -502,6 +518,24 @@ body {
   font-family: var(--tx-font-mono);
   font-size: 0.85rem;
   resize: vertical;
+}
+
+.pg-code-editor-frame,
+.pg-code-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.pg-code-editor {
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+}
+
+.pg-code-editor-frame[hidden] {
+  display: none;
 }
 
 .pg-button {
@@ -1051,6 +1085,10 @@ body {
   .pg-col--source .pg-schema-editor {
     min-height: 55dvh;
     resize: vertical;
+  }
+
+  .pg-col--source .pg-code-editor-frame {
+    min-height: 55dvh;
   }
 
   .pg-col--preview {

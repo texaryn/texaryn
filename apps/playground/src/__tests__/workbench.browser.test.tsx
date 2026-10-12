@@ -4,6 +4,7 @@ import { page, userEvent } from '@vitest/browser/context'
 import { THEME_STORAGE_KEY } from '../../../../theme.config.mjs'
 import { App } from '../App.js'
 import { PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
+import { editSchema, readSchemaText } from './schema-text.js'
 
 const SIZES = [
   [1512, 900],
@@ -239,5 +240,52 @@ describe('the desktop workbench in Chromium', () => {
     await settle()
     expect(savedSizes()).toEqual(sizes)
     expect(Math.abs(paneWidth('schema') - schema)).toBeLessThanOrEqual(1)
+  })
+})
+
+const MOD = navigator.platform.includes('Mac') ? 'Meta' : 'Control'
+
+describe('the schema editor in Chromium', () => {
+  it('draws an underline under an invalid keyword value', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+    editSchema(readSchemaText().replace('"type": "string"', '"type": "strin"'))
+    await waitFor(() => expect(document.querySelector('.cm-lintRange-error')?.textContent).toBe('"strin"'), {
+      timeout: 3000,
+    })
+  })
+
+  it('takes real typing, undoes it, and lets Tab leave', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    const content = document.querySelector<HTMLElement>('.cm-content')!
+    await userEvent.click(content)
+    await userEvent.keyboard('{End} ')
+    const typed = readSchemaText()
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).not.toBe(typed)
+    await userEvent.keyboard('{Tab}')
+    expect(document.activeElement?.closest('.cm-editor')).toBeNull()
+  })
+
+  it('keeps the same editor, its undo history and its click positions across the breakpoint', async () => {
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    const editor = document.querySelector('.cm-editor')
+    const before = readSchemaText()
+    await userEvent.click(document.querySelector<HTMLElement>('.cm-content')!)
+    await userEvent.keyboard('{End} ')
+    await toPhoneAndBack()
+    expect(document.querySelector('.cm-editor')).toBe(editor)
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[2]!)
+    await waitFor(() =>
+      expect(screen.getByRole('contentinfo', { name: 'Status' }).textContent).toContain('Ln 3,'),
+    )
+    await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
+    expect(readSchemaText()).toBe(before)
   })
 })

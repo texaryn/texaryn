@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { act, render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { App } from '../App.js'
 import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
 import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
@@ -15,7 +15,9 @@ describe('crossing the phone breakpoint', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
     const name = (await screen.findByLabelText('Name')) as HTMLInputElement
     fireEvent.change(name, { target: { value: 'Ada' } })
+    await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
     const editor = screen.getByLabelText(/^JSON Schema/)
+    expect(editor.classList.contains('cm-content')).toBe(true)
 
     act(() => setMediaQuery(NARROW_QUERY, true))
     expect(document.querySelector('.pg-workbench')).toBeNull()
