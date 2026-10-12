@@ -17,7 +17,7 @@
 - No dash punctuation in prose, comments, commit messages or pull request descriptions. Hyphens in compound words stay.
 - Code comments only for invariants, external contracts or intentional limits.
 - Exact pins: `react-resizable-panels@4.14.4`, `cmdk@1.1.1`. Install CodeMirror packages with `pnpm add -E` so the lockfile pins what resolves.
-- Breakpoint: the phone layout applies at `(max-width: 760px)`, the query #241's CSS already uses. The desktop workbench applies from 761px.
+- Breakpoint: the desktop workbench applies from 820px; below it, #241's phone layout applies, through `(max-width: 819px)`. The desktop minimums add up to 768px (example list 160, schema 280, preview 320, two 4px separators), so #241's `(max-width: 760px)` would leave 761px to 767px with constraints no layout can satisfy. Task 3 moves #241's phone media query to 819px so the stylesheet and the tree agree.
 - Panel sizes in `react-resizable-panels` 4: a number is pixels and a bare number string is a percentage, so write `defaultSize="46"` and `minSize={280}`.
 - Layout numbers: example list 216px (minimum 160px); schema 46% and preview 54% of the top row (minimums 280px and 320px); top row 72% and inspector 28% (inspector minimum 120px, collapsed to a 32px header).
 - `useDefaultLayout` always gets `onlySaveAfterUserInteractions: true`.
@@ -40,7 +40,8 @@ Every task's tests protect these. A change that breaks one is wrong even if its 
 
 ## Review Focus
 
-- **Crossing the 761px breakpoint while a form has data and the editor has undo history.** Data, the input element, the editor's text and its history all survive. Pinned in Task 4 (jsdom) and Task 6 (Chromium, with real typing and Ctrl Z).
+- **Crossing the 820px breakpoint while a form has data and the editor has undo history.** Data, the input element, the editor's text, its history and its click positions all survive, and Submit still submits once. Pinned in Task 4 (jsdom), Task 6 and Task 10 (Chromium).
+- **Opening and closing an overlay from the keyboard.** Focus moves to the overlay's Restore or Exit Focus button and back to the button that opened it. Pinned in Task 3.
 - **Maximize, then Restore, after the user dragged a separator.** Every pane returns to the exact pixel size it had, and a reload shows the dragged size, not a maximized one. Pinned in Task 3 and Task 6.
 - **Property names containing `/` or `~`, including an ambiguous path.** Unique paths resolve to exact RFC 6901 pointers; an ambiguous one resolves to the longest prefix every reading shares. Pinned in Task 7 and Task 8.
 - **A check that finishes after the document changed.** Its diagnostics and its error count are dropped. Pinned in Task 10.
@@ -328,7 +329,7 @@ This task changes no layout. It moves each column's content into a portal so lat
 - Test: `apps/playground/src/__tests__/pane-hosts.test.tsx`
 
 **Interfaces:**
-- Produces: `type PaneHostId = 'examples' | 'schema' | 'preview' | 'inspector'`, `type PaneHosts = Readonly<Record<PaneHostId, HTMLDivElement>>`, `usePaneHosts(): PaneHosts`, `PaneSlot` props `{ host: HTMLElement; className?: string; style?: CSSProperties }`.
+- Produces: `type PaneHostId = 'examples' | 'schema' | 'preview' | 'inspector'`, `type PaneHosts = Readonly<Record<PaneHostId, HTMLDivElement>>`, `usePaneHosts(): PaneHosts`, `PaneSlot` props `{ host: HTMLElement; className?: string; style?: CSSProperties }`, `PANE_ATTACH_EVENT = 'pg-pane-attach'`, dispatched on a host each time a slot attaches it.
 - Changes: `NotReady` and `FormWorkspace` take `hosts: PaneHosts`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -433,12 +434,17 @@ export function usePaneHosts(): PaneHosts {
   return hosts
 }
 
+// Fired on the host after it moves. Content that caches geometry, such as
+// CodeMirror, re-measures on it.
+export const PANE_ATTACH_EVENT = 'pg-pane-attach'
+
 export function PaneSlot({ host, className, style }: { host: HTMLElement; className?: string; style?: CSSProperties }) {
   const slot = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
     const element = slot.current
     if (!element) return
     element.appendChild(host)
+    host.dispatchEvent(new Event(PANE_ATTACH_EVENT))
     return () => {
       if (host.parentNode === element) element.removeChild(host)
     }
@@ -544,7 +550,7 @@ git commit -m "refactor(playground): render pane content into persistent hosts"
 - Create: `apps/playground/src/workbench/PaneHeader.tsx`
 - Create: `apps/playground/src/workbench/Workbench.tsx`
 - Create: `apps/playground/src/workbench/use-narrow-viewport.ts`
-- Modify: `apps/playground/src/App.tsx` (render `Workbench` from 761px and #241's columns below; Focus and Reset layout in the header)
+- Modify: `apps/playground/src/App.tsx` (render `Workbench` from 820px and #241's columns below; Focus and Reset layout in the header)
 - Modify: `apps/playground/src/playground.css`
 - Modify: `apps/playground/src/test-setup.ts` (`ResizeObserver` stub)
 - Modify: `apps/playground/src/__tests__/schema-editor.test.tsx` (the phone selector test sets the narrow query)
@@ -553,7 +559,7 @@ git commit -m "refactor(playground): render pane content into persistent hosts"
 **Interfaces:**
 - Consumes: `LayoutState`, `LayoutAction`, `activeView`, `panelStorage`, `clearStoredPanelSizes`, `useLayout` (Task 1); `PaneHosts`, `PaneSlot` (Task 2).
 - Produces: `Workbench` props `{ hosts: PaneHosts; layout: LayoutState; dispatch: (action: LayoutAction) => void; resetSignal: number; previewHeader?: ReactNode; rail?: ReactNode }`. Panes render as `<section data-pane="<id>" aria-label="<Title>">`; overlays as `<div className="pg-overlay" data-view="focus|maximized">`.
-- Produces: `PaneHeader` props `{ title: string; children?: ReactNode; actions?: ReactNode }`, `MaximizeButton` props `{ pane: PaneId; label: string; layout: LayoutState; dispatch: (action: LayoutAction) => void }`, `NARROW_QUERY = '(max-width: 760px)'`, `useNarrowViewport(): boolean`.
+- Produces: `PaneHeader` props `{ title: string; children?: ReactNode; actions?: ReactNode }`, `MaximizeButton` props `{ pane: PaneId; label: string; maximized: boolean; dispatch: (action: LayoutAction) => void; buttonRef?: Ref<HTMLButtonElement> }`, `NARROW_QUERY = '(max-width: 819px)'`, `useNarrowViewport(): boolean`.
 
 - [ ] **Step 1: Add the `ResizeObserver` stub to `test-setup.ts`**
 
@@ -660,8 +666,25 @@ describe('the desktop workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore schema' }))
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }))
     fireEvent.click(screen.getByRole('button', { name: 'Exit Focus' }))
-    const keys = Object.keys(window.localStorage).filter((key) => key.startsWith(PANEL_STORAGE_PREFIX))
-    expect(keys).toEqual([])
+    expect(panelKeys()).toEqual([])
+  })
+
+  it('moves focus into an overlay and back to the button that opened it', async () => {
+    await openWithData()
+    const maximize = screen.getByRole('button', { name: 'Maximize preview' })
+    maximize.focus()
+    fireEvent.click(maximize)
+    const restore = screen.getByRole('button', { name: 'Restore preview' })
+    expect(document.activeElement).toBe(restore)
+    fireEvent.click(restore)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Maximize preview' }))
+
+    const focus = screen.getByRole('button', { name: 'Focus' })
+    focus.focus()
+    fireEvent.click(focus)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Exit Focus' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Exit Focus' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Focus' }))
   })
 
   it('remembers a collapsed inspector across a reload and forgets it on Reset layout', async () => {
@@ -676,7 +699,18 @@ describe('the desktop workbench', () => {
 })
 ```
 
-`Object.keys(window.localStorage)` works because `test-setup.ts` installs a `MemoryStorage` whose entries are not own properties; if it returns nothing for a written key, iterate with `localStorage.key(index)` instead, as `clearStoredPanelSizes` does.
+with this helper at the top of the file. `test-setup.ts` keeps `MemoryStorage` entries in a private `Map`, so `Object.keys(localStorage)` would return nothing whatever was saved; only `length` and `key(index)` see them. Task 6 proves the other half in a real browser: a keyboard resize does write a size.
+
+```ts
+function panelKeys(): string[] {
+  const keys: string[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (key?.startsWith(PANEL_STORAGE_PREFIX)) keys.push(key)
+  }
+  return keys
+}
+```
 
 - [ ] **Step 3: Run to verify they fail**
 
@@ -688,8 +722,8 @@ Expected: FAIL, no "Maximize preview" button.
 `apps/playground/src/workbench/PaneHeader.tsx`:
 
 ```tsx
-import type { ReactNode } from 'react'
-import type { LayoutAction, LayoutState, PaneId } from './layout.js'
+import type { ReactNode, Ref } from 'react'
+import type { LayoutAction, PaneId } from './layout.js'
 
 export function PaneHeader({ title, children, actions }: { title: string; children?: ReactNode; actions?: ReactNode }) {
   return (
@@ -701,20 +735,24 @@ export function PaneHeader({ title, children, actions }: { title: string; childr
   )
 }
 
+// Panel headers always offer Maximize; only the overlay offers Restore, so the
+// inert header underneath an overlay never duplicates its button.
 export function MaximizeButton({
   pane,
   label,
-  layout,
+  maximized,
   dispatch,
+  buttonRef,
 }: {
   pane: PaneId
   label: string
-  layout: LayoutState
+  maximized: boolean
   dispatch: (action: LayoutAction) => void
+  buttonRef?: Ref<HTMLButtonElement>
 }) {
-  const maximized = layout.maximized === pane
   return (
     <button
+      ref={buttonRef}
       type="button"
       className="pg-pane__action"
       aria-label={`${maximized ? 'Restore' : 'Maximize'} ${label}`}
@@ -777,6 +815,26 @@ export function Workbench({
   const focusSplit = useDefaultLayout({ id: 'focus-split', ...SAVE })
   const firstReset = useRef(resetSignal)
 
+  const viewKey = view.kind === 'maximized' ? `maximized:${view.pane}` : view.kind
+  const shownKey = useRef(viewKey)
+  const opener = useRef<HTMLElement | null>(null)
+  const overlayAction = useRef<HTMLButtonElement | null>(null)
+  // Read during render: after commit the panels are inert and the opener has
+  // already lost focus.
+  if (viewKey !== shownKey.current && shownKey.current === 'panels') {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  }
+  useEffect(() => {
+    if (viewKey === shownKey.current) return
+    shownKey.current = viewKey
+    if (viewKey === 'panels') {
+      if (opener.current?.isConnected) opener.current.focus()
+      opener.current = null
+    } else {
+      overlayAction.current?.focus()
+    }
+  }, [viewKey])
+
   // A pane shown by an overlay leaves the panels, because a host has one parent.
   const inPanels = (pane: PaneId): boolean =>
     view.kind === 'panels' || (view.kind === 'focus' ? pane === 'inspector' : view.pane !== pane)
@@ -796,7 +854,7 @@ export function Workbench({
   }, [resetSignal])
 
   const maximize = (pane: PaneId) => (
-    <MaximizeButton pane={pane} label={TITLES[pane].toLowerCase()} layout={layout} dispatch={dispatch} />
+    <MaximizeButton pane={pane} label={TITLES[pane].toLowerCase()} maximized={false} dispatch={dispatch} />
   )
 
   return (
@@ -902,7 +960,18 @@ export function Workbench({
       {view.kind === 'maximized' && (
         <div className="pg-overlay" data-view="maximized">
           <section className="pg-pane" data-pane={view.pane} aria-label={TITLES[view.pane]}>
-            <PaneHeader title={TITLES[view.pane]} actions={maximize(view.pane)}>
+            <PaneHeader
+              title={TITLES[view.pane]}
+              actions={
+                <MaximizeButton
+                  pane={view.pane}
+                  label={TITLES[view.pane].toLowerCase()}
+                  maximized
+                  dispatch={dispatch}
+                  buttonRef={overlayAction}
+                />
+              }
+            >
               {view.pane === 'preview' ? previewHeader : null}
             </PaneHeader>
             <PaneSlot host={hosts[view.pane]} />
@@ -914,7 +983,12 @@ export function Workbench({
         <div className="pg-overlay" data-view="focus">
           <div className="pg-overlay__bar">
             <span>Focus</span>
-            <button type="button" className="pg-pane__action" onClick={() => dispatch({ type: 'restore' })}>
+            <button
+              ref={overlayAction}
+              type="button"
+              className="pg-pane__action"
+              onClick={() => dispatch({ type: 'restore' })}
+            >
               Exit Focus
             </button>
           </div>
@@ -958,8 +1032,9 @@ Create `apps/playground/src/workbench/use-narrow-viewport.ts`:
 ```ts
 import { useEffect, useState } from 'react'
 
-// The same query #241's phone CSS uses, so the tree and the stylesheet agree.
-export const NARROW_QUERY = '(max-width: 760px)'
+// The same query as the phone CSS, so the tree and the stylesheet agree. The
+// desktop minimums need 768px, so desktop starts at 820px, with room to spare.
+export const NARROW_QUERY = '(max-width: 819px)'
 
 export function useNarrowViewport(): boolean {
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches)
@@ -989,7 +1064,7 @@ Add to the header nav, before `ThemeSelect`, rendered only when `!narrow`:
 </button>
 ```
 
-In `playground.css`: delete the `@media (max-width: 1100px)` block (the workbench replaces that arrangement), move its `.pg-inspector { height: auto; min-height: 20rem; }` into the `@media (max-width: 760px)` block, and add (colors only through `--tx-*` tokens):
+In `playground.css`: change #241's `@media (max-width: 760px)` to `@media (max-width: 819px)`, delete the `@media (max-width: 1100px)` block (the workbench replaces that arrangement), move its `.pg-inspector { height: auto; min-height: 20rem; }` into the 819px block, and add (colors only through `--tx-*` tokens):
 
 ```css
 .pg-workbench {
@@ -1381,23 +1456,48 @@ In the `playground` project add `exclude: [...configDefaults.exclude, 'src/**/*.
 - [ ] **Step 2: Write the browser tests**
 
 ```tsx
-import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { page, userEvent } from '@vitest/browser/context'
 import { THEME_STORAGE_KEY } from '../../../../theme.config.mjs'
 import { App } from '../App.js'
+import { PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
 
 const SIZES = [
   [1512, 900],
   [1024, 768],
+  [820, 800],
+  [819, 800],
   [390, 844],
 ] as const
 
 beforeEach(() => window.localStorage.clear())
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 function paneWidth(id: string): number {
   return document.querySelector(`[data-pane="${id}"]`)!.getBoundingClientRect().width
+}
+
+function panelKeys(): string[] {
+  const keys: string[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (key?.startsWith(PANEL_STORAGE_PREFIX)) keys.push(key)
+  }
+  return keys
+}
+
+async function toPhoneAndBack(): Promise<void> {
+  await page.viewport(390, 844)
+  await waitFor(() => {
+    expect(document.querySelector('.pg-workbench')).toBeNull()
+    expect(document.querySelector('.pg-columns [data-pane-host="preview"]')).not.toBeNull()
+  })
+  await page.viewport(1512, 900)
+  await waitFor(() => expect(document.querySelector('.pg-workbench [data-pane-host="preview"]')).not.toBeNull())
 }
 
 describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
@@ -1409,7 +1509,7 @@ describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
       await screen.findByLabelText('Name')
       await waitFor(() => expect(document.documentElement.dataset.theme).toBe(theme))
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
-      if (width > 760) {
+      if (width >= 820) {
         expect(paneWidth('schema')).toBeGreaterThanOrEqual(280)
         expect(paneWidth('preview')).toBeGreaterThanOrEqual(320)
       } else {
@@ -1420,19 +1520,28 @@ describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
 })
 
 describe('the desktop workbench in Chromium', () => {
-  it('resizes from the keyboard and restores exact sizes after Maximize', async () => {
+  it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
     await page.viewport(1512, 900)
     render(<App />)
     await screen.findByLabelText('Name')
+    const before = paneWidth('schema')
     screen.getByRole('separator', { name: 'Resize schema and preview' }).focus()
     await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}')
     const schema = paneWidth('schema')
     const preview = paneWidth('preview')
+    expect(schema).toBeGreaterThan(before + 10)
+    await waitFor(() => expect(panelKeys().length).toBeGreaterThan(0))
+
     fireEvent.click(screen.getByRole('button', { name: 'Maximize preview' }))
     expect(document.querySelector('.pg-overlay')!.getBoundingClientRect().width).toBeGreaterThan(1000)
     fireEvent.click(screen.getByRole('button', { name: 'Restore preview' }))
     expect(paneWidth('schema')).toBeCloseTo(schema, 0)
     expect(paneWidth('preview')).toBeCloseTo(preview, 0)
+
+    cleanup()
+    render(<App />)
+    await screen.findByLabelText('Name')
+    expect(paneWidth('schema')).toBeCloseTo(schema, 0)
   })
 
   it('keeps typed data across the breakpoint in both directions', async () => {
@@ -1441,20 +1550,42 @@ describe('the desktop workbench in Chromium', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
     const name = (await screen.findByLabelText('Name')) as HTMLInputElement
     await userEvent.fill(name, 'Ada')
-    await page.viewport(390, 844)
-    await waitFor(() => expect(document.querySelector('.pg-columns')).not.toBeNull())
-    await page.viewport(1512, 900)
-    await waitFor(() => expect(document.querySelector('.pg-workbench')).not.toBeNull())
+    await toPhoneAndBack()
     expect(screen.getByLabelText('Name')).toBe(name)
     expect(name.value).toBe('Ada')
   })
+
+  for (const renderer of ['default', 'bootstrap'] as const) {
+    it(`submits once with ${renderer} from the Maximize overlay and after a breakpoint crossing`, async () => {
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+      await page.viewport(1512, 900)
+      render(<App />)
+      fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+      fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: renderer } })
+      await screen.findByRole('region', { name: renderer === 'default' ? 'Rendered by React · Default' : 'Rendered by React · Bootstrap 5' })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Maximize preview' }))
+      fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
+      await screen.findByText('Submitted successfully.', {}, { timeout: 3000 })
+      expect(log.mock.calls.filter(([first]) => first === 'Submitted:')).toHaveLength(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Restore preview' }))
+
+      await toPhoneAndBack()
+      fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
+      await waitFor(() => expect(log.mock.calls.filter(([first]) => first === 'Submitted:')).toHaveLength(2), {
+        timeout: 3000,
+      })
+    })
+  }
 })
 ```
+
+The submission checks count `console.log('Submitted:', data)` calls because that is what `FormWorkspace`'s `onSubmit` does on `main`; if that log changes, count whatever `onSubmit` records instead.
 
 - [ ] **Step 3: Run the browser project**
 
 Run: `pnpm vitest run --project playground-browser`
-Expected: PASS, 8 tests. Playwright's Chromium comes with the root `playwright` dev dependency; run `pnpm exec playwright install chromium` if the runner reports it missing.
+Expected: PASS, 14 tests. Playwright's Chromium comes with the root `playwright` dev dependency; run `pnpm exec playwright install chromium` if the runner reports it missing.
 
 - [ ] **Step 4: Commit and open the pull request**
 
@@ -1463,7 +1594,7 @@ git add vitest.config.ts apps/playground/src/__tests__/workbench.browser.test.ts
 git commit -m "test(playground): check the workbench and the breakpoint in Chromium"
 ```
 
-Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and open the pull request referencing #239. After merge, on the live site at 1512x900, 1024x768 and a phone: drag a separator, maximize and restore, Focus, collapse the inspector and the example list, reload, Reset layout, and resize the window across 760px.
+Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and open the pull request referencing #239. After merge, on the live site at 1512x900, 1024x768, 820x800 and a phone: drag a separator, maximize and restore, Focus, collapse the inspector and the example list, reload, Reset layout, and resize the window across 820px.
 
 ---
 
@@ -1574,6 +1705,15 @@ describe('resolveUnescapedPath', () => {
     expect(resolveUnescapedPath({ 'x~y': { 0: true } }, '/x~y/0')).toBe('/x~0y/0')
   })
 
+  it('claims only the root when there are more readings than it examines', () => {
+    // Each level holds `a` (one segment) and `a/a` (two), so the path `a`
+    // repeated ten times has 89 readings, past the cap of 32.
+    const levels: unknown[] = [{ end: true }, { a: { end: true } }]
+    while (levels.length <= 10) levels.push({ a: levels.at(-1), 'a/a': levels.at(-2) })
+    const path = `/${Array.from({ length: 10 }, () => 'a').join('/')}/end`
+    expect(resolveUnescapedPath(levels.at(-1), path)).toBe('')
+  })
+
   it('keeps an unknown path as it is', () => {
     expect(resolveUnescapedPath({}, '/missing/x')).toBe('/missing/x')
   })
@@ -1604,17 +1744,25 @@ function escapeSegment(segment: string): string {
   return segment.replace(/~/g, '~0').replace(/\//g, '~1')
 }
 
-function readings(node: unknown, parts: readonly string[], start: number, prefix: readonly string[], found: string[][]): void {
-  if (found.length >= MAX_READINGS) return
+interface Search {
+  found: string[][]
+  truncated: boolean
+}
+
+function readings(node: unknown, parts: readonly string[], start: number, prefix: readonly string[], search: Search): void {
+  if (search.found.length >= MAX_READINGS) {
+    search.truncated = true
+    return
+  }
   if (start === parts.length) {
-    found.push([...prefix])
+    search.found.push([...prefix])
     return
   }
   if (node === null || typeof node !== 'object') return
   for (let end = start + 1; end <= parts.length; end += 1) {
     const key = parts.slice(start, end).join('/')
     if (Object.prototype.hasOwnProperty.call(node, key)) {
-      readings((node as Record<string, unknown>)[key], parts, end, [...prefix, key], found)
+      readings((node as Record<string, unknown>)[key], parts, end, [...prefix, key], search)
     }
   }
 }
@@ -1630,11 +1778,14 @@ function sharedPrefix(paths: readonly string[][]): string[] {
 // json-schema-library joins property names into its locations without RFC 6901
 // escaping (#184), so `a/b` and nested `a` then `b` print alike. The document
 // decides: one matching reading is exact; several mean the location is
-// ambiguous, and only the prefix every reading shares is certain.
+// ambiguous, and only the prefix every reading shares is certain. Past the cap
+// the unseen readings could diverge anywhere, so only the root is certain.
 export function resolveUnescapedPath(document: unknown, path: string): string {
   const parts = path === '' ? [] : path.split('/').slice(1)
-  const found: string[][] = []
-  readings(document, parts, 0, [], found)
+  const search: Search = { found: [], truncated: false }
+  readings(document, parts, 0, [], search)
+  if (search.truncated) return ''
+  const { found } = search
   const segments = found.length === 0 ? parts : found.length === 1 ? found[0]! : sharedPrefix(found)
   return segments.map((segment) => `/${escapeSegment(segment)}`).join('')
 }
@@ -1712,7 +1863,7 @@ Adds `checkSchema`, which reports where a schema itself is invalid. It runs the 
 - [ ] **Step 4: Run the schema-json suite**
 
 Run: `pnpm vitest run --project schema-json`
-Expected: PASS, every existing test plus 11 new ones. A changed existing result means the extraction altered the adapter; fix that before going on.
+Expected: PASS, every existing test plus 12 new ones. A changed existing result means the extraction altered the adapter; fix that before going on.
 
 - [ ] **Step 5: Regenerate the API docs**
 
@@ -2487,6 +2638,7 @@ import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
 import { linter, lintGutter, lintKeymap } from '@codemirror/lint'
 import { json, jsonParseLinter } from '@codemirror/lang-json'
+import { PANE_ATTACH_EVENT } from '../workbench/pane-hosts.js'
 import { editorHighlight, editorTheme } from './theme.js'
 import { schemaLintSource } from './schema-lint.js'
 import { schemaCompletionSource } from './completion.js'
@@ -2558,7 +2710,13 @@ export default function SchemaEditor({
       state: EditorState.create({ doc: value, extensions: extensions.current }),
     })
     view.current = editor
+    // The pane host moves between layouts without remounting this view, so its
+    // cached geometry has to be refreshed when it lands somewhere new.
+    const paneHost = host.current!.closest('.pg-pane-host')
+    const remeasure = () => editor.requestMeasure()
+    paneHost?.addEventListener(PANE_ATTACH_EVENT, remeasure)
     return () => {
+      paneHost?.removeEventListener(PANE_ATTACH_EVENT, remeasure)
       editor.destroy()
       view.current = null
     }
@@ -2759,17 +2917,20 @@ describe('the schema editor in Chromium', () => {
     expect(document.activeElement?.closest('.cm-editor')).toBeNull()
   })
 
-  it('keeps undo history across the breakpoint', async () => {
+  it('keeps the same editor, its undo history and its click positions across the breakpoint', async () => {
     await page.viewport(1512, 900)
     render(<App />)
     await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    const editor = document.querySelector('.cm-editor')
     const before = readSchemaText()
     await userEvent.click(document.querySelector<HTMLElement>('.cm-content')!)
     await userEvent.keyboard('{End} ')
-    await page.viewport(390, 844)
-    await page.viewport(1512, 900)
-    await waitFor(() => expect(document.querySelector('.pg-workbench')).not.toBeNull())
-    await userEvent.click(document.querySelector<HTMLElement>('.cm-content')!)
+    await toPhoneAndBack()
+    expect(document.querySelector('.cm-editor')).toBe(editor)
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[2]!)
+    await waitFor(() =>
+      expect(screen.getByRole('contentinfo', { name: 'Status' }).textContent).toContain('Ln 3,'),
+    )
     await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
     expect(readSchemaText()).toBe(before)
   })
@@ -2799,13 +2960,13 @@ git commit -m "feat(playground): CodeMirror schema editor checked by checkSchema
 - Modify: `package.json` (`site:build`)
 
 **Interfaces:**
-- Produces: `LIMITS`, `gzipSize(source: Buffer | string): number`, `initialScripts(html: string): string[]`, `measure({ html, assets, read }): { initial: number; editor: number; palette: number }`, `overLimit(sizes, limits?): string[]`.
+- Produces: `LIMITS`, `gzipSize(source: Buffer | string): number`, `initialScripts(html: string): string[]`, `measure({ html, assets, read }): { initial: number; editor: number; palette: number }`, `overLimit(sizes, limits?): string[]`, `eagerChunks(manifest): string[]`, `lazyLeaks(manifest): string[]`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```js
 import { describe, it, expect } from 'vitest'
-import { initialScripts, measure, overLimit, LIMITS } from './check-playground-size.mjs'
+import { initialScripts, lazyLeaks, measure, overLimit, LIMITS } from './check-playground-size.mjs'
 
 const HTML = `<!doctype html><head>
 <script type="module" crossorigin src="/texaryn/playground/assets/index-abc.js"></script>
@@ -2839,6 +3000,17 @@ describe('check-playground-size', () => {
       'initial',
       'palette',
     ])
+  })
+
+  it('finds a lazy chunk the entry imports statically', () => {
+    const lazy = {
+      'index.html': { file: 'assets/index-a.js', isEntry: true, imports: ['_vendor.js'], dynamicImports: ['src/editor/SchemaEditor.tsx'] },
+      '_vendor.js': { file: 'assets/vendor-b.js' },
+      'src/editor/SchemaEditor.tsx': { file: 'assets/editor-c.js' },
+    }
+    expect(lazyLeaks(lazy)).toEqual([])
+    const leaked = { ...lazy, '_vendor.js': { file: 'assets/vendor-b.js', imports: ['src/editor/SchemaEditor.tsx'] } }
+    expect(lazyLeaks(leaked)).toEqual(['assets/editor-c.js'])
   })
 })
 ```
@@ -2882,6 +3054,22 @@ export function overLimit(sizes, limits = LIMITS) {
   return Object.keys(limits).filter((key) => sizes[key] > limits[key])
 }
 
+// Every file the entry pulls in without a dynamic import, from Vite's manifest.
+export function eagerChunks(manifest) {
+  const seen = new Set()
+  const visit = (chunk) => {
+    if (!chunk || seen.has(chunk.file)) return
+    seen.add(chunk.file)
+    for (const key of chunk.imports ?? []) visit(manifest[key])
+  }
+  visit(Object.values(manifest).find((chunk) => chunk.isEntry))
+  return [...seen]
+}
+
+export function lazyLeaks(manifest) {
+  return eagerChunks(manifest).filter((file) => /(^|\/)(editor|palette)-[^/]*\.js$/.test(file))
+}
+
 function main(dist) {
   const root = resolve(dist)
   const assetsDir = join(root, 'assets')
@@ -2898,6 +3086,11 @@ function main(dist) {
     console.error(`check-playground-size: over the limit: ${over.join(', ')}`)
     process.exit(1)
   }
+  const leaks = lazyLeaks(JSON.parse(readFileSync(join(root, '.vite', 'manifest.json'), 'utf8')))
+  if (leaks.length > 0) {
+    console.error(`check-playground-size: loaded on first visit but meant to be lazy: ${leaks.join(', ')}`)
+    process.exit(1)
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv[2] ?? 'apps/playground/dist')
@@ -2905,10 +3098,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv[2
 
 - [ ] **Step 4: Name the lazy chunks in `apps/playground/vite.config.ts`**
 
-Add to the returned config, leaving #241's renderer chunks to Vite's defaults:
+Add to the returned config, leaving #241's renderer chunks to Vite's defaults. `manifest: true` writes `dist/.vite/manifest.json`, which the check reads to prove the lazy chunks stay lazy:
 
 ```ts
 build: {
+  manifest: true,
   rollupOptions: {
     output: {
       manualChunks(id: string) {
@@ -3133,7 +3327,7 @@ git commit -m "feat(examples): add named data presets to the examples where stat
 
 **Interfaces:**
 - Consumes: `ExamplePreset` (Task 12), `PreviewWidth` and `LayoutAction` (Task 1), `Workbench` `previewHeader` (Task 3).
-- Produces: `applyPreset(runtime: FormRuntime, data: unknown, invalid: boolean): void`, `DataPresetSelect` props `{ runtime: FormRuntime; presets: readonly ExamplePreset[]; initialData: unknown }`, `PREVIEW_WIDTHS: readonly { id: PreviewWidth; label: string; px: number | null }[]`, `WidthPresets` props `{ width: PreviewWidth; onChange: (width: PreviewWidth) => void }`. `FormWorkspace` gains `presets: readonly ExamplePreset[]` and `exampleInitialData: unknown`.
+- Produces: `applyPreset(runtime: FormRuntime, data: unknown, invalid: boolean): void`, `usePresetSelection(runtime: FormRuntime, presets: readonly ExamplePreset[], initialData: unknown): { selected: string; select: (id: string) => void }`, `DataPresetSelect` props `{ presets: readonly ExamplePreset[]; selected: string; onSelect: (id: string) => void }`, `PREVIEW_WIDTHS: readonly { id: PreviewWidth; label: string; px: number | null }[]`, `WidthPresets` props `{ width: PreviewWidth; onChange: (width: PreviewWidth) => void }`. `FormWorkspace` gains `presets: readonly ExamplePreset[]` and `exampleInitialData: unknown`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3221,7 +3415,7 @@ Expected: FAIL, no "Data preset" control.
 `apps/playground/src/workbench/presets.tsx`:
 
 ```tsx
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormRuntime } from '@texaryn/core'
 import { useStore } from '@texaryn/react'
 import type { ExamplePreset } from '@texaryn/examples'
@@ -3236,16 +3430,14 @@ export function applyPreset(runtime: FormRuntime, data: unknown, invalid: boolea
   }
 }
 
-// FormWorkspace remounts for every runtime, so this state never outlives one.
-export function DataPresetSelect({
-  runtime,
-  presets,
-  initialData,
-}: {
-  runtime: FormRuntime
-  presets: readonly ExamplePreset[]
-  initialData: unknown
-}) {
+// The one place a preset is applied and remembered, so the Data select and the
+// command palette agree on what is selected. FormWorkspace remounts for every
+// runtime, so this state never outlives one.
+export function usePresetSelection(
+  runtime: FormRuntime,
+  presets: readonly ExamplePreset[],
+  initialData: unknown,
+): { selected: string; select: (id: string) => void } {
   const data = useStore(runtime.data)
   const [selected, setSelected] = useState('initial')
   const applied = useRef<unknown>(runtime.data.getSnapshot())
@@ -3254,8 +3446,29 @@ export function DataPresetSelect({
     if (data !== applied.current) setSelected('custom')
   }, [data])
 
-  if (presets.length === 0) return null
+  const select = useCallback(
+    (id: string) => {
+      const preset = presets.find((candidate) => candidate.id === id)
+      applyPreset(runtime, preset ? preset.data : initialData, preset?.invalid === true)
+      applied.current = runtime.data.getSnapshot()
+      setSelected(preset ? id : 'initial')
+    },
+    [runtime, presets, initialData],
+  )
 
+  return { selected, select }
+}
+
+export function DataPresetSelect({
+  presets,
+  selected,
+  onSelect,
+}: {
+  presets: readonly ExamplePreset[]
+  selected: string
+  onSelect: (id: string) => void
+}) {
+  if (presets.length === 0) return null
   return (
     <label className="pg-preset">
       <span>Data</span>
@@ -3263,13 +3476,7 @@ export function DataPresetSelect({
         aria-label="Data preset"
         className="pg-select"
         value={selected}
-        onChange={(event) => {
-          const id = event.target.value
-          const preset = presets.find((candidate) => candidate.id === id)
-          applyPreset(runtime, preset ? preset.data : initialData, preset?.invalid === true)
-          applied.current = runtime.data.getSnapshot()
-          setSelected(id)
-        }}
+        onChange={(event) => onSelect(event.target.value)}
       >
         <option value="initial">Initial</option>
         {presets.map((preset) => (
@@ -3321,10 +3528,16 @@ const presets =
   baseExample && appliedSchemaKey === stableJson(baseExample.schema) ? (baseExample.presets ?? []) : []
 ```
 
-3. Pass `presets={presets}` and `exampleInitialData={baseExample?.initialData}` to `FormWorkspace`, and render inside its `pg-submit-row`, after the Simulate failure label:
+3. Pass `presets={presets}` and `exampleInitialData={baseExample?.initialData}` to `FormWorkspace`. Inside it, after `useForm`:
 
 ```tsx
-<DataPresetSelect runtime={form.runtime} presets={presets} initialData={exampleInitialData} />
+const presetSelection = usePresetSelection(form.runtime, presets, exampleInitialData)
+```
+
+and render inside its `pg-submit-row`, after the Simulate failure label:
+
+```tsx
+<DataPresetSelect presets={presets} selected={presetSelection.selected} onSelect={presetSelection.select} />
 ```
 
 4. Give the workbench its preview header and size the preview host:
@@ -3593,7 +3806,7 @@ git commit -m "feat(playground): build the command palette's command list"
 - Test: `apps/playground/src/__tests__/command-palette.test.tsx`
 
 **Interfaces:**
-- Consumes: `buildCommands`, `PaletteCommand` (Task 14); `applyPreset` (Task 13); `StatusBar` `hint` (Task 5).
+- Consumes: `buildCommands`, `PaletteCommand` (Task 14); `usePresetSelection` inside `FormWorkspace` (Task 13); `StatusBar` `hint` (Task 5).
 - Produces: `CommandPalette` props `{ open: boolean; onOpenChange: (open: boolean) => void; commands: readonly PaletteCommand[] }`, `useCommandPaletteShortcut(onOpen: () => void): void`, `CommandPaletteSlot` with the same props, `interface WorkspaceActions { applyPreset(preset: ExamplePreset | null): void; copyData(): void }`; `FormWorkspace` gains `onActions: (actions: WorkspaceActions | null) => void`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -3646,6 +3859,7 @@ describe('the command palette', () => {
     fireEvent.change(input, { target: { value: 'Too short' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('ab'))
+    expect((screen.getByLabelText('Data preset') as HTMLSelectElement).value).toBe('too-short')
   })
 
   it('opens from a Commands button on a phone', async () => {
@@ -3756,12 +3970,12 @@ In `FormWorkspace`, register the actions that need the runtime while it is mount
 ```tsx
 useEffect(() => {
   onActions({
-    applyPreset: (preset) =>
-      applyPreset(form.runtime, preset ? preset.data : exampleInitialData, preset?.invalid === true),
+    // Through the same selection the Data select uses, so it shows the preset by name.
+    applyPreset: (preset) => presetSelection.select(preset ? preset.id : 'initial'),
     copyData: () => void navigator.clipboard?.writeText(JSON.stringify(form.runtime.data.getSnapshot(), null, 2)),
   })
   return () => onActions(null)
-}, [form.runtime, exampleInitialData, onActions])
+}, [form.runtime, presetSelection.select, onActions])
 ```
 
 In `App.tsx`:
@@ -3879,11 +4093,13 @@ Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and op
 | Persistent hosts, runtime lifecycle unchanged | 2, 4 |
 | Pane operations: collapse, maximize, Focus, restore, reset | 1, 3 |
 | Saved sizes only from user interactions; exact restore | 3, 6 |
-| Collapsed and covered panes are inert | 3 |
+| Collapsed and covered panes are inert; focus moves into overlays and back | 3 |
+| Desktop from 820px, where the minimums fit; phone CSS moved to match | 3, 6 |
 | Phones keep #241's layout; editor loads on first Schema view | 3, 4, 10 |
 | Status bar | 5, 10, 15 |
 | Keyboard separators | 3, 6 |
-| Editor extensions, history rules, Visual keeps the editor, Tab leaves, colors from tokens | 10 |
+| Editor extensions, history rules, Visual keeps the editor, Tab leaves, colors from tokens, re-measure after a host move | 2, 10 |
+| Submit works from overlays and after a breakpoint crossing | 6 |
 | `checkSchema`, shared preparation, escaping and ambiguity | 7 |
 | Stale checks dropped | 10 |
 | Pointer to range | 8 |
@@ -3892,4 +4108,4 @@ Run `pnpm build && pnpm typecheck && pnpm test && pnpm site:build`, push, and op
 | Data presets: contract, availability, apply in place | 12, 13 |
 | Command palette, phone entry | 14, 15 |
 | Browser tests at three sizes and two themes | 6, 10 |
-| Size budget and its check | 11, 15 |
+| Size budget, and lazy chunks proven lazy from the build manifest | 11, 15 |
