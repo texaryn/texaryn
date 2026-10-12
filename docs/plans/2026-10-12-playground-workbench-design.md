@@ -1,17 +1,12 @@
 # Playground workbench
 
-The playground becomes a workbench: a schema editor that looks and checks like VS Code beside the live form, an inspector docked underneath, and panes that resize, collapse and maximize. It builds on [#241](https://github.com/texaryn/texaryn/pull/241), which already keeps form data through schema edits, gives phones a one-view layout and loads renderers on demand. This document is the design agreed with the maintainer on 2026-10-12. The implementation plan follows from it.
+The playground became a workbench through [#245](https://github.com/texaryn/texaryn/pull/245), [#246](https://github.com/texaryn/texaryn/pull/246), and [#247](https://github.com/texaryn/texaryn/pull/247). The shell now keeps form state across layout changes, shares custom schemas, and provides a checked CodeMirror editor. This document records the design decisions and the remaining implementation sequence: data and width presets, then the command palette.
 
-Tracker: [#239](https://github.com/texaryn/texaryn/issues/239) · Status: draft for review
+Tracker: [#239](https://github.com/texaryn/texaryn/issues/239) · Status: shell and editor complete; presets and command palette remain.
 
-## The problem
+## The remaining work
 
-[#241](https://github.com/texaryn/texaryn/pull/241) fixed the display defects filed as #231 to #238. What the tracker still lists as open, measured on the live site with headless Chromium on 2026-10-12:
-
-- **The columns cannot be resized.** At 1512x900 the schema column is 346px and the inspector 432px, in fixed proportions. Long schemas and wide inspector trees have no way to get more room.
-- **The schema editor is a plain textarea.** No highlighting, folding, autocomplete or schema checking: a typo such as `"type": "strin"` only shows up as a broken form.
-- **Nothing can be maximized or set aside.** There is no way to give the form or the editor the whole window, or to hide the inspector.
-- **Every example starts from one data state.** Showing an invalid or alternative state means typing it by hand.
+The workbench shell in #245 made its panes resizable, collapsible and maximizable. PR #246 added local persistence and share links for custom schemas. PR #247 replaced the textarea with the lazy CodeMirror editor and schema diagnostics. The remaining work in this plan adds named data states, preview width presets, and a searchable command palette.
 
 ## Constraints
 
@@ -20,7 +15,7 @@ Tracker: [#239](https://github.com/texaryn/texaryn/issues/239) · Status: draft 
 - `FormWorkspace` owns the `FormRuntime` through `useForm`, keyed by adapter, example revision and reset revision, and carries data across schema rebuilds.
 - Light, dark and auto themes come from the `--tx-*` custom properties and `theme.ts`.
 - Phones keep #241's layout: an example select and a Form, Schema, Inspector switch show one view at a time, and the page scrolls as a whole. #241 applies it below 761px; the desktop minimums below add up to 768px, so it now applies below 820px.
-- The first load is 149 KB gzipped today (entry chunk on the live site, 2026-10-12).
+- PR #247 measured the first load at 165.0 KB gzip and the editor chunk at 133.4 KB. The palette remains unloaded until opened. The enforced limits are 175 KB, 150 KB and 25 KB respectively.
 - The site deploys only from `main`, so each change is checked on the live origin after merge.
 
 ## Decisions
@@ -100,7 +95,7 @@ The editor lives in `apps/playground/src/editor/` and loads as its own chunk the
 Two lint sources run 300ms after the last keystroke:
 
 1. **Syntax**: CodeMirror's JSON parse linter.
-2. **Schema**: a new export from `@texaryn/schema-json`, `checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]>`, where `SchemaIssue` is `{ pointer: JsonPointer; code: string; message: string }`. It runs the same preparation as `createJsonSchemaAdapter` (dialect detection, bundled metaschemas, cycle rejection, `prepareSchema`) and returns the compiled root's `schemaErrors`. When that preparation throws, the editor shows the error once at the start of the document.
+2. **Schema**: the documented `@texaryn/schema-json` export `checkSchema(schema: unknown, config?: AdapterConfig): Promise<SchemaIssue[]>`, where `SchemaIssue` is `{ pointer: JsonPointer; code: string; message: string }`. Added in #247, it runs the same preparation as `createJsonSchemaAdapter` (dialect detection, bundled metaschemas, cycle rejection, `prepareSchema`) and returns the compiled root's `schemaErrors`. When that preparation throws, the editor shows the error once at the start of the document.
 
 A check that finishes after the document has changed again is discarded, along with its error count.
 
@@ -108,7 +103,7 @@ A check that finishes after the document has changed again is discarded, along w
 
 The editor maps each pointer to a range by walking the Lezer JSON tree: object members by property name, array elements by index. A segment that cannot be found attaches the issue to the deepest node that was.
 
-Why a helper in `schema-json` rather than a direct import: the playground resolves `@texaryn/schema-json` through its build output, which rewrites `json-schema-library` imports to a vendored copy in `dist/vendor`. Importing the library directly would ship a second copy and could compile with different options. `checkSchema` is new public API, so it needs a changeset and a regenerated `docs/api`.
+Why a helper in `schema-json` rather than a direct import: the playground resolves `@texaryn/schema-json` through its build output, which rewrites `json-schema-library` imports to a vendored copy in `dist/vendor`. Importing the library directly would ship a second copy and could compile with different options. #247 made `checkSchema` documented public API, with a changeset and generated `docs/api` pages.
 
 Evidence that this checker is the right one, from the test on 2026-10-12. Each checker received a schema with six planted errors: `"type": "strin"`, `"minLength": "3"`, `"required": "name"`, an invalid type inside `prefixItems`, the draft-07 array form of `items`, and an invalid `minimum` inside `$defs`.
 
@@ -131,7 +126,7 @@ A static module, `editor/keywords.ts`, lists the keywords of each dialect (2020-
 
 ### Preview width presets
 
-Phone (375px), Tablet (768px) and Fit buttons in the preview header set the maximum width of the preview host, with the current width shown as a label. Field widths, labels and wrapping react. Rules keyed to the browser window's width do not change; emulating a device viewport would need an iframe, which is out of scope. The choice persists with the layout.
+Phone (375px maximum), Tablet (768px maximum) and Fit buttons in the preview header set the maximum width of the preview host. The selected maximum is shown separately from the host's measured effective width, which can be smaller when the preview pane is narrow. Field widths, labels and wrapping react. Rules keyed to the browser window's width do not change; emulating a device viewport would need an iframe, which is out of scope. The choice persists with the layout.
 
 ### Data presets
 
@@ -151,8 +146,9 @@ interface ExamplePreset {
 
 - **Where**: a Data select in the Playground controls region, next to Submit, because it acts on the runtime `FormWorkspace` owns.
 - **When**: offered while the form on screen came from the unedited example, which is while the applied schema equals the example's schema. Invalid draft text does not change the applied schema, so presets stay available while the editor holds broken JSON.
-- **Apply**: `runtime.dispatch({ type: 'Reset', data })`, so it works with all nine renderers and keeps the runtime. For an `invalid` preset, a `SetTouched` follows for every field node, so the errors show as they would after a user left each field.
-- **Initial** is always offered and resets to the example's `initialData`. After the user edits, the select reads Custom.
+- **Apply**: `runtime.dispatch({ type: 'Reset', data })`, so it works with all nine renderers and keeps the runtime. For an `invalid` preset, a public `Validate` command marks fields touched and runs full validation immediately without submitting or changing automatic blur and change triggers.
+- **Initial** is always offered and resets to the example's `initialData`. Since the runtime represents an unstated root as `{}`, the playground sends `{}` when `initialData` is `undefined`, and preserves every other value including `null`. After the user edits, the select reads Custom.
+- Preset ids are unique per example and cannot be `initial` or `custom`. Preset data cannot be `undefined`.
 - **Tests**, beside the existing `startsInvalid` checks: an `invalid` preset must produce at least one error, every other preset none, and preset ids are unique within an example. `@texaryn/examples` is private, so no changeset.
 - **First examples with presets**: `basics-required`, `validation-string-constraints`, `validation-numeric-constraints`, `validation-exclusive-numeric-constraints`, `validation-array-constraints`, `conditional-if-then-else`, `composition-one-of`, `composition-any-of`, `runtime-array-interactions`, `runtime-validation-triggers`, `runtime-submission`.
 
@@ -179,15 +175,9 @@ These run inside the existing test job. Chromium only, to stay inside the free C
 
 ## Size budget
 
-The live entry chunk is 149 KB gzipped on 2026-10-12. Measured with esbuild 0.28.2, minified, gzip level 9:
+PR #247 measured the built playground at 165.0 KB gzip for the initial load and 133.4 KB for the lazy editor. The palette measures 0 KB because it has not shipped yet. `site:build` runs `scripts/check-playground-size.mjs`, which computes transitive static import closures from Vite's manifest.
 
-| Addition | Gzipped | Loads |
-| --- | --- | --- |
-| `react-resizable-panels` 4.14.4 | 20 KB | With the page |
-| CodeMirror 6 setup with `@codemirror/lang-json` | 137 KB | When the schema pane is first visible |
-| `cmdk` 1.1.1 | 18 KB | On first palette open |
-
-Limits, enforced by a new `scripts/check-playground-size.mjs` that runs in `site:build` after the playground build: the first-load scripts at most 175 KB gzipped, the `editor` chunk at most 150 KB, the `palette` chunk at most 25 KB. Vite's `manualChunks` gives the two lazy chunks those names.
+The enforced limits are 175 KB for the initial load, 150 KB for the editor, and 25 KB for the palette. PR 4 must measure the full palette closure, including its dialog dependencies, against the 25 KB limit.
 
 ## Why this over the alternatives
 
@@ -200,12 +190,13 @@ Limits, enforced by a new `scripts/check-playground-size.mjs` that runs in `site
 
 ## Rollout
 
-Each step is its own pull request on a branch from `main`.
+Each implementation step is its own pull request on a branch from `main`.
 
-1. **Workbench shell**: persistent pane hosts, the desktop panels, pane operations, saved layout, #241's phone layout as the narrow tree, status bar.
-2. **CodeMirror editor**: lazy chunk, colors, `checkSchema` with its changeset, pointer mapping, keyword autocomplete, Format and Copy, the size check.
-3. **Width presets and data presets**, including the `examples` contract and the first eleven examples.
-4. **Command palette.**
+1. **Workbench shell**, complete in [#245](https://github.com/texaryn/texaryn/pull/245): persistent pane hosts, desktop panels, pane operations, saved layout, the phone layout, and status bar.
+2. **Schema sharing**, complete in [#246](https://github.com/texaryn/texaryn/pull/246): custom schemas persist locally and in share links.
+3. **CodeMirror editor**, complete in [#247](https://github.com/texaryn/texaryn/pull/247): lazy editor chunk, colors, public `checkSchema`, pointer mapping, keyword completion, Format and Copy, and the manifest-based size check.
+4. **Width presets and data presets**, including the `examples` contract and the first eleven examples.
+5. **Command palette.**
 
 ## Risks
 
@@ -218,9 +209,8 @@ Each step is its own pull request on a branch from `main`.
 
 ## Open questions
 
-- **Public or tooling API?** Should `checkSchema` be part of the documented API of `@texaryn/schema-json`, or a subpath export marked for tooling? Needs the maintainer, at the review of step 2.
-- **Errors after a preset.** Does `SetTouched` on every field reveal errors identically in all nine renderers? Needs a check during step 3.
+- **Errors after a preset.** Does the explicit manual validation command reveal errors identically in all nine renderers? Check during step 4.
 
 ## Out of scope
 
-Share links, a field to schema navigation that needs a provenance model, side by side renderer comparison, device emulation in an iframe, the escaping fix in the schema library fork (#184), and Monaco.
+A field to schema navigation that needs a provenance model, side by side renderer comparison, device emulation in an iframe, the escaping fix in the schema library fork (#184), and Monaco. Custom schema share links shipped in #246.
