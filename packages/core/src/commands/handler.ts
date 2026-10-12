@@ -44,6 +44,8 @@ export function processCommand(
       return handleExpandBoundary(state, command, document)
     case 'SetTouched':
       return handleSetTouched(state, command)
+    case 'Validate':
+      return handleValidate(state, document)
     case 'Submit':
       return handleSubmit(state)
     case 'Reset':
@@ -229,6 +231,25 @@ function handleSetTouched(
   return {
     nextState: { ...state, nodes },
     effects: [{ type: 'validate', nodeIds: [cmd.nodeId], trigger: 'blur' }],
+  }
+}
+
+function handleValidate(state: RuntimeState, document: UIDocument): CommandResult {
+  const nodes = new Map(state.nodes)
+  const nodeIds: NodeId[] = []
+  for (const [nodeId, nodeState] of state.nodes) {
+    if (document.nodes[nodeId as string]?.dataPointer == null) continue
+    nodeIds.push(nodeId)
+    if (!nodeState.interaction.touched) {
+      nodes.set(nodeId, {
+        ...nodeState,
+        interaction: { ...nodeState.interaction, touched: true },
+      })
+    }
+  }
+  return {
+    nextState: { ...state, nodes },
+    effects: [{ type: 'validate', nodeIds, trigger: 'manual' }],
   }
 }
 

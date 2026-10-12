@@ -678,6 +678,72 @@ describe('FormRuntime validation scheduling', () => {
     vi.useRealTimers()
   })
 
+  it('manually validates every data node, marks it touched, and does not submit', () => {
+    const pointers = ['/plain', '/onChange', '/onBlur', '/onSubmit']
+    const entries: Array<[string, Partial<NodeProjection> & { children?: ChildProjection[] }]> = [
+      ['', {
+        type: 'object',
+        children: pointers.map((pointer) => ({
+          pointer: toPointer(pointer),
+          key: pointer.slice(1),
+          required: false,
+        })),
+      }],
+    ]
+    for (const pointer of pointers) entries.push([pointer, { type: 'string' }])
+    const projection = makeProjection(entries)
+    const validate = vi.fn(() => ({
+      valid: false,
+      errors: pointers.map((instancePointer) => ({
+        instancePointer,
+        keyword: 'minLength',
+        params: {},
+      })),
+    }))
+    const onSubmit = vi.fn()
+    const runtime = createFormRuntime(makePort(() => projection, validate), {
+      initialData: { plain: '', onChange: '', onBlur: '', onSubmit: '' },
+      hints: {
+        '/onChange': { validationTrigger: 'change' },
+        '/onBlur': { validationTrigger: 'blur' },
+        '/onSubmit': { validationTrigger: 'submit' },
+      },
+      onSubmit,
+    })
+
+    runtime.dispatch({ type: 'Validate' })
+
+    expect(validate).toHaveBeenCalledTimes(1)
+    expect(validate).toHaveBeenCalledWith({ plain: '', onChange: '', onBlur: '', onSubmit: '' })
+    for (const pointer of pointers) {
+      const nodeId = findFieldNode(runtime, pointer)
+      expect(runtime.getNodeState(nodeId)!.touched.getSnapshot()).toBe(true)
+      expect(runtime.getNodeState(nodeId)!.validationStatus.getSnapshot()).toBe('invalid')
+    }
+    expect(runtime.visibleErrors.getSnapshot()).toHaveLength(4)
+    expect(runtime.submission.getSnapshot()).toMatchObject({ status: 'idle', attempts: 0 })
+    expect(onSubmit).not.toHaveBeenCalled()
+    runtime.destroy()
+  })
+
+  it('runs manual validation immediately and keeps change validation debounced', () => {
+    const validate = vi.fn(() => ({ valid: true, errors: [] }))
+    const runtime = createFormRuntime(makePort(() => simpleProjection, validate), {
+      initialData: { name: '', age: 1 },
+      hints: { '/name': { validationTrigger: 'change' } },
+    })
+    const nameId = findFieldNode(runtime, '/name')
+
+    runtime.dispatch({ type: 'SetValue', nodeId: nameId, value: 'a' })
+    expect(validate).not.toHaveBeenCalled()
+    runtime.dispatch({ type: 'Validate' })
+    expect(validate).toHaveBeenCalledTimes(1)
+    expect(validate).toHaveBeenCalledWith({ name: 'a', age: 1 })
+    vi.advanceTimersByTime(300)
+    expect(validate).toHaveBeenCalledTimes(2)
+    runtime.destroy()
+  })
+
   it('blur trigger validates on SetTouched when hint is blur', () => {
     const validateFn = vi.fn(() => ({
       valid: false,

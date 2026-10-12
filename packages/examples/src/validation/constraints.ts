@@ -31,6 +31,11 @@ export const stringConstraints: TexarynExample = {
     },
   },
   initialData: { username: 'ada', postcode: '75001' },
+  presets: [
+    { id: 'valid', label: 'Valid', data: { username: 'grace', postcode: '10115' } },
+    { id: 'too-short', label: 'Too short', data: { username: 'ab', postcode: '75001' }, invalid: true },
+    { id: 'bad-postcode', label: 'Bad postcode', data: { username: 'ada', postcode: '7500A' }, invalid: true },
+  ],
 }
 
 export const numericConstraints: TexarynExample = {
@@ -54,6 +59,10 @@ export const numericConstraints: TexarynExample = {
     },
   },
   initialData: { age: 39, rating: 4.5 },
+  presets: [
+    { id: 'valid', label: 'Valid', data: { age: 30, rating: 3 } },
+    { id: 'out-of-range', label: 'Out of range', data: { age: 200, rating: 7 }, invalid: true },
+  ],
 }
 
 export const exclusiveNumericConstraints: TexarynExample = {
@@ -84,6 +93,10 @@ export const exclusiveNumericConstraints: TexarynExample = {
     },
   },
   initialData: { discount: 0.25, quantity: 24 },
+  presets: [
+    { id: 'valid', label: 'Valid', data: { discount: 0.5, quantity: 36 } },
+    { id: 'on-the-bounds', label: 'On the bounds', data: { discount: 1, quantity: 10 }, invalid: true },
+  ],
 }
 
 export const arrayConstraints: TexarynExample = {
@@ -114,6 +127,11 @@ export const arrayConstraints: TexarynExample = {
     },
   },
   initialData: { skills: ['typescript', 'accessibility'] },
+  presets: [
+    { id: 'valid', label: 'One skill', data: { skills: ['typescript'] } },
+    { id: 'empty', label: 'Empty', data: { skills: [] }, invalid: true },
+    { id: 'duplicates', label: 'Duplicates', data: { skills: ['css', 'css'] }, invalid: true },
+  ],
 }
 
 export const constraintExamples = [

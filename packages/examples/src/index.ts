@@ -21,7 +21,7 @@ export {
   requiresExample,
 } from './capabilities.js'
 
-export type { ExampleCategory, TexarynExample } from './types.js'
+export type { ExampleCategory, ExamplePreset, TexarynExample } from './types.js'
 export { pointer } from './types.js'
 
 export {

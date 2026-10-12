@@ -22,6 +22,11 @@ export const anyOfAlternatives: TexarynExample = {
     },
   },
   initialData: { value: 'hello' },
+  presets: [
+    { id: 'text', label: 'Text', data: { value: 'hello' } },
+    { id: 'number', label: 'Number', data: { value: 42 } },
+    { id: 'neither', label: 'Neither', data: { value: '' }, invalid: true },
+  ],
 }
 
 export const anyOfExamples = [anyOfAlternatives] as const

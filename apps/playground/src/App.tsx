@@ -5,7 +5,7 @@ import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
 import { examples, getExample } from '@texaryn/examples'
-import type { TexarynExample } from '@texaryn/examples'
+import type { ExamplePreset, TexarynExample } from '@texaryn/examples'
 import { SchemaEditorSlot } from './editor-slot.js'
 import type { SchemaEditorActions } from './editor/SchemaEditor.js'
 import { CopyButton } from './CopyButton.js'
@@ -24,6 +24,8 @@ import { dialectLabel } from './workbench/dialect-label.js'
 import { StatusBar, schemaIssueSentence } from './workbench/StatusBar.js'
 import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
 import { Workbench } from './workbench/Workbench.js'
+import { DataPresetSelect, usePresetSelection } from './workbench/presets.js'
+import { PREVIEW_WIDTHS, WidthPresets } from './workbench/WidthPresets.js'
 import { docsHref, encodeSharedSchema, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import type { RendererProps } from './renderer-types.js'
@@ -167,6 +169,8 @@ function FormWorkspace({
   tab,
   toolbar,
   previewNotice,
+  presets,
+  exampleInitialData,
   onDataChange,
   onTabChange,
 }: {
@@ -183,6 +187,8 @@ function FormWorkspace({
   tab: Tab
   toolbar: ReactNode
   previewNotice: string | null
+  presets: TexarynExample['presets']
+  exampleInitialData: unknown
   onDataChange: (data: unknown) => void
   onTabChange: (tab: Tab) => void
 }) {
@@ -202,6 +208,7 @@ function FormWorkspace({
       console.log('Submitted:', data)
     },
   })
+  const presetSelection = usePresetSelection(form.runtime, presets ?? NO_PRESETS, exampleInitialData)
 
   useEffect(() => {
     const store = form.runtime.data
@@ -272,6 +279,11 @@ function FormWorkspace({
           />
           Simulate failure
         </label>
+        <DataPresetSelect
+          presets={presets ?? []}
+          selected={presetSelection.selected}
+          onSelect={presetSelection.select}
+        />
       </div>
 
       {form.submission.status === 'submitted' && (
@@ -334,6 +346,7 @@ function FormWorkspace({
 }
 
 const CUSTOM_KEY = 'custom'
+const NO_PRESETS: readonly ExamplePreset[] = []
 const customEntry = { initialData: undefined, hints: undefined }
 const CUSTOM_SCHEMA_STORAGE_KEY = 'texaryn:playground:custom-schema'
 
@@ -378,6 +391,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(
     () => initialSchemaText === undefined ? initialExample?.id ?? null : CUSTOM_KEY,
   )
+  const [baseExampleId, setBaseExampleId] = useState<string | null>(initialExample?.id ?? null)
   const [query, setQuery] = useState('')
   const [inspectorTab, setInspectorTab] = useState<Tab>(DEFAULT_TAB)
   const [schemaMode, setSchemaMode] = useState<'visual' | 'json'>('json')
@@ -402,6 +416,7 @@ export function App() {
   const hosts = usePaneHosts()
   const narrow = useNarrowViewport()
   const [layout, dispatchLayout] = useLayout()
+  const [effectivePreviewWidth, setEffectivePreviewWidth] = useState(0)
   const [resetSignal, setResetSignal] = useState(0)
   const [schemaIssues, setSchemaIssues] = useState<number | null>(null)
   const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null)
@@ -508,6 +523,7 @@ export function App() {
       if (nextSchemaText !== undefined) {
         preserveCurrentData.current = false
         latestData.current = undefined
+        setBaseExampleId(null)
         setSelectedId(CUSTOM_KEY)
         setActiveHints(undefined)
         setSchemaText(nextSchemaText)
@@ -521,6 +537,7 @@ export function App() {
       if (example) {
         preserveCurrentData.current = false
         latestData.current = example.initialData
+        setBaseExampleId(example.id)
         setSelectedId(example.id)
         setActiveHints(example.hints)
         setSchemaText(formatSchema(example.schema))
@@ -548,6 +565,7 @@ export function App() {
       // Selecting an example still works when storage is unavailable.
     }
     latestData.current = example.initialData
+    setBaseExampleId(example.id)
     setSelectedId(example.id)
     setShareStatus('')
     setActiveHints(example.hints)
@@ -578,6 +596,10 @@ export function App() {
 
   const adapterState = useAdapter(appliedSchema)
   const selectedExample = selectedId === null ? undefined : getExample(selectedId)
+  const baseExample = baseExampleId === null ? undefined : getExample(baseExampleId)
+  const presets = baseExample && appliedSchemaKey === stableJson(baseExample.schema)
+    ? baseExample.presets ?? NO_PRESETS
+    : NO_PRESETS
   const entry = selectedId === CUSTOM_KEY
     ? { initialData: customEntry.initialData, hints: activeHints }
     : selectedExample ?? customEntry
@@ -594,6 +616,24 @@ export function App() {
       : applying
         ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
         : null
+
+  useEffect(() => {
+    const px = PREVIEW_WIDTHS.find((entry) => entry.id === layout.previewWidth)?.px ?? null
+    hosts.preview.style.maxWidth = px === null || narrow ? '' : `${px}px`
+  }, [hosts.preview, layout.previewWidth, narrow])
+
+  useEffect(() => {
+    const host = hosts.preview
+    const measure = () => {
+      const width = Math.round(host.getBoundingClientRect().width)
+      setEffectivePreviewWidth((previous) => previous === width ? previous : width)
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(host)
+    return () => observer.disconnect()
+  }, [hosts.preview])
 
   // The control sits on the region it governs, and says what that region is,
   // because the answer is narrower than the page implies: choosing Vue swaps
@@ -824,6 +864,13 @@ export function App() {
           layout={layout}
           dispatch={dispatchLayout}
           resetSignal={resetSignal}
+          previewHeader={
+            <WidthPresets
+              width={layout.previewWidth}
+              effectiveWidth={effectivePreviewWidth}
+              onChange={(width) => dispatchLayout({ type: 'setPreviewWidth', width })}
+            />
+          }
         />
       )}
       {createPortal(examplesContent, hosts.examples)}
@@ -857,6 +904,8 @@ export function App() {
           tab={inspectorTab}
           toolbar={toolbar}
           previewNotice={previewNotice}
+          presets={presets}
+          exampleInitialData={baseExample?.initialData}
           onDataChange={handleDataChange}
           onTabChange={setInspectorTab}
         />
