@@ -1,3 +1,5 @@
+import { parser } from '@lezer/json'
+
 export type EditorDialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 
 export interface KeywordInfo {
@@ -115,12 +117,28 @@ export function keywordsFor(dialect: EditorDialect): readonly KeywordInfo[] {
   return BY_DIALECT[dialect]
 }
 
-// The adapter assumes draft-07 when a schema declares no $schema.
-export function dialectOf(text: string): EditorDialect {
-  const declared = /"\$schema"\s*:\s*"([^"]*)"/.exec(text)?.[1] ?? ''
-  if (declared.includes('2020-12')) return '2020-12'
-  if (declared.includes('2019-09')) return '2019-09'
+const DECLARATION = /^\s*"([^"\\\n]*)/
+
+function matchDialect(declared: string): EditorDialect {
   if (declared.includes('draft-04')) return 'draft-04'
+  if (declared.includes('draft-07')) return 'draft-07'
+  if (declared.includes('2019-09')) return '2019-09'
+  if (declared.includes('2020-12')) return '2020-12'
+  return 'draft-07'
+}
+
+// Mirrors detectDialect in @texaryn/schema-json: only the root $schema counts, and an
+// absent or unrecognised value means draft-07.
+export function dialectOf(text: string): EditorDialect {
+  const root = parser.parse(text).topNode.firstChild
+  if (root?.name !== 'Object') return 'draft-07'
+  for (let member = root.firstChild; member; member = member.nextSibling) {
+    if (member.name !== 'Property') continue
+    const name = member.getChild('PropertyName')
+    const colon = member.getChild(':')
+    if (!name || !colon || text.slice(name.from, name.to) !== '"$schema"') continue
+    return matchDialect(DECLARATION.exec(text.slice(colon.to))?.[1] ?? '')
+  }
   return 'draft-07'
 }
 

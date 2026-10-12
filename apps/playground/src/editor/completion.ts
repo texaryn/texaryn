@@ -5,17 +5,114 @@ import { FORMATS, NAME_MAPS, SCHEMA_URIS, TYPE_VALUES, dialectOf, keywordsFor } 
 
 const TYPING = /^"[^"\\]*$/
 
-function enclosingKey(context: CompletionContext, pos: number): string | null {
-  let node: SyntaxNode | null = syntaxTree(context.state).resolveInner(pos, -1)
-  while (node && node.name !== 'Object') node = node.parent
-  const property = node?.parent
-  if (!property || property.name !== 'Property') return null
+type Role = 'schema' | 'schemaMap' | 'dependencyMap' | 'schemaList' | 'typeList' | 'data'
+
+const SINGLE_SCHEMA: ReadonlySet<string> = new Set([
+  'additionalProperties',
+  'additionalItems',
+  'not',
+  'if',
+  'then',
+  'else',
+  'contains',
+  'propertyNames',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+  'contentSchema',
+  'items',
+])
+
+const SCHEMA_LISTS: ReadonlySet<string> = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems', 'items'])
+
+const VALUE_LISTS: Readonly<Record<string, readonly string[]>> = {
+  type: TYPE_VALUES,
+  $schema: SCHEMA_URIS,
+  format: FORMATS,
+}
+
+function memberRole(key: string, value: SyntaxNode): Role {
+  if (value.name === 'Object') {
+    if (NAME_MAPS.has(key)) return 'schemaMap'
+    if (key === 'dependencies') return 'dependencyMap'
+    if (SINGLE_SCHEMA.has(key)) return 'schema'
+  }
+  if (value.name === 'Array') {
+    if (SCHEMA_LISTS.has(key)) return 'schemaList'
+    if (key === 'type') return 'typeList'
+  }
+  return 'data'
+}
+
+function elementRole(parent: Role, node: SyntaxNode): Role {
+  if (node.name !== 'Object') return 'data'
+  return parent === 'schemaMap' || parent === 'dependencyMap' || parent === 'schemaList' ? 'schema' : 'data'
+}
+
+function isClosed(node: SyntaxNode): boolean {
+  const last = node.lastChild
+  return last !== null && !last.type.isError && (last.name === '}' || last.name === ']')
+}
+
+function containsCursor(node: SyntaxNode, pos: number): boolean {
+  return node.from < pos && (pos < node.to || (pos === node.to && !isClosed(node)))
+}
+
+function keyOf(doc: string, property: SyntaxNode): string | null {
   const name = property.getChild('PropertyName')
   if (!name) return null
   try {
-    return JSON.parse(context.state.doc.sliceString(name.from, name.to)) as string
+    return JSON.parse(doc.slice(name.from, name.to)) as string
   } catch {
     return null
+  }
+}
+
+function isValueNode(node: SyntaxNode): boolean {
+  return !node.type.isError && node.name !== 'PropertyName' && node.name !== ':' && node.name !== ','
+}
+
+type Position =
+  | { kind: 'keyword' }
+  | { kind: 'value'; key: string }
+  | { kind: 'typeValue' }
+  | null
+
+function positionAt(context: CompletionContext, pos: number): Position {
+  const doc = context.state.doc.toString()
+  const before = doc.slice(0, pos).trimEnd().at(-1)
+  let node = syntaxTree(context.state).topNode.firstChild
+  if (node?.name !== 'Object') return null
+  let role: Role = 'schema'
+
+  for (;;) {
+    let inner: SyntaxNode | null = null
+    let innerRole: Role = 'data'
+
+    for (let child: SyntaxNode | null = node.firstChild; child && !inner; child = child.nextSibling) {
+      if (child.type.isError) continue
+      if (node.name === 'Object' && child.name === 'Property' && containsCursor(child, pos)) {
+        const key = keyOf(doc, child)
+        const colon: SyntaxNode | null = child.getChild(':')
+        if (key === null || !colon || colon.to > pos) return null
+        for (let value: SyntaxNode | null = colon.nextSibling; value && !inner; value = value.nextSibling) {
+          if (isValueNode(value) && containsCursor(value, pos)) {
+            inner = value
+            innerRole = role === 'schema' ? memberRole(key, value) : elementRole(role, value)
+          }
+        }
+        if (!inner) return role === 'schema' && before === ':' && Object.hasOwn(VALUE_LISTS, key) ? { kind: 'value', key } : null
+      } else if (node.name === 'Array' && isValueNode(child) && containsCursor(child, pos)) {
+        inner = child
+        innerRole = elementRole(role, child)
+      }
+    }
+
+    if (!inner) {
+      if (node.name === 'Object') return role === 'schema' && (before === '{' || before === ',') ? { kind: 'keyword' } : null
+      return role === 'typeList' && (before === '[' || before === ',') ? { kind: 'typeValue' } : null
+    }
+    node = inner
+    role = innerRole
   }
 }
 
@@ -24,12 +121,10 @@ export function schemaCompletionSource(context: CompletionContext): CompletionRe
   if (!word && !context.explicit) return null
   const from = word ? word.from : context.pos
   const to = context.state.doc.sliceString(context.pos, context.pos + 1) === '"' ? context.pos + 1 : context.pos
-  const before = context.state.doc.sliceString(0, from).trimEnd()
-  const last = before.at(-1)
+  const position = positionAt(context, from)
+  if (!position) return null
 
-  if (last === '{' || last === ',') {
-    const parent = enclosingKey(context, from)
-    if (parent !== null && NAME_MAPS.has(parent)) return null
+  if (position.kind === 'keyword') {
     const dialect = dialectOf(context.state.doc.toString())
     return {
       from,
@@ -45,17 +140,11 @@ export function schemaCompletionSource(context: CompletionContext): CompletionRe
     }
   }
 
-  if (last === ':') {
-    const key = /"((?:[^"\\]|\\.)*)"\s*$/.exec(before.slice(0, -1))?.[1]
-    const values = key === 'type' ? TYPE_VALUES : key === '$schema' ? SCHEMA_URIS : key === 'format' ? FORMATS : null
-    if (!values) return null
-    return {
-      from,
-      to,
-      validFor: TYPING,
-      options: values.map((value) => ({ label: `"${value}"`, displayLabel: value, type: 'constant' })),
-    }
+  const values = position.kind === 'typeValue' ? TYPE_VALUES : VALUE_LISTS[position.key]
+  return {
+    from,
+    to,
+    validFor: TYPING,
+    options: values.map((value) => ({ label: `"${value}"`, displayLabel: value, type: 'constant' })),
   }
-
-  return null
 }
