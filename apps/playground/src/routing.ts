@@ -27,6 +27,39 @@ export const DEFAULT_RENDERER: RendererKey = 'default'
 export interface PlaygroundLocation {
   exampleId: string | null
   renderer: RendererKey
+  schemaText?: string
+}
+
+export const MAX_SHARED_SCHEMA_BYTES = 12_000
+const MAX_SHARED_SCHEMA_TOKEN_LENGTH = Math.ceil(MAX_SHARED_SCHEMA_BYTES / 3) * 4
+
+export function encodeSharedSchema(schemaText: string): string | null {
+  const bytes = new TextEncoder().encode(schemaText)
+  if (bytes.length > MAX_SHARED_SCHEMA_BYTES) return null
+
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+  }
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+}
+
+function decodeSharedSchema(hash: string): string | undefined {
+  const token = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('schema')
+  if (token === null) return undefined
+  if (token.length > MAX_SHARED_SCHEMA_TOKEN_LENGTH || !/^[A-Za-z0-9_-]*$/.test(token)) {
+    return undefined
+  }
+
+  try {
+    const base64 = token.replaceAll('-', '+').replaceAll('_', '/')
+    const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4))
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    if (bytes.length > MAX_SHARED_SCHEMA_BYTES) return undefined
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return undefined
+  }
 }
 
 function isRendererKey(value: string | null): value is RendererKey {
@@ -47,14 +80,18 @@ export function parseLocation(
   pathname: string,
   search: string,
   base = '/',
+  hash = '',
 ): PlaygroundLocation {
   const rest = stripBase(pathname, base).replace(/\/$/, '')
   const rawRenderer = new URLSearchParams(search).get('renderer')
 
-  return {
+  const location: PlaygroundLocation = {
     exampleId: rest === '' ? null : decodeURIComponent(rest),
     renderer: isRendererKey(rawRenderer) ? rawRenderer : DEFAULT_RENDERER,
   }
+  const schemaText = decodeSharedSchema(hash)
+  if (schemaText !== undefined) location.schemaText = schemaText
+  return location
 }
 
 /**
@@ -73,7 +110,7 @@ export function docsHref(base = '/'): string {
 }
 
 export function formatLocation(
-  { exampleId, renderer }: PlaygroundLocation,
+  { exampleId, renderer, schemaText }: PlaygroundLocation,
   base = '/',
 ): string {
   const normalisedBase = base.endsWith('/') ? base : `${base}/`
@@ -82,5 +119,8 @@ export function formatLocation(
     : normalisedBase
   // The default renderer is the absence of the parameter, so the common URL
   // stays clean and a shared link only carries a deliberate choice.
-  return renderer === DEFAULT_RENDERER ? path : `${path}?renderer=${renderer}`
+  const query = renderer === DEFAULT_RENDERER ? '' : `?renderer=${renderer}`
+  const encodedSchema = schemaText === undefined ? null : encodeSharedSchema(schemaText)
+  const hash = encodedSchema === null ? '' : `#schema=${encodedSchema}`
+  return `${path}${query}${hash}`
 }

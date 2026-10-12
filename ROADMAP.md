@@ -2061,9 +2061,17 @@ Schema drafts survive edits and renderer changes, invalid drafts preserve the
 last valid preview, and form data has an explicit reset action. The example
 browser, mobile layout, styling boundaries, validation copy, form ownership,
 and accessible data inspector are resolved. Renderer packages load on demand.
-The production playground entry chunk is 505.81 KB raw and 147.91 KB gzip, with
-renderer code in separate chunks. Issue #239 retains edited schema sharing,
-resizable panes, and a code editor as possible future work.
+Resizable panes, keyboard separators, and saved layouts merged in PR #245.
+Edited schema sharing and the CodeMirror 6 JSON editor complete the remaining
+playground follow ups in issue #239. Shared links carry custom schemas up to
+12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
+that browser. The editor loads on demand in a separate 311.28 KB raw,
+101.91 KB gzip chunk. The production playground entry chunk is 566.41 KB raw
+and 167.28 KB gzip; renderer code remains in separate chunks.
+
+No UI library package is scheduled. Container binding primitives remain
+deferred until integrations show duplicated composition beyond field and array
+hooks.
 
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is

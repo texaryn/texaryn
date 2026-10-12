@@ -2,9 +2,13 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
 import { dialectLabel } from '../workbench/dialect-label.js'
+import { encodeSharedSchema } from '../routing.js'
 import { editSchema, readSchemaText } from './schema-text.js'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.history.replaceState(null, '', import.meta.env.BASE_URL)
+})
 
 describe('dialectLabel', () => {
   it('names the declared dialect', () => {
@@ -35,6 +39,18 @@ describe('the status bar', () => {
     expect(status.textContent).toContain('Draft 2020-12')
     expect(status.textContent).toContain('JSON valid')
     editSchema('{')
+    expect(status.textContent).toContain('JSON error')
+  })
+
+  it('reports the JSON state of a schema restored from a shared link', () => {
+    window.history.replaceState(
+      null,
+      '',
+      `${import.meta.env.BASE_URL}#schema=${encodeSharedSchema('{')}`,
+    )
+    render(<App />)
+    const status = screen.getByRole('contentinfo', { name: 'Status' })
+    expect(status.textContent).toContain('Draft 7')
     expect(status.textContent).toContain('JSON error')
   })
 

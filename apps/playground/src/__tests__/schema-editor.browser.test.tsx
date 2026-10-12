@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { page, userEvent } from '@vitest/browser/context'
 import { App } from '../App.js'
-import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
-import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
-import { editSchema } from './schema-text.js'
 
 const MOUNT = import.meta.env.BASE_URL
 
@@ -11,10 +9,13 @@ function setPath(path: string): void {
   window.history.replaceState(null, '', path)
 }
 
-beforeEach(() => setPath(MOUNT))
+beforeEach(async () => {
+  window.localStorage.clear()
+  await page.viewport(1512, 900)
+  setPath(MOUNT)
+})
 afterEach(() => {
   cleanup()
-  resetMediaQueries()
   setPath(MOUNT)
 })
 
@@ -24,12 +25,22 @@ async function openStringExample(): Promise<void> {
   await screen.findByLabelText('Name')
 }
 
+async function codeEditor(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const editor = screen.getByRole('textbox', { name: 'JSON Schema' })
+    expect(editor.classList.contains('cm-content')).toBe(true)
+    return editor
+  })
+}
+
 describe('schema editor lifecycle', () => {
   it('keeps form data while applying a changed schema', async () => {
     await openStringExample()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Grace' } })
 
-    editSchema(
+    const editor = await codeEditor()
+    await userEvent.fill(
+      editor,
       JSON.stringify(
         {
           type: 'object',
@@ -50,7 +61,8 @@ describe('schema editor lifecycle', () => {
 
   it('keeps the last valid form and inspector visible for invalid JSON', async () => {
     await openStringExample()
-    editSchema('{\n  "type": ')
+    const editor = await codeEditor()
+    await userEvent.fill(editor, '{\n  "type": ')
 
     await waitFor(() =>
       expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toMatch(/last valid schema/i),
@@ -70,8 +82,35 @@ describe('schema editor lifecycle', () => {
     })
   })
 
+  it('keeps the selected example when CodeMirror receives its schema', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await codeEditor()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Boolean field' }))
+
+    expect(await screen.findByLabelText('Subscribe to the newsletter')).toBeTruthy()
+    await waitFor(() => {
+      expect(window.location.pathname).toBe(`${MOUNT}basics-boolean`)
+      expect(window.location.hash).toBe('')
+    })
+  })
+
+  it('restores browser history without turning a route into a custom schema', async () => {
+    await openStringExample()
+    await codeEditor()
+    window.history.replaceState(null, '', `${MOUNT}basics-boolean`)
+    fireEvent.popState(window)
+
+    expect(await screen.findByLabelText('Subscribe to the newsletter')).toBeTruthy()
+    await waitFor(() => {
+      expect(window.location.pathname).toBe(`${MOUNT}basics-boolean`)
+      expect(window.location.hash).toBe('')
+    })
+  })
+
   it('provides a compact mobile panel selector and starts on the preview', async () => {
-    setMediaQuery(NARROW_QUERY, true)
+    await page.viewport(390, 844)
     render(<App />)
     const columns = document.querySelector('.pg-columns') as HTMLElement
     expect(columns.dataset.mobilePanel).toBe('preview')
@@ -81,6 +120,27 @@ describe('schema editor lifecycle', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Schema$/ }))
     expect(columns.dataset.mobilePanel).toBe('schema')
-    expect(screen.getByLabelText(/^JSON Schema/)).toBeTruthy()
+    expect(await codeEditor()).toBeTruthy()
+  })
+
+  it('restores an edited schema from its shared URL after a reload', async () => {
+    await page.viewport(1512, 900)
+    await openStringExample()
+    const editor = await codeEditor()
+    await userEvent.fill(editor, JSON.stringify({
+      type: 'object',
+      properties: { nickname: { type: 'string', title: 'Nickname' } },
+    }, null, 2))
+
+    await screen.findByLabelText('Nickname')
+    await waitFor(() => expect(window.location.hash).toMatch(/^#schema=/))
+    const sharedUrl = window.location.href
+
+    cleanup()
+    window.history.replaceState(null, '', sharedUrl)
+    render(<App />)
+
+    expect(await screen.findByLabelText('Nickname')).toBeTruthy()
+    expect(await codeEditor()).toBeTruthy()
   })
 })

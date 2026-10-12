@@ -13,6 +13,8 @@ afterEach(() => {
   cleanup()
   resetMediaQueries()
   vi.restoreAllMocks()
+  window.localStorage.clear()
+  window.history.replaceState(null, '', import.meta.env.BASE_URL)
 })
 
 function view(): EditorView {
