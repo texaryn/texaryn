@@ -33,7 +33,7 @@
 
 Every task's tests protect these. A change that breaks one is wrong even if its own tests pass.
 
-1. **Content is never remounted by layout.** The example list, the schema editor, the preview and the inspector render through portals into four persistent hosts. Moving a host between the desktop panels, the Maximize or Focus overlay and the phone columns keeps its React subtree and its DOM node.
+1. **Content is never remounted by layout.** The example list, the schema editor, the preview and the inspector render through portals into four persistent hosts. Moving a host between the desktop panels, the Maximize or Focus overlay and the phone columns keeps its React subtree and its DOM node. It does not keep keyboard focus: a browser blurs a focused element when its node moves, so no test may expect focus to survive a breakpoint crossing.
 2. **The runtime lifecycle is #241's.** `FormWorkspace` owns the runtime through `useForm`, keyed by `${adapterState.id}:${exampleRevision}:${resetRevision}`, and carries data through `latestData` and `preserveCurrentData`. No task creates or destroys a runtime anywhere else.
 3. **Layout state never changes saved sizes by itself.** Maximize and Focus are overlays above the panel group, which keeps its sizes; `useDefaultLayout` saves only user interactions. Restore is removing the overlay.
 4. **Hidden means unreachable.** A pane nobody can see is `inert`: the panel group under an overlay, the body of a collapsed inspector, a collapsed example list.
