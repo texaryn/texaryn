@@ -212,7 +212,7 @@ describe('ErrorSummary over a live runtime', () => {
 })
 
 describe('ErrorSummary fallbacks', () => {
-  it('uses the pointer, then the node id, then the keyword', () => {
+  it('uses readable field labels, then a generic label, then the keyword', () => {
     const host = mountSummary(
       mockRuntime([
         {
@@ -232,8 +232,8 @@ describe('ErrorSummary fallbacks', () => {
     )
     const items = [...host.querySelectorAll('li')]
     expect(items.map((li) => li.textContent)).toEqual([
-      '/name: This value is too short.',
-      'node_3: This field is required.',
+      'Name: This value is too short.',
+      'Field: This field is required.',
     ])
     expect(items[0].querySelector('a')!.getAttribute('href')).toMatch(/^#texaryn-[0-9a-z_]+-node_2-input$/)
   })

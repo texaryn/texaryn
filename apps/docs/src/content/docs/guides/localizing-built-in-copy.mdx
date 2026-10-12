@@ -3,13 +3,13 @@ title: Localizing built-in copy
 description: Replacing the words Texaryn's own widgets render, in any binding, from one typed set of messages.
 ---
 
-Texaryn's built-in widgets invent seven pieces of copy of their own: the words
-on an array's add, remove and move-up controls, together with each control's
-accessible name, the marker that shows a field is required, and the error
-summary's heading and per-item detail, plus validation messages. Other field
-labels, descriptions and hints come from the schema or the UI configuration.
+Texaryn's built-in widgets provide eight message functions: the visible labels
+and accessible names for array add, remove, move-up and move-down controls; the
+required marker; the error summary heading and per-item detail; and validation
+messages. Other field labels, descriptions and hints come from the schema or
+the UI configuration.
 
-Those six are one contract, `FormMessages` in `@texaryn/core`, and every
+Those functions form one contract, `FormMessages` in `@texaryn/core`, and every
 binding renders from it. English is the default. Supplying another set replaces
 every built-in word in every widget, including a layered widget set such as
 `@texaryn/react-mui`, which reads the same configuration through
@@ -35,12 +35,21 @@ const french: FormMessages = {
     label: 'Monter',
     accessibleName: `Monter ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
   }),
+  moveItemDown: ({ position, itemTitle, containerTitle }) => ({
+    label: 'Descendre',
+    accessibleName: `Descendre ${itemTitle ?? 'élément'} ${position}${containerTitle ? ` dans ${containerTitle}` : ''}`,
+  }),
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
   validationMessage: (error) => {
     if (error.keyword === 'required') return 'Ce champ est obligatoire.'
-    if (error.keyword === 'minLength') return `Saisissez au moins ${error.params.limit} caractères.`
+    if (error.keyword === 'minLength') {
+      const limit = error.params.limit
+      return typeof limit === 'number' && Number.isFinite(limit) && limit >= 0
+        ? `Saisissez au moins ${limit} caractères.`
+        : 'Cette valeur est trop courte.'
+    }
     return 'Cette valeur est invalide.'
   },
 }
@@ -120,6 +129,13 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FormMessages } from '@texaryn/core'
 
+const validationKeywords = new Set([
+  'required', 'minLength', 'maxLength', 'minimum', 'exclusiveMinimum', 'maximum',
+  'exclusiveMaximum', 'minItems', 'maxItems', 'minProperties', 'maxProperties',
+  'format', 'pattern', 'type', 'enum', 'const', 'uniqueItems', 'dependentRequired',
+  'additionalProperties', 'oneOf', 'anyOf', 'not',
+])
+
 function useTexarynMessages(): FormMessages {
   const { t } = useTranslation()
   return useMemo(
@@ -127,10 +143,14 @@ function useTexarynMessages(): FormMessages {
       addItem: (c) => ({ label: t('form.add'), accessibleName: t('form.addName', c) }),
       removeItem: (c) => ({ label: t('form.remove'), accessibleName: t('form.removeName', c) }),
       moveItemUp: (c) => ({ label: t('form.up'), accessibleName: t('form.upName', c) }),
+      moveItemDown: (c) => ({ label: t('form.down'), accessibleName: t('form.downName', c) }),
       requiredIndicator: () => ({ text: t('form.required'), placement: 'after' }),
       errorSummaryHeading: (c) => t('form.summaryHeading', c),
       errorSummaryDetail: (c) => t('form.summaryDetail', c),
-      validationMessage: (e) => t(`form.validation.${e.keyword}`, e.params),
+      validationMessage: (e) => t(
+        validationKeywords.has(e.keyword) ? `form.validation.${e.keyword}` : 'form.validation.invalid',
+        e.params,
+      ),
     }),
     [t],
   )

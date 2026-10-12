@@ -12,7 +12,7 @@
 // them. A list would have to be edited whenever one is added, and the edit
 // that gets forgotten is the one that leaves a new surface unchecked while
 // every test still passes.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
 import { findRendererInput } from './renderer-test-utils.js'
@@ -102,4 +102,22 @@ describe('the renderer-owned region', () => {
     expect(within(controls).getByRole('button', { name: /^Submit$/ })).toBeTruthy()
     expect(within(controls).getByLabelText(/simulate failure/i)).toBeTruthy()
   })
+
+  it('routes the Bootstrap playground button through the shadow form submit event', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
+    await screen.findByLabelText('Name')
+    fireEvent.change(rendererSelect(), { target: { value: 'bootstrap' } })
+
+    const form = await waitFor(() => {
+      expect(rendererSelect().value).toBe('bootstrap')
+      return deepQuery<HTMLFormElement>(document, '.pg-runtime-form')[0]!
+    })
+    const nativeSubmit = vi.fn((event: Event) => event.preventDefault())
+    form.addEventListener('submit', nativeSubmit)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Submit$/ }))
+
+    expect(nativeSubmit).toHaveBeenCalledTimes(1)
+  }, 15_000)
 })

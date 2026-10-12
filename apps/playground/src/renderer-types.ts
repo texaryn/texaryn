@@ -6,4 +6,5 @@ export interface RendererProps {
   runtime: FormRuntime
   theme: ResolvedTheme
   onSubmit?: FormEventHandler<HTMLFormElement>
+  onSubmitForm?: (form: HTMLFormElement | null) => void
 }

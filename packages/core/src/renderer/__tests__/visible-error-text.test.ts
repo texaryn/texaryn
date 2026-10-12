@@ -15,9 +15,13 @@ describe('visibleErrorLabel', () => {
     expect(visibleErrorLabel(base)).toBe('Name')
   })
 
-  it('falls back to the pointer, then the node id', () => {
-    expect(visibleErrorLabel({ ...base, fieldTitle: undefined })).toBe('/name')
-    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: null })).toBe('node_2')
+  it('uses a readable pointer segment and a generic label without a pointer', () => {
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined })).toBe('Name')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/contact_name' as JsonPointer })).toBe('Contact name')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/items/0/name' as JsonPointer })).toBe('Name')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/items/0' as JsonPointer })).toBe('Item 1')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: '/-_' as JsonPointer })).toBe('Field')
+    expect(visibleErrorLabel({ ...base, fieldTitle: undefined, pointer: null })).toBe('Field')
   })
 })
 

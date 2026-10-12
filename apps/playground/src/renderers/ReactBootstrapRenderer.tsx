@@ -5,10 +5,10 @@ import type { RendererProps } from '../renderer-types.js'
 
 const registry = createBootstrapRegistry()
 
-export default function ReactBootstrapRenderer({ theme, onSubmit }: RendererProps) {
+export default function ReactBootstrapRenderer({ theme, onSubmit, onSubmitForm }: RendererProps) {
   return (
     <BootstrapBoundary theme={theme}>
-      <form className="pg-runtime-form" noValidate onSubmit={onSubmit}>
+      <form ref={onSubmitForm} className="pg-runtime-form" noValidate onSubmit={onSubmit}>
         <ErrorSummary />
         <FormRoot registry={registry} />
         <button

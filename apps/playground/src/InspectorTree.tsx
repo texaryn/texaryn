@@ -50,6 +50,7 @@ function TreeNode({
   depth: number
   hideUnset: boolean
 }) {
+  const [isOpen, setIsOpen] = useState(depth === 0)
   const entries = entriesFor(value)
   const visibleEntries = entries?.filter((entry) => !(hideUnset && entry.value === undefined))
 
@@ -65,26 +66,32 @@ function TreeNode({
   }
 
   return (
-    <details className="pg-tree__node" open={depth === 0}>
+    <details
+      className="pg-tree__node"
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
       <summary style={{ '--pg-tree-depth': depth } as CSSProperties}>
         <span className="pg-tree__key">{name}</span>
         <span className="pg-tree__preview">{preview(value)}</span>
       </summary>
-      <div className="pg-tree__children">
-        {visibleEntries?.length === 0 ? (
-          <p className="pg-tree__empty">All values are unset.</p>
-        ) : (
-          visibleEntries?.map((entry) => (
-            <TreeNode
-              key={entry.key}
-              name={entry.key}
-              value={entry.value}
-              depth={depth + 1}
-              hideUnset={hideUnset}
-            />
-          ))
-        )}
-      </div>
+      {isOpen && (
+        <div className="pg-tree__children">
+          {visibleEntries?.length === 0 ? (
+            <p className="pg-tree__empty">All values are unset.</p>
+          ) : (
+            visibleEntries?.map((entry) => (
+              <TreeNode
+                key={entry.key}
+                name={entry.key}
+                value={entry.value}
+                depth={depth + 1}
+                hideUnset={hideUnset}
+              />
+            ))
+          )}
+        </div>
+      )}
     </details>
   )
 }

@@ -120,7 +120,7 @@ describe('ErrorSummary', () => {
     host.remove()
   })
 
-  it('falls back to pointer when fieldTitle is undefined', () => {
+  it('uses a readable label when fieldTitle is undefined', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: undefined,
@@ -128,10 +128,10 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/\/name/)).toBeTruthy()
+    expect(screen.getByText(/Name/)).toBeTruthy()
   })
 
-  it('falls back to nodeId when both fieldTitle and pointer are null', () => {
+  it('uses a generic label when fieldTitle and pointer are absent', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: undefined,
@@ -139,7 +139,7 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'required', message: 'Required', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/node_2/)).toBeTruthy()
+    expect(screen.getByText(/Field/)).toBeTruthy()
   })
 
   it('uses safe copy when message is undefined', () => {

@@ -192,6 +192,10 @@ function FormWorkspace({
 
   const isBootstrap = rendererKey === 'bootstrap'
   const hasReactSummary = ['default', 'mui', 'emotion', 'tailwind'].includes(rendererKey)
+  const bootstrapFormRef = useRef<HTMLFormElement | null>(null)
+  const setBootstrapForm = useCallback((element: HTMLFormElement | null) => {
+    bootstrapFormRef.current = element
+  }, [])
   const submit = () => form.runtime.dispatch({ type: 'Submit' })
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -207,7 +211,12 @@ function FormWorkspace({
       {rendererLoadError ? (
         <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
       ) : Renderer ? (
-        <Renderer runtime={form.runtime} theme={resolvedTheme} onSubmit={handleSubmit} />
+        <Renderer
+          runtime={form.runtime}
+          theme={resolvedTheme}
+          onSubmit={handleSubmit}
+          onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
+        />
       ) : (
         <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
       )}
@@ -223,7 +232,7 @@ function FormWorkspace({
         <button
           type={isBootstrap ? 'button' : 'submit'}
           className="pg-button"
-          onClick={isBootstrap ? submit : undefined}
+          onClick={isBootstrap ? () => bootstrapFormRef.current?.requestSubmit() : undefined}
           disabled={
             form.submission.status === 'validating' ||
             form.submission.status === 'submitting'

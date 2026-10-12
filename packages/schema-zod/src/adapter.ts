@@ -1,6 +1,7 @@
 import * as z from 'zod'
 import type { ValidationError, ValidationResult } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import { validationParameters } from './validation-parameters.js'
 import type { ZodAdapterConfig, ZodSchemaAdapter } from './types.js'
 
 const privateIssueParams = new WeakMap<ValidationError, Record<string, unknown>>()
@@ -80,35 +81,6 @@ function toValidationError(
   }
   privateIssueParams.set(error, params as Record<string, unknown>)
   return error
-}
-
-function validationParameters(keyword: string, source: Record<string, unknown>): Record<string, unknown> {
-  if (keyword === 'format') {
-    return typeof source.format === 'string' ? { format: source.format } : {}
-  }
-
-  if (
-    keyword === 'minLength' || keyword === 'minItems' || keyword === 'minProperties' ||
-    keyword === 'minimum' || keyword === 'exclusiveMinimum'
-  ) {
-    const limit = source.minimum
-    return typeof limit === 'number' && Number.isFinite(limit) ? { limit } : {}
-  }
-
-  if (
-    keyword === 'maxLength' || keyword === 'maxItems' || keyword === 'maxProperties' ||
-    keyword === 'maximum' || keyword === 'exclusiveMaximum'
-  ) {
-    const limit = source.maximum
-    return typeof limit === 'number' && Number.isFinite(limit) ? { limit } : {}
-  }
-
-  if (keyword === 'multipleOf') {
-    const limit = source.divisor
-    return typeof limit === 'number' && Number.isFinite(limit) ? { limit } : {}
-  }
-
-  return {}
 }
 
 function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): string {
