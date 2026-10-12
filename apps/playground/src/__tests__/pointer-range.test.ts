@@ -44,4 +44,33 @@ describe('rangeForPointer', () => {
   it('marks the first line of the root for the empty pointer', () => {
     expect(textAt('')).toBe('{')
   })
+
+  it('matches property names after JSON string escapes are decoded', () => {
+    const escaped = String.raw`{
+  "a\"b": { "type": "quoted" },
+  "a\/b": { "type": "slash" },
+  "a": { "type": "plain" }
+}`
+    const escapedTree = parser.parse(escaped)
+    const textIn = (pointer: string) => {
+      const { from, to } = rangeForPointer(escapedTree, escaped, pointer)
+      return escaped.slice(from, to)
+    }
+    expect(textIn('/a"b/type')).toBe('"quoted"')
+    expect(textIn('/a~1b/type')).toBe('"slash"')
+    expect(textIn('/a/type')).toBe('"plain"')
+  })
+
+  it('accepts only RFC 6901 array indexes', () => {
+    const arrayDoc = '{"arr": [1, 2, 3]}'
+    const arrayTree = parser.parse(arrayDoc)
+    const textIn = (pointer: string) => {
+      const { from, to } = rangeForPointer(arrayTree, arrayDoc, pointer)
+      return arrayDoc.slice(from, to)
+    }
+    expect(textIn('/arr/1')).toBe('2')
+    for (const pointer of ['/arr/01', '/arr/1e0', '/arr/']) {
+      expect(textIn(pointer)).toBe('[1, 2, 3]')
+    }
+  })
 })

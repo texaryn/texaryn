@@ -28,8 +28,8 @@ function childValue(doc: string, node: SyntaxNode, segment: string): SyntaxNode 
     return null
   }
   if (node.name === 'Array') {
+    if (!/^(0|[1-9]\d*)$/.test(segment)) return null
     const index = Number(segment)
-    if (!Number.isInteger(index) || index < 0) return null
     let seen = 0
     for (let item = node.firstChild; item; item = item.nextSibling) {
       if (item.name === '[' || item.name === ']' || item.name === ',' || item.type.isError) continue
