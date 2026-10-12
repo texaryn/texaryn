@@ -8,11 +8,7 @@
 
 > **checkSchema**(`schema`, `config?`): `Promise`\<[`SchemaIssue`](../interfaces/SchemaIssue.md)[]\>
 
-Returns the schema's own errors as JSON Pointers into it, without building an adapter.
-
-Rejects, as `createJsonSchemaAdapter` does, for a same-location `$ref` cycle
-(`SameLocationCycleError`) and when a configured `resolveResource` cannot supply a
-referenced schema (`SchemaResourceResolutionError`), rather than returning issues for them.
+Returns the schema's own errors as JSON Pointers, without building an adapter. Rejects like `createJsonSchemaAdapter` for a same-location `$ref` cycle (`SameLocationCycleError`) or a `resolveResource` that cannot supply a schema (`SchemaResourceResolutionError`).
 
 ## Parameters
 

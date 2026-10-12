@@ -13,10 +13,7 @@ export function lazyGroup(id: string): LazyGroup | undefined {
   return undefined
 }
 
-// Rollup pulls every static dependency of a manual chunk into that chunk, so a
-// dependency the first load also imports (React, schema-json) would turn the
-// lazy chunk eager. A module owned by one lazy group stays with it; one reached
-// from two groups, or imported from outside its group, is 'shared'.
+// Rollup pulls a manual chunk's static dependencies into it, so a module reached from two groups or from outside its group goes to 'shared'.
 export function sharedModules({ getModuleIds, getModuleInfo }: Pick<Rollup.ManualChunkMeta, 'getModuleIds' | 'getModuleInfo'>): Set<string> {
   const reachedFrom = new Map<string, Set<LazyGroup>>()
   const visit = (id: string, group: LazyGroup) => {

@@ -39,11 +39,8 @@ function sharedPrefix(paths: readonly string[][]): string[] {
   return shared
 }
 
-// json-schema-library joins property names into its locations without RFC 6901
-// escaping (#184), so `a/b` and nested `a` then `b` print alike. The document
-// decides: one matching reading is exact; several mean the location is
-// ambiguous, and only the prefix every reading shares is certain. Past the cap
-// the unseen readings could diverge anywhere, so only the root is certain.
+// json-schema-library does not RFC 6901 escape its locations (#184): one matching reading is exact,
+// several resolve to their shared prefix, and past the cap only the root is certain.
 export function resolveUnescapedPath(document: unknown, path: string): string {
   const parts = path === '' ? [] : path.split('/').slice(1)
   const search: Search = { found: [], truncated: false }
