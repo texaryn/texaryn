@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { forEachDiagnostic } from '@codemirror/lint'
 import { undo, undoDepth } from '@codemirror/commands'
 import { App } from '../App.js'
+import SchemaEditor from '../editor/SchemaEditor.js'
 import { resetMediaQueries, setMediaQuery } from '../test-setup.js'
 import { NARROW_QUERY } from '../workbench/use-narrow-viewport.js'
 import { editSchema, readSchemaText } from './schema-text.js'
@@ -11,6 +12,7 @@ import { editSchema, readSchemaText } from './schema-text.js'
 afterEach(() => {
   cleanup()
   resetMediaQueries()
+  vi.restoreAllMocks()
 })
 
 function view(): EditorView {
@@ -96,5 +98,87 @@ describe('the schema editor', () => {
     expect(document.querySelector('.cm-editor')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /^Schema$/ }))
     await waitFor(() => expect(document.querySelector('.cm-editor')).toBeTruthy())
+  })
+})
+
+describe('the schema editor toolbar', () => {
+  it('leaves an already formatted example selected when Format changes nothing', async () => {
+    await openStringField()
+    const example = screen.getByRole('button', { name: 'String field' })
+    expect(example.getAttribute('aria-current')).toBe('true')
+    const before = readSchemaText()
+    fireEvent.click(screen.getByRole('button', { name: 'Format' }))
+    expect(readSchemaText()).toBe(before)
+    expect(example.getAttribute('aria-current')).toBe('true')
+    expect(undoDepth(view().state)).toBe(0)
+  })
+
+  it('handles a refused clipboard write', async () => {
+    await openStringField()
+    const written: string[] = []
+    // Not vi.fn: a mock attaches its own handlers to the promise it returns.
+    const writeText = (text: string) => {
+      written.push(text)
+      return Promise.reject(new Error('denied'))
+    }
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const unhandled: unknown[] = []
+    const record = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', record)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    } finally {
+      process.off('unhandledRejection', record)
+      Reflect.deleteProperty(navigator, 'clipboard')
+    }
+    expect(written).toEqual([readSchemaText()])
+    expect(unhandled).toEqual([])
+  })
+})
+
+describe('SchemaEditor', () => {
+  function mount(props: Partial<Parameters<typeof SchemaEditor>[0]> = {}) {
+    const base = {
+      value: '{}',
+      onChange: () => {},
+      labelledBy: 'label',
+      documentKey: 0,
+    }
+    const result = render(<SchemaEditor {...base} {...props} />)
+    return {
+      rerender: (next: Partial<Parameters<typeof SchemaEditor>[0]>) =>
+        result.rerender(<SchemaEditor {...base} {...props} {...next} />),
+    }
+  }
+
+  function type(text: string): void {
+    const editor = view()
+    editor.dispatch({ changes: { from: editor.state.doc.length, insert: text } })
+  }
+
+  it('keeps a newer keystroke when an older value comes back from the parent', () => {
+    const emitted: string[] = []
+    const { rerender } = mount({ value: '{}', onChange: (text) => emitted.push(text) })
+    type(' ')
+    type('\n')
+    expect(emitted).toEqual(['{} ', '{} \n'])
+
+    rerender({ value: '{} ' })
+    expect(view().state.doc.toString()).toBe('{} \n')
+
+    rerender({ value: '{} \n' })
+    rerender({ value: '{"type":"object"}' })
+    expect(view().state.doc.toString()).toBe('{"type":"object"}')
+  })
+
+  it('clears the issue count and the cursor when another document arrives', () => {
+    const onSchemaIssues = vi.fn()
+    const onCursor = vi.fn()
+    const { rerender } = mount({ value: '{}', onSchemaIssues, onCursor })
+    rerender({ value: '{"type":"string"}', documentKey: 1 })
+    expect(view().state.doc.toString()).toBe('{"type":"string"}')
+    expect(onSchemaIssues).toHaveBeenLastCalledWith(null)
+    expect(onCursor).toHaveBeenLastCalledWith(null)
   })
 })

@@ -288,4 +288,39 @@ describe('the schema editor in Chromium', () => {
     await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`)
     expect(readSchemaText()).toBe(before)
   })
+
+  it('draws the caret, the focused selection and the search panel in the dark theme colors', async () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+    await page.viewport(1512, 900)
+    render(<App />)
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'))
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeTruthy())
+    await userEvent.click(document.querySelectorAll<HTMLElement>('.cm-line')[1]!)
+    await userEvent.keyboard('{Home}{Shift>}{End}{/Shift}')
+
+    const probe = document.createElement('div')
+    probe.style.color = 'var(--tx-text)'
+    probe.style.backgroundColor = 'var(--tx-code-selection)'
+    probe.style.borderColor = 'var(--tx-surface-raised)'
+    document.body.append(probe)
+    const { color: text, backgroundColor: selection, borderTopColor: raised } = getComputedStyle(probe)
+    probe.remove()
+
+    await waitFor(() => {
+      const caret = document.querySelector('.cm-cursor-primary')
+      expect(caret).toBeTruthy()
+      expect(getComputedStyle(caret!).borderLeftColor).toBe(text)
+      const selected = document.querySelector('.cm-selectionLayer .cm-selectionBackground')
+      expect(selected).toBeTruthy()
+      expect(getComputedStyle(selected!).backgroundColor).toBe(selection)
+    })
+
+    await userEvent.keyboard(`{${MOD}>}f{/${MOD}}`)
+    await waitFor(() => {
+      const panels = document.querySelector('.cm-panels')
+      expect(panels).toBeTruthy()
+      expect(getComputedStyle(panels!).backgroundColor).toBe(raised)
+      expect(getComputedStyle(panels!).color).toBe(text)
+    })
+  })
 })

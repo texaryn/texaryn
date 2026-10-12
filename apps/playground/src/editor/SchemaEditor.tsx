@@ -41,6 +41,7 @@ export default function SchemaEditor({
   const view = useRef<EditorView | null>(null)
   const extensions = useRef<Extension[]>([])
   const callbacks = useRef({ onChange, onSchemaIssues, onCursor })
+  const emitted = useRef(new Set<string>())
   callbacks.current = { onChange, onSchemaIssues, onCursor }
 
   useEffect(() => {
@@ -74,7 +75,11 @@ export default function SchemaEditor({
       ]),
       EditorView.contentAttributes.of({ 'aria-labelledby': labelledBy }),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
+        if (update.docChanged) {
+          const text = update.state.doc.toString()
+          emitted.current.add(text)
+          callbacks.current.onChange(text)
+        }
         if (update.selectionSet || update.focusChanged) {
           const head = update.state.selection.main.head
           const line = update.state.doc.lineAt(head)
@@ -105,7 +110,10 @@ export default function SchemaEditor({
     const editor = view.current
     if (!editor || documentKey === firstKey.current) return
     firstKey.current = documentKey
+    emitted.current.clear()
     editor.setState(EditorState.create({ doc: value, extensions: extensions.current }))
+    callbacks.current.onSchemaIssues?.(null)
+    callbacks.current.onCursor?.(null)
   }, [documentKey])
 
   // Format and the visual builder change the same document: an undoable edit.
@@ -113,12 +121,17 @@ export default function SchemaEditor({
     const editor = view.current
     if (!editor) return
     const current = editor.state.doc.toString()
-    if (current !== value) {
-      editor.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-        annotations: isolateHistory.of('full'),
-      })
+    if (current === value) {
+      emitted.current.clear()
+      return
     }
+    // A value this editor emitted is an echo that a newer keystroke has outrun.
+    if (emitted.current.has(value)) return
+    emitted.current.clear()
+    editor.dispatch({
+      changes: { from: 0, to: current.length, insert: value },
+      annotations: isolateHistory.of('full'),
+    })
   }, [value])
 
   return <div ref={host} className="pg-code-editor" />

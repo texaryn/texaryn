@@ -577,12 +577,15 @@ export function App() {
           <button
             type="button"
             className="pg-button pg-button--quiet"
-            onClick={() => handleSchemaChange(JSON.stringify(JSON.parse(schemaText), null, 2))}
+            onClick={() => {
+              const formatted = JSON.stringify(JSON.parse(schemaText), null, 2)
+              if (formatted !== schemaText) handleSchemaChange(formatted)
+            }}
           >
             Format
           </button>
         )}
-        <button type="button" className="pg-button pg-button--quiet" onClick={() => void navigator.clipboard?.writeText(schemaText)}>
+        <button type="button" className="pg-button pg-button--quiet" onClick={() => void navigator.clipboard?.writeText(schemaText).catch(() => {})}>
           Copy
         </button>
       </div>

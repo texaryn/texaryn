@@ -7,7 +7,11 @@ export const editorTheme = EditorView.theme({
   '.cm-scroller': { fontFamily: 'var(--tx-font-mono)', lineHeight: '1.55' },
   '.cm-gutters': { backgroundColor: 'var(--tx-code-bg)', color: 'var(--tx-code-gutter)', border: 'none' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--tx-code-active-line)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'var(--tx-code-selection)' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: 'var(--tx-code-selection)',
+  },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--tx-text)' },
+  '.cm-panels': { backgroundColor: 'var(--tx-surface-raised)', color: 'var(--tx-text)' },
   '&.cm-focused': { outline: '2px solid var(--tx-accent)', outlineOffset: '-2px' },
   '.cm-tooltip': {
     backgroundColor: 'var(--tx-surface-raised)',
