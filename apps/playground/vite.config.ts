@@ -68,6 +68,63 @@ function baseForMode(mode: string): string {
   return '/playground/'
 }
 
+interface ChunkContext {
+  getModuleIds(): IterableIterator<string>
+  getModuleInfo(id: string): {
+    importers: readonly string[]
+    dynamicImporters: readonly string[]
+    importedIds: readonly string[]
+  } | null
+}
+
+function lazyGroup(id: string): 'editor' | 'palette' | undefined {
+  const file = id.replaceAll('\\', '/')
+  if (/\/node_modules\/(@codemirror|@lezer|crelt|style-mod|w3c-keyname)\//.test(file) || file.includes('/apps/playground/src/editor/')) {
+    return 'editor'
+  }
+  if (/\/node_modules\/(cmdk|@radix-ui)\//.test(file) || file.includes('/apps/playground/src/palette/')) {
+    return 'palette'
+  }
+  return undefined
+}
+
+// Rollup pulls every static dependency of a manual chunk into that chunk, so a
+// dependency the first load also imports (React, schema-json) would turn the
+// lazy chunk eager. Modules a lazy group reaches and outsiders import are 'shared'.
+function sharedModules({ getModuleIds, getModuleInfo }: ChunkContext): Set<string> {
+  const pulled = new Set<string>()
+  const visit = (id: string) => {
+    for (const dep of getModuleInfo(id)?.importedIds ?? []) {
+      if (lazyGroup(dep) || pulled.has(dep)) continue
+      pulled.add(dep)
+      visit(dep)
+    }
+  }
+  for (const id of getModuleIds()) if (lazyGroup(id)) visit(id)
+
+  const exclusive = new Set(pulled)
+  for (let changed = true; changed;) {
+    changed = false
+    for (const id of exclusive) {
+      const info = getModuleInfo(id)
+      const importers = [...(info?.importers ?? []), ...(info?.dynamicImporters ?? [])]
+      if (importers.every((importer) => lazyGroup(importer) || exclusive.has(importer))) continue
+      exclusive.delete(id)
+      changed = true
+    }
+  }
+  return new Set([...pulled].filter((id) => !exclusive.has(id)))
+}
+
+let shared: { owner: ChunkContext['getModuleInfo']; ids: Set<string> } | undefined
+
+function manualChunks(id: string, context: ChunkContext): string | undefined {
+  const group = lazyGroup(id)
+  if (group) return group
+  if (shared?.owner !== context.getModuleInfo) shared = { owner: context.getModuleInfo, ids: sharedModules(context) }
+  return shared.ids.has(id) ? 'shared' : undefined
+}
+
 export default defineConfig(({ mode }) => ({
   base: baseForMode(mode),
   resolve: mode === 'benchmark' ? { mainFields: ['module'] } : undefined,
@@ -79,4 +136,8 @@ export default defineConfig(({ mode }) => ({
     svelte(),
     react(),
   ],
+  build: {
+    manifest: true,
+    rollupOptions: { output: { manualChunks } },
+  },
 }))
