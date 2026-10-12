@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -9,19 +9,34 @@ export function gzipSize(source) {
   return gzipSync(source, { level: 9 }).length
 }
 
-export function initialScripts(html) {
-  const found = new Set()
-  for (const match of html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"/g)) found.add(match[1])
-  for (const match of html.matchAll(/<link[^>]*rel="modulepreload"[^>]*href="([^"]+)"/g)) found.add(match[1])
-  return [...found]
+// Files a manifest entry loads without a dynamic import, itself included.
+function staticClosure(manifest, keys) {
+  const seen = new Set()
+  const visit = (chunk) => {
+    if (!chunk || seen.has(chunk.file)) return
+    seen.add(chunk.file)
+    for (const key of chunk.imports ?? []) visit(manifest[key])
+  }
+  for (const key of keys) visit(manifest[key])
+  return seen
 }
 
-export function measure({ html, assets, read }) {
-  const sum = (names) => names.reduce((total, name) => total + gzipSize(read(name)), 0)
+function entryKeys(manifest) {
+  return Object.keys(manifest).filter((key) => manifest[key].isEntry)
+}
+
+function dynamicEntryKeys(manifest, matches) {
+  return Object.keys(manifest).filter((key) => manifest[key].isDynamicEntry && matches(key))
+}
+
+export function measure({ manifest, read }) {
+  const initial = staticClosure(manifest, entryKeys(manifest))
+  const lazy = (keys) => [...staticClosure(manifest, keys)].filter((file) => !initial.has(file))
+  const sum = (files) => files.reduce((total, file) => total + gzipSize(read(file)), 0)
   return {
-    initial: sum(initialScripts(html).map((src) => src.split('/').pop())),
-    editor: sum(assets.filter((name) => /^editor-.*\.js$/.test(name))),
-    palette: sum(assets.filter((name) => /^palette-.*\.js$/.test(name))),
+    initial: sum([...initial]),
+    editor: sum(lazy(dynamicEntryKeys(manifest, (key) => key === 'src/editor/SchemaEditor.tsx'))),
+    palette: sum(lazy(dynamicEntryKeys(manifest, (key) => key.startsWith('src/palette/')))),
   }
 }
 
@@ -29,35 +44,19 @@ export function overLimit(sizes, limits = LIMITS) {
   return Object.keys(limits).filter((key) => sizes[key] > limits[key])
 }
 
-// Every file the entry pulls in without a dynamic import, from Vite's manifest.
-export function eagerChunks(manifest) {
-  const seen = new Set()
-  const visit = (chunk) => {
-    if (!chunk || seen.has(chunk.file)) return
-    seen.add(chunk.file)
-    for (const key of chunk.imports ?? []) visit(manifest[key])
-  }
-  visit(Object.values(manifest).find((chunk) => chunk.isEntry))
-  return [...seen]
-}
-
 export function lazyLeaks(manifest) {
-  return eagerChunks(manifest).filter((file) => /(^|\/)(editor|palette)-[^/]*\.js$/.test(file))
+  return [...staticClosure(manifest, entryKeys(manifest))].filter((file) => /(^|\/)(editor|palette)-[^/]*\.js$/.test(file))
 }
 
 function main(dist) {
   const root = resolve(dist)
-  const assetsDir = join(root, 'assets')
-  const sizes = measure({
-    html: readFileSync(join(root, 'index.html'), 'utf8'),
-    assets: readdirSync(assetsDir).filter((name) => name.endsWith('.js')),
-    read: (name) => readFileSync(join(assetsDir, name)),
-  })
+  const manifest = JSON.parse(readFileSync(join(root, '.vite', 'manifest.json'), 'utf8'))
+  const sizes = measure({ manifest, read: (file) => readFileSync(join(root, file)) })
   for (const key of Object.keys(LIMITS)) {
     console.log(`${key}: ${(sizes[key] / 1024).toFixed(1)} KB gzipped, limit ${LIMITS[key] / 1024} KB`)
   }
   const over = overLimit(sizes)
-  const leaks = lazyLeaks(JSON.parse(readFileSync(join(root, '.vite', 'manifest.json'), 'utf8')))
+  const leaks = lazyLeaks(manifest)
   if (over.length > 0) console.error(`check-playground-size: over the limit: ${over.join(', ')}`)
   if (leaks.length > 0) {
     console.error(`check-playground-size: loaded on first visit but meant to be lazy: ${leaks.join(', ')}`)

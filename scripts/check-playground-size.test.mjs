@@ -1,38 +1,88 @@
 import { describe, it, expect } from 'vitest'
-import { initialScripts, lazyLeaks, measure, overLimit, LIMITS } from './check-playground-size.mjs'
+import { randomBytes } from 'node:crypto'
+import { gzipSize, lazyLeaks, measure, overLimit, LIMITS } from './check-playground-size.mjs'
 
-const HTML = `<!doctype html><head>
-<script type="module" crossorigin src="/texaryn/playground/assets/index-abc.js"></script>
-<link rel="modulepreload" crossorigin href="/texaryn/playground/assets/vendor-def.js">
-</head>`
+const MANIFEST = {
+  'index.html': {
+    file: 'assets/index-a.js',
+    isEntry: true,
+    imports: ['_vendor.js'],
+    dynamicImports: ['src/editor/SchemaEditor.tsx'],
+  },
+  '_vendor.js': { file: 'assets/vendor-b.js', imports: ['_util.js'] },
+  '_util.js': { file: 'assets/util-c.js' },
+  'src/editor/SchemaEditor.tsx': {
+    file: 'assets/editor-d.js',
+    isDynamicEntry: true,
+    imports: ['_vendor.js', '_shared-x.js'],
+  },
+  '_shared-x.js': { file: 'assets/shared-x.js', imports: ['_util.js'] },
+}
+
+function reader(files) {
+  return (file) => {
+    if (!(file in files)) throw new Error(`unexpected read of ${file}`)
+    return files[file]
+  }
+}
 
 describe('check-playground-size', () => {
-  it('finds the entry script and its preloads', () => {
-    expect(initialScripts(HTML)).toEqual([
-      '/texaryn/playground/assets/index-abc.js',
-      '/texaryn/playground/assets/vendor-def.js',
-    ])
-  })
-
-  it('sums gzip sizes per group', () => {
+  it('measures the entry and everything it imports statically as the first load', () => {
     const files = {
-      'index-abc.js': 'a'.repeat(1000),
-      'vendor-def.js': 'b'.repeat(1000),
-      'editor-1.js': 'c'.repeat(1000),
-      'palette-2.js': 'd'.repeat(1000),
-      'other-3.js': 'e'.repeat(1000),
+      'assets/index-a.js': randomBytes(1000),
+      'assets/vendor-b.js': randomBytes(2000),
+      'assets/util-c.js': randomBytes(3000),
+      'assets/editor-d.js': randomBytes(10),
+      'assets/shared-x.js': randomBytes(10),
     }
-    const sizes = measure({ html: HTML, assets: Object.keys(files), read: (name) => files[name] })
-    expect(sizes.initial).toBeGreaterThan(0)
-    expect(sizes.editor).toBeGreaterThan(0)
-    expect(sizes.palette).toBeGreaterThan(0)
+    const sizes = measure({ manifest: MANIFEST, read: reader(files) })
+    const expected = ['index-a', 'vendor-b', 'util-c'].reduce((total, name) => total + gzipSize(files[`assets/${name}.js`]), 0)
+    expect(sizes.initial).toBe(expected)
   })
 
-  it('reports zero for a group whose chunk does not exist yet', () => {
-    const files = { 'index-abc.js': 'a', 'vendor-def.js': 'b' }
-    const sizes = measure({ html: HTML, assets: Object.keys(files), read: (name) => files[name] })
-    expect(sizes.palette).toBe(0)
-    expect(overLimit(sizes)).toEqual([])
+  it('counts a lazy shared chunk the editor imports in the editor group', () => {
+    const files = {
+      'assets/index-a.js': randomBytes(100),
+      'assets/vendor-b.js': randomBytes(100),
+      'assets/util-c.js': randomBytes(100),
+      'assets/editor-d.js': randomBytes(100 * 1024),
+      'assets/shared-x.js': randomBytes(60 * 1024),
+    }
+    const sizes = measure({ manifest: MANIFEST, read: reader(files) })
+    expect(sizes.editor).toBe(gzipSize(files['assets/editor-d.js']) + gzipSize(files['assets/shared-x.js']))
+    expect(overLimit(sizes)).toEqual(['editor'])
+  })
+
+  it('counts a chunk the entry and the editor both import only in the first load', () => {
+    const files = {
+      'assets/index-a.js': randomBytes(100),
+      'assets/vendor-b.js': randomBytes(5000),
+      'assets/util-c.js': randomBytes(7000),
+      'assets/editor-d.js': randomBytes(300),
+      'assets/shared-x.js': randomBytes(400),
+    }
+    const sizes = measure({ manifest: MANIFEST, read: reader(files) })
+    expect(sizes.editor).toBe(gzipSize(files['assets/editor-d.js']) + gzipSize(files['assets/shared-x.js']))
+    expect(sizes.initial).toBe(
+      gzipSize(files['assets/index-a.js']) + gzipSize(files['assets/vendor-b.js']) + gzipSize(files['assets/util-c.js']),
+    )
+  })
+
+  it('measures a palette entry under src/palette and reports zero without one', () => {
+    const files = {
+      'assets/index-a.js': 'a',
+      'assets/vendor-b.js': 'b',
+      'assets/util-c.js': 'c',
+      'assets/editor-d.js': 'd',
+      'assets/shared-x.js': 'x',
+      'assets/palette-e.js': randomBytes(500),
+    }
+    expect(measure({ manifest: MANIFEST, read: reader(files) }).palette).toBe(0)
+    const withPalette = {
+      ...MANIFEST,
+      'src/palette/CommandPalette.tsx': { file: 'assets/palette-e.js', isDynamicEntry: true, imports: ['_vendor.js'] },
+    }
+    expect(measure({ manifest: withPalette, read: reader(files) }).palette).toBe(gzipSize(files['assets/palette-e.js']))
   })
 
   it('names every group over its limit', () => {
