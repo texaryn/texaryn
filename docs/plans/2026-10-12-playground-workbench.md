@@ -3393,6 +3393,7 @@ describe('data presets', () => {
   it('resets to an empty object when an example has no initial data', async () => {
     const port = await createJsonSchemaAdapter({ type: 'object' })
     const runtime = createFormRuntime(port, { initialData: undefined })
+    runtime.dispatch({ type: 'Reset', data: { populated: true } })
     applyPreset(runtime, undefined, false)
     expect(runtime.data.getSnapshot()).toEqual({})
     runtime.destroy()
@@ -4020,12 +4021,15 @@ import type { CommandPaletteProps } from './palette/CommandPalette.js'
 
 const CommandPalette = lazy(() => import('./palette/CommandPalette.js'))
 
-export class PaletteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class PaletteBoundary extends Component<{ children: ReactNode; onDismiss: () => void }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError(): { failed: boolean } { return { failed: true } }
   render(): ReactNode {
     return this.state.failed
-      ? <p className="pg-palette__error" role="status">The command palette is unavailable. Use the visible controls instead.</p>
+      ? <div className="pg-palette__error" role="status">
+          <span>The command palette is unavailable. Use the visible controls instead.</span>
+          <button type="button" onClick={this.props.onDismiss}>Close message</button>
+        </div>
       : this.props.children
   }
 }
@@ -4056,7 +4060,7 @@ export function CommandPaletteSlot(props: CommandPaletteProps) {
 }
 ```
 
-In `palette-slot.test.tsx`, place a child that throws inside `PaletteBoundary` beside a rendered playground. The boundary shows a polite status message that the palette is unavailable, and the form remains mounted.
+Give `PaletteBoundary` an `onDismiss` callback. `CommandPaletteSlot` passes `() => props.onOpenChange(false)`, so its fallback includes a Close message button that unmounts the failed palette and restores the normal Escape behavior. In `palette-slot.test.tsx`, place a child that throws inside `PaletteBoundary` beside a rendered playground. Assert that the boundary shows a polite status message, the form remains mounted, and clicking Close message removes the fallback.
 
 In `FormWorkspace`, register the actions that need the runtime while it is mounted:
 
@@ -4073,7 +4077,7 @@ useEffect(() => {
 
 In `App.tsx`, define one `handleFormatSchema` and one `handleCopySchema` with the toolbar's current formatting behavior and clipboard success or failure feedback. Reuse the same clipboard helper for `handleCopyData`. Use these same handlers from the toolbar and palette; do not reimplement clipboard writes or formatting in `buildCommands`. Store clipboard feedback in one polite live region at the app shell so it remains visible when the schema pane is hidden on a phone:
 
-The Chromium test in `command-palette.browser.test.tsx` focuses CodeMirror, uses the browser keyboard to open the palette with Ctrl K, types and accepts a command, then opens it again and uses Escape. Assert that `document.activeElement` is the editor after both close paths. Also use the browser keyboard for Cmd K and test the Commands button and visible clipboard status on a phone. This covers the actual `cmdk` dialog focus behavior, not only synthetic key events in jsdom.
+The Chromium test in `command-palette.browser.test.tsx` focuses CodeMirror, uses the browser keyboard to open the palette with Ctrl K, types and accepts the non-navigating `Theme: dark` command, then opens it again and uses Escape. Assert that `document.activeElement` is the editor after both close paths. Also use the browser keyboard for Cmd K and test the Commands button and visible clipboard status on a phone. This covers the actual `cmdk` dialog focus behavior, not only synthetic key events in jsdom.
 
 ```tsx
 const workspaceActions = useRef<WorkspaceActions | null>(null)
