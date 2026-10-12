@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { App } from '../App.js'
-import { PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
+import { LAYOUT_STORAGE_KEY, PANEL_STORAGE_PREFIX } from '../workbench/layout.js'
 
 beforeEach(() => window.localStorage.clear())
 afterEach(cleanup)
@@ -111,6 +111,26 @@ describe('the desktop workbench', () => {
     fireEvent.click(focus)
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Exit Focus' }))
     fireEvent.click(screen.getByRole('button', { name: 'Exit Focus' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Focus' }))
+  })
+
+  it('restores focus to the pane button when the overlay was already open at mount', async () => {
+    window.localStorage.setItem(
+      LAYOUT_STORAGE_KEY,
+      JSON.stringify({ version: 1, inspectorCollapsed: false, examplesCollapsed: false, maximized: 'preview', focus: false, previewWidth: 'fit' }),
+    )
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore preview' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Maximize preview' }))
+  })
+
+  it('restores focus to the Focus button when Focus was already open at mount', async () => {
+    window.localStorage.setItem(
+      LAYOUT_STORAGE_KEY,
+      JSON.stringify({ version: 1, inspectorCollapsed: false, examplesCollapsed: false, maximized: null, focus: true, previewWidth: 'fit' }),
+    )
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Exit Focus' }))
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Focus' }))
   })
 

@@ -1180,6 +1180,7 @@ body {
 .pg-pane__action,
 .pg-header__button {
   font: inherit;
+  font-size: 0.85rem;
   padding: 0.15rem 0.5rem;
   color: var(--tx-text-muted);
   background: none;
@@ -1199,18 +1200,18 @@ body {
 
 .pg-separator {
   flex: 0 0 4px;
+  min-width: 4px;
   background: var(--tx-border);
 }
 
-  min-width: 4px;
-.pg-separator:hover,
-.pg-separator:focus-visible {
-  background: var(--tx-accent);
 .pg-separator--row {
   min-width: 0;
   min-height: 4px;
 }
 
+.pg-separator:hover,
+.pg-separator:focus-visible {
+  background: var(--tx-accent);
 }
 
 .pg-overlay {

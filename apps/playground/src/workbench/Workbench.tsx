@@ -19,6 +19,13 @@ function follow(ref: RefObject<PanelImperativeHandle | null>, expanded: boolean)
   if (!expanded && !panel.isCollapsed()) panel.collapse()
 }
 
+// The button that opens an overlay, for a Restore with no recorded opener
+// (an overlay already open at mount or after a breakpoint crossing).
+function fallbackTarget(left: string): HTMLElement | null {
+  if (left === 'focus') return document.querySelector<HTMLElement>('.pg-header__button[aria-pressed]')
+  return document.querySelector<HTMLElement>(`[aria-label="Maximize ${left.replace('maximized:', '')}"]`)
+}
+
 export function Workbench({
   hosts,
   layout,
@@ -57,9 +64,11 @@ export function Workbench({
   }
   useEffect(() => {
     if (viewKey === shownKey.current) return
+    const left = shownKey.current
     shownKey.current = viewKey
     if (viewKey === 'panels') {
-      if (opener.current?.isConnected) opener.current.focus()
+      const target = opener.current?.isConnected ? opener.current : fallbackTarget(left)
+      target?.focus()
       opener.current = null
     } else {
       overlayAction.current?.focus()
@@ -120,7 +129,7 @@ export function Workbench({
               }
             }}
           >
-            <section className="pg-pane" data-pane="examples" aria-label="Examples" inert={layout.examplesCollapsed}>
+            <section className="pg-pane" data-pane="examples" aria-label="Example list" inert={layout.examplesCollapsed}>
               <PaneHeader
                 title="Examples"
                 actions={

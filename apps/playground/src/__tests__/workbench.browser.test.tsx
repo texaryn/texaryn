@@ -76,7 +76,6 @@ describe.each(['light', 'dark'] as const)('the playground in %s', (theme) => {
 })
 
 describe('the desktop workbench in Chromium', () => {
-  it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
   it('gives every separator its 4px thickness', async () => {
     await page.viewport(1512, 900)
     render(<App />)
@@ -88,8 +87,8 @@ describe('the desktop workbench in Chromium', () => {
       expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(4)
     }
   })
-  it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
 
+  it('resizes from the keyboard, saves that size, and restores it exactly after Maximize', async () => {
     await page.viewport(1512, 900)
     render(<App />)
     await screen.findByLabelText('Name')
@@ -180,6 +179,7 @@ describe('the desktop workbench in Chromium', () => {
     expect(document.querySelector('[data-pane-host="inspector"]')!.closest('.pg-pane__body')!.hasAttribute('inert')).toBe(true)
     const panel = document.querySelector('[data-pane="inspector"]')!.closest('[data-panel]')!
     expect(Math.abs(panel.getBoundingClientRect().height - 32)).toBeLessThanOrEqual(1)
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
   })
 
   it('leaves saved sizes and rendered widths unchanged across Maximize and Restore with the examples collapsed', async () => {
