@@ -40,7 +40,7 @@ export function ErrorSummary({ focus = true }: ErrorSummaryProps) {
         {visibleErrors.map((entry: VisibleError) => (
           <li key={entry.nodeId}>
             <a href={`#${makeId(idPrefix, entry.nodeId, 'input')}`}>{visibleErrorLabel(entry)}</a>
-            {messages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })}
+            {messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages) })}
           </li>
         ))}
       </ul>

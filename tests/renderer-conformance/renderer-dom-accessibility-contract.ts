@@ -205,6 +205,9 @@ const otherMessages: FormMessages = {
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+  validationMessage: (error) => error.keyword === 'required'
+    ? 'Ce champ est obligatoire.'
+    : 'Cette valeur est invalide.',
 }
 
 const IDREF_ATTRIBUTES = [
@@ -278,10 +281,10 @@ export function rendererDomAccessibilityContract({
     return { surface, runtime, q: within(surface.root) }
   }
 
-  /** The message the runtime actually produced, so the claim is not tied to wording. */
+  /** Default presentation for the first runtime error, independent of its wording source. */
   function errorTextOf(runtime: FormRuntime, nodeId: NodeId): string {
     const errors = runtime.getNodeState(nodeId)?.errors.getSnapshot() ?? []
-    const text = errors[0]?.message ?? errors[0]?.keyword
+    const text = errors[0] ? englishMessages.validationMessage(errors[0]) : undefined
     if (!text) throw new Error('expected the runtime to have produced an error')
     return text
   }

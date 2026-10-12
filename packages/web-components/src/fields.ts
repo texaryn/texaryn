@@ -157,7 +157,7 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
     errors.replaceChildren(
       ...visibleErrors.map((error) => {
         const line = document.createElement('div')
-        line.textContent = error.message ?? error.keyword
+        line.textContent = ctx.messages.validationMessage(error)
         return line
       }),
     )

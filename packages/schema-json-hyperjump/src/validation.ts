@@ -38,6 +38,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function validationParameters(keyword: string, schemaValue: unknown): Record<string, unknown> {
+  if (keyword === 'format' && typeof schemaValue === 'string') return { format: schemaValue }
+  if (
+    typeof schemaValue === 'number' && Number.isFinite(schemaValue) &&
+    ['minLength', 'maxLength', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+      'minItems', 'maxItems', 'minProperties', 'maxProperties'].includes(keyword)
+  ) {
+    return { limit: schemaValue }
+  }
+  return {}
+}
+
 function unescapePointerSegment(segment: string): string {
   return segment.replace(/~1/g, '/').replace(/~0/g, '~')
 }
@@ -170,7 +182,7 @@ function mapError(error: OutputUnit, rawSchema: unknown, rootUri?: string): Vali
   return {
     instancePointer: instancePointer as JsonPointer,
     keyword,
-    params: {},
+    params: validationParameters(keyword, schema),
   }
 }
 
@@ -200,7 +212,7 @@ function normalizeRequiredError(
   return missing.map((key) => ({
     instancePointer: `${parentPointer}/${escapeSegment(key)}` as JsonPointer,
     keyword: 'required',
-    params: {},
+    params: { missingProperty: key },
   }))
 }
 

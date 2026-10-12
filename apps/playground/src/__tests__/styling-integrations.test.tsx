@@ -14,11 +14,14 @@ describe.each(styleSystems)('$label styling integration', ({ key, label }) => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'String field' }))
 
-    const renderer = screen.getByLabelText(/renderer/i) as HTMLSelectElement
+    const renderer = screen.getByLabelText('Form renderer') as HTMLSelectElement
     fireEvent.change(renderer, { target: { value: key } })
     await waitFor(() => expect(renderer.value).toBe(key))
 
     const surface = await screen.findByRole('region', { name: `Rendered by ${label}` })
+    await waitFor(() => {
+      expect(surface.querySelector(`[data-style-system="${key}"]`)).not.toBeNull()
+    })
     const scope = surface.querySelector<HTMLElement>(`[data-style-system="${key}"]`)
     if (!scope) throw new Error(`The ${key} styles are not scoped to the renderer surface`)
     const name = within(scope).getByRole('textbox', { name: 'Name' }) as HTMLInputElement

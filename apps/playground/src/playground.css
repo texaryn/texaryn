@@ -107,6 +107,10 @@ body {
   background: var(--tx-surface);
 }
 
+.pg-mobile-workspace {
+  display: none;
+}
+
 .pg-col--preview {
   padding: 1.25rem 1.5rem;
   gap: 0.75rem;
@@ -208,10 +212,17 @@ body {
 /* Renderer toolbar and the region it governs */
 
 .pg-toolbar {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+}
+
+.pg-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .pg-toolbar__label {
@@ -223,6 +234,17 @@ body {
   margin: 0;
   font-size: 0.75rem;
   color: var(--tx-text-muted);
+  flex-basis: 100%;
+}
+
+.pg-preview-notice {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  color: var(--tx-text-muted);
+  background: var(--tx-accent-soft);
+  border-left: 3px solid var(--tx-accent);
+  border-radius: var(--tx-radius);
+  font-size: 0.8rem;
 }
 
 /* The error summary the React binding renders, which the playground places
@@ -255,6 +277,93 @@ body {
   border-radius: var(--tx-radius);
   box-shadow: var(--tx-shadow);
   padding: 1.25rem;
+}
+
+.pg-runtime-form {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.pg-surface[data-style-system='default'] {
+  color: var(--tx-text);
+}
+
+.pg-surface[data-style-system='default'][data-theme='light'] {
+  color-scheme: light;
+}
+
+.pg-surface[data-style-system='default'][data-theme='dark'] {
+  color-scheme: dark;
+}
+
+.pg-surface[data-style-system='default'] div:has(> label[for]) {
+  margin-block-end: 0.65rem;
+}
+
+.pg-surface[data-style-system='default'] label {
+  display: block;
+  margin-block-end: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.pg-surface[data-style-system='default'] input:not([type='checkbox']):not([type='radio']),
+.pg-surface[data-style-system='default'] select,
+.pg-surface[data-style-system='default'] textarea {
+  display: block;
+  width: min(100%, 36rem);
+  min-width: 0;
+  min-height: 2.4rem;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--tx-border-strong);
+  border-radius: var(--tx-radius);
+  background: var(--tx-surface-raised);
+  color: var(--tx-text);
+  font: inherit;
+}
+
+.pg-surface[data-style-system='default'] input[type='checkbox'] {
+  accent-color: var(--tx-accent);
+}
+
+.pg-surface[data-style-system='default'] fieldset {
+  min-width: 0;
+  margin-block: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+}
+
+.pg-surface[data-style-system='default'] legend {
+  padding-inline: 0.4rem;
+  font-weight: 650;
+}
+
+.pg-surface[data-style-system='default'] button {
+  margin: 0.25rem 0.35rem 0.25rem 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--tx-border-strong);
+  border-radius: var(--tx-radius);
+  background: var(--tx-surface);
+  color: var(--tx-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pg-surface[data-style-system='default'] button:hover {
+  border-color: var(--tx-accent);
+}
+
+.pg-surface[data-style-system='default'] button[aria-label^='Remove'] {
+  border-color: var(--tx-danger);
+  color: var(--tx-danger);
+}
+
+.pg-bootstrap-shadow-host {
+  display: block;
 }
 
 /* Dashed, because the difference from the box above is ownership rather than
@@ -354,12 +463,16 @@ body {
 }
 
 .pg-search {
+  width: 100%;
   margin-bottom: 0.75rem;
 }
 
 .pg-schema-editor {
+  display: block;
+  width: 100%;
+  min-width: 0;
   flex: 1 1 auto;
-  min-height: 300px;
+  min-height: 220px;
   font-family: var(--tx-font-mono);
   font-size: 0.85rem;
   resize: vertical;
@@ -390,23 +503,39 @@ body {
   display: flex;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--tx-border);
 }
 
 .pg-editor-tabs__item {
-  padding: 0.45rem 0.65rem;
+  padding: 0.3rem 0.6rem;
   color: var(--tx-text-muted);
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
   font: inherit;
   cursor: pointer;
 }
 
 .pg-editor-tabs__item[aria-pressed='true'] {
   color: var(--tx-text);
-  border-bottom-color: var(--tx-accent);
+  background: var(--tx-accent-soft);
+  border-color: var(--tx-accent);
   font-weight: 650;
+}
+
+.pg-schema-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pg-schema-heading .pg-heading {
+  margin-top: 1rem;
+}
+
+.pg-schema-heading .pg-button {
+  margin-top: 0.5rem;
+  white-space: nowrap;
 }
 
 .pg-builder {
@@ -509,10 +638,12 @@ body {
 .pg-examples {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
   min-height: 0;
 }
 
 .pg-examples__nav {
+  flex: 1 1 0;
   overflow: auto;
   min-height: 0;
 }
@@ -568,10 +699,22 @@ body {
 }
 
 .pg-inspector__pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  overflow-x: auto;
+  white-space: nowrap;
   font-size: 0.7rem;
   color: var(--tx-text-muted);
   font-family: var(--tx-font-mono);
   margin-bottom: 0.5rem;
+}
+
+.pg-inspector__pipeline-step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .pg-inspector__body {
@@ -586,15 +729,18 @@ body {
 
 .pg-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
+  padding: 0.15rem 0;
 }
 
 .pg-tab {
   padding: 0.25rem 0.5rem;
   font: inherit;
   font-size: 0.8rem;
+  flex: 0 0 auto;
   color: inherit;
   border: 1px solid var(--tx-border);
   border-radius: var(--tx-radius);
@@ -618,6 +764,119 @@ body {
   font-family: var(--tx-font-mono);
   word-break: break-word;
   margin: 0 0 0.5rem;
+}
+
+.pg-tree-view__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pg-tree-view__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-tree-view__toggle input {
+  accent-color: var(--tx-accent);
+}
+
+.pg-tree-view__copy {
+  padding: 0.25rem 0.45rem;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.pg-tree,
+.pg-tree-view__raw {
+  font-family: var(--tx-font-mono);
+  font-size: 0.75rem;
+}
+
+.pg-tree__node > summary,
+.pg-tree__leaf {
+  padding-block: 0.2rem;
+  padding-inline-start: calc(var(--pg-tree-depth) * 0.85rem);
+  overflow-wrap: anywhere;
+}
+
+.pg-tree__node > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.pg-tree__node > summary:hover,
+.pg-tree__node > summary:focus-visible {
+  background: var(--tx-accent-soft);
+}
+
+.pg-tree__key {
+  color: var(--tx-text);
+}
+
+.pg-tree__preview {
+  color: var(--tx-text-muted);
+  font-size: 0.7rem;
+}
+
+.pg-tree__value {
+  margin-inline-start: 0.5rem;
+  color: var(--tx-accent);
+}
+
+.pg-tree__value--undefined,
+.pg-tree__value--null {
+  color: var(--tx-text-muted);
+  font-style: italic;
+}
+
+.pg-tree__value--string {
+  color: var(--tx-success);
+}
+
+.pg-tree__children {
+  margin-inline-start: 0.5rem;
+  border-left: 1px solid var(--tx-border);
+}
+
+.pg-tree__empty {
+  margin: 0.25rem 0.5rem;
+  color: var(--tx-text-muted);
+  font-family: var(--tx-font);
+  font-size: 0.75rem;
+}
+
+.pg-tree-view__raw {
+  margin-top: 0.75rem;
+  color: var(--tx-text-muted);
+}
+
+.pg-tree-view__raw summary {
+  cursor: pointer;
+}
+
+.pg-tree-view__raw .pg-pre {
+  max-height: 24rem;
+  overflow: auto;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  color: var(--tx-text);
+  background: var(--tx-surface-raised);
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
 }
 
 .pg-table {
@@ -658,19 +917,39 @@ body {
   outline-offset: 2px;
 }
 
+.pg-tree-view__copy:focus-visible,
+.pg-tree__node > summary:focus-visible {
+  outline: 2px solid var(--tx-accent);
+  outline-offset: 2px;
+}
+
 /* Responsive. The inspector folds under the pair first, then the source
  * column, because reading the schema beside the form matters more than
  * reading the runtime beside it. */
 
 @media (max-width: 1100px) {
+  .pg-app {
+    height: auto;
+    min-height: 100dvh;
+  }
+
   .pg-columns {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    grid-template-rows: minmax(38rem, auto) auto;
+    flex: 1 0 auto;
   }
 
   .pg-col--inspect {
     grid-column: 1 / -1;
     border-left: none;
     border-top: 1px solid var(--tx-border);
+    min-height: 22rem;
+    height: auto;
+  }
+
+  .pg-inspector {
+    height: auto;
+    min-height: 20rem;
   }
 }
 
@@ -682,28 +961,118 @@ body {
     min-height: 100dvh;
   }
 
+  .pg-mobile-workspace {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--tx-border);
+    background: var(--tx-surface);
+  }
+
+  .pg-mobile-workspace__example {
+    display: grid;
+    gap: 0.25rem;
+    color: var(--tx-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .pg-mobile-workspace__tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    background: var(--tx-bg);
+    border: 1px solid var(--tx-border);
+    border-radius: var(--tx-radius);
+  }
+
+  .pg-mobile-workspace__tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.45rem 0.3rem;
+    color: var(--tx-text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: calc(var(--tx-radius) - 2px);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .pg-mobile-workspace__tabs button[aria-pressed='true'] {
+    color: var(--tx-text);
+    background: var(--tx-surface-raised);
+    box-shadow: var(--tx-shadow);
+    font-weight: 600;
+  }
+
   .pg-columns {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .pg-col {
     overflow: visible;
   }
 
+  .pg-columns > .pg-col--source,
+  .pg-columns > .pg-col--preview,
+  .pg-columns > .pg-col--inspect {
+    display: none;
+  }
+
+  .pg-columns[data-mobile-panel='schema'] > .pg-col--source,
+  .pg-columns[data-mobile-panel='preview'] > .pg-col--preview,
+  .pg-columns[data-mobile-panel='inspector'] > .pg-col--inspect {
+    display: flex;
+  }
+
   .pg-col--source {
     border-right: none;
-    border-bottom: 1px solid var(--tx-border);
+    border-bottom: 0;
+    padding-top: 0.75rem;
+  }
+
+  .pg-col--source .pg-examples,
+  .pg-col--source .pg-description {
+    display: none;
+  }
+
+  .pg-col--source #schema-editor-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pg-col--source .pg-schema-editor {
+    min-height: 55dvh;
+    resize: vertical;
   }
 
   .pg-col--preview {
     padding: 1rem;
   }
 
+  .pg-col--inspect {
+    min-height: 65dvh;
+    border-left: 0;
+    border-top: 0;
+  }
+
   .pg-toolbar {
-    grid-template-columns: auto 1fr;
+    align-items: stretch;
   }
 
   .pg-toolbar__note {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
+  }
+
+  .pg-schema-heading .pg-heading {
+    margin-top: 0.25rem;
+  }
+
+  .pg-mobile-workspace__tabs button:focus-visible {
+    outline: 2px solid var(--tx-accent);
+    outline-offset: 1px;
   }
 }

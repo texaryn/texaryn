@@ -3,11 +3,11 @@ title: Localizing built-in copy
 description: Replacing the words Texaryn's own widgets render, in any binding, from one typed set of messages.
 ---
 
-Texaryn's built-in widgets invent six pieces of copy of their own: the words
+Texaryn's built-in widgets invent seven pieces of copy of their own: the words
 on an array's add, remove and move-up controls, together with each control's
 accessible name, the marker that shows a field is required, and the error
-summary's heading and per-item detail. Everything else on screen comes from
-the schema or from UI hints.
+summary's heading and per-item detail, plus validation messages. Other field
+labels, descriptions and hints come from the schema or the UI configuration.
 
 Those six are one contract, `FormMessages` in `@texaryn/core`, and every
 binding renders from it. English is the default. Supplying another set replaces
@@ -38,6 +38,11 @@ const french: FormMessages = {
   requiredIndicator: () => ({ text: '(obligatoire)', placement: 'before' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
   errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+  validationMessage: (error) => {
+    if (error.keyword === 'required') return 'Ce champ est obligatoire.'
+    if (error.keyword === 'minLength') return `Saisissez au moins ${error.params.limit} caractères.`
+    return 'Cette valeur est invalide.'
+  },
 }
 ```
 
@@ -58,6 +63,14 @@ The error summary's heading takes the number of items, and its detail returns
 the whole text that follows an item's link, punctuation included, so a locale
 decides its own colon and its own list separator. The link text itself is the
 field's label, a fact the binding supplies.
+
+`validationMessage` receives a `ValidationError`. Format from its keyword and
+normalized `params`, not from `message`: that field preserves evaluator
+diagnostic text for debugging and is not safe presentation copy. The JSON
+Schema and Zod adapters normalize known constraints into `params.limit` or
+`params.format`; unknown evaluator keywords receive the safe fallback `This
+value is invalid.` in English. Locale changes reformat visible errors without
+revalidating the form.
 
 A locale implements the whole interface. When Texaryn adds a message, a
 translated application fails to compile rather than rendering one English
@@ -117,6 +130,7 @@ function useTexarynMessages(): FormMessages {
       requiredIndicator: () => ({ text: t('form.required'), placement: 'after' }),
       errorSummaryHeading: (c) => t('form.summaryHeading', c),
       errorSummaryDetail: (c) => t('form.summaryDetail', c),
+      validationMessage: (e) => t(`form.validation.${e.keyword}`, e.params),
     }),
     [t],
   )
@@ -138,7 +152,5 @@ widget in English while the form around it translates.
 
 ## What is not covered
 
-Validation messages come from the schema evaluator, not from Texaryn, and are
-not part of this contract. The error summary's focus behaviour is ADR-005's,
-not this contract's. Texaryn sets no text direction; that is the host
-document's.
+The error summary's focus behaviour is ADR-005's, not this contract's. Texaryn
+sets no text direction; that is the host document's.

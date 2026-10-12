@@ -79,19 +79,26 @@ function App() {
 
   return (
     <FormProvider value={form.runtime}>
-      <ErrorSummary />
-      <FormRoot registry={registry} />
-
-      <button
-        type="button"
-        disabled={
-          form.submission.status === 'validating' ||
-          form.submission.status === 'submitting'
-        }
-        onClick={() => form.dispatch({ type: 'Submit' })}
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault()
+          form.dispatch({ type: 'Submit' })
+        }}
       >
-        Submit
-      </button>
+        <ErrorSummary />
+        <FormRoot registry={registry} />
+
+        <button
+          type="submit"
+          disabled={
+            form.submission.status === 'validating' ||
+            form.submission.status === 'submitting'
+          }
+        >
+          Submit
+        </button>
+      </form>
     </FormProvider>
   )
 }
@@ -109,7 +116,10 @@ runtime.dispatch({ type: 'Submit' })
 ## Render
 
 `FormProvider` makes the runtime available to the tree. `FormRoot` walks the
-UI document and renders each node through the registry.
+UI document and renders each node through the registry. It does not create a
+native form. The application owns that element and connects its submit event
+to the runtime, which keeps the renderer safe to compose inside an existing
+form.
 
 `createDefaultRegistry()` covers text input, number input, checkbox, select,
 textarea, object layout and array control. Replace or extend widgets with a

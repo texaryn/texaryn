@@ -17,7 +17,7 @@ function updateItem(li: HTMLLIElement, entry: VisibleError, idPrefix: string, me
   const link = li.firstChild as HTMLAnchorElement
   link.href = `#${makeId(idPrefix, entry.nodeId, 'input')}`
   link.textContent = visibleErrorLabel(entry)
-  li.lastChild!.textContent = messages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })
+  li.lastChild!.textContent = messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages) })
 }
 
 function item(entry: VisibleError, idPrefix: string, messages: FormMessages): HTMLLIElement {

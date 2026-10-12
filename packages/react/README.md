@@ -48,8 +48,16 @@ function App() {
 
   return (
     <FormProvider value={form.runtime}>
-      <FormRoot registry={registry} />
-      <pre>{JSON.stringify(form.data, null, 2)}</pre>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault()
+          form.dispatch({ type: 'Submit' })
+        }}
+      >
+        <FormRoot registry={registry} />
+        <button type="submit">Submit</button>
+      </form>
     </FormProvider>
   )
 }
@@ -121,6 +129,10 @@ Renders the root node of the current `UIDocument` using a renderer registry:
 ```tsx
 <FormRoot registry={registry} />
 ```
+
+`FormRoot` renders the tree only. The application owns the native `<form>` and
+connects its submit event to `form.dispatch({ type: 'Submit' })`, as in the
+quick start. This keeps the renderer safe to compose inside an existing form.
 
 ### `NodeRenderer`
 

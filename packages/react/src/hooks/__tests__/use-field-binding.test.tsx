@@ -129,12 +129,13 @@ describe('useFieldBinding: derivations', () => {
     expect(binding().invalid).toBe(false)
     await act(async () => { fireEvent.blur(control) })
     expect(binding().errors).toHaveLength(2)
-    expect(binding().error).toBe('Too short')
+    expect(binding().error).toBe('This value is too short.')
+    expect(binding().errorMessages).toEqual(['This value is too short.', 'Enter a value in the required format.'])
     expect(binding().invalid).toBe(true)
     expect(binding().domInputProps['aria-invalid']).toBe(true)
   })
 
-  it('falls back to keyword when the first visible error has no message', async () => {
+  it('uses safe localized copy when the first visible error has no message', async () => {
     const invalid: ValidationResult = {
       valid: false,
       errors: [{ instancePointer: '/f', keyword: 'pattern', params: {} }],
@@ -144,7 +145,7 @@ describe('useFieldBinding: derivations', () => {
       { data: { f: 'x' }, hints: { '/f': { validationTrigger: 'blur' } }, validate: () => invalid },
     )
     await act(async () => { fireEvent.blur(control) })
-    expect(binding().error).toBe('pattern')
+    expect(binding().error).toBe('Enter a value in the required format.')
   })
 
   it('returns the three prop getters unchanged', () => {

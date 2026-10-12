@@ -36,7 +36,7 @@ describe('inspector panes', () => {
     await openExample('String field')
 
     fireEvent.click(tab('Data'))
-    await waitFor(() => expect(panel().textContent).toContain('"name"'))
+    await waitFor(() => expect(panel().textContent).toContain('name'))
 
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Ada' } })
     await waitFor(() => expect(panel().textContent).toContain('Ada'))
@@ -190,12 +190,36 @@ describe('inspector and renderer switching', () => {
     fireEvent.click(tab('Data'))
     await waitFor(() => expect(panel().textContent).toContain('Ada'))
 
-    fireEvent.change(screen.getByLabelText(/renderer/i), { target: { value: 'mui' } })
+    fireEvent.change(screen.getByLabelText('Form renderer'), { target: { value: 'mui' } })
 
     await waitFor(() => {
       expect(panel().textContent, 'inspector state survives a renderer change').toContain(
         'Ada',
       )
     })
+  })
+})
+
+describe('inspector tab keyboard behavior', () => {
+  it('moves selection and focus with arrow keys and links tabs to the panel', async () => {
+    render(<App />)
+    await openExample('String field')
+
+    const dataTab = tab('Data')
+    expect(dataTab.getAttribute('aria-controls')).toBe(panel().id)
+    expect(panel().getAttribute('aria-labelledby')).toBe(dataTab.id)
+    expect(dataTab.tabIndex).toBe(0)
+
+    dataTab.focus()
+    fireEvent.keyDown(dataTab, { key: 'ArrowRight' })
+
+    const validationTab = tab('Validation')
+    expect(validationTab.tabIndex).toBe(0)
+    expect(document.activeElement).toBe(validationTab)
+
+    fireEvent.keyDown(validationTab, { key: 'End' })
+    const hintsTab = tab('Hints')
+    expect(hintsTab.tabIndex).toBe(0)
+    expect(document.activeElement).toBe(hintsTab)
   })
 })

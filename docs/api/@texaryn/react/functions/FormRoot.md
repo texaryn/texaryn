@@ -8,6 +8,8 @@
 
 > **FormRoot**(`__namedParameters`): `Element` \| `null`
 
+Renders the UI document tree. The consumer owns any native form element and submit handler.
+
 ## Parameters
 
 ### \_\_namedParameters

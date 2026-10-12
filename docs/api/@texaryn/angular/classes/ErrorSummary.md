@@ -34,22 +34,6 @@
 
 ***
 
-### errorMessages
-
-> `readonly` **errorMessages**: (`error`) => `string`[] = `visibleErrorMessages`
-
-#### Parameters
-
-##### error
-
-[`VisibleError`](../../core/interfaces/VisibleError.md)
-
-#### Returns
-
-`string`[]
-
-***
-
 ### focus
 
 > `readonly` **focus**: `InputSignal`\<`boolean`\>
@@ -107,3 +91,19 @@
 ### messageSet
 
 > `readonly` **messageSet**: `Signal`\<[`FormMessages`](../../core/interfaces/FormMessages.md)\>
+
+## Methods
+
+### errorMessages()
+
+> `readonly` **errorMessages**(`entry`): `string`[]
+
+#### Parameters
+
+##### entry
+
+[`VisibleError`](../../core/interfaces/VisibleError.md)
+
+#### Returns
+
+`string`[]

@@ -9,6 +9,7 @@ import {
   hasNativeReadOnly,
 } from '../props/field-props.js'
 import type { LabelProps, ErrorProps, DescriptionProps } from '../props/field-props.js'
+import { useFormMessages } from '../messages.js'
 
 export interface DomInputBaseProps {
   id: string
@@ -61,8 +62,10 @@ export interface FieldBinding {
 
   /** Visible errors only: empty until the field is touched and invalid. */
   errors: readonly ValidationError[]
-  /** First visible error as `message ?? keyword`. */
+  /** Localized first visible validation message. */
   error: string | undefined
+  /** Localized visible validation messages in error order. */
+  errorMessages: readonly string[]
   invalid: boolean
 
   labelProps: LabelProps
@@ -102,6 +105,7 @@ function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {
 export function useFieldBinding(node: FieldNode): FieldBinding {
   const field = useField(node.id)
   const idPrefix = useFormIdPrefix()
+  const messages = useFormMessages()
   const input = getInputProps(node, field, idPrefix)
   const kind = fieldKind(node)
 
@@ -163,7 +167,8 @@ export function useFieldBinding(node: FieldNode): FieldBinding {
     description: node.helpText ?? node.annotations.description,
     placeholder: node.placeholder,
     errors,
-    error: first ? first.message ?? first.keyword : undefined,
+    error: first ? messages.validationMessage(first) : undefined,
+    errorMessages: errors.map((error) => messages.validationMessage(error)),
     invalid: errors.length > 0,
     labelProps: getLabelProps(node, idPrefix),
     descriptionProps: getDescriptionProps(node, idPrefix),

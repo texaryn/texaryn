@@ -24,7 +24,9 @@ export interface ValidationResult {
 export interface ValidationError {
   instancePointer: string
   keyword: string
+  /** Evaluator diagnostic for debugging. User-facing copy comes from FormMessages. */
   message?: string
+  /** Canonical constraint parameters only, without submitted values or schema objects. */
   params: Record<string, unknown>
 }
 

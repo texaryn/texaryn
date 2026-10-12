@@ -2061,6 +2061,16 @@ Before rebasing onto `main`, PR #214 passed the full suite with 5,627 tests
 across 168 files, along with build, typecheck, package verification, docs, and
 site checks. The branch is now rebased onto `main`, and the rebased tree passes
 the full test suite and typecheck locally.
+
+The playground follow ups in issues #231 through #238 are complete. Schema
+drafts survive edits and renderer changes, invalid drafts preserve the last
+valid preview, and form data has an explicit reset action. The example browser,
+mobile layout, styling boundaries, validation copy, form ownership, and
+accessible data inspector are resolved. Renderer packages load on demand. The
+production playground entry chunk is 504.64 KB raw and 147.43 KB gzip, with
+renderer code in separate chunks. Issue #239 retains edited schema sharing,
+resizable panes, and a code editor as possible future work.
+
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged

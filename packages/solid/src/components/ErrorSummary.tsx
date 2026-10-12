@@ -23,7 +23,7 @@ export function ErrorSummary(props: { focus?: boolean }) {
     }
   })
 
-  const details = (entry: VisibleError) => context.messages().errorSummaryDetail({ messages: visibleErrorMessages(entry) })
+  const details = (entry: VisibleError) => context.messages().errorSummaryDetail({ messages: visibleErrorMessages(entry, context.messages()) })
   return (
     <Show when={errors().length > 0}>
       <div ref={container} role="group" tabIndex={-1} aria-labelledby={headingId()}>

@@ -8,6 +8,8 @@
 
 > **FormRoot**(`props`): `Element`
 
+Renders the UI document tree. The consumer owns any native form element and submit handler.
+
 ## Parameters
 
 ### props

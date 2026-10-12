@@ -1,40 +1,46 @@
-// JSON.stringify turns a Map into {} and drops undefined, so a projection
-// serialized naively looks empty. These make the inspector show what is
-// actually there, deterministically, so two renders of the same state read
-// the same and a diff means something changed.
+const TYPE_MARKER = '$texarynInspectorValue'
 
-function normalise(value: unknown): unknown {
+function normalise(value: unknown, ancestors: WeakSet<object>): unknown {
+  if (value === undefined) return { [TYPE_MARKER]: 'undefined' }
+  if (typeof value === 'bigint') return { [TYPE_MARKER]: 'bigint', value: String(value) }
+  if (value === null || typeof value !== 'object') return value
+  if (ancestors.has(value)) return { [TYPE_MARKER]: 'circular-reference' }
+
+  ancestors.add(value)
   if (value instanceof Map) {
-    // Sorted so the view is stable across renders rather than reflecting
-    // whatever order the Map happens to iterate in.
-    return Object.fromEntries(
-      [...value.entries()]
-        .map(([key, entry]) => [String(key), normalise(entry)] as const)
-        .sort(([a], [b]) => a.localeCompare(b)),
-    )
+    const result = {
+      [TYPE_MARKER]: 'Map',
+      entries: [...value.entries()].map(([key, entry]) => [
+        normalise(key, ancestors),
+        normalise(entry, ancestors),
+      ]),
+    }
+    ancestors.delete(value)
+    return result
   }
   if (value instanceof Set) {
-    return [...value].map(normalise)
+    const result = { [TYPE_MARKER]: 'Set', values: [...value].map((entry) => normalise(entry, ancestors)) }
+    ancestors.delete(value)
+    return result
   }
   if (Array.isArray(value)) {
-    return value.map(normalise)
+    const result = value.map((entry) => normalise(entry, ancestors))
+    ancestors.delete(value)
+    return result
   }
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      const entry = (value as Record<string, unknown>)[key]
-      // Keep undefined visible: "this key exists and is unset" is different
-      // from "this key is absent", and both occur in a projection.
-      out[key] = entry === undefined ? null : normalise(entry)
-    }
-    return out
-  }
-  return value
+  const result = Object.fromEntries(
+    Object.keys(value).sort().map((key) => [
+      key,
+      normalise((value as Record<string, unknown>)[key], ancestors),
+    ]),
+  )
+  ancestors.delete(value)
+  return result
 }
 
 export function inspect(value: unknown): string {
   try {
-    return JSON.stringify(normalise(value), null, 2)
+    return JSON.stringify(normalise(value, new WeakSet()), null, 2)
   } catch (error) {
     return `Could not serialize: ${error instanceof Error ? error.message : String(error)}`
   }

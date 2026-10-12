@@ -61,7 +61,7 @@ describe('FieldErrors', () => {
     renderScoped(
       <FieldErrors node={makeFieldNode()} errors={sampleErrors} showErrors={true} />,
     )
-    expect(screen.getByText('Required')).toBeTruthy()
+    expect(screen.getByText('This field is required.')).toBeTruthy()
   })
 
   it('is a polite atomic live region carrying the field error id', () => {
@@ -74,14 +74,14 @@ describe('FieldErrors', () => {
     expect(region.getAttribute('role')).toBeNull()
   })
 
-  it('falls back to keyword when message is undefined', () => {
+  it('uses safe copy when message is undefined', () => {
     const errors: ValidationError[] = [
       { instancePointer: '/name', keyword: 'minLength', params: {} },
     ]
     renderScoped(
       <FieldErrors node={makeFieldNode()} errors={errors} showErrors={true} />,
     )
-    expect(screen.getByText('minLength')).toBeTruthy()
+    expect(screen.getByText('This value is too short.')).toBeTruthy()
   })
 
   it('renders multiple errors', () => {
@@ -92,7 +92,7 @@ describe('FieldErrors', () => {
     renderScoped(
       <FieldErrors node={makeFieldNode()} errors={errors} showErrors={true} />,
     )
-    expect(screen.getByText('Required')).toBeTruthy()
-    expect(screen.getByText('Too short')).toBeTruthy()
+    expect(screen.getByText('This field is required.')).toBeTruthy()
+    expect(screen.getByText('This value is too short.')).toBeTruthy()
   })
 })

@@ -17,6 +17,7 @@
     messages?: FormMessages
     idPrefix?: string
     destroyOnUnmount?: boolean
+    showErrorSummary?: boolean
     children?: Snippet
   }
 
@@ -26,6 +27,7 @@
     messages = englishMessages,
     idPrefix,
     destroyOnUnmount = true,
+    showErrorSummary = false,
     children,
   }: Props = $props()
 
@@ -81,18 +83,14 @@
     if (destroyOnUnmount) get(formStore).runtime.destroy()
   })
 
-  function handleSubmit(event: SubmitEvent): void {
-    event.preventDefault()
-    currentForm.dispatch({ type: 'Submit' })
-  }
 </script>
 
-<form onsubmit={handleSubmit}>
+{#if showErrorSummary}
   {#key $runtime}
     <ErrorSummary />
   {/key}
-  {#if rootNode}
-    <NodeRenderer node={rootNode} />
-  {/if}
-  {@render children?.()}
-</form>
+{/if}
+{#if rootNode}
+  <NodeRenderer node={rootNode} />
+{/if}
+{@render children?.()}

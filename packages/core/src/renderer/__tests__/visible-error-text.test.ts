@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { englishMessages } from '../../messages/english.js'
 import type { JsonPointer, NodeId, VisibleError } from '../../types.js'
 import { visibleErrorLabel, visibleErrorMessages } from '../visible-error-text.js'
 
@@ -21,12 +22,19 @@ describe('visibleErrorLabel', () => {
 })
 
 describe('visibleErrorMessages', () => {
-  it('takes each message, or its keyword when there is none', () => {
+  it('uses safe localized copy instead of evaluator diagnostics', () => {
     const errors = [
       { instancePointer: '/name', keyword: 'required', message: 'Required', params: {} },
       { instancePointer: '/name', keyword: 'minLength', params: {} },
     ]
-    expect(visibleErrorMessages({ ...base, errors })).toEqual(['Required', 'minLength'])
+    expect(visibleErrorMessages({ ...base, errors })).toEqual([
+      'This field is required.',
+      'This value is too short.',
+    ])
+    expect(visibleErrorMessages({ ...base, errors }, {
+      ...englishMessages,
+      validationMessage: () => 'Translated',
+    })).toEqual(['Translated', 'Translated'])
   })
 
   it('is empty for an entry with no errors', () => {

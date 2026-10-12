@@ -790,6 +790,11 @@ describe('createHyperjumpAdapter', () => {
       expect(
         result.errors.some((e) => e.instancePointer === '/email' && e.keyword === 'required'),
       ).toBe(true)
+      expect(result.errors.find((e) => e.keyword === 'minLength')?.params).toEqual({ limit: 1 })
+      expect(result.errors.find((e) => e.keyword === 'minimum')?.params).toEqual({ limit: 0 })
+
+      const missing = await adapter.validate({ name: 'Ada' })
+      expect(missing.errors.find((e) => e.keyword === 'required')?.params).toEqual({ missingProperty: 'email' })
     })
 
     it('does not require a message on ValidationError', async () => {

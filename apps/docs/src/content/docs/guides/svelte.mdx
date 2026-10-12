@@ -54,20 +54,29 @@ mount(App, {
   const form = createForm(adapter, { initialData: { name: '', age: 18 } })
   const data = form.data
   const registry = createDefaultRegistry()
+
+  function submit(event: SubmitEvent) {
+    event.preventDefault()
+    form.dispatch({ type: 'Submit' })
+  }
 </script>
 
-<FormRoot {form} {registry}>
-  <h2>Data</h2>
-  <pre>{JSON.stringify($data, null, 2)}</pre>
-</FormRoot>
+<form novalidate onsubmit={submit}>
+  <FormRoot {form} {registry} showErrorSummary>
+    <h2>Data</h2>
+    <pre>{JSON.stringify($data, null, 2)}</pre>
+  </FormRoot>
+  <button type="submit">Submit</button>
+</form>
 ```
 
-`FormRoot` renders the error summary and active schema nodes. It creates an id
-prefix from Svelte's component id for server rendering and hydration. Set an
-explicit `idPrefix` if application code needs a stable value, and keep it
-unique among the forms on the page. By default, `FormRoot` destroys the runtime
-when it unmounts. Set `destroyOnUnmount={false}` when another owner manages the
-runtime.
+`FormRoot` renders the active schema nodes and optional error summary, without
+creating a native form. The application owns the form element and connects its
+submit event to the runtime. `FormRoot` creates an id prefix from Svelte's
+component id for server rendering and hydration. Set an explicit `idPrefix` if
+application code needs a stable value, and keep it unique among the forms on
+the page. By default, `FormRoot` destroys the runtime when it unmounts. Set
+`destroyOnUnmount={false}` when another owner manages the runtime.
 
 ## Default widgets and messages
 

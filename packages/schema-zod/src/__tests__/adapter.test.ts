@@ -73,6 +73,17 @@ describe('createZodAdapter', () => {
     ])
   })
 
+  it('normalizes known constraints and does not infer required from missing input', async () => {
+    const adapter = await createZodAdapter(z.object({ name: z.string().min(3), age: z.number().min(18) }))
+    const result = await adapter.validate({ name: 'x', age: 12 })
+    expect(result.errors.find((error) => error.keyword === 'minLength')?.params).toEqual({ limit: 3 })
+    expect(result.errors.find((error) => error.keyword === 'minimum')?.params).toEqual({ limit: 18 })
+
+    const missing = await createZodAdapter(z.object({ name: z.string() }))
+    const missingResult = await missing.validate({})
+    expect(missingResult.errors[0]).toMatchObject({ keyword: 'type', params: {} })
+  })
+
   it('validates with Zod and preserves async refinements and custom messages', async () => {
     const schema = z.object({
       code: z.string().refine(async (value) => value === 'approved', 'Code is not approved'),

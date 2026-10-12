@@ -624,8 +624,38 @@ function toKeyword(code: string): string {
   return withoutSuffix.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase())
 }
 
+function validationParameters(keyword: string, data: Record<string, unknown>, code: string): Record<string, unknown> {
+  if (keyword === 'required') {
+    return typeof data.key === 'string' ? { missingProperty: data.key } : {}
+  }
+  if (keyword === 'format') {
+    if (typeof data.format === 'string') return { format: data.format }
+    const fromCode = code.startsWith('format-')
+      ? code.slice('format-'.length).replace(/-(error|warning)$/, '')
+      : ''
+    return fromCode ? { format: fromCode } : {}
+  }
+
+  const limitKey = {
+    minLength: 'minLength',
+    maxLength: 'maxLength',
+    minimum: 'minimum',
+    maximum: 'maximum',
+    exclusiveMinimum: 'exclusiveMinimum',
+    exclusiveMaximum: 'exclusiveMaximum',
+    multipleOf: 'multipleOf',
+    minItems: 'minItems',
+    maxItems: 'maxItems',
+    minProperties: 'minProperties',
+    maxProperties: 'maxProperties',
+  }[keyword]
+  const value = limitKey === undefined ? undefined : data[limitKey]
+  return typeof value === 'number' && Number.isFinite(value) ? { limit: value } : {}
+}
+
 function mapValidationError(error: JsonError, resolve: PointerResolver): ValidationError {
   const code = typeof error.code === 'string' ? error.code : String(error.code)
+  const keyword = toKeyword(code)
   const data = (error.data ?? {}) as Record<string, unknown>
   const basePointer = typeof data.pointer === 'string' ? data.pointer : '#'
   // required-property-error reports the *parent* object's pointer with the missing property
@@ -640,9 +670,9 @@ function mapValidationError(error: JsonError, resolve: PointerResolver): Validat
         : undefined
   return {
     instancePointer: resolve(basePointer, { code, value: data.value, missingKey, lastKey }),
-    keyword: toKeyword(code),
+    keyword,
     message: error.message,
-    params: (error.data ?? {}) as Record<string, unknown>,
+    params: validationParameters(keyword, data, code),
   }
 }
 

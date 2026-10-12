@@ -14,12 +14,25 @@ const schema = await createJsonSchemaAdapter({
   },
 })
 const form = createForm(schema, { initialData: { name: '' } })
+function submit(event: SubmitEvent) {
+  event.preventDefault()
+  form.dispatch({ type: 'Submit' })
+}
 
 render(
-  () => <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />,
+  () => (
+    <form noValidate onSubmit={submit}>
+      <FormRoot form={form} registry={createDefaultRegistry()} showErrorSummary />
+      <button type="submit">Submit</button>
+    </form>
+  ),
   document.getElementById('app')!,
 )
 ```
+
+`FormRoot` renders the tree only. The application owns the native `<form>` and
+connects its submit event to the runtime, so the tree can also be composed
+inside a larger form.
 
 `FormRoot` owns the runtime by default and destroys it when the Solid owner is
 disposed. Set `destroyOnUnmount={false}` when another owner manages the runtime.

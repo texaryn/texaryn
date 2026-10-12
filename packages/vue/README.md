@@ -54,14 +54,24 @@ const form = useForm(props.adapter, { initialData: { name: '' } })
 provideFormRuntime(form.runtime)
 
 const registry = createDefaultRegistry()
+function submit() {
+  form.dispatch({ type: 'Submit' })
+}
 </script>
 
 <template>
   <!-- Both have to be descendants, not this component itself -->
-  <ErrorSummary />
-  <FormRoot :registry="registry" />
+  <form novalidate @submit.prevent="submit">
+    <ErrorSummary />
+    <FormRoot :registry="registry" />
+    <button type="submit">Submit</button>
+  </form>
 </template>
 ```
+
+`FormRoot` renders the tree only. The application owns the native `<form>` and
+connects its submit event to the runtime, which keeps the renderer safe to
+compose inside an existing form.
 
 `provideFormRuntime(runtime, { messages })` takes a whole `FormMessages` set
 from `@texaryn/core`, as a value, a ref or a getter, and replaces every word

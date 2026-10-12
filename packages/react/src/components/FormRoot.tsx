@@ -8,6 +8,7 @@ export interface FormRootProps {
   registry: RendererRegistry<WidgetComponent>
 }
 
+/** Renders the UI document tree. The consumer owns any native form element and submit handler. */
 export function FormRoot({ registry }: FormRootProps) {
   const runtime = useFormContext()
   const document = useStore(runtime.document)

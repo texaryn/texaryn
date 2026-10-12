@@ -44,7 +44,7 @@ export const ErrorSummary = defineComponent({
               visibleErrors.value.map((entry) =>
                 h('li', { key: entry.nodeId }, [
                   h('a', { href: `#${makeId(idPrefix, entry.nodeId, 'input')}` }, visibleErrorLabel(entry)),
-                  messages.value.errorSummaryDetail({ messages: visibleErrorMessages(entry) }),
+                  messages.value.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages.value) }),
                 ]),
               ),
             ),

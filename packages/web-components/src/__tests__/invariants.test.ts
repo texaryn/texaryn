@@ -72,6 +72,13 @@ afterEach(() => {
 })
 
 describe('renderer invariants', () => {
+  it('mountForm renders the tree without taking ownership of a native form', async () => {
+    await mount(requiredSchema, { name: 'Ada' })
+
+    expect(container.querySelector('form')).toBeNull()
+    expect(input('/name').value).toBe('Ada')
+  })
+
   it('1. object children are keyed by property identity, never by positional node id', async () => {
     const rt = await mount(listSchema, items, { '/items': { canReorder: true } })
     const [, row1] = rowsOf(outerArray())

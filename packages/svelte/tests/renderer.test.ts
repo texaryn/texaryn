@@ -5,6 +5,7 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { createForm } from '../src/lib/form.js'
 import { createDefaultRegistry } from '../src/lib/registry.js'
 import FormRoot from '../src/lib/components/FormRoot.svelte'
+import FormHarness from './FormHarness.svelte'
 import { createArrayDragTransfer, dispatchArrayDrag } from '../../../tests/renderer-conformance/array-drag.js'
 
 afterEach(() => {
@@ -15,11 +16,13 @@ async function renderForm(
   schema: Record<string, unknown>,
   initialData: unknown = {},
   hints?: Record<string, { canReorder?: boolean }>,
+  showErrorSummary = false,
+  wrapInForm = false,
 ) {
   const port = await createJsonSchemaAdapter(schema)
   const form = createForm(port, { initialData, hints })
-  const rendered = render(FormRoot, {
-    props: { form, registry: createDefaultRegistry() },
+  const rendered = render(wrapInForm ? FormHarness : FormRoot, {
+    props: { form, registry: createDefaultRegistry(), showErrorSummary },
   })
   return { ...rendered, form }
 }
@@ -39,6 +42,7 @@ describe('Svelte renderer', () => {
     expect(get(form.document).version).toBe(1)
     expect(get(form.submission).status).toBe('idle')
     expect(get(form.visibleErrors)).toEqual([])
+    expect(document.querySelector('form')).toBeNull()
 
     const name = screen.getByRole('textbox', { name: 'Name' }) as HTMLInputElement
     const active = screen.getByRole('checkbox', { name: 'Active' }) as HTMLInputElement
@@ -50,19 +54,36 @@ describe('Svelte renderer', () => {
   })
 
   it('announces required field errors after submission', async () => {
-    await renderForm({
-      type: 'object',
-      properties: { name: { type: 'string', title: 'Name', minLength: 2 } },
-      required: ['name'],
-    })
+    await renderForm(
+      {
+        type: 'object',
+        properties: { name: { type: 'string', title: 'Name', minLength: 2 } },
+        required: ['name'],
+      },
+      {},
+      undefined,
+      true,
+      true,
+    )
 
-    const formElement = document.querySelector('form')
-    expect(formElement).not.toBeNull()
-    await fireEvent.submit(formElement!)
+    await fireEvent.submit(screen.getByTestId('consumer-form'))
 
     const summary = await screen.findByRole('group')
     expect(summary.querySelector('a')?.getAttribute('href')).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('keeps the summary opt in', async () => {
+    const { form } = await renderForm({
+      type: 'object',
+      properties: { name: { type: 'string', title: 'Name', minLength: 2 } },
+      required: ['name'],
+    }, {}, undefined, false, true)
+
+    expect(screen.queryByRole('group')).toBeNull()
+    await fireEvent.submit(screen.getByTestId('consumer-form'))
+    await vi.waitFor(() => expect(get(form.visibleErrors)).toHaveLength(1))
+    expect(screen.queryByRole('group')).toBeNull()
   })
 
   it('switches runtimes consistently and transfers default teardown ownership', async () => {
@@ -75,12 +96,12 @@ describe('Svelte renderer', () => {
     const second = createForm(port, { initialData: { name: 'G' } })
     const firstDestroy = vi.spyOn(first.runtime, 'destroy')
     const secondDestroy = vi.spyOn(second.runtime, 'destroy')
-    const rendered = render(FormRoot, { props: { form: first } })
+    const rendered = render(FormHarness, { props: { form: first, registry: createDefaultRegistry(), showErrorSummary: true } })
 
-    await fireEvent.submit(document.querySelector('form')!)
+    await fireEvent.submit(screen.getByTestId('consumer-form'))
     await vi.waitFor(() => expect(get(first.submission).status).toBe('submitted'))
 
-    await rendered.rerender({ form: second })
+    await rendered.rerender({ form: second, registry: createDefaultRegistry(), showErrorSummary: true })
     expect((screen.getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('G')
     expect(firstDestroy).toHaveBeenCalledTimes(1)
 
@@ -89,7 +110,7 @@ describe('Svelte renderer', () => {
     expect(get(second.data)).toEqual({ name: '' })
     expect(get(first.data)).toEqual({ name: 'Ada' })
 
-    await fireEvent.submit(document.querySelector('form')!)
+    await fireEvent.submit(screen.getByTestId('consumer-form'))
     const summary = await screen.findByRole('group')
     await vi.waitFor(() => expect(document.activeElement).toBe(summary))
     expect(get(second.visibleErrors)).toHaveLength(1)

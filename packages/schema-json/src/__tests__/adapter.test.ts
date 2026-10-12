@@ -13,6 +13,26 @@ import {
 import type { JsonPointer } from '@texaryn/core'
 
 describe('createJsonSchemaAdapter', () => {
+  it('normalizes validation parameters without exposing submitted values', async () => {
+    const adapter = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: {
+        name: { type: 'string', minLength: 3 },
+        age: { type: 'number', minimum: 18 },
+        email: { type: 'string', format: 'email' },
+      },
+      required: ['email'],
+    })
+    const result = await adapter.validate({ name: 'x', age: 12, email: 'not-an-email' })
+
+    expect(result.errors.find((error) => error.keyword === 'minLength')?.params).toEqual({ limit: 3 })
+    expect(result.errors.find((error) => error.keyword === 'minimum')?.params).toEqual({ limit: 18 })
+    expect(result.errors.find((error) => error.keyword === 'format')?.params).toEqual({ format: 'email' })
+
+    const missing = await adapter.validate({ name: 'valid', age: 20 })
+    expect(missing.errors.find((error) => error.keyword === 'required')?.params).toEqual({ missingProperty: 'email' })
+  })
+
   describe('flat object projection', () => {
     it('produces root node at empty pointer', async () => {
       const adapter = await createJsonSchemaAdapter(flatObjectSchema)

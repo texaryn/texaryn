@@ -44,12 +44,18 @@ async function makeRuntime(): Promise<FormRuntime> {
   return runtime
 }
 
-function entry(nodeId: string, title: string, message: string): VisibleError {
+function entry(
+  nodeId: string,
+  title: string,
+  message: string,
+  keyword: string = 'required',
+  params: Record<string, unknown> = {},
+): VisibleError {
   return {
     nodeId: nodeId as NodeId,
     fieldTitle: title,
     pointer: null,
-    errors: [{ instancePointer: '/' + nodeId, keyword: 'required', message, params: {} }],
+    errors: [{ instancePointer: '/' + nodeId, keyword, message, params }],
   }
 }
 
@@ -103,13 +109,13 @@ describe('mountErrorSummary', () => {
     expect(items).toEqual([liC, liB, liA])
     expect(items.map((li) => li.querySelector('a')!.textContent)).toEqual(['C', 'B', 'A'])
 
-    store.set([entry('c', 'C', 'x'), entry('b', 'Bee', 'Changed'), entry('a', 'A', 'x')])
+    store.set([entry('c', 'C', 'x'), entry('b', 'Bee', 'private evaluator text', 'minLength', { limit: 3 }), entry('a', 'A', 'x')])
     items = [...list.querySelectorAll('li')]
     expect(items[1]).toBe(liB)
     expect(liB.querySelector('a')!.textContent).toBe('Bee')
-    expect(liB.textContent).toBe('Bee: Changed')
+    expect(liB.textContent).toBe('Bee: Enter at least 3 characters.')
 
-    store.set([entry('b', 'Bee', 'Changed')])
+    store.set([entry('b', 'Bee', 'private evaluator text', 'minLength', { limit: 3 })])
     expect([...list.querySelectorAll('li')]).toEqual([liB])
     expect(liA.isConnected).toBe(false)
     expect(liC.isConnected).toBe(false)
@@ -316,6 +322,7 @@ describe('mountErrorSummary', () => {
       ...englishMessages,
       errorSummaryHeading: ({ count }) => `Il y a ${count} problèmes`,
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      validationMessage: () => 'Champ invalide.',
     })
     expect(container.querySelector('[role="group"]')).toBe(group)
     expect(container.querySelector('a')).toBe(link)
@@ -529,6 +536,7 @@ describe('<texaryn-form error-summary>', () => {
       ...englishMessages,
       errorSummaryHeading: ({ count }) => `Il y a ${count} problèmes`,
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      validationMessage: () => 'Champ invalide.',
     }
     expect(el.querySelector('h2')!.textContent).toBe('Il y a 2 problèmes')
   })

@@ -1,9 +1,10 @@
+import type { ValidationError } from '../types.js'
+
 export interface ActionMessage {
   label: string
   /** Contains `label`: a speech-input user says the word they can see. */
   accessibleName: string
 }
-
 export interface ItemActionContext {
   position: number
   itemTitle?: string
@@ -48,4 +49,6 @@ export interface FormMessages {
   errorSummaryHeading(context: ErrorSummaryHeadingContext): string
   /** The whole text after an item's link, punctuation included. */
   errorSummaryDetail(context: ErrorSummaryDetailContext): string
+  /** Localized presentation for one validation error. Evaluator message text is diagnostic only. */
+  validationMessage(error: ValidationError): string
 }

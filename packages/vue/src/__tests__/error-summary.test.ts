@@ -201,6 +201,7 @@ describe('ErrorSummary over a live runtime', () => {
       ...englishMessages,
       errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      validationMessage: () => 'Champ invalide.',
     }
     const { host, rt } = await liveForm({}, french)
     rt.dispatch({ type: 'Submit' })
@@ -230,7 +231,10 @@ describe('ErrorSummary fallbacks', () => {
       false,
     )
     const items = [...host.querySelectorAll('li')]
-    expect(items.map((li) => li.textContent)).toEqual(['/name: minLength', 'node_3: Required'])
+    expect(items.map((li) => li.textContent)).toEqual([
+      '/name: This value is too short.',
+      'node_3: This field is required.',
+    ])
     expect(items[0].querySelector('a')!.getAttribute('href')).toMatch(/^#texaryn-[0-9a-z_]+-node_2-input$/)
   })
 })

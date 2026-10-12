@@ -74,9 +74,9 @@ describe('ErrorSummary', () => {
     expect(group.firstElementChild).toBe(heading)
     expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
     expect(heading.id).toMatch(/^texaryn-[0-9a-z_]+-error-summary-heading$/)
-    expect(screen.getByRole('listitem').textContent).toBe('Name: Required')
+    expect(screen.getByRole('listitem').textContent).toBe('Name: This field is required.')
     expect(screen.getByText(/Name/)).toBeTruthy()
-    expect(screen.getByText(/Required/)).toBeTruthy()
+    expect(screen.getByText(/This field is required/)).toBeTruthy()
   })
 
   it('links each error to the field input by anchor', () => {
@@ -114,7 +114,7 @@ describe('ErrorSummary', () => {
     expect(screen.getByText(/node_2/)).toBeTruthy()
   })
 
-  it('falls back to keyword when message is undefined', () => {
+  it('uses safe copy when message is undefined', () => {
     const errors: VisibleError[] = [{
       nodeId: 'node_2' as NodeId,
       fieldTitle: 'Name',
@@ -122,7 +122,7 @@ describe('ErrorSummary', () => {
       errors: [{ instancePointer: '/name', keyword: 'minLength', params: {} }],
     }]
     renderWithRuntime(makeMockRuntime(errors))
-    expect(screen.getByText(/minLength/)).toBeTruthy()
+    expect(screen.getByText(/This value is too short/)).toBeTruthy()
   })
 
   it('renders multiple fields with errors', () => {
@@ -248,6 +248,7 @@ describe('ErrorSummary over a live runtime', () => {
       ...englishMessages,
       errorSummaryHeading: ({ count }) => (count === 1 ? 'Il y a un problème' : `Il y a ${count} problèmes`),
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
+      validationMessage: () => 'Champ invalide.',
     }
     await renderForm({ messages: french })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))

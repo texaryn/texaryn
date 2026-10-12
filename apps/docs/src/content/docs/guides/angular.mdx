@@ -42,22 +42,31 @@ const adapter = await createJsonSchemaAdapter({
   standalone: true,
   imports: [FormRoot],
   template: `
-    <texaryn-form-root
-      [form]="form"
-      [registry]="registry"
-      idPrefix="profile"
-      [showErrorSummary]="true"
-    />
+    <form novalidate (ngSubmit)="submit()">
+      <texaryn-form-root
+        [form]="form"
+        [registry]="registry"
+        idPrefix="profile"
+        [showErrorSummary]="true"
+      />
+      <button type="submit">Submit</button>
+    </form>
   `,
 })
 export class ProfileForm {
   readonly form = createForm(adapter, { initialData: { name: '', email: '' } })
   readonly registry = createDefaultRegistry()
+
+  submit() {
+    this.form.dispatch({ type: 'Submit' })
+  }
 }
 ```
 
-Give each form on the page a unique `idPrefix`. Texaryn derives label and error
-IDs from that prefix and each field's stable node identity.
+`FormRoot` renders the tree only. The application owns the native form and
+connects its submit event to the runtime. Give each form on the page a unique
+`idPrefix`. Texaryn derives label and error IDs from that prefix and each
+field's stable node identity.
 
 ## Custom widgets
 

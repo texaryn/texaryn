@@ -24,8 +24,12 @@
 
 > `optional` **message?**: `string`
 
+Evaluator diagnostic for debugging. User-facing copy comes from FormMessages.
+
 ***
 
 ### params
 
 > **params**: `Record`\<`string`, `unknown`\>
+
+Canonical constraint parameters only, without submitted values or schema objects.

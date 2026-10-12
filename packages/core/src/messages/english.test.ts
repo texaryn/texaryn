@@ -109,4 +109,25 @@ describe('englishMessages', () => {
     expect(englishMessages.errorSummaryDetail({ messages: ['Too short', 'Bad format'] })).toBe(': Too short, Bad format')
     expect(englishMessages.errorSummaryDetail({ messages: [] })).toBe(': ')
   })
+
+  it('uses safe validation copy and ignores evaluator diagnostics', () => {
+    expect(englishMessages.validationMessage({
+      instancePointer: '/secret',
+      keyword: 'required',
+      message: 'secret value at /secret is missing',
+      params: { missingProperty: 'secret' },
+    })).toBe('This field is required.')
+    expect(englishMessages.validationMessage({
+      instancePointer: '/name',
+      keyword: 'minLength',
+      message: 'raw user content from evaluator',
+      params: { limit: 3 },
+    })).toBe('Enter at least 3 characters.')
+    expect(englishMessages.validationMessage({
+      instancePointer: '/name',
+      keyword: 'futureKeyword',
+      message: 'untrusted evaluator copy',
+      params: { submittedValue: 'private' },
+    })).toBe('This value is invalid.')
+  })
 })

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { TexarynExample } from '@texaryn/examples'
 import { groupByCategory, searchExamples } from './example-search.js'
 
@@ -12,8 +13,13 @@ export function ExampleBrowser({
   selectedId: string | null
   onSelect: (example: TexarynExample) => void
 }) {
+  const selectedItem = useRef<HTMLButtonElement | null>(null)
   const groups = groupByCategory(searchExamples(query))
   const total = groups.reduce((sum, group) => sum + group.examples.length, 0)
+
+  useEffect(() => {
+    selectedItem.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [query, selectedId])
 
   return (
     <div className="pg-examples">
@@ -42,6 +48,7 @@ export function ExampleBrowser({
                     <button
                       type="button"
                       className="pg-examples__item"
+                      ref={example.id === selectedId ? selectedItem : undefined}
                       onClick={() => onSelect(example)}
                       aria-current={example.id === selectedId ? 'true' : undefined}
                       title={example.description}

@@ -133,3 +133,21 @@ Optional localized label for boundary expansion controls.
 #### Returns
 
 [`IndicatorMessage`](IndicatorMessage.md)
+
+***
+
+### validationMessage()
+
+> **validationMessage**(`error`): `string`
+
+Localized presentation for one validation error. Evaluator message text is diagnostic only.
+
+#### Parameters
+
+##### error
+
+[`ValidationError`](ValidationError.md)
+
+#### Returns
+
+`string`

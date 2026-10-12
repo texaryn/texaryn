@@ -22,7 +22,7 @@
   }
 
   function details(entry: VisibleError): string {
-    return $messages.errorSummaryDetail({ messages: visibleErrorMessages(entry) })
+    return $messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, $messages) })
   }
 </script>
 

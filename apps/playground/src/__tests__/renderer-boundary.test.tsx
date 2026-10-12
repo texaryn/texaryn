@@ -15,11 +15,12 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { App } from '../App.js'
+import { findRendererInput } from './renderer-test-utils.js'
 
 afterEach(cleanup)
 
 function rendererSelect(): HTMLSelectElement {
-  return screen.getByLabelText(/renderer/i) as HTMLSelectElement
+  return screen.getByLabelText('Form renderer') as HTMLSelectElement
 }
 
 function surfaces(): { value: string; label: string }[] {
@@ -45,8 +46,10 @@ describe('the renderer-owned region', () => {
       await waitFor(() => expect(rendererSelect().value).toBe(value))
 
       const region = await screen.findByRole('region', { name: `Rendered by ${label}` })
-      await within(region).findByLabelText('Name')
+      await findRendererInput(region, 'Name')
 
+      expect(document.querySelectorAll('.pg-runtime-form')).toHaveLength(1)
+      expect(region.querySelector('form')).toBeNull()
       expect(
         within(region).queryByRole('button', { name: /^Submit$/ }),
         `Submit is the playground's, not ${label}'s`,
