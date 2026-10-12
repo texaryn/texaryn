@@ -45,22 +45,18 @@ Most schema-driven UI libraries tightly couple schema interpretation, form state
 
 Texaryn separates them.
 
-```text
-JSON Schema
-    ↓
-Schema Evaluation
-    ↓
-SchemaProjection
-    ↓
-IR Compiler
-    ↓
-UIDocument
-    ↓
-Deterministic Runtime
-    ↓
-Renderer Binding
-    ↓
-React / Angular / Vue / Svelte / SolidJS / ...
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 20}}}%%
+flowchart TD
+  accTitle: The Texaryn pipeline
+  accDescr: A schema is evaluated, projected, compiled to a UIDocument, run by the deterministic runtime, and rendered through a framework binding.
+  Schema["JSON Schema, TypeBox or Zod"] --> Eval[Schema evaluation]
+  Eval --> Projection[SchemaProjection]
+  Projection --> Compiler[IR compiler]
+  Compiler --> Doc[UIDocument]
+  Doc --> Runtime[Deterministic runtime]
+  Runtime --> Binding[Renderer binding]
+  Binding --> Frameworks["React, Angular, Vue, Svelte, SolidJS, Web Components"]
 ```
 
 The core has no dependency on React, Vue, the DOM, or an AI SDK.
@@ -166,6 +162,8 @@ Product documentation is published at
 - [JSON Schema support](https://texaryn.github.io/texaryn/guides/json-schema-support/)
 - [Schema adapters](https://texaryn.github.io/texaryn/guides/schema-adapters/)
 - [Architecture](https://texaryn.github.io/texaryn/concepts/architecture/)
+- [Display documents](https://texaryn.github.io/texaryn/guides/display-documents/)
+- [AI generation](https://texaryn.github.io/texaryn/guides/ai-generation/)
 - [Migrating from RJSF](https://texaryn.github.io/texaryn/guides/migrating-from-rjsf/)
 - [API reference](https://texaryn.github.io/texaryn/api/)
 - [Playground](https://texaryn.github.io/texaryn/playground/)
@@ -180,7 +178,7 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | Package | Version | Purpose |
 | --- | --- | --- |
 | [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI IR, compiler, runtime, state, commands, identity, renderer registry |
-| [`@texaryn/collaboration-yjs`](packages/collaboration-yjs/README.md) | Planned 0.1.0 | Optional Yjs adapter for convergent scalar field edits |
+| [`@texaryn/collaboration-yjs`](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcollaboration-yjs?label=) | Optional Yjs adapter for convergent scalar field edits |
 | [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
 | [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
 | [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React bindings, hooks, prop getters, renderer, and default widgets |
@@ -188,8 +186,8 @@ records, and the generated `docs/api` artifact that `pnpm docs:check` gates.
 | [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets: native markup and classes on top of `@texaryn/react` |
 | [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets: MUI components on top of `@texaryn/react` |
 | [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 bindings, composables, renderer, and default widgets |
-| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn%2Fsvelte) | Planned 0.1.0 | Svelte 5 bindings, renderer, and default widgets |
-| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn%2Fsolid) | Planned 0.1.0 | SolidJS bindings, renderer, and default widgets |
+| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn/svelte) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsvelte?label=) | Svelte 5 bindings, renderer, and default widgets |
+| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn/solid) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsolid?label=) | SolidJS bindings, renderer, and default widgets |
 | [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | A `<texaryn-form>` custom element and native default widgets, usable from any framework or none |
 
 The repository also contains two private applications: `@texaryn/playground`, which exercises the complete pipeline against the example catalog, and `@texaryn/docs`, the documentation site. Three private packages sit beside them: `@texaryn/examples`, the executable capability catalog that the playground, the documentation and the tests all read, `@texaryn/schema-json-hyperjump`, an alternate adapter that proves a second JSON Schema engine can satisfy the port, and `@texaryn/hints-rjsf`, which converts an RJSF uiSchema into Texaryn UI hints and reports what it cannot carry.
@@ -215,6 +213,7 @@ interface SchemaEvaluationPort {
 
 The JSON Schema adapter currently understands these dialects:
 
+- Draft 4
 - Draft 7
 - 2019-09
 - 2020-12
@@ -238,6 +237,11 @@ interface UIDocument {
 ```
 
 The IR describes **what the UI means**, not how React, Vue, or the DOM should render it.
+
+Form documents are version 1.
+[Display documents](https://texaryn.github.io/texaryn/guides/display-documents/)
+are version 2: lists, tables, layouts, text and actions, with no editable
+fields and no schema adapter.
 
 ### 3. Runtime
 
@@ -276,6 +280,8 @@ The React package provides:
 runtime stores. Its API and usage are documented in the
 [Angular renderer guide](https://texaryn.github.io/texaryn/guides/angular/).
 
+`@texaryn/web-components` provides a `<texaryn-form>` custom element with native widgets in light DOM, for any framework or none.
+
 The registry is extensible, so applications can replace or add widgets without modifying the runtime.
 
 ## Default React widgets
@@ -294,12 +300,12 @@ The default set is intentionally small. Texaryn's renderer registry is designed 
 
 ## JSON Schema support
 
-Texaryn's JSON Schema adapter currently covers the schema features needed by the first runtime and renderer implementation, including:
+Texaryn's JSON Schema adapter covers, among others:
 
 - primitive and object schemas
 - arrays
 - enums
-- local `$ref`
+- local and static external `$ref`, including recursive schemas
 - `if` / `then` / `else`
 - `dependentSchemas`
 - `dependentRequired`
@@ -310,6 +316,8 @@ Texaryn's JSON Schema adapter currently covers the schema features needed by the
 - validation errors mapped to JSON Pointers
 
 Validation remains the responsibility of the schema adapter. The core runtime does not attempt to become a JSON Schema validator.
+
+The [JSON Schema support guide](https://texaryn.github.io/texaryn/guides/json-schema-support/) lists every keyword and its limits.
 
 ## UI hints
 
@@ -348,17 +356,24 @@ Schema meaning remains intact while renderers retain control over presentation.
 
 `@texaryn/core` does not depend on React, Vue, or the DOM.
 
-```text
-      @texaryn/schema-json
-               ↓
-         @texaryn/core
-          ↑         ↑
-@texaryn/react   @texaryn/angular   @texaryn/vue   @texaryn/svelte
+```mermaid
+flowchart LR
+  accTitle: Package dependencies
+  accDescr: The schema adapters and every framework binding depend on @texaryn/core, and the Zod adapter also depends on the JSON Schema adapter. Core depends on none of them.
+  SchemaJson["@texaryn/schema-json"] --> Core["@texaryn/core"]
+  SchemaZod["@texaryn/schema-zod"] --> SchemaJson
+  SchemaZod --> Core
+  React["@texaryn/react"] --> Core
+  Angular["@texaryn/angular"] --> Core
+  Vue["@texaryn/vue"] --> Core
+  Svelte["@texaryn/svelte"] --> Core
+  Solid["@texaryn/solid"] --> Core
+  WebComponents["@texaryn/web-components"] --> Core
 ```
 
-Framework packages are consumers of the core contracts.
+Arrows point from a package to what it imports. Framework packages are consumers of the core contracts.
 
-React and Vue are framework bindings over the same runtime contracts, not part of the runtime architecture itself. Neither is privileged: the core has no import of either.
+Every framework package is a binding over the same runtime contracts, not part of the runtime architecture itself. None is privileged: the core imports none of them.
 
 ## Designed for dynamic UI
 
@@ -393,7 +408,7 @@ Run the playground:
 pnpm --filter @texaryn/playground dev
 ```
 
-It browses the example catalog, renders each example through any of the four renderers, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
+It browses the example catalog, renders each example through React, Vue, Svelte, SolidJS or Web Components with a choice of widget sets, and inspects the pipeline from schema through projection and IR to the rendered form. `pnpm build` has to run first, because the workspace packages resolve through their compiled output.
 
 ## Principles
 
@@ -428,7 +443,12 @@ Texaryn is being built incrementally.
 - validation triggers and debounce
 - display-policy-aware error presentation
 - submission lifecycle with snapshot semantics
-- Vue renderer sharing one runtime with React, proving framework neutrality
+- Vue, Angular, Svelte, SolidJS and Web Components bindings sharing one runtime with React
+- Bootstrap and Material UI widget sets
+- Zod 4 schema adapter
+- recursive schema projection
+- display documents for lists, tables and layouts
+- optional Yjs collaboration for scalar fields
 
 ### Next
 

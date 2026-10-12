@@ -15,24 +15,19 @@ before anything else is attempted.
 Every stage is a value you can inspect, and no stage below the binding knows
 which framework will render it.
 
-```text
-Schema or domain description
-          ↓
-Schema evaluation
-          ↓
-SchemaProjection
-          ↓
-IR compiler
-          ↓
-UIDocument
-          ↓
-Deterministic runtime
-          ↓
-Renderer binding
-          ↓
-React, Angular, Vue, Svelte, Web Components
-          ↓
-Default, Bootstrap, Material UI
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 20}}}%%
+flowchart TD
+  accTitle: The Texaryn pipeline
+  accDescr: A schema is evaluated, projected, compiled to a UIDocument, run by the deterministic runtime, and rendered through a framework binding and a widget set.
+  Schema[Schema or domain description] --> Eval[Schema evaluation]
+  Eval --> Projection[SchemaProjection]
+  Projection --> Compiler[IR compiler]
+  Compiler --> Doc[UIDocument]
+  Doc --> Runtime[Deterministic runtime]
+  Runtime --> Binding[Renderer binding]
+  Binding --> Frameworks["React, Angular, Vue, Svelte, SolidJS, Web Components"]
+  Frameworks --> Widgets["Default, Bootstrap, Material UI"]
 ```
 
 ## Why the separation matters
