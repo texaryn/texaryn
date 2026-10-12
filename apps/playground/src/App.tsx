@@ -904,6 +904,8 @@ export function App() {
           tab={inspectorTab}
           toolbar={toolbar}
           previewNotice={previewNotice}
+          presets={presets}
+          exampleInitialData={baseExample?.initialData}
           onDataChange={handleDataChange}
           onTabChange={setInspectorTab}
         />
