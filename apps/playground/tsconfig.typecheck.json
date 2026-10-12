@@ -3,6 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "composite": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "types": ["vite/client"],
     // The shared theme and site topology are plain .mjs with no declarations,
