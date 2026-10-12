@@ -17,7 +17,7 @@ export function SolidHost({ runtime }: { runtime: FormRuntime }) {
       form: runtime,
       registry: solidRegistry,
       destroyOnUnmount: false,
-      showErrorSummary: false,
+      showErrorSummary: true,
     }), target)
   }, [runtime])
 

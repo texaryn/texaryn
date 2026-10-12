@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createHyperjumpAdapter } from '../index.js'
+import { mapErrors } from '../validation.js'
 import type { JsonPointer } from '@texaryn/core'
 import {
   flatObjectSchema,
@@ -795,6 +796,23 @@ describe('createHyperjumpAdapter', () => {
 
       const missing = await adapter.validate({ name: 'Ada' })
       expect(missing.errors.find((e) => e.keyword === 'required')?.params).toEqual({ missingProperty: 'email' })
+    })
+
+    it('normalizes format parameters from the schema location', () => {
+      const result = mapErrors({
+        valid: false,
+        errors: [{
+          keyword: 'https://json-schema.org/keyword/draft-07/format',
+          absoluteKeywordLocation: '#/format',
+          instanceLocation: '#',
+          valid: false,
+        }],
+      }, { type: 'string', format: 'email' }, 'not-an-email')
+
+      expect(result.errors).toEqual([expect.objectContaining({
+        keyword: 'format',
+        params: { format: 'email' },
+      })])
     })
 
     it('does not require a message on ValidationError', async () => {

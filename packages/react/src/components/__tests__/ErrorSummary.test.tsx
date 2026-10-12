@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { createStore, englishMessages } from '@texaryn/core'
 import type {
   FormRuntime,
@@ -90,6 +91,33 @@ describe('ErrorSummary', () => {
     const link = screen.getByRole('link')
     // The prefix belongs to the provider instance, so only the shape is fixed.
     expect(link.getAttribute('href')).toMatch(/^#texaryn-[0-9a-z_]+-node_2-input$/)
+  })
+
+  it('focuses a linked field inside the summary shadow root', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+    const errors: VisibleError[] = [{
+      nodeId: 'node_2' as NodeId,
+      fieldTitle: 'Email',
+      pointer: '/email' as JsonPointer,
+      errors: [{ instancePointer: '/email', keyword: 'format', message: 'Invalid email', params: {} }],
+    }]
+    render(createPortal(
+      <FormProvider value={makeMockRuntime(errors)}>
+        <ErrorSummary />
+      </FormProvider>,
+      shadow,
+    ))
+
+    const link = shadow.querySelector('a')!
+    const input = document.createElement('input')
+    input.id = link.hash.slice(1)
+    shadow.append(input)
+    fireEvent.click(link)
+
+    expect(shadow.activeElement).toBe(input)
+    host.remove()
   })
 
   it('falls back to pointer when fieldTitle is undefined', () => {

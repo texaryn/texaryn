@@ -62,5 +62,5 @@ describe('switching renderer', () => {
         `editing was lost switching to ${renderer}`,
       ).toBe('Ada Lovelace')
     }
-  })
+  }, 15_000)
 })

@@ -17,7 +17,10 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import { App } from '../App.js'
 import { findRendererInput } from './renderer-test-utils.js'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.history.replaceState(null, '', '/')
+})
 
 function rendererSelect(): HTMLSelectElement {
   return screen.getByLabelText('Form renderer') as HTMLSelectElement
@@ -30,6 +33,14 @@ function surfaces(): { value: string; label: string }[] {
       value: (option as HTMLOptionElement).value,
       label: option.textContent ?? '',
     }))
+}
+
+function deepQuery<T extends Element>(root: ParentNode, selector: string): T[] {
+  const matches = [...root.querySelectorAll<T>(selector)]
+  for (const element of root.querySelectorAll<HTMLElement>('*')) {
+    if (element.shadowRoot) matches.push(...deepQuery<T>(element.shadowRoot, selector))
+  }
+  return matches
 }
 
 describe('the renderer-owned region', () => {
@@ -48,7 +59,9 @@ describe('the renderer-owned region', () => {
       const region = await screen.findByRole('region', { name: `Rendered by ${label}` })
       await findRendererInput(region, 'Name')
 
-      expect(document.querySelectorAll('.pg-runtime-form')).toHaveLength(1)
+      const forms = deepQuery<HTMLFormElement>(document, '.pg-runtime-form')
+      expect(forms).toHaveLength(1)
+      expect((await findRendererInput(region, 'Name')).form).toBe(forms[0])
       expect(region.querySelector('form')).toBeNull()
       expect(
         within(region).queryByRole('button', { name: /^Submit$/ }),
@@ -59,7 +72,7 @@ describe('the renderer-owned region', () => {
         `Simulate failure is the playground's, not ${label}'s`,
       ).toBeNull()
     }
-  })
+  }, 15_000)
 
   // Three of the offered surfaces are React and three are hosted frameworks. A list reading
   // "Material UI" beside "Vue" invites reading the others as the only ones

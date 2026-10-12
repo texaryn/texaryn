@@ -39,7 +39,22 @@ export function ErrorSummary({ focus = true }: ErrorSummaryProps) {
       <ul>
         {visibleErrors.map((entry: VisibleError) => (
           <li key={entry.nodeId}>
-            <a href={`#${makeId(idPrefix, entry.nodeId, 'input')}`}>{visibleErrorLabel(entry)}</a>
+            <a
+              href={`#${makeId(idPrefix, entry.nodeId, 'input')}`}
+              onClick={(event) => {
+                const id = makeId(idPrefix, entry.nodeId, 'input')
+                const root = event.currentTarget.getRootNode()
+                if (root instanceof ShadowRoot) {
+                  const target = root.getElementById(id)
+                  if (target instanceof HTMLElement) {
+                    event.preventDefault()
+                    target.focus()
+                  }
+                }
+              }}
+            >
+              {visibleErrorLabel(entry)}
+            </a>
             {messages.errorSummaryDetail({ messages: visibleErrorMessages(entry, messages) })}
           </li>
         ))}

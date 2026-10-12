@@ -125,6 +125,7 @@ function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): str
     const lower = code === 'too_small'
     if (origin === 'string') return lower ? 'minLength' : 'maxLength'
     if (origin === 'array') return lower ? 'minItems' : 'maxItems'
+    if (origin === 'object') return lower ? 'minProperties' : 'maxProperties'
     if ('inclusive' in issue && issue.inclusive === false) {
       return lower ? 'exclusiveMinimum' : 'exclusiveMaximum'
     }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createApp, defineComponent, h } from 'vue'
 import type { FormRuntime, RendererRegistry } from '@texaryn/core'
 import {
+  ErrorSummary as VueErrorSummary,
   FormRoot as VueFormRoot,
   createDefaultRegistry as createVueRegistry,
   provideFormRuntime,
@@ -35,7 +36,10 @@ export function VueHost({ runtime }: { runtime: FormRuntime }) {
       defineComponent({
         setup() {
           provideFormRuntime(runtime)
-          return () => h(VueFormRoot, { registry: vueRegistry })
+          return () => h('div', [
+            h(VueErrorSummary),
+            h(VueFormRoot, { registry: vueRegistry }),
+          ])
         },
       }),
     )

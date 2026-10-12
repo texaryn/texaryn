@@ -130,4 +130,53 @@ describe('englishMessages', () => {
       params: { submittedValue: 'private' },
     })).toBe('This value is invalid.')
   })
+
+  it('formats standard validation keywords from safe parameters', () => {
+    const cases: Array<[string, Record<string, unknown>, string]> = [
+      ['minLength', {}, 'This value is too short.'],
+      ['maxLength', { limit: 4 }, 'Enter no more than 4 characters.'],
+      ['minimum', {}, 'This value is below the minimum.'],
+      ['exclusiveMinimum', { limit: 2 }, 'Enter a value greater than 2.'],
+      ['maximum', { limit: 9 }, 'Enter a value of at most 9.'],
+      ['exclusiveMaximum', {}, 'This value must be below the maximum.'],
+      ['minItems', { limit: 2 }, 'Add at least 2 items.'],
+      ['maxItems', {}, 'Remove some items.'],
+      ['minProperties', {}, 'Add more fields.'],
+      ['maxProperties', { limit: 3 }, 'Provide no more than 3 fields.'],
+      ['format', { format: 'email' }, 'Enter a valid email address.'],
+      ['format', { format: 'uri' }, 'Enter a valid URL.'],
+      ['format', { format: 'url' }, 'Enter a valid URL.'],
+      ['format', { format: 'date' }, 'Enter a valid date.'],
+      ['format', { format: 'date-time' }, 'Enter a valid date and time.'],
+      ['format', {}, 'Enter a value in the required format.'],
+      ['pattern', {}, 'Enter a value in the required format.'],
+      ['type', {}, 'Enter a value of the expected type.'],
+      ['enum', {}, 'Choose an allowed value.'],
+      ['const', {}, 'Choose an allowed value.'],
+      ['uniqueItems', {}, 'Each item must be unique.'],
+      ['dependentRequired', {}, 'Complete the related required fields.'],
+      ['additionalProperties', {}, 'Remove unrecognized fields.'],
+      ['oneOf', {}, 'Choose a value that matches an allowed option.'],
+      ['anyOf', {}, 'Choose a value that matches an allowed option.'],
+      ['not', {}, 'This value is invalid.'],
+    ]
+
+    for (const [keyword, params, expected] of cases) {
+      expect(englishMessages.validationMessage({
+        instancePointer: '/field',
+        keyword,
+        params,
+      })).toBe(expected)
+    }
+  })
+
+  it('uses constraint specific fallback copy for invalid numeric parameters', () => {
+    for (const limit of [-1, Number.NaN, Number.POSITIVE_INFINITY, '3']) {
+      expect(englishMessages.validationMessage({
+        instancePointer: '/field',
+        keyword: 'minLength',
+        params: { limit },
+      })).toBe('This value is too short.')
+    }
+  })
 })

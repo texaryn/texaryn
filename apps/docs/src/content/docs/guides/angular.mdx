@@ -42,7 +42,7 @@ const adapter = await createJsonSchemaAdapter({
   standalone: true,
   imports: [FormRoot],
   template: `
-    <form novalidate (ngSubmit)="submit()">
+    <form novalidate (submit)="submit($event)">
       <texaryn-form-root
         [form]="form"
         [registry]="registry"
@@ -57,7 +57,8 @@ export class ProfileForm {
   readonly form = createForm(adapter, { initialData: { name: '', email: '' } })
   readonly registry = createDefaultRegistry()
 
-  submit() {
+  submit(event: Event) {
+    event.preventDefault()
     this.form.dispatch({ type: 'Submit' })
   }
 }

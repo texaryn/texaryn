@@ -33,6 +33,7 @@ describe('createZodAdapter', () => {
         choice: z.enum(['first', 'second']),
         strict: z.object({ known: z.string() }).strict(),
         multiple: z.number().multipleOf(0.5),
+        minString: z.string().min(3),
         maxString: z.string().max(2),
         minArray: z.array(z.string()).min(2),
         maxArray: z.array(z.string()).max(1),
@@ -48,6 +49,7 @@ describe('createZodAdapter', () => {
       choice: 'third',
       strict: { known: 'ok', extra: true },
       multiple: 1.2,
+      minString: '',
       maxString: 'long',
       minArray: [],
       maxArray: ['first', 'second'],
@@ -63,6 +65,7 @@ describe('createZodAdapter', () => {
       ['/choice', 'enum'],
       ['/strict', 'additionalProperties'],
       ['/multiple', 'multipleOf'],
+      ['/minString', 'minLength'],
       ['/maxString', 'maxLength'],
       ['/minArray', 'minItems'],
       ['/maxArray', 'maxItems'],
@@ -71,6 +74,50 @@ describe('createZodAdapter', () => {
       ['/maxNumber', 'maximum'],
       ['/exclusiveMax', 'exclusiveMaximum'],
     ])
+
+    const parameters = new Map(result.errors.map(({ keyword, params }) => [keyword, params]))
+    expect(parameters.get('format')).toEqual({ format: 'email' })
+    expect(parameters.get('multipleOf')).toEqual({ limit: 0.5 })
+    expect(parameters.get('minLength')).toEqual({ limit: 3 })
+    expect(parameters.get('maxLength')).toEqual({ limit: 2 })
+    expect(parameters.get('minItems')).toEqual({ limit: 2 })
+    expect(parameters.get('maxItems')).toEqual({ limit: 1 })
+    expect(parameters.get('minimum')).toEqual({ limit: 1 })
+    expect(parameters.get('exclusiveMinimum')).toEqual({ limit: 1 })
+    expect(parameters.get('maximum')).toEqual({ limit: 1 })
+    expect(parameters.get('exclusiveMaximum')).toEqual({ limit: 1 })
+  })
+
+  it('normalizes explicit object size issues as property-count bounds', async () => {
+    const minProperties = z.unknown().superRefine((_value, context) => {
+      context.addIssue({
+        code: 'too_small',
+        origin: 'object',
+        minimum: 2,
+        inclusive: true,
+        message: 'At least 2 properties are required.',
+      })
+    })
+    const maxProperties = z.unknown().superRefine((_value, context) => {
+      context.addIssue({
+        code: 'too_big',
+        origin: 'object',
+        maximum: 1,
+        inclusive: true,
+        message: 'At most 1 property is allowed.',
+      })
+    })
+    const minimum = await createZodAdapter(minProperties)
+    const maximum = await createZodAdapter(maxProperties)
+
+    expect((await minimum.validate({})).errors[0]).toMatchObject({
+      keyword: 'minProperties',
+      params: { limit: 2 },
+    })
+    expect((await maximum.validate({ first: true, second: true })).errors[0]).toMatchObject({
+      keyword: 'maxProperties',
+      params: { limit: 1 },
+    })
   })
 
   it('normalizes known constraints and does not infer required from missing input', async () => {

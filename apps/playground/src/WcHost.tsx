@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { FormRuntime, RendererRegistry } from '@texaryn/core'
-import { createDefaultRegistry as createWcRegistry, mountForm } from '@texaryn/web-components'
+import { createDefaultRegistry as createWcRegistry, mountErrorSummary, mountForm } from '@texaryn/web-components'
 import type { WidgetFactory } from '@texaryn/web-components'
 
 export const wcRegistry: RendererRegistry<WidgetFactory> = createWcRegistry()
@@ -17,7 +17,11 @@ export function WcHost({ runtime }: { runtime: FormRuntime }) {
       registry: wcRegistry,
       idPrefix: 'playground-web-components',
     })
-    return () => mounted.unmount()
+    const summary = mountErrorSummary(mount, mounted)
+    return () => {
+      summary.unmount()
+      mounted.unmount()
+    }
   }, [runtime])
 
   return <div ref={mountRef} data-testid="wc-host" />

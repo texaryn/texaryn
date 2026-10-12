@@ -190,83 +190,97 @@ function FormWorkspace({
     return store.subscribe(() => onDataChange(store.getSnapshot()))
   }, [form.runtime, onDataChange])
 
+  const isBootstrap = rendererKey === 'bootstrap'
+  const hasReactSummary = ['default', 'mui', 'emotion', 'tailwind'].includes(rendererKey)
+  const submit = () => form.runtime.dispatch({ type: 'Submit' })
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    submit()
+  }
+  const rendererSurface = (
+    <RendererSurface
+      rendererKey={rendererKey}
+      label={rendererLabel}
+      theme={resolvedTheme}
+      defaultStyleMode={defaultStyleMode}
+    >
+      {rendererLoadError ? (
+        <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
+      ) : Renderer ? (
+        <Renderer runtime={form.runtime} theme={resolvedTheme} onSubmit={handleSubmit} />
+      ) : (
+        <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
+      )}
+    </RendererSurface>
+  )
+  const controls = (
+    <section className="pg-controls" aria-labelledby="playground-controls">
+      <h2 className="pg-controls__title" id="playground-controls">
+        Playground controls
+      </h2>
+
+      <div className="pg-submit-row">
+        <button
+          type={isBootstrap ? 'button' : 'submit'}
+          className="pg-button"
+          onClick={isBootstrap ? submit : undefined}
+          disabled={
+            form.submission.status === 'validating' ||
+            form.submission.status === 'submitting'
+          }
+        >
+          {form.submission.status === 'validating'
+            ? 'Validating...'
+            : form.submission.status === 'submitting'
+              ? 'Submitting...'
+              : 'Submit'}
+        </button>
+
+        <label className="pg-checkbox-label">
+          <input
+            type="checkbox"
+            checked={simulateFailure}
+            onChange={(e) => setSimulateFailure(e.target.checked)}
+          />
+          Simulate failure
+        </label>
+      </div>
+
+      {form.submission.status === 'submitted' && (
+        <p className="pg-success">Submitted successfully.</p>
+      )}
+      {form.submission.error != null && (
+        <p className="pg-error">
+          {form.submission.error instanceof Error
+            ? form.submission.error.message
+            : String(form.submission.error)}
+        </p>
+      )}
+    </section>
+  )
+
   return (
     <>
       <section className="pg-col pg-col--preview">
         {toolbar}
         {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
         <FormProvider value={form.runtime}>
-          <form
-            className="pg-runtime-form"
-            noValidate
-            onSubmit={(event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault()
-              form.runtime.dispatch({ type: 'Submit' })
-            }}
-          >
-            <ErrorSummary />
-
-            {/* The boundary, named so it can be seen and asserted. Everything
-                inside is the chosen renderer's output; the form and controls
-                are owned by the playground around it. */}
-            <RendererSurface
-              rendererKey={rendererKey}
-              label={rendererLabel}
-              theme={resolvedTheme}
-              defaultStyleMode={defaultStyleMode}
+          {isBootstrap ? (
+            <>
+              {rendererSurface}
+              {controls}
+            </>
+          ) : (
+            <form
+              className="pg-runtime-form"
+              noValidate
+              onSubmit={handleSubmit}
             >
-              {rendererLoadError ? (
-                <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
-              ) : Renderer ? (
-                <Renderer runtime={form.runtime} theme={resolvedTheme} />
-              ) : (
-                <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
-              )}
-            </RendererSurface>
-
-            <section className="pg-controls" aria-labelledby="playground-controls">
-              <h2 className="pg-controls__title" id="playground-controls">
-                Playground controls
-              </h2>
-
-              <div className="pg-submit-row">
-                <button
-                  type="submit"
-                  className="pg-button"
-                  disabled={
-                    form.submission.status === 'validating' ||
-                    form.submission.status === 'submitting'
-                  }
-                >
-                  {form.submission.status === 'validating'
-                    ? 'Validating...'
-                    : form.submission.status === 'submitting'
-                      ? 'Submitting...'
-                      : 'Submit'}
-                </button>
-
-                <label className="pg-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={simulateFailure}
-                    onChange={(e) => setSimulateFailure(e.target.checked)}
-                  />
-                  Simulate failure
-                </label>
-              </div>
-
-              {form.submission.status === 'submitted' && (
-                <p className="pg-success">Submitted successfully.</p>
-              )}
-              {form.submission.error != null && (
-                <p className="pg-error">
-                  {form.submission.error instanceof Error
-                    ? form.submission.error.message
-                    : String(form.submission.error)}
-                </p>
-              )}
-            </section>
-          </form>
+              {hasReactSummary && <ErrorSummary />}
+              {rendererSurface}
+              {controls}
+            </form>
+          )}
         </FormProvider>
       </section>
 

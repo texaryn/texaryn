@@ -23,6 +23,7 @@ export function SvelteHost({ runtime }: { runtime: FormRuntime }) {
       props: {
         form: bindFormRuntime(runtime),
         registry: svelteRegistry,
+        showErrorSummary: true,
         destroyOnUnmount: false,
       },
     })
