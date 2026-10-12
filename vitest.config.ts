@@ -249,11 +249,31 @@ export default defineConfig({
           name: 'playground',
           root: 'apps/playground',
           include: ['src/**/*.test.{ts,tsx}'],
+          exclude: [...configDefaults.exclude, 'src/**/*.browser.test.{ts,tsx}'],
           environment: 'jsdom',
           server: { deps: { inline: ['@testing-library/svelte', '@testing-library/svelte-core', 'solid-js', 'solid-js/web'] } },
           // jsdom here has no `matchMedia` and a `localStorage` getter that
           // returns undefined. The theme controller uses both.
           setupFiles: ['src/test-setup.ts'],
+        },
+      },
+      {
+        plugins: [
+          svelte({ configFile: resolve(root, 'packages/svelte/svelte.config.js') }),
+          solid({ include: /[\\/]packages[\\/]solid[\\/].*\.tsx$/ }),
+        ],
+        resolve: { alias, conditions: ['development', 'browser'] },
+        test: {
+          name: 'playground-browser',
+          root: 'apps/playground',
+          include: ['src/**/*.browser.test.{ts,tsx}'],
+          browser: {
+            enabled: true,
+            provider: 'playwright',
+            headless: true,
+            screenshotFailures: false,
+            instances: [{ browser: 'chromium' }],
+          },
         },
       },
       {

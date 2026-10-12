@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, FormEvent, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { useForm, FormProvider, ErrorSummary } from '@texaryn/react'
@@ -13,6 +14,13 @@ import { RendererSurface } from './RendererSurface.js'
 import { ThemeSelect } from './ThemeSelect.js'
 import { useTheme } from './theme.js'
 import type { ResolvedTheme } from './theme.js'
+import { clearStoredPanelSizes, useLayout } from './workbench/layout.js'
+import { PaneSlot, usePaneHosts } from './workbench/pane-hosts.js'
+import type { PaneHosts } from './workbench/pane-hosts.js'
+import { dialectLabel } from './workbench/dialect-label.js'
+import { StatusBar } from './workbench/StatusBar.js'
+import { useNarrowViewport } from './workbench/use-narrow-viewport.js'
+import { Workbench } from './workbench/Workbench.js'
 import { docsHref, formatLocation, parseLocation } from './routing.js'
 import type { RendererKey } from './routing.js'
 import type { RendererProps } from './renderer-types.js'
@@ -121,22 +129,29 @@ function useAdapter(schema: unknown): AdapterState {
 // the three where there is no form to show. Writing that pair once keeps the
 // renderer selector outside the adapter's conditional, which is where it has
 // to be: choosing a renderer while a schema is still compiling is normal.
-function NotReady({ toolbar, children }: { toolbar: ReactNode; children: ReactNode }) {
+function NotReady({ hosts, toolbar, children }: { hosts: PaneHosts; toolbar: ReactNode; children: ReactNode }) {
   return (
     <>
-      <section className="pg-col pg-col--preview">
-        {toolbar}
-        <div className="pg-placeholder">{children}</div>
-      </section>
-      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
-        <h2 className="pg-heading">Live Data</h2>
-        <pre className="pg-pre">—</pre>
-      </aside>
+      {createPortal(
+        <>
+          {toolbar}
+          <div className="pg-placeholder">{children}</div>
+        </>,
+        hosts.preview,
+      )}
+      {createPortal(
+        <>
+          <h2 className="pg-heading">Live Data</h2>
+          <pre className="pg-pre">—</pre>
+        </>,
+        hosts.inspector,
+      )}
     </>
   )
 }
 
 function FormWorkspace({
+  hosts,
   port,
   entry,
   rendererKey,
@@ -152,6 +167,7 @@ function FormWorkspace({
   onDataChange,
   onTabChange,
 }: {
+  hosts: PaneHosts
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
   rendererKey: RendererKey
@@ -270,30 +286,33 @@ function FormWorkspace({
 
   return (
     <>
-      <section className="pg-col pg-col--preview">
-        {toolbar}
-        {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
-        <FormProvider value={form.runtime}>
-          {isBootstrap ? (
-            <>
-              {rendererSurface}
-              {controls}
-            </>
-          ) : (
-            <form
-              className="pg-runtime-form"
-              noValidate
-              onSubmit={handleSubmit}
-            >
-              {hasReactSummary && <ErrorSummary />}
-              {rendererSurface}
-              {controls}
-            </form>
-          )}
-        </FormProvider>
-      </section>
+      {createPortal(
+        <>
+          {toolbar}
+          {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
+          <FormProvider value={form.runtime}>
+            {isBootstrap ? (
+              <>
+                {rendererSurface}
+                {controls}
+              </>
+            ) : (
+              <form
+                className="pg-runtime-form"
+                noValidate
+                onSubmit={handleSubmit}
+              >
+                {hasReactSummary && <ErrorSummary />}
+                {rendererSurface}
+                {controls}
+              </form>
+            )}
+          </FormProvider>
+        </>,
+        hosts.preview,
+      )}
 
-      <aside className="pg-col pg-col--inspect" aria-label="Inspector">
+      {createPortal(
         <Inspector
           runtime={form.runtime}
           port={port}
@@ -304,8 +323,9 @@ function FormWorkspace({
           hints={entry.hints}
           tab={tab}
           onTabChange={onTabChange}
-        />
-      </aside>
+        />,
+        hosts.inspector,
+      )}
     </>
   )
 }
@@ -349,6 +369,15 @@ export function App() {
   const latestData = useRef<unknown>(initialExample?.initialData)
   const preserveCurrentData = useRef(false)
   const theme = useTheme()
+  const hosts = usePaneHosts()
+  const narrow = useNarrowViewport()
+  const [layout, dispatchLayout] = useLayout()
+  const [resetSignal, setResetSignal] = useState(0)
+  const resetLayout = useCallback(() => {
+    clearStoredPanelSizes()
+    dispatchLayout({ type: 'reset' })
+    setResetSignal((signal) => signal + 1)
+  }, [dispatchLayout])
 
   useEffect(() => {
     const cached = rendererCache.get(rendererKey)
@@ -466,11 +495,14 @@ export function App() {
   const initialData = preserveCurrentData.current ? latestData.current : entry.initialData
   const adapterMatchesDraft =
     adapterState.status === 'ready' && adapterState.schemaKey === appliedSchemaKey
+  const applyFailed = adapterState.status === 'ready' && Boolean(adapterState.error)
+  const applying =
+    !parseError && !applyFailed && (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
   const previewNotice = parseError
     ? 'Invalid JSON. This preview shows the last valid schema.'
-    : adapterState.status === 'ready' && adapterState.error
+    : applyFailed
       ? `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
-      : draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft)
+      : applying
         ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
         : null
 
@@ -516,6 +548,61 @@ export function App() {
     </div>
   )
 
+  const examplesContent = (
+    <>
+      <ExampleBrowser
+        query={query}
+        onQueryChange={setQuery}
+        selectedId={selectedId}
+        onSelect={handleSelectExample}
+      />
+      {selectedExample && <p className="pg-description">{selectedExample.description}</p>}
+    </>
+  )
+  const schemaContent = (
+    <>
+      <div className="pg-schema-heading">
+        <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
+        <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
+          Reset data
+        </button>
+      </div>
+      <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
+        <button
+          aria-pressed={schemaMode === 'visual'}
+          className="pg-editor-tabs__item"
+          type="button"
+          onClick={() => setSchemaMode('visual')}
+        >
+          Visual
+        </button>
+        <button
+          aria-pressed={schemaMode === 'json'}
+          className="pg-editor-tabs__item"
+          type="button"
+          onClick={() => setSchemaMode('json')}
+        >
+          JSON
+        </button>
+      </div>
+      <div id="schema-editor-panel">
+        {schemaMode === 'visual' ? (
+          <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
+        ) : (
+          <textarea
+            aria-labelledby="schema-editor-label"
+            className="pg-schema-editor"
+            value={schemaText}
+            onChange={(e) => handleSchemaChange(e.target.value)}
+            spellCheck={false}
+            wrap="off"
+          />
+        )}
+      </div>
+      {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
+    </>
+  )
+
   return (
     <div className="pg-app">
       <header className="pg-header">
@@ -531,127 +618,118 @@ export function App() {
           <a className="pg-header__link" href={REPOSITORY_URL}>
             GitHub
           </a>
+          {!narrow && (
+            <>
+              <button
+                type="button"
+                className="pg-header__button"
+                data-focus-toggle
+                aria-pressed={layout.focus}
+                onClick={() => dispatchLayout({ type: 'toggleFocus' })}
+              >
+                Focus
+              </button>
+              <button type="button" className="pg-header__button" onClick={resetLayout}>
+                Reset layout
+              </button>
+            </>
+          )}
           <ThemeSelect preference={theme.preference} onChange={theme.setPreference} />
         </nav>
       </header>
 
-      <div className="pg-mobile-workspace">
-        <label className="pg-mobile-workspace__example">
-          Example
-          <select
-            className="pg-select"
-            value={selectedId ?? CUSTOM_KEY}
-            onChange={(event) => {
-              const example = getExample(event.target.value)
-              if (example) handleSelectExample(example)
-            }}
-          >
-            {selectedId === CUSTOM_KEY && <option value={CUSTOM_KEY}>Custom schema</option>}
-            {examples.map((example) => (
-              <option key={example.id} value={example.id}>{example.title}</option>
-            ))}
-          </select>
-        </label>
-        <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
-          {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
-            <button
-              key={panelName}
-              type="button"
-              aria-pressed={mobilePanel === panelName}
-              onClick={() => setMobilePanel(panelName)}
-            >
-              {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="pg-columns" data-mobile-panel={mobilePanel}>
-        <aside className="pg-col pg-col--source" aria-label="Examples and schema">
-          <ExampleBrowser
-            query={query}
-            onQueryChange={setQuery}
-            selectedId={selectedId}
-            onSelect={handleSelectExample}
-          />
-
-          {selectedExample && (
-            <p className="pg-description">{selectedExample.description}</p>
-          )}
-
-          <div className="pg-schema-heading">
-            <h2 className="pg-heading" id="schema-editor-label">JSON Schema</h2>
-            <button className="pg-button pg-button--quiet" type="button" onClick={handleReset}>
-              Reset data
-            </button>
+      {narrow ? (
+        <>
+          <div className="pg-mobile-workspace">
+            <label className="pg-mobile-workspace__example">
+              Example
+              <select
+                className="pg-select"
+                value={selectedId ?? CUSTOM_KEY}
+                onChange={(event) => {
+                  const example = getExample(event.target.value)
+                  if (example) handleSelectExample(example)
+                }}
+              >
+                {selectedId === CUSTOM_KEY && <option value={CUSTOM_KEY}>Custom schema</option>}
+                {examples.map((example) => (
+                  <option key={example.id} value={example.id}>{example.title}</option>
+                ))}
+              </select>
+            </label>
+            <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
+              {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
+                <button
+                  key={panelName}
+                  type="button"
+                  aria-pressed={mobilePanel === panelName}
+                  onClick={() => setMobilePanel(panelName)}
+                >
+                  {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
-            <button
-              aria-pressed={schemaMode === 'visual'}
-              className="pg-editor-tabs__item"
-              type="button"
-              onClick={() => setSchemaMode('visual')}
-            >
-              Visual
-            </button>
-            <button
-              aria-pressed={schemaMode === 'json'}
-              className="pg-editor-tabs__item"
-              type="button"
-              onClick={() => setSchemaMode('json')}
-            >
-              JSON
-            </button>
-          </div>
-          <div id="schema-editor-panel">
-            {schemaMode === 'visual' ? (
-              <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />
-            ) : (
-              <textarea
-                aria-labelledby="schema-editor-label"
-                className="pg-schema-editor"
-                value={schemaText}
-                onChange={(e) => handleSchemaChange(e.target.value)}
-                spellCheck={false}
-                wrap="off"
-              />
-            )}
-          </div>
-          {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
-        </aside>
 
-        {adapterState.status === 'loading' ? (
-          <NotReady toolbar={toolbar}>
-            <p className="pg-empty">Loading…</p>
-          </NotReady>
-        ) : adapterState.status === 'error' ? (
-          <NotReady toolbar={toolbar}>
-            <p className="pg-error">{adapterState.message}</p>
-          </NotReady>
-        ) : selectedId !== CUSTOM_KEY && !adapterMatchesDraft ? (
-          <NotReady toolbar={toolbar}>
-            <p className="pg-empty">Loading the selected example…</p>
-          </NotReady>
-        ) : (
-          <FormWorkspace
-            key={`${adapterState.id}:${exampleRevision}:${resetRevision}`}
-            port={adapterState.port}
-            entry={{ initialData, hints: entry.hints }}
-            rendererKey={rendererKey}
-            rendererLabel={rendererLabels[rendererKey]}
-            rendererComponent={loadedRenderers[rendererKey] ?? null}
-            rendererLoadError={rendererErrors[rendererKey] ?? null}
-            defaultStyleMode={defaultStyleMode}
-            resolvedTheme={theme.resolved}
-            schemaText={schemaText}
-            tab={inspectorTab}
-            toolbar={toolbar}
-            previewNotice={previewNotice}
-            onDataChange={handleDataChange}
-            onTabChange={setInspectorTab}
-          />
-        )}
-      </div>
+          <div className="pg-columns" data-mobile-panel={mobilePanel}>
+            <aside className="pg-col pg-col--source" aria-label="Examples and schema">
+              <PaneSlot host={hosts.examples} />
+              <PaneSlot host={hosts.schema} />
+            </aside>
+            <section className="pg-col pg-col--preview">
+              <PaneSlot host={hosts.preview} />
+            </section>
+            <aside className="pg-col pg-col--inspect" aria-label="Inspector">
+              <PaneSlot host={hosts.inspector} />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <Workbench
+          hosts={hosts}
+          layout={layout}
+          dispatch={dispatchLayout}
+          resetSignal={resetSignal}
+        />
+      )}
+      {createPortal(examplesContent, hosts.examples)}
+      {createPortal(schemaContent, hosts.schema)}
+
+      {adapterState.status === 'loading' ? (
+        <NotReady hosts={hosts} toolbar={toolbar}>
+          <p className="pg-empty">Loading…</p>
+        </NotReady>
+      ) : adapterState.status === 'error' ? (
+        <NotReady hosts={hosts} toolbar={toolbar}>
+          <p className="pg-error">{adapterState.message}</p>
+        </NotReady>
+      ) : selectedId !== CUSTOM_KEY && !adapterMatchesDraft ? (
+        <NotReady hosts={hosts} toolbar={toolbar}>
+          <p className="pg-empty">Loading the selected example…</p>
+        </NotReady>
+      ) : (
+        <FormWorkspace
+          hosts={hosts}
+          key={`${adapterState.id}:${exampleRevision}:${resetRevision}`}
+          port={adapterState.port}
+          entry={{ initialData, hints: entry.hints }}
+          rendererKey={rendererKey}
+          rendererLabel={rendererLabels[rendererKey]}
+          rendererComponent={loadedRenderers[rendererKey] ?? null}
+          rendererLoadError={rendererErrors[rendererKey] ?? null}
+          defaultStyleMode={defaultStyleMode}
+          resolvedTheme={theme.resolved}
+          schemaText={schemaText}
+          tab={inspectorTab}
+          toolbar={toolbar}
+          previewNotice={previewNotice}
+          onDataChange={handleDataChange}
+          onTabChange={setInspectorTab}
+        />
+      )}
+      {!narrow && (
+        <StatusBar dialect={dialectLabel(appliedSchema)} parseError={parseError} pending={applying} />
+      )}
     </div>
   )
 }
