@@ -39,9 +39,9 @@ All made by the maintainer on 2026-10-12, after an independent review with web s
 
 ```
 App
-├─ Header           brand, Docs, GitHub, Focus, Reset layout, theme
+├─ Header           brand, Docs, GitHub, Commands, Focus, Reset layout, theme
 ├─ Workbench        react-resizable-panels, 761px and wider
-│  ├─ Rail          shown while the example list is collapsed: Examples, Commands
+│  ├─ Rail          shown while the example list is collapsed: Examples
 │  ├─ Panel "examples"     example list and description, collapsible
 │  └─ Panel "main"
 │     ├─ Panel "top"
@@ -53,7 +53,7 @@ App
 
 Default sizes: example list 216px; schema 46% and preview 54% of the top row; top row 72% and inspector 28% of the height. Minimums: example list 160px, schema 280px, preview 320px, inspector 120px.
 
-`react-resizable-panels` is pinned at `4.14.4`, its version on 2026-10-12, for `Group`, `Panel`, `Separator`, panel handles and `useDefaultLayout`. Every separator is focusable, resizes with the arrow keys, and has an accessible name such as "Resize schema and preview". Saved sizes use `onlySaveAfterUserInteractions: true`, so the temporary sizes of Maximize and Focus are never stored.
+`react-resizable-panels` is pinned at `4.14.4`, its version on 2026-10-12, for `Group`, `Panel`, `Separator`, panel handles and `useDefaultLayout`. Every separator is focusable, resizes with the arrow keys, and has an accessible name such as "Resize schema and preview". Maximize and Focus are overlays above the panel group, so they never resize it, and saved sizes use `onlySaveAfterUserInteractions: true`, so a programmatic collapse or expand is never stored either.
 
 ### Pane content lives in persistent hosts
 
@@ -73,9 +73,9 @@ Moving a host to another parent blurs whatever had focus inside it, so crossing 
 | --- | --- | --- |
 | Collapse | Inspector | Shrinks to its header; the body becomes `inert`, so it leaves the tab order |
 | Collapse | Example list | Shrinks to the rail; the rail's Examples button expands it again |
-| Maximize | Schema, preview, inspector | The pane fills the workbench; every other pane, including the inspector header, shrinks to zero and becomes `inert`; its header shows Restore |
-| Focus | Whole workbench | Hides the example list and the inspector; schema and preview keep their split |
-| Restore | Maximized pane, Focus | Returns to the sizes the user had |
+| Maximize | Schema, preview, inspector | An overlay takes the pane's host and fills the workbench; the panels underneath keep their sizes and become `inert`; the overlay's header shows Restore |
+| Focus | Whole workbench | An overlay holds schema and preview side by side, with their own saved split; the panels underneath, with the example list and the inspector, become `inert` |
+| Restore | Maximized pane, Focus | Removes the overlay; the panels never moved, so every size is exactly what the user had |
 | Reset layout | Whole workbench | Default sizes and visibility, and clears the stored layout |
 
 Nothing hides on its own. Hover-triggered panels fail on touch screens and for keyboard users, so every pane opens and closes on an explicit action.
@@ -156,7 +156,7 @@ interface ExamplePreset {
 
 ### Command palette
 
-`cmdk` 1.1.1, loaded on the first Ctrl K or Cmd K, or from a Commands button: on the rail on desktop, in #241's phone bar on phones. The shortcut is registered on the window, so it also works from inside the editor. Commands that act on the form (apply a preset, copy data) reach the runtime through an action handle `FormWorkspace` registers while it is mounted. Commands:
+`cmdk` 1.1.1, loaded on the first Ctrl K or Cmd K, or from a Commands button: in the header on desktop, in #241's phone bar on phones. The shortcut is registered on the window, so it also works from inside the editor. Commands that act on the form (apply a preset, copy data) reach the runtime through an action handle `FormWorkspace` registers while it is mounted. Commands:
 
 - Go to any of the 43 examples
 - Switch to any of the nine renderers
