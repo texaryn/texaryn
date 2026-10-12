@@ -16,6 +16,7 @@ const appRoot = fileURLToPath(new URL('../..', import.meta.url))
 const repoRoot = resolve(appRoot, '../..')
 const warmups = 5
 const compilerSamples = 200
+const projectionSamples = 200
 const firstRenderSamples = 20
 
 function schemaFor(fieldCount, { conditional = false, array = false } = {}) {
@@ -63,6 +64,72 @@ function dataFor(fieldCount, { conditional = false, arraySize = 0 } = {}) {
     ...(arraySize > 0
       ? { rows: Array.from({ length: arraySize }, (_, index) => ({ label: `row-${index}` })) }
       : {}),
+  }
+}
+
+function recursiveSchemaForProjection() {
+  const indexes = [0, 1, 2, 3]
+  const references = () => Object.fromEntries(indexes.map((index) => [
+    `p${index}`,
+    { $ref: `#/$defs/N${index}` },
+  ]))
+  const definitions = Object.fromEntries(indexes.map((index) => [
+    `N${index}`,
+    {
+      type: 'object',
+      properties: {
+        [`v${index}`]: { type: 'string' },
+        ...references(),
+      },
+    },
+  ]))
+
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    properties: references(),
+    $defs: definitions,
+  }
+}
+
+function projectionCounts(projection) {
+  const counts = {
+    nodes: projection.nodes.size,
+    recursionBoundaryNodes: 0,
+    budgetBoundaryNodes: 0,
+    recursiveExpansionNodes: 0,
+  }
+
+  for (const node of projection.nodes.values()) {
+    if (node.boundaries?.includes('recursion')) counts.recursionBoundaryNodes++
+    if (node.boundaries?.includes('budget')) counts.budgetBoundaryNodes++
+    if (node.recursiveExpansion) counts.recursiveExpansionNodes++
+  }
+
+  return counts
+}
+
+function compareStrings(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
+function sortedPointers(nodes) {
+  return [...nodes.keys()].sort(compareStrings)
+}
+
+function projectionShape(projection) {
+  return {
+    ...projectionCounts(projection),
+    pointers: sortedPointers(projection.nodes),
+  }
+}
+
+function assertProjectionShape(projection, expected, label) {
+  const actual = projectionShape(projection)
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} projection shape changed: ${JSON.stringify(actual)}`)
   }
 }
 
@@ -145,6 +212,24 @@ function sampleSync(fn, count = compilerSamples) {
   return summarize(values)
 }
 
+function sampleSyncValidated(fn, validate, classify = () => 'all', count = projectionSamples) {
+  for (let index = 0; index < warmups; index++) validate(fn(index), index)
+
+  const groups = new Map()
+  for (let index = warmups; index < warmups + count; index++) {
+    const start = performance.now()
+    const result = fn(index)
+    const elapsed = performance.now() - start
+    validate(result, index)
+    const key = classify(result, index)
+    const values = groups.get(key) ?? []
+    values.push(elapsed)
+    groups.set(key, values)
+  }
+
+  return Object.fromEntries([...groups].map(([key, values]) => [key, summarize(values)]))
+}
+
 function sampleDispatch(runtime, command, { before, after, count = 60 } = {}) {
   const values = []
   const iterations = warmups + count
@@ -170,12 +255,153 @@ async function compileBenchmarks() {
     const data = dataFor(fieldCount)
     const projection = port.project(data)
     const baseline = compile(projection, data).document
+    const projectionData = Array.from({ length: warmups + projectionSamples }, (_, index) => ({
+      ...data,
+      field_0: `projection-${index}`,
+    }))
+    const projectionTiming = sampleSyncValidated(
+      (index) => port.project(projectionData[index]),
+      (result) => {
+        if (
+          result.nodes.size !== projection.nodes.size ||
+          !result.nodes.has('/field_0') ||
+          JSON.stringify(sortedPointers(result.nodes)) !== JSON.stringify(sortedPointers(projection.nodes))
+        ) {
+          throw new Error(`Flat ${fieldCount}-field projection changed shape.`)
+        }
+      },
+    )
+    const projectionNodeCount = projection.nodes.size
     results[fieldCount] = {
       nodeCount: Object.keys(baseline.nodes).length,
+      projectionNodeCount,
+      projection: projectionTiming.all,
       compile: sampleSync(() => compile(projection, data)),
     }
   }
   return results
+}
+
+async function conditionalProjectionBenchmark() {
+  const fieldCount = 50
+  const port = await createJsonSchemaAdapter(schemaFor(fieldCount, { conditional: true }))
+  const baseData = dataFor(fieldCount, { conditional: true })
+  const snapshots = Array.from({ length: warmups + projectionSamples }, (_, index) => ({
+    ...baseData,
+    field_0: `conditional-${index}`,
+    enabled: index % 2 === 0,
+  }))
+  const inactive = port.project({ ...snapshots[0], enabled: false })
+  const active = port.project({ ...snapshots[0], enabled: true })
+  const inactiveExtra = inactive.nodes.get('/extra')
+  const activeExtra = active.nodes.get('/extra')
+  if (inactiveExtra?.active !== false || activeExtra?.active !== true) {
+    throw new Error('Conditional projection fixture did not expose both branch states.')
+  }
+  if (inactive.nodes.size !== active.nodes.size) {
+    throw new Error('Conditional projection fixture changed its candidate node count.')
+  }
+  const expectedPointers = sortedPointers(active.nodes)
+  if (JSON.stringify(sortedPointers(inactive.nodes)) !== JSON.stringify(expectedPointers)) {
+    throw new Error('Conditional projection fixture changed its candidate pointers.')
+  }
+
+  const timing = sampleSyncValidated(
+    (index) => port.project(snapshots[index]),
+    (projection, index) => {
+      const extra = projection.nodes.get('/extra')
+      if (
+        extra?.active !== snapshots[index].enabled ||
+        projection.nodes.size !== active.nodes.size ||
+        JSON.stringify(sortedPointers(projection.nodes)) !== JSON.stringify(expectedPointers)
+      ) {
+        throw new Error('Conditional projection did not match the input discriminator.')
+      }
+    },
+    (projection) => projection.nodes.get('/extra')?.active ? 'active' : 'inactive',
+  )
+
+  return {
+    schemaFields: fieldCount,
+    adapterReusedAcrossSamples: true,
+    projectionNodeCounts: {
+      active: active.nodes.size,
+      inactive: inactive.nodes.size,
+    },
+    timing,
+  }
+}
+
+async function recursiveProjectionBenchmark() {
+  const schema = recursiveSchemaForProjection()
+  const data = Array.from({ length: warmups + projectionSamples }, (_, index) => ({
+    p0: { v0: `recursive-${index}` },
+  }))
+  const limits = { objects: 16, nodes: 512 }
+  const boundaryGeneration = 0
+  const baseOptions = { expandedBoundaryTokens: new Set(), boundaryGeneration }
+  const basePort = await createJsonSchemaAdapter(structuredClone(schema))
+  const baseSeed = basePort.project(data[0], baseOptions)
+  const baseCounts = projectionCounts(baseSeed)
+  const baseShape = projectionShape(baseSeed)
+  const targets = [...baseSeed.nodes.values()]
+    .flatMap((node) => node.boundaryTargets ?? [])
+    .filter((target) => target.reason === 'budget')
+    .sort((left, right) => left.pointer.localeCompare(right.pointer))
+  const expansionTarget = targets[0]
+  if (!expansionTarget || baseCounts.recursionBoundaryNodes === 0 || baseCounts.budgetBoundaryNodes === 0) {
+    throw new Error('Recursive projection fixture must exercise recursion and budget boundaries.')
+  }
+
+  const expandedPort = await createJsonSchemaAdapter(structuredClone(schema))
+  const expandedBase = expandedPort.project(data[0], baseOptions)
+  const expandedTarget = [...expandedBase.nodes.values()]
+    .flatMap((node) => node.boundaryTargets ?? [])
+    .find((target) => target.token === expansionTarget.token)
+  if (!expandedTarget) throw new Error('Recursive boundary token changed between prepared adapters.')
+  const expandedOptions = {
+    expandedBoundaryTokens: new Set([expandedTarget.token]),
+    boundaryGeneration,
+  }
+  const expandedSeed = expandedPort.project(data[0], expandedOptions)
+  const expandedCounts = projectionCounts(expandedSeed)
+  const expandedShape = projectionShape(expandedSeed)
+  if (expandedCounts.nodes <= baseCounts.nodes) {
+    throw new Error('Expanding the selected recursive budget boundary did not add projected nodes.')
+  }
+
+  const baseTiming = sampleSyncValidated(
+    (index) => basePort.project(data[index], baseOptions),
+    (projection) => assertProjectionShape(projection, baseShape, 'Bounded recursive'),
+  ).all
+  const expandedTiming = sampleSyncValidated(
+    (index) => expandedPort.project(data[index], expandedOptions),
+    (projection) => assertProjectionShape(projection, expandedShape, 'Expanded recursive'),
+  ).all
+
+  return {
+    adapterReusedAcrossSamples: true,
+    recursionLimits: limits,
+    boundaryGeneration,
+    base: {
+      ...baseCounts,
+      timing: baseTiming,
+    },
+    oneBudgetBoundaryExpanded: {
+      ...expandedCounts,
+      target: { pointer: expandedTarget.pointer, reason: expandedTarget.reason },
+      timing: expandedTiming,
+    },
+  }
+}
+
+async function projectionBenchmarks() {
+  return {
+    adapter: '@texaryn/schema-json',
+    adapterReusedWithinEachWorkload: true,
+    conditional: await conditionalProjectionBenchmark(),
+    recursive: await recursiveProjectionBenchmark(),
+  }
 }
 
 async function firstRenderBenchmarks() {
@@ -278,7 +504,7 @@ function shuffle(values) {
   return result
 }
 
-async function openBenchmarkPage(browser, origin, fieldCount) {
+async function openBenchmarkPage(browser, origin, fieldCount, suite) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
   const pageErrors = []
   const consoleErrors = []
@@ -286,7 +512,8 @@ async function openBenchmarkPage(browser, origin, fieldCount) {
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
-  const response = await page.goto(`${origin}/benchmarks/?fields=${fieldCount}`, { waitUntil: 'load' })
+  const suiteQuery = suite ? `&suite=${suite}` : ''
+  const response = await page.goto(`${origin}/benchmarks/?fields=${fieldCount}${suiteQuery}`, { waitUntil: 'load' })
   try {
     await page.waitForFunction(
       () => window.__texarynBenchReady === true || window.__texarynBenchError,
@@ -338,7 +565,7 @@ async function waitForConditionalState(page, enabled) {
   )
 }
 
-async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts) {
+async function measureRendererMounts(page, renderer, warmupMounts, measuredMounts, includePreparation) {
   const samples = []
 
   for (let cycle = 0; cycle < warmupMounts; cycle++) {
@@ -347,12 +574,19 @@ async function measureRendererMounts(page, renderer, warmupMounts, measuredMount
   }
 
   for (let sample = 0; sample < measuredMounts; sample++) {
-    await prepareRenderer(page, renderer)
-    const elapsed = await page.evaluate(async () => {
-      const startedAt = performance.now()
-      await window.__texarynBench.mount()
-      return performance.now() - startedAt
-    })
+    const elapsed = includePreparation
+      ? await page.evaluate(async (name) => {
+          const startedAt = performance.now()
+          await window.__texarynBench.prepare(name)
+          await window.__texarynBench.mount()
+          return performance.now() - startedAt
+        }, renderer)
+      : await page.evaluate(async (name) => {
+          await window.__texarynBench.prepare(name)
+          const startedAt = performance.now()
+          await window.__texarynBench.mount()
+          return performance.now() - startedAt
+        }, renderer)
     samples.push(elapsed)
     await unmountRenderer(page)
   }
@@ -404,8 +638,8 @@ async function measureRendererTransitions(page, renderer, warmupCycles, transiti
   return { activations, removals }
 }
 
-async function runRendererTrial(browser, origin, renderer, trial, configuration) {
-  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50)
+async function runRendererTrial(browser, origin, renderer, trial, configuration, suite) {
+  const { page, pageErrors } = await openBenchmarkPage(browser, origin, 50, suite)
 
   try {
     const mountSamples = await measureRendererMounts(
@@ -413,6 +647,7 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
       renderer,
       configuration.mountWarmupsPerTrial,
       configuration.measuredMountsPerTrial,
+      suite === 'library',
     )
     const { activations, removals } = await measureRendererTransitions(
       page,
@@ -428,7 +663,9 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
       removals,
       result: {
         trial,
-        mountToDomAtSecondAnimationFrame: summarize(mountSamples),
+        [suite === 'library'
+          ? 'setupAndMountToDomAtSecondAnimationFrame'
+          : 'mountToDomAtSecondAnimationFrame']: summarize(mountSamples),
         activationToMatchingDomFrame: summarize(activations),
         removalToMatchingDomFrame: summarize(removals),
       },
@@ -439,8 +676,10 @@ async function runRendererTrial(browser, origin, renderer, trial, configuration)
   }
 }
 
-async function crossRendererBenchmarks(browser, origin) {
-  const renderers = ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular']
+async function rendererComparison(browser, origin, renderers, suite) {
+  const mountMetric = suite === 'library'
+    ? 'setupAndMountToDomAtSecondAnimationFrame'
+    : 'mountToDomAtSecondAnimationFrame'
   const configuration = {
     trials: 5,
     mountWarmupsPerTrial: 2,
@@ -459,7 +698,7 @@ async function crossRendererBenchmarks(browser, origin) {
     rendererOrders.push(order)
 
     for (const renderer of order) {
-      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration)
+      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration, suite)
       mountSamples[renderer].push(...measurement.mountSamples)
       activationSamples[renderer].push(...measurement.activations)
       removalSamples[renderer].push(...measurement.removals)
@@ -473,7 +712,7 @@ async function crossRendererBenchmarks(browser, origin) {
     ...configuration,
     rendererOrders,
     renderers: Object.fromEntries(renderers.map((renderer) => [renderer, {
-      mountToDomAtSecondAnimationFrame: summarize(mountSamples[renderer]),
+      [mountMetric]: summarize(mountSamples[renderer]),
       conditionalTransitionToMatchingDomFrame: summarize([
         ...activationSamples[renderer],
         ...removalSamples[renderer],
@@ -482,6 +721,28 @@ async function crossRendererBenchmarks(browser, origin) {
       removalToMatchingDomFrame: summarize(removalSamples[renderer]),
       trials: trialResults[renderer],
     }])),
+  }
+}
+
+async function crossRendererBenchmarks(browser, origin) {
+  return {
+    fieldCount: 50,
+    conditionalField: 'Extra',
+    ...await rendererComparison(
+      browser,
+      origin,
+      ['react', 'vue', 'svelte', 'solid', 'web-components', 'angular'],
+      undefined,
+    ),
+  }
+}
+
+async function libraryComparisonBenchmarks(browser, origin) {
+  return {
+    ...await rendererComparison(browser, origin, ['react', 'rjsf'], 'library'),
+    schemaDraft: 'Draft 7',
+    rjsfCoreVersion: '5.24.13',
+    rjsfValidatorVersion: '5.24.13',
   }
 }
 
@@ -559,6 +820,7 @@ async function browserBenchmarks() {
       buildMode: 'production',
       memory,
       crossRenderer: await crossRendererBenchmarks(browser, origin),
+      libraryComparison: await libraryComparisonBenchmarks(browser, origin),
     }
   } finally {
     await browser?.close()
@@ -583,6 +845,7 @@ async function main() {
     methodology: {
       warmups,
       compilerSamples,
+      projectionSamples,
       firstRenderSamples,
       arrayDispatchSamples: { 10: 60, 100: 60, 1000: 30 },
       validationIterations: 2000,
@@ -595,6 +858,7 @@ async function main() {
       memoryMeasuredCycles: 50,
     },
     compiler: await compileBenchmarks(),
+    projectionWorkloads: await projectionBenchmarks(),
     firstRender: await firstRenderBenchmarks(),
     arrayOperations: await arrayBenchmarks(),
     validation: await validationBenchmark(),

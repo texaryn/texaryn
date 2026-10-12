@@ -3,9 +3,9 @@ title: Performance baseline
 description: Reproducible runtime, renderer, and browser input measurements for Texaryn.
 ---
 
-This page records local baselines for Texaryn's runtime and renderer paths. The
-measurements do not compare Texaryn with other form libraries and are not CI
-thresholds.
+This page records local baselines for Texaryn's runtime and renderer paths,
+plus one workload comparison with RJSF. The measurements are not CI thresholds
+or general library rankings.
 
 The original runtime and React measurements use packages from
 [commit `973dfca`](https://github.com/texaryn/texaryn/commit/973dfcab2498a8997cdb77686531a7ae4577a18d).
@@ -52,6 +52,48 @@ transfer, or a browser paint.
 
 The 50-field compiler result is below the roadmap target of 1 ms. The end to end
 server render includes substantially more work than `compile()` alone.
+
+## Schema projection
+
+These measurements isolate synchronous `project()` calls from the
+`@texaryn/schema-json` adapter. They exclude adapter creation, schema
+preparation, compilation, and result validation. Each workload reuses a
+prepared adapter and prebuilt data snapshots. Five warmups precede the measured
+samples. Flat and recursive cases use 200 timed samples each. The conditional
+case records 200 timed calls total, alternating the discriminator for 100
+inactive and 100 active samples.
+
+| Flat schema fields | Projected nodes | Samples | p50 | p95 |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 11 | 200 | 0.1980 ms | 0.3184 ms |
+| 50 | 51 | 200 | 0.3275 ms | 0.4514 ms |
+| 200 | 201 | 200 | 1.2928 ms | 1.5884 ms |
+
+The 50-field conditional fixture projects 53 candidate nodes in either state.
+Changing `enabled` exercises both branch activation and removal.
+
+| Conditional state | Samples | p50 | p95 |
+| --- | ---: | ---: | ---: |
+| Inactive | 100 | 2.6472 ms | 3.0393 ms |
+| Active | 100 | 2.6448 ms | 3.2204 ms |
+
+The recursive fixture is synthetic and mutually recursive across four schema
+definitions. It uses the adapter's default limits of 16 speculative objects
+and 512 speculative nodes, with boundary generation 0. The expanded case adds
+one budget boundary token at `/p0/p0/p1/p2`. Each case uses its own prepared
+adapter with otherwise matching schema, data, limits, and generation.
+
+| Recursive case | Nodes | Recursion boundary nodes | Budget boundary nodes | Recursive expansion nodes | Samples | p50 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Bounded | 49 | 23 | 18 | 39 | 200 | 8.9555 ms | 12.2237 ms |
+| One budget boundary expanded | 51 | 24 | 19 | 41 | 200 | 9.0030 ms | 9.8089 ms |
+
+These are workload measurements, not a transferable per-node cost or a claim
+about typical form latency. Recursion and budget boundary counts can overlap on
+the same node. The two recursive timings are separate workload measurements;
+the lower p95 in the expanded case does not establish that expansion is faster.
+The recursive fixture specifically exercises both recursion and budget
+boundaries.
 
 ## Browser input to DOM update
 
@@ -104,9 +146,41 @@ not measure cold bundle transfer or general framework performance. The earlier
 single-run React input measurement above uses the Vite development server, so
 its values are not directly comparable with this production-build comparison.
 
-The comparison measures Texaryn renderer paths over the same core runtime. An
-RJSF comparison remains a separate, unmeasured follow-up because it would also
-change schema evaluation and runtime behavior.
+The comparison measures Texaryn renderer paths over the same core runtime.
+
+## Comparison with RJSF
+
+This production browser comparison uses a 50-field Draft 7 schema with 50
+string controls, an `enabled` checkbox, and an `Extra` field conditional on
+`enabled`. Texaryn uses `@texaryn/schema-json` and its default React registry.
+RJSF uses `@rjsf/core` 5.24.13 and `@rjsf/validator-ajv8` 5.24.13 with its
+default unthemed widgets. The RJSF submit button is omitted and its root element
+is a `div`, matching the Texaryn `FormRoot` boundary. Both paths receive the
+same schema and initial data.
+
+The timer starts before each library's form setup and ends after the harness
+checks the expected controls at the second animation frame. For Texaryn, setup
+creates a new schema adapter and runtime from the Draft 7 schema and data.
+RJSF receives the schema and data in its form component and resolves the visible
+fields while rendering. The RJSF module and AJV validator are loaded before
+timing. Each library gets five randomized fresh-page trials, two warmup mounts
+and three measured setup and mount samples per trial. Each trial also performs
+five conditional warmup cycles and 200 measured input transitions. That gives
+15 setup and mount samples, 500 activation samples, and 500 removal samples per
+library. Input timing starts at the checkbox `input` event and ends at the first
+animation frame where form data and the visible conditional control match.
+
+| Library path | Setup and mount p50 | Setup and mount p95 | Activation p50 | Activation p95 | Removal p50 | Removal p95 | Combined transition p50 | Combined transition p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Texaryn React | 31.1 ms | 32.3 ms | 10.6 ms | 12.4 ms | 10.9 ms | 12.3 ms | 10.7 ms | 12.4 ms |
+| RJSF 5.24.13 | 31.1 ms | 32.6 ms | 11.9 ms | 13.4 ms | 12.0 ms | 13.5 ms | 11.9 ms | 13.4 ms |
+
+This is one workload on one machine, not a general performance ranking. The
+timed setup differs by library: Texaryn creates its schema adapter and runtime,
+while RJSF builds its form from the supplied schema and data. The run used
+macOS 25.6.0 on an Apple M1 Max with Node.js 26.5.1 and headless Chromium
+153.0.8010.12. The benchmark implementation was at commit `0519b3b`. It does
+not measure cold bundle transfer, validation, arrays, or themed renderers.
 
 ## Array operations
 

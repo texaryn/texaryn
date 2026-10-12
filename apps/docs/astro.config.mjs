@@ -157,6 +157,7 @@ export default defineConfig({
           items: [
             { label: 'What is Texaryn?', slug: 'start/what-is-texaryn' },
             { label: 'Getting started', slug: 'start/getting-started' },
+            { label: 'Roadmap', slug: 'roadmap' },
           ],
         },
         {

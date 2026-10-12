@@ -18,8 +18,10 @@ through ADR-021 close the IR migration, plugin architecture, hydration boundary,
 and command history decisions. Migration code waits for a scheduled breaking
 change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
-Section 18 publishes a local performance baseline, with targeted diffing gated
-on representative workload evidence.
+ADR-022 closes the schema port review trigger after the Zod adapter shipped.
+Section 18 publishes local performance baselines, including isolated flat,
+conditional, and bounded-recursive schema projection. Targeted diffing remains
+gated on representative workload evidence.
 
 This document is the output of a structured research phase covering 12+ existing
 projects, three server-driven UI systems, and the headless UI pattern space. It
@@ -73,7 +75,7 @@ and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/
 6. [Stable Identity Model](#6-stable-identity-model)
 7. [State and Reactivity Model](#7-state-and-reactivity-model)
 8. [Validation Architecture](#8-validation-architecture)
-9. [Schema Adapter Architecture](#9-schema-adapter-architecture)
+9. [Schema Evaluation Architecture](#9-schema-evaluation-architecture)
 10. [Renderer Contract](#10-renderer-contract)
 11. [Actions and Effects](#11-actions-and-effects)
 12. [Extensibility](#12-extensibility)
@@ -207,14 +209,16 @@ TanStack Form validates this approach with its 100-line adapters.
 
 ### P2: Schema adapter pattern (not hardcoded JSON Schema)
 
-**Verdict: Keep the port, defer the generality.** The uniforms bridge pattern
-(10-method abstract class) proves schema adapters work. But building the
-abstraction before a second adapter exists risks designing for imaginary
-requirements. Ship with a JSON Schema adapter only. Define the port by what that
-adapter needs. Extract the generalization when Zod or TypeBox support actually
-lands. The port is exported from `@texaryn/core` (separate adapter packages
-need the type), but marked experimental before 1.0: its shape is driven by JSON
-Schema needs and may change when a second schema format tests the abstraction.
+**Verdict: Keep the experimental port and JSON Schema projection.** The Zod 4
+adapter now implements `SchemaEvaluationPort`, but it converts its input schema
+to JSON Schema for projection and uses Zod for validation. This tests separate
+validation with the current port. It satisfies the second-adapter review
+trigger, but does not test projection from an independent schema model. No port
+generalization is justified by current integrations. Keep the projection
+contract experimental before 1.0 and revisit it when an integration requires
+projection semantics the current boundary cannot represent faithfully.
+[ADR-022](docs/adr/022-schema-port-after-zod.md) records the evidence and
+decision.
 
 ### P3: Strict separation of domain schema, UI description, and UI implementation
 
@@ -224,9 +228,10 @@ runtime, UI IR. Three suffice. The "normalized domain model" adds a
 representation between the original schema and the compiled IR that nothing
 consumes. JSON Schema with resolved `$ref` and evaluated conditionals
 (`if`/`then`/`else`) compiles directly into IR nodes. Adding an intermediate
-normalized form creates a maintenance surface with no consumer. If a second
-schema adapter someday needs a common intermediate, that is the time to introduce
-it.
+normalized form creates a maintenance surface with no consumer. The Zod adapter
+uses JSON Schema for projection, so it creates no need for a common
+intermediate. Revisit only if an adapter must project directly from another
+schema model.
 
 ### P4: Deterministic core (same inputs produce same state)
 
@@ -1144,10 +1149,11 @@ using the stable identity map.
 
 ### The Port
 
-The schema evaluation port is the boundary between domain description (JSON
-Schema today, potentially Zod or TypeBox later) and the IR compiler. It owns
-two responsibilities: producing a resolved schema projection for current data,
-and validation.
+The schema evaluation port is the boundary between schema description and the
+IR compiler. `@texaryn/schema-json` projects JSON Schema. `@texaryn/schema-zod`
+projects the JSON Schema generated from a Zod input schema and validates with
+Zod. The port owns two responsibilities: producing a resolved projection for
+current data, and validation.
 
 ```typescript
 type MaybePromise<T> = T | Promise<T>
@@ -1526,8 +1532,10 @@ The system has five extension points, ordered from most to least common:
 
 3. **Actions.** Register host-specific action handlers.
 
-4. **Future schema formats.** Implement `SchemaEvaluationPort` for a different
-   schema format (Zod, TypeBox, GraphQL introspection).
+4. **Future schema formats.** Add a direct projection adapter for another
+   schema model only when its required behavior cannot be represented through
+   JSON Schema projection. The Zod adapter currently delegates projection to
+   `@texaryn/schema-json`; ADR-022 records the evidence and revisit trigger.
 
 5. **IR transforms.** Post-compilation transforms that modify the IR before
    the renderer sees it. Use cases: add layout wrappers, inject help text,
@@ -1899,20 +1907,24 @@ dependency on the core.
    node store, and the framework adapter subscribes to that store. The
    [cross-renderer baseline](apps/docs/src/content/docs/concepts/performance.md)
    measures six Texaryn renderer paths over the same core runtime and workload.
-   It does not compare behavior or latency against RJSF.
+   A separate Draft 7 comparison measures one Texaryn React and RJSF form
+   workload, including each path's setup and conditional updates.
 
 ### Published Baseline
 
 The core, React, and browser measurements are published in the
 [Performance baseline](apps/docs/src/content/docs/concepts/performance.md):
-schema preparation and React server render, browser input-to-DOM latency,
-individual array commands at three sizes, mounted and retained browser heap,
-validation throughput, and a production browser comparison of React, Vue,
-Svelte, Solid, Angular, and Web Components. That comparison reports mount,
-conditional activation, and conditional removal for one shared 50-field form.
-The run records its hardware, Node.js, Chromium, sample counts, and base commit.
-It is a local workload baseline, not a CI threshold or a comparison with
-another form library.
+schema preparation, isolated flat, conditional, and bounded-recursive schema
+projection, React server render, browser input-to-DOM latency, individual array
+commands at three sizes, mounted and retained browser heap, validation
+throughput, and a production browser comparison of React, Vue, Svelte, Solid,
+Angular, and Web Components. That comparison reports mount, conditional
+activation, and conditional removal for one shared 50-field form. A separate
+RJSF comparison measures setup, mount, and conditional updates for one shared
+Draft 7 form. These are local workload baselines, not CI thresholds or general
+performance rankings. Projection measurements report their schema shape, node
+and boundary counts, sample counts, and environment. They do not infer a
+transferable per-node cost.
 
 ### Targeted Recompilation
 
@@ -1972,12 +1984,29 @@ provenance. Main CI run
 [#38174908644](https://github.com/texaryn/texaryn/actions/runs/38174908644)
 verified provenance and created both matching GitHub releases.
 
-Section 18 publishes local baselines for compiler timing, React server render,
-browser input-to-DOM latency, array commands, memory deltas, validation
-throughput, and a production comparison of six Texaryn renderer paths on one
-conditional form. Comparisons with RJSF and other form libraries remain
-unmeasured. Targeted diffing stays deferred until supported application
-workloads show repeated structural operations above the interaction target.
+ADR-022 closes the P2 review trigger after the Zod adapter shipped. The
+adapter uses Zod for validation and generated JSON Schema for projection, so it
+exercises the port without introducing an independent projection model. The
+current port remains experimental. No generalization is planned until an
+integration requires projection semantics the current boundary cannot
+represent faithfully.
+
+Section 18 publishes local baselines for flat, conditional, and bounded-
+recursive adapter projection, compiler timing, React server render, browser
+input-to-DOM latency, array commands, memory deltas, validation throughput, a
+production comparison of six Texaryn renderer paths, and one production RJSF
+comparison on a conditional form. Other form library
+comparisons are not planned until a concrete adoption or product decision
+defines equivalent functionality and timing boundaries. The RJSF comparison is
+the only current competitor performance comparison. JSON Forms uses a UI
+Schema and renderer set; TanStack Form is headless and does not generate fields
+from JSON Schema. The RJSF figures are one workload baseline, not a ranking
+across form libraries.
+The Bootstrap and MUI React integrations are complete. No additional UI
+library package is scheduled; container binding primitives remain deferred
+until integrations show duplicated composition beyond field and array hooks.
+Targeted diffing stays deferred until supported application workloads show
+repeated structural operations above the interaction target.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
 verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
@@ -2208,26 +2237,22 @@ by a second consumer before the Vue renderer freezes more of it.
   `react-bootstrap` dependency, no CSS loaded by the package, versioned
   independently of the core group. It passes the renderer and ARIA conformance
   suites unchanged; those suites now take a registry factory.
-- The demo switches between the default and Bootstrap renderers and owns the
-  stylesheet.
-- Next: the MUI spec validates the same contract against a component system
-  (controlled props, `helperText`, error state, theming). Container binding
-  primitives are added only if Bootstrap and MUI both duplicate the same
-  non-presentational composition.
+- `@texaryn/react-mui` validates the contract with Material UI controlled
+  props, `helperText`, error state, and theming. Its registry factory is tested
+  through the shared renderer conformance suite.
+- The playground switches between the default, Bootstrap, and MUI renderers.
+  It owns the Bootstrap stylesheet and MUI theme provider.
+- Container binding primitives remain deferred. Bootstrap and MUI widgets use
+  the same React hooks for field binding and array behavior, so the current
+  integrations do not show duplicated non-presentational composition.
 
-### Phase 4: Second Renderer (PRs 21-25)
+### Phase 4: Second Renderer (complete)
 
-**Goal:** Prove the "framework-neutral" claim by shipping a second renderer.
-
-The second renderer should be Vue (large community, different reactivity model)
-or Web Components (framework-neutral proof). Vue is recommended because its
-reactivity model is the most different from React, making it the strongest test
-of the binding contract.
-
-Web Components have known form participation issues (`formAssociated`,
-`ElementInternals`, shadow DOM and `<form>` interaction) that JSFE's current
-codebase demonstrates are unresolved. Scoping Web Components as a proof of
-neutrality with named risks is honest; scoping them as a primary target is not.
+Vue and Web Components shipped as framework-neutral renderer proofs. The
+additional renderer phase later shipped Svelte, Solid, and Angular. React,
+Vue, Svelte, Solid, Angular, and Web Components now share the core renderer
+contract. React UI integrations for Bootstrap and MUI are complete under
+Phase 3.x.
 
 ### Phase 5+: Post-Validation
 
@@ -2561,8 +2586,12 @@ comparisons and application-specific persistence formats to later evidence.
    through their native state primitives. This establishes functional
    compatibility. A local React and core baseline is published in
    [Section 18](#18-performance-model). A local baseline compares six Texaryn
-   renderer paths on one conditional form. RJSF and other form library
-   comparisons remain unmeasured.
+   renderer paths on one conditional form. A separate local comparison covers
+   one Draft 7 workload in Texaryn React and RJSF. Defer JSON Forms and
+   TanStack Form measurements until a concrete adoption or product decision
+   defines equivalent functionality and timing boundaries. RJSF is the only
+   current competitor performance comparison. Do not treat its baseline as a
+   ranking across form libraries.
 
 6. **Server rendering across processes.** Resolved in
    [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the

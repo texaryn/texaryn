@@ -7,11 +7,13 @@ import {
 } from '@angular/core'
 import { createApplication } from '@angular/platform-browser'
 import { createRoot } from 'react-dom/client'
-import { createElement } from 'react'
+import { createElement, Fragment } from 'react'
 import { createApp, defineComponent, h } from 'vue'
 import { mount as mountSvelte, unmount as unmountSvelte } from 'svelte'
 import { createComponent as createSolidComponent } from 'solid-js'
 import { render as renderSolid } from 'solid-js/web'
+import RjsfForm, { type FormProps as RjsfFormProps } from '@rjsf/core'
+import rjsfValidator from '@rjsf/validator-ajv8'
 import { createFormRuntime, type FormRuntime } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
@@ -45,13 +47,14 @@ import {
 } from '@texaryn/angular'
 
 type Renderer = 'react' | 'vue' | 'svelte' | 'solid' | 'web-components' | 'angular'
+type BenchmarkTarget = Renderer | 'rjsf'
 
 declare global {
   interface Window {
     __texarynBenchReady?: boolean
     __texarynBenchError?: string
     __texarynBench?: {
-      prepare(renderer: Renderer): void
+      prepare(renderer: BenchmarkTarget): Promise<void>
       mount(): Promise<number>
       unmount(): Promise<void>
       data(): unknown
@@ -72,7 +75,7 @@ const renderers = new Set<Renderer>([
   'angular',
 ])
 
-function schemaFor(fieldCount: number) {
+function schemaFor(fieldCount: number, draft: '2020-12' | 'draft-07' = '2020-12') {
   const properties = Object.fromEntries(
     Array.from({ length: fieldCount }, (_, index) => [
       `field_${index}`,
@@ -81,7 +84,9 @@ function schemaFor(fieldCount: number) {
   )
 
   return {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $schema: draft === 'draft-07'
+      ? 'http://json-schema.org/draft-07/schema#'
+      : 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     properties: {
       ...properties,
@@ -114,6 +119,7 @@ async function afterTwoFrames(): Promise<void> {
 }
 
 const fieldCount = Number(new URLSearchParams(window.location.search).get('fields') ?? 50)
+const libraryComparison = new URLSearchParams(window.location.search).get('suite') === 'library'
 
 async function start(): Promise<void> {
   if (import.meta.env.PROD) {
@@ -121,7 +127,8 @@ async function start(): Promise<void> {
     if (isDevMode()) throw new Error('Angular benchmark must run with development mode disabled.')
   }
 
-  const port = await createJsonSchemaAdapter(schemaFor(fieldCount))
+  const schema = schemaFor(fieldCount, libraryComparison ? 'draft-07' : '2020-12')
+  const port = libraryComparison ? null : await createJsonSchemaAdapter(schema)
   const rootElement = document.getElementById('root')
   if (!rootElement) throw new Error('Benchmark root element is missing.')
   const host = rootElement as HTMLElement
@@ -138,7 +145,8 @@ async function start(): Promise<void> {
   defineTexarynForm()
 
   let runtime: FormRuntime | null = null
-  let currentRenderer: Renderer | null = null
+  let currentRenderer: BenchmarkTarget | null = null
+  let rjsfData: unknown = null
   let cleanupRenderer: (() => void | Promise<void>) | null = null
   let inputObserver: ((event: Event) => void) | null = null
 
@@ -157,98 +165,136 @@ async function start(): Promise<void> {
     inputObserver = null
   }
 
+  function formRuntimeForMount(): FormRuntime {
+    if (!runtime) throw new Error('Texaryn runtime is missing.')
+    return runtime
+  }
+
+  function mountRjsf(): void {
+    const root = createRoot(host)
+    root.render(createElement(RjsfForm, {
+      schema: schema as RjsfFormProps['schema'],
+      validator: rjsfValidator,
+      formData: rjsfData,
+      idPrefix: 'texaryn-benchmark',
+      tagName: 'div',
+      liveValidate: false,
+      onChange: (event) => { rjsfData = event.formData },
+    }, createElement(Fragment)))
+    cleanupRenderer = () => root.unmount()
+  }
+
+  function mountReact(): void {
+    const root = createRoot(host)
+    root.render(createElement(
+      FormProvider,
+      { value: formRuntimeForMount() },
+      createElement(ReactFormRoot, { registry: registries.react }),
+    ))
+    cleanupRenderer = () => root.unmount()
+  }
+
+  function mountVue(): void {
+    const currentRuntime = formRuntimeForMount()
+    const app = createApp(defineComponent({
+      setup() {
+        provideFormRuntime(currentRuntime)
+        return () => h(VueFormRoot, { registry: registries.vue })
+      },
+    }))
+    app.mount(host)
+    cleanupRenderer = () => app.unmount()
+  }
+
+  function mountSvelteRenderer(): void {
+    const component = mountSvelte(SvelteFormRoot, {
+      target: host,
+      props: {
+        form: bindSvelteFormRuntime(formRuntimeForMount()),
+        registry: registries.svelte,
+        destroyOnUnmount: false,
+        showErrorSummary: false,
+      },
+    })
+    cleanupRenderer = () => unmountSvelte(component)
+  }
+
+  function mountSolid(): void {
+    cleanupRenderer = renderSolid(() => createSolidComponent(SolidFormRoot, {
+      form: formRuntimeForMount(),
+      registry: registries.solid,
+      destroyOnUnmount: false,
+      showErrorSummary: false,
+    }), host)
+  }
+
+  function mountWebComponents(): void {
+    const element = document.createElement('texaryn-form') as TexarynFormElement
+    element.registry = registries['web-components']
+    element.runtime = formRuntimeForMount()
+    host.append(element)
+    cleanupRenderer = () => element.remove()
+  }
+
+  async function mountAngular(): Promise<void> {
+    const currentRuntime = formRuntimeForMount()
+    const application = await createApplication({
+      providers: [provideZonelessChangeDetection()],
+    })
+    const form = runInInjectionContext(
+      application.injector,
+      () => bindAngularFormRuntime(currentRuntime),
+    )
+    const component = createAngularComponent(AngularFormRoot, {
+      environmentInjector: application.injector,
+      hostElement: document.createElement('texaryn-form-root'),
+    })
+    component.setInput('form', form)
+    component.setInput('registry', registries.angular)
+    component.setInput('idPrefix', 'texaryn-benchmark')
+    host.append(component.location.nativeElement)
+    application.attachView(component.hostView)
+    cleanupRenderer = () => {
+      application.detachView(component.hostView)
+      component.destroy()
+      application.destroy()
+    }
+  }
+
+  const mountRenderers: Record<BenchmarkTarget, () => void | Promise<void>> = {
+    rjsf: mountRjsf,
+    react: mountReact,
+    vue: mountVue,
+    svelte: mountSvelteRenderer,
+    solid: mountSolid,
+    'web-components': mountWebComponents,
+    angular: mountAngular,
+  }
+
   window.__texarynBench = {
-    prepare(renderer): void {
+    async prepare(renderer): Promise<void> {
       if (runtime || cleanupRenderer) throw new Error('Unmount the current benchmark before preparing another.')
-      if (!renderers.has(renderer)) throw new Error(`Unknown renderer: ${renderer}`)
+      if (renderer !== 'rjsf' && !renderers.has(renderer)) throw new Error(`Unknown renderer: ${renderer}`)
       currentRenderer = renderer
-      runtime = createFormRuntime(port, { initialData: dataFor(fieldCount) })
+      if (renderer === 'rjsf') {
+        runtime = null
+        rjsfData = dataFor(fieldCount)
+      } else {
+        const rendererPort = libraryComparison ? await createJsonSchemaAdapter(schema) : port
+        if (!rendererPort) throw new Error('Texaryn schema adapter is missing.')
+        runtime = createFormRuntime(rendererPort, { initialData: dataFor(fieldCount) })
+        rjsfData = null
+      }
       host.replaceChildren()
     },
 
     async mount(): Promise<number> {
-      if (!runtime || !currentRenderer || cleanupRenderer) {
+      const renderer = currentRenderer
+      if (!renderer || cleanupRenderer || (renderer !== 'rjsf' && !runtime)) {
         throw new Error('Prepare one renderer before mounting the benchmark form.')
       }
 
-      const currentRuntime = runtime
-      switch (currentRenderer) {
-        case 'react': {
-          const root = createRoot(host)
-          root.render(createElement(
-            FormProvider,
-            { value: currentRuntime },
-            createElement(ReactFormRoot, { registry: registries.react }),
-          ))
-          cleanupRenderer = () => root.unmount()
-          break
-        }
-        case 'vue': {
-          const app = createApp(defineComponent({
-            setup() {
-              provideFormRuntime(currentRuntime)
-              return () => h(VueFormRoot, { registry: registries.vue })
-            },
-          }))
-          app.mount(host)
-          cleanupRenderer = () => app.unmount()
-          break
-        }
-        case 'svelte': {
-          const component = mountSvelte(SvelteFormRoot, {
-            target: host,
-            props: {
-              form: bindSvelteFormRuntime(currentRuntime),
-              registry: registries.svelte,
-              destroyOnUnmount: false,
-              showErrorSummary: false,
-            },
-          })
-          cleanupRenderer = () => unmountSvelte(component)
-          break
-        }
-        case 'solid': {
-          cleanupRenderer = renderSolid(() => createSolidComponent(SolidFormRoot, {
-            form: currentRuntime,
-            registry: registries.solid,
-            destroyOnUnmount: false,
-            showErrorSummary: false,
-          }), host)
-          break
-        }
-        case 'web-components': {
-          const element = document.createElement('texaryn-form') as TexarynFormElement
-          element.registry = registries['web-components']
-          element.runtime = currentRuntime
-          host.append(element)
-          cleanupRenderer = () => element.remove()
-          break
-        }
-        case 'angular': {
-          const application = await createApplication({
-            providers: [provideZonelessChangeDetection()],
-          })
-          const form = runInInjectionContext(
-            application.injector,
-            () => bindAngularFormRuntime(currentRuntime),
-          )
-          const component = createAngularComponent(AngularFormRoot, {
-            environmentInjector: application.injector,
-            hostElement: document.createElement('texaryn-form-root'),
-          })
-          component.setInput('form', form)
-          component.setInput('registry', registries.angular)
-          component.setInput('idPrefix', 'texaryn-benchmark')
-          host.append(component.location.nativeElement)
-          application.attachView(component.hostView)
-          cleanupRenderer = () => {
-            application.detachView(component.hostView)
-            component.destroy()
-            application.destroy()
-          }
-          break
-        }
-      }
+      await mountRenderers[renderer]()
 
       await afterTwoFrames()
 
@@ -259,11 +305,13 @@ async function start(): Promise<void> {
         const details = inputs.map((input) =>
           `${input.type}:${input.name}:${input.labels?.[0]?.textContent?.trim() ?? ''}${input.closest('[hidden]') ? ' (hidden)' : ''}`,
         ).join(', ')
-        throw new Error(`${currentRenderer} rendered ${visibleInputs.length} visible controls and ${checkboxes.length} checkboxes: ${details}`)
+        throw new Error(`${renderer} rendered ${visibleInputs.length} visible controls and ${checkboxes.length} checkboxes: ${details}`)
       }
-      if (hasExtraControl()) throw new Error(`${currentRenderer} rendered the conditional control before activation.`)
+      if (hasExtraControl()) throw new Error(`${renderer} rendered the conditional control before activation.`)
 
-      return Object.keys(currentRuntime.document.getSnapshot().nodes).length
+      return runtime
+        ? Object.keys(runtime.document.getSnapshot().nodes).length
+        : visibleInputs.length
     },
 
     async unmount(): Promise<void> {
@@ -272,16 +320,19 @@ async function start(): Promise<void> {
       cleanupRenderer = null
       runtime?.destroy()
       runtime = null
+      rjsfData = null
       currentRenderer = null
       host.replaceChildren()
     },
 
     data(): unknown {
-      return runtime?.data.getSnapshot()
+      return runtime?.data.getSnapshot() ?? rjsfData
     },
 
     startInputMeasurement(): void {
-      if (!runtime || !currentRenderer) throw new Error('Mount a form before measuring input transitions.')
+      if (!currentRenderer || (currentRenderer !== 'rjsf' && !runtime)) {
+        throw new Error('Mount a form before measuring input transitions.')
+      }
       const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')
       if (!checkbox) throw new Error(`${currentRenderer} has no checkbox for the transition benchmark.`)
 
@@ -299,7 +350,7 @@ async function start(): Promise<void> {
         const expected = target.checked
         let frames = 0
         const observe = () => {
-          const currentData = runtime?.data.getSnapshot() as { enabled?: unknown } | undefined
+          const currentData = (runtime?.data.getSnapshot() ?? rjsfData) as { enabled?: unknown } | undefined
           if (currentData?.enabled === expected && hasExtraControl() === expected) {
             window.__texarynInputSamples?.push({
               enabled: expected,
