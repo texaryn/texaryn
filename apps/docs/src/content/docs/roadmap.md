@@ -2072,8 +2072,8 @@ Edited schema sharing and the CodeMirror 6 JSON editor complete the remaining
 playground follow ups in issue #239. Shared links carry custom schemas up to
 12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
 that browser. The editor checks the schema with `checkSchema`, completes
-keywords for the declared dialect, and loads on demand in a separate 410.50 KB
-raw, 133.3 KB gzip chunk. The first load is 164.7 KB gzip across the entry and
+keywords for the declared dialect, and loads on demand in a separate 410.76 KB
+raw, 133.4 KB gzip chunk. The first load is 165.0 KB gzip across the entry and
 a shared chunk; renderer code remains in separate chunks. `site:build` fails
 when the first load passes 175 KB gzip or the editor passes 150 KB gzip.
 
