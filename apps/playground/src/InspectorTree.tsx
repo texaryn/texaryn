@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
+import { compareObjectKeys } from './compare-object-keys.js'
 import { inspect } from './serialize.js'
 
 interface Entry {
@@ -22,7 +23,7 @@ function entriesFor(value: unknown): Entry[] | null {
   }
   if (value && typeof value === 'object') {
     return Object.keys(value as Record<string, unknown>)
-      .sort()
+      .sort(compareObjectKeys)
       .map((key) => ({ key, value: (value as Record<string, unknown>)[key] }))
   }
   return null

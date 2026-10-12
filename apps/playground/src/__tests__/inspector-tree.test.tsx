@@ -5,6 +5,21 @@ import { InspectorTree } from '../InspectorTree.js'
 afterEach(cleanup)
 
 describe('inspector value tree', () => {
+  it('sorts object fields with locale-independent key ordering', () => {
+    const { container } = render(
+      <InspectorTree
+        label="Data"
+        value={{ B: 1, a: 2, ä: 3, '10': 10, '2': 2 }}
+      />,
+    )
+
+    const keys = Array.from(
+      container.querySelectorAll('.pg-tree__children > .pg-tree__leaf .pg-tree__key'),
+      (element) => element.textContent,
+    )
+    expect(keys).toEqual(['10', '2', 'B', 'a', 'ä'])
+  })
+
   it('mounts descendants only when their parent branch is expanded', async () => {
     render(
       <InspectorTree label="Data" value={{ user: { profile: { name: 'Ada' } } }} />,

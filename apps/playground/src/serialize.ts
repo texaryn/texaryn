@@ -1,3 +1,5 @@
+import { compareObjectKeys } from './compare-object-keys.js'
+
 const TYPE_MARKER = '$texarynInspectorValue'
 
 function normalise(value: unknown, ancestors: WeakSet<object>): unknown {
@@ -29,10 +31,12 @@ function normalise(value: unknown, ancestors: WeakSet<object>): unknown {
     return result
   }
   const result = Object.fromEntries(
-    Object.keys(value).sort().map((key) => [
-      key,
-      normalise((value as Record<string, unknown>)[key], ancestors),
-    ]),
+    Object.keys(value)
+      .sort(compareObjectKeys)
+      .map((key) => [
+        key,
+        normalise((value as Record<string, unknown>)[key], ancestors),
+      ]),
   )
   ancestors.delete(value)
   return result
