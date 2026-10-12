@@ -19,7 +19,7 @@ Tracker: [#239](https://github.com/texaryn/texaryn/issues/239) · Status: draft 
 - The renderer selector swaps only the form subtree. Nine renderers are loaded on demand and receive `RendererProps` (`runtime`, `theme`, `onSubmit`, `onSubmitForm`); the playground owns the `<form>` element, with a separate submission path for Bootstrap.
 - `FormWorkspace` owns the `FormRuntime` through `useForm`, keyed by adapter, example revision and reset revision, and carries data across schema rebuilds.
 - Light, dark and auto themes come from the `--tx-*` custom properties and `theme.ts`.
-- Phones keep #241's layout: below 761px, an example select and a Form, Schema, Inspector switch show one view at a time, and the page scrolls as a whole.
+- Phones keep #241's layout: an example select and a Form, Schema, Inspector switch show one view at a time, and the page scrolls as a whole. #241 applies it below 761px; the desktop minimums below add up to 768px, so it now applies below 820px.
 - The first load is 149 KB gzipped today (entry chunk on the live site, 2026-10-12).
 - The site deploys only from `main`, so each change is checked on the live origin after merge.
 
@@ -40,7 +40,7 @@ All made by the maintainer on 2026-10-12, after an independent review with web s
 ```
 App
 ├─ Header           brand, Docs, GitHub, Commands, Focus, Reset layout, theme
-├─ Workbench        react-resizable-panels, 761px and wider
+├─ Workbench        react-resizable-panels, 820px and wider
 │  ├─ Rail          shown while the example list is collapsed: Examples
 │  ├─ Panel "examples"     example list and description, collapsible
 │  └─ Panel "main"
@@ -59,13 +59,13 @@ Default sizes: example list 216px; schema 46% and preview 54% of the top row; to
 
 This is the rule that makes everything else safe: **a layout change never remounts the editor or the form.**
 
-Each pane's content renders through a React portal into a host `<div>` that is created once and never replaced: one host each for the example list, the schema editor, the preview and the inspector. A layout (the desktop workbench, or #241's phone columns) only provides slots, and a slot appends its host when it mounts. Because the portal's container is the same element whatever layout holds it, React never remounts the content: not when a pane is maximized, collapsed or resized, and not when the window crosses the 761px breakpoint.
+Each pane's content renders through a React portal into a host `<div>` that is created once and never replaced: one host each for the example list, the schema editor, the preview and the inspector. A layout (the desktop workbench, or #241's phone columns) only provides slots, and a slot appends its host when it mounts. Because the portal's container is the same element whatever layout holds it, React never remounts the content: not when a pane is maximized, collapsed or resized, and not when the window crosses the 820px breakpoint.
 
 - **Runtime.** Unchanged. `FormWorkspace` keeps owning the runtime through `useForm` with #241's key and data carry. It sits outside both layouts and renders its preview part into the preview host and its inspector part into the inspector host. The schema rebuild, example switch and reset behave exactly as #241 tested them.
 - **Schema text.** Stays in `App` state as the one source.
 - **Layout.** A `useLayout` reducer holds the collapsed inspector, the collapsed example list, the maximized pane, Focus mode and the preview width, persisted under `texaryn-playground-layout` with a version field. Unreadable or outdated storage falls back to the defaults, inside the same `try` guard `theme.ts` uses. Panel sizes persist separately through `useDefaultLayout`.
 
-Moving a host to another parent blurs whatever had focus inside it, so crossing the breakpoint while typing loses focus but nothing else.
+Moving a host to another parent blurs whatever had focus inside it, so crossing the breakpoint while typing loses focus but nothing else. A slot announces each move on the host, and the editor re-measures on it, so clicks land on the right character after a move.
 
 ### Pane operations
 
@@ -76,13 +76,15 @@ Moving a host to another parent blurs whatever had focus inside it, so crossing 
 | Maximize | Schema, preview, inspector | An overlay takes the pane's host and fills the workbench; the panels underneath keep their sizes and become `inert`; the overlay's header shows Restore |
 | Focus | Whole workbench | An overlay holds schema and preview side by side, with their own saved split; the panels underneath, with the example list and the inspector, become `inert` |
 | Restore | Maximized pane, Focus | Removes the overlay; the panels never moved, so every size is exactly what the user had |
+
+Opening an overlay moves keyboard focus to its Restore or Exit Focus button; closing it returns focus to the button that opened it.
 | Reset layout | Whole workbench | Default sizes and visibility, and clears the stored layout |
 
 Nothing hides on its own. Hover-triggered panels fail on touch screens and for keyboard users, so every pane opens and closes on an explicit action.
 
 ### Phones
 
-Below 761px the workbench is replaced by #241's phone columns, unchanged: example select, a Form, Schema and Inspector switch, and one column at a time. The hosts move into those columns. The editor chunk loads the first time the Schema view opens, not on the phone's first load.
+Below 820px the workbench is replaced by #241's phone columns: example select, a Form, Schema and Inspector switch, and one column at a time. Their only change is the media query, from 760px to 819px, so the stylesheet and the tree agree. The hosts move into those columns. The editor chunk loads the first time the Schema view opens, not on the phone's first load.
 
 ### The schema editor
 
@@ -170,7 +172,7 @@ interface ExamplePreset {
 
 - **Unit tests** in the existing `playground` Vitest project: the layout reducer and its storage fallback, host reparenting keeping a stateful child mounted, pointer to range mapping, keyword context per dialect, preset application through runtime commands, and the palette's command list.
 - **Preset tests** in the `examples` project, as above.
-- **Browser tests** in a new `playground-browser` Vitest project on Playwright Chromium, the same setup as the existing `web-components-browser` project. At 1512x900, 1024x768 and 390x844, in light and dark chosen through the stored theme preference and confirmed on the root element: no horizontal page overflow; panes visible after each layout operation; exact sizes after Restore; form data, the input element and the editor's undo history surviving a breakpoint crossing; arrow keys on a separator; real typing in the editor; a planted schema error underlined on the right text; the editor module not requested on a phone until Schema opens.
+- **Browser tests** in a new `playground-browser` Vitest project on Playwright Chromium, the same setup as the existing `web-components-browser` project. At 1512x900, 1024x768, 820x800, 819x800 and 390x844, in light and dark chosen through the stored theme preference and confirmed on the root element: no horizontal page overflow; panes visible after each layout operation; a keyboard resize that changes and saves a size; exact sizes after Restore and after a reload; form data, the input element, the editor's undo history and its click positions surviving a breakpoint crossing; Submit firing once from an overlay and after a crossing, for a React renderer and for Bootstrap; real typing in the editor; a planted schema error underlined on the right text. The build check reads Vite's manifest to prove the editor and palette chunks are not loaded on first visit.
 - **Before release, by hand**: typing in the editor on iOS Safari and Android Chrome, and the layout at 200% and 400% browser zoom.
 
 These run inside the existing test job. Chromium only, to stay inside the free CI minutes.
@@ -208,7 +210,7 @@ Each step is its own pull request on a branch from `main`.
 ## Risks
 
 - **Portals and the form element.** Trigger: the preview part of `FormWorkspace` rendered into a host while its `<form>` and Bootstrap submission path keep working. Consequence: Submit stops working for one renderer. The existing `renderer-boundary` tests run unchanged against the portal version.
-- **Moving a host with CodeMirror inside.** Trigger: the breakpoint crossing moves the editor's DOM. Consequence: stale measurements until the editor notices. A browser test types after a crossing.
+- **Moving a host with CodeMirror inside.** Trigger: the breakpoint crossing moves the editor's DOM. Consequence: clicks landing on the wrong character. The editor re-measures on the slot's move event, and a browser test clicks a known line after a crossing.
 - **Editor input on phones.** Trigger: virtual keyboards and touch selection. Consequence: an editor that cannot be used on a phone. The manual device pass before release.
 - **Wrong error position.** Trigger: pointers through arrays, escaped names (`~0`, `~1`), ambiguous unescaped paths or unresolved segments. Consequence: an underline on the wrong text. Mapping and resolution tests cover each case.
 - **Panel library changes.** Trigger: `react-resizable-panels` 4.14 shipped on 2026-10-10. Consequence: API churn in minor releases. Pin the exact version.
