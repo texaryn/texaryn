@@ -85,4 +85,13 @@ describe('stored layout', () => {
     expect(panelStorage.getItem('columns')).toBeNull()
     expect(window.localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe('{}')
   })
+
+  it('hands the panel library only well formed sizes', () => {
+    for (const stored of ['{broken', 'null', '[20,80]', '{"examples":"20"}', '{"examples":null}']) {
+      window.localStorage.setItem(`${PANEL_STORAGE_PREFIX}columns`, stored)
+      expect(panelStorage.getItem('columns')).toBeNull()
+    }
+    window.localStorage.setItem(`${PANEL_STORAGE_PREFIX}columns`, '{"examples":20,"main":80}')
+    expect(panelStorage.getItem('columns')).toBe('{"examples":20,"main":80}')
+  })
 })

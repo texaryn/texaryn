@@ -112,10 +112,21 @@ export function writeStoredLayout(state: LayoutState): void {
 
 export const PANEL_STORAGE_PREFIX = 'texaryn-playground-panels:'
 
+function isPanelSizes(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((size) => typeof size === 'number' && Number.isFinite(size))
+  )
+}
+
 export const panelStorage = {
+  // react-resizable-panels 4.14.4 parses this value without a try, so only well formed sizes reach it.
   getItem(key: string): string | null {
     try {
-      return window.localStorage.getItem(PANEL_STORAGE_PREFIX + key)
+      const stored = window.localStorage.getItem(PANEL_STORAGE_PREFIX + key)
+      return stored !== null && isPanelSizes(JSON.parse(stored)) ? stored : null
     } catch {
       return null
     }
