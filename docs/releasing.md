@@ -24,6 +24,8 @@ three stable packages and pass the following checks:
    pre-stable minor version. Use a patch only when the packed range still
    accepts the previously supported dependency line. Dependent packages do not
    become 1.0 packages automatically.
+   React Bootstrap and React MUI must declare the same React peer range as the
+   stable React binding.
 3. The stable consumer check installs the packed core, JSON Schema adapter, and
    React binding in a fresh npm project, without workspace aliases. It checks
    React 18.3 and React 19, typechecks and server-renders the documented React
