@@ -142,22 +142,22 @@ The [architecture page](https://texaryn.github.io/texaryn/concepts/architecture/
 
 ## Packages
 
-Every package versions on its own.
+Each package is versioned independently. Its badge shows the latest npm version and links to that package's npm page.
 
 | Package | Version | Purpose |
 | --- | --- | --- |
-| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcore?label=) | UI documents, compiler, form and document runtimes, renderer registry |
-| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=) | JSON Schema evaluation and validation adapter |
-| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=) | Zod 4 validation adapter with JSON Schema projection |
-| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact?label=) | React hooks, renderer and default widgets |
-| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=) | Bootstrap 5 widgets for `@texaryn/react` |
-| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | ![npm](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=) | Material UI v9 widgets for `@texaryn/react` |
-| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fangular?label=) | Angular signals, standalone components and default widgets |
-| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fvue?label=) | Vue 3 composables, renderer and default widgets |
-| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn/svelte) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsvelte?label=) | Svelte 5 store bridge, components and default widgets |
-| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn/solid) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fsolid?label=) | SolidJS components and default widgets |
-| [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=) | `<texaryn-form>` custom element with native widgets, for any framework or none |
-| [`@texaryn/collaboration-yjs`](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | ![npm](https://img.shields.io/npm/v/@texaryn%2Fcollaboration-yjs?label=) | Optional Yjs adapter for shared scalar field edits |
+| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | [![npm version for @texaryn/core](https://img.shields.io/npm/v/@texaryn%2Fcore?label=)](https://www.npmjs.com/package/@texaryn/core) | UI documents, compiler, form and document runtimes, renderer registry |
+| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | [![npm version for @texaryn/schema-json](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=)](https://www.npmjs.com/package/@texaryn/schema-json) | JSON Schema evaluation and validation adapter |
+| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | [![npm version for @texaryn/schema-zod](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=)](https://www.npmjs.com/package/@texaryn/schema-zod) | Zod 4 validation adapter with JSON Schema projection |
+| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | [![npm version for @texaryn/react](https://img.shields.io/npm/v/@texaryn%2Freact?label=)](https://www.npmjs.com/package/@texaryn/react) | React hooks, renderer and default widgets |
+| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | [![npm version for @texaryn/react-bootstrap](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=)](https://www.npmjs.com/package/@texaryn/react-bootstrap) | Bootstrap 5 widgets for `@texaryn/react` |
+| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | [![npm version for @texaryn/react-mui](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=)](https://www.npmjs.com/package/@texaryn/react-mui) | Material UI v9 widgets for `@texaryn/react` |
+| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | [![npm version for @texaryn/angular](https://img.shields.io/npm/v/@texaryn%2Fangular?label=)](https://www.npmjs.com/package/@texaryn/angular) | Angular signals, standalone components and default widgets |
+| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | [![npm version for @texaryn/vue](https://img.shields.io/npm/v/@texaryn%2Fvue?label=)](https://www.npmjs.com/package/@texaryn/vue) | Vue 3 composables, renderer and default widgets |
+| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn/svelte) | [![npm version for @texaryn/svelte](https://img.shields.io/npm/v/@texaryn%2Fsvelte?label=)](https://www.npmjs.com/package/@texaryn/svelte) | Svelte 5 store bridge, components and default widgets |
+| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn/solid) | [![npm version for @texaryn/solid](https://img.shields.io/npm/v/@texaryn%2Fsolid?label=)](https://www.npmjs.com/package/@texaryn/solid) | SolidJS components and default widgets |
+| [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | [![npm version for @texaryn/web-components](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=)](https://www.npmjs.com/package/@texaryn/web-components) | `<texaryn-form>` custom element with native widgets, for any framework or none |
+| [`@texaryn/collaboration-yjs`](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | [![npm version for @texaryn/collaboration-yjs](https://img.shields.io/npm/v/@texaryn%2Fcollaboration-yjs?label=)](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | Optional Yjs adapter for shared scalar field edits |
 
 ## Documentation
 
