@@ -1,5 +1,0 @@
----
-'@texaryn/schema-json': minor
----
-
-Adds `checkSchema`, which reports where a schema itself is invalid. It runs the same validation preparation as `createJsonSchemaAdapter` and returns RFC 6901 pointers into the schema, escaping property names that contain `/` or `~`, and stopping at the shared prefix when the library's location is ambiguous. `createJsonSchemaAdapter` now reports a schema compile error before `ProjectionMarkerCollisionError` when a schema has both faults.

@@ -1,5 +1,19 @@
 # @texaryn/react-mui
 
+## 0.7.0
+
+### Minor Changes
+
+- 8a7a3bd: The published package now requires the current `@texaryn/react` and
+  `@texaryn/core` versions.
+
+### Patch Changes
+
+- Updated dependencies [35cb55f]
+- Updated dependencies [3e79b3e]
+  - @texaryn/core@0.16.0
+  - @texaryn/react@0.8.0
+
 ## 0.6.0
 
 ### Minor Changes

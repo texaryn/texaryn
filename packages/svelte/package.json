@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/svelte",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Svelte 5 bindings, renderer, and default widgets for Texaryn",
   "keywords": [
     "svelte",

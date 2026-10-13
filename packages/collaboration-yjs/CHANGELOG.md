@@ -1,5 +1,17 @@
 # @texaryn/collaboration-yjs
 
+## 0.2.0
+
+### Minor Changes
+
+- 8a7a3bd: The published package now requires the current `@texaryn/core` version.
+
+### Patch Changes
+
+- Updated dependencies [35cb55f]
+- Updated dependencies [3e79b3e]
+  - @texaryn/core@0.16.0
+
 ## 0.1.0
 
 ### Minor Changes

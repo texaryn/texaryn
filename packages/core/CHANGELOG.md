@@ -1,5 +1,13 @@
 # @texaryn/core
 
+## 0.16.0
+
+### Minor Changes
+
+- 35cb55f: Add a `Validate` command that exposes current validation errors without starting a submission.
+- 3e79b3e: Give every renderer one localized validation message contract and normalize
+  adapter parameters so built-in widgets do not display evaluator diagnostics.
+
 ## 0.15.0
 
 ### Minor Changes

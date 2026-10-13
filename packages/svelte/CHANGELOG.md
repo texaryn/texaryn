@@ -1,5 +1,21 @@
 # @texaryn/svelte
 
+## 0.3.0
+
+### Minor Changes
+
+- 3e79b3e: FormRoot now renders the UI tree without creating a native form. Consumers own
+  the form element and connect its submit event to the runtime.
+- 3e79b3e: Give every renderer one localized validation message contract and normalize
+  adapter parameters so built-in widgets do not display evaluator diagnostics.
+- 3e79b3e: Make the form root error summary opt in, matching the other renderer bindings.
+
+### Patch Changes
+
+- Updated dependencies [35cb55f]
+- Updated dependencies [3e79b3e]
+  - @texaryn/core@0.16.0
+
 ## 0.2.0
 
 ### Minor Changes

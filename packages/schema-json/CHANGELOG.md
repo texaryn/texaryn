@@ -1,5 +1,19 @@
 # @texaryn/schema-json
 
+## 0.10.0
+
+### Minor Changes
+
+- 3e79b3e: Give every renderer one localized validation message contract and normalize
+  adapter parameters so built-in widgets do not display evaluator diagnostics.
+- fe20255: Adds `checkSchema`, which reports where a schema itself is invalid. It runs the same validation preparation as `createJsonSchemaAdapter` and returns RFC 6901 pointers into the schema, escaping property names that contain `/` or `~`, and stopping at the shared prefix when the library's location is ambiguous. `createJsonSchemaAdapter` now reports a schema compile error before `ProjectionMarkerCollisionError` when a schema has both faults.
+
+### Patch Changes
+
+- Updated dependencies [35cb55f]
+- Updated dependencies [3e79b3e]
+  - @texaryn/core@0.16.0
+
 ## 0.9.0
 
 ### Minor Changes
