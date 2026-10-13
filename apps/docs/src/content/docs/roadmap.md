@@ -26,8 +26,9 @@ change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
 ADR-022 records the schema port evidence after the Zod adapter shipped. ADR-023
 selects the first stable package cohort and freezes the current root API shape.
-The next release milestone is 1.0.0 for core, schema-json, and React, after the
-isolated consumer and dependent version graph pass the release gate.
+The first stable release is published. `@texaryn/core`, `@texaryn/schema-json`,
+and `@texaryn/react` are 1.0.0. The nine optional integration packages retain
+independent pre-1.0 versions.
 Section 18 publishes local performance baselines, including isolated flat,
 conditional, and bounded-recursive schema projection. Targeted diffing remains
 gated on representative workload evidence.
@@ -70,9 +71,9 @@ published version 0.8.2 against fork version 11.6.6. PR #216 published
 `@texaryn/schema-json` 0.8.3 on npm and created its immutable Git tag. Main CI
 run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
 reconciled its matching GitHub release. PR #223 published version 0.9.0 with
-Draft-04 support. Version 0.10.0 is the current published release on
-[npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.10.0) and has a
-matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.10.0).
+Draft-04 support. Version 1.0.0 is the current published release on
+[npm](https://www.npmjs.com/package/@texaryn/schema-json/v/1.0.0) and has a
+matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%401.0.0).
 
 ## Table of Contents
 
@@ -468,7 +469,7 @@ C4Component
   Container_Boundary(texaryn, "Texaryn workspace") {
     Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
-    Component(productionAdapter, "@texaryn/schema-json", "Published 0.10.0", "Builds Texaryn projections and validation results with the maintained fork")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 1.0.0", "Builds Texaryn projections and validation results with the maintained fork")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
     Component(renderers, "React, Vue, Angular, Solid, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
   }
@@ -479,7 +480,7 @@ C4Component
   Rel(renderers, core, "depends on")
   Rel(productionAdapter, port, "implements")
   Rel(comparisonAdapter, port, "implements for CI comparison")
-  Rel(productionAdapter, forkEngine, "published 0.10.0 uses")
+  Rel(productionAdapter, forkEngine, "published 1.0.0 uses")
   Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
@@ -1294,7 +1295,7 @@ The schema evaluation port is defined in `@texaryn/core` (interface only).
 The supported production implementation and the private CI comparison
 implementation live in separate packages:
 
-1. `@texaryn/schema-json`: published production adapter. Version 0.10.0 uses
+1. `@texaryn/schema-json`: published production adapter. Version 1.0.0 uses
    the Texaryn maintained `json-schema-library` fork at version 11.6.6.
 2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
    supported production option or a planned migration target.
@@ -1946,16 +1947,16 @@ shows repeated structural operations above 16.7 ms at p95.
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. PR #214
 merged the document runtime, AI kit, visual builder, array reorder, and scalar
-collaboration work. Published packages include `@texaryn/core` 0.16.0,
-`@texaryn/schema-json` 0.10.0, `@texaryn/react` 0.8.0,
-`@texaryn/react-bootstrap` 0.7.0, `@texaryn/react-mui` 0.7.0,
-`@texaryn/vue` 0.7.0, `@texaryn/web-components` 0.7.0,
-`@texaryn/angular` 0.3.0, `@texaryn/collaboration-yjs` 0.2.0,
-`@texaryn/schema-zod` 0.2.0, `@texaryn/solid` 0.3.0, and
-`@texaryn/svelte` 0.3.0.
-Release PR [#243](https://github.com/texaryn/texaryn/pull/243) published these
-versions. Main workflow run
-[#38331566080](https://github.com/texaryn/texaryn/actions/runs/38331566080)
+collaboration work. Published packages are `@texaryn/core` 1.0.0,
+`@texaryn/schema-json` 1.0.0, `@texaryn/react` 1.0.0,
+`@texaryn/react-bootstrap` 0.8.0, `@texaryn/react-mui` 0.8.0,
+`@texaryn/vue` 0.8.0, `@texaryn/web-components` 0.8.0,
+`@texaryn/angular` 0.4.0, `@texaryn/collaboration-yjs` 0.3.0,
+`@texaryn/schema-zod` 0.3.0, `@texaryn/solid` 0.4.0, and
+`@texaryn/svelte` 0.4.0.
+Release PR [#254](https://github.com/texaryn/texaryn/pull/254) published the
+stable cohort and nine integration minors. Main workflow run
+[#38342681771](https://github.com/texaryn/texaryn/actions/runs/38342681771)
 verified all twelve registry versions, npm provenance, and source commits, then
 reconciled their matching immutable package tags and GitHub releases.
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
@@ -1975,39 +1976,17 @@ and release decisions are complete. ADR-023 records the decision.
 |---|---|
 | Stable API boundary and package cohort recorded in ADR-023 | Done |
 | Security policy and release runbook name all twelve packages and independent versioning | Done |
-| React peer ranges bounded to the tested 18.3 and 19 versions across the stable binding and its UI integrations | In progress |
+| React peer ranges bounded to the tested 18.3 and 19 versions across the stable binding and its UI integrations | Done |
 | Isolated npm consumer gate packs the stable cohort and checks both React versions | Done |
 | Latest JSON Schema compatibility workflow resolves the scoped Texaryn fork | Done |
 | Changesets dry run confirms the stable cohort and dependency compatibility transitions | Done, three stable majors and nine dependent pre-stable minors |
-| Preparation pull request and release pull request pass CI and ChatGPT review | Pending |
-| npm 1.0.0 versions, provenance, package tags, and GitHub releases verified | Pending |
+| Preparation and release pull requests pass CI and ChatGPT review | Done, PRs #253, #254, #255, and #256 |
+| npm versions, provenance, package tags, and GitHub releases verified | Done, [main workflow run #38342681771](https://github.com/texaryn/texaryn/actions/runs/38342681771) |
 
 The consumer gate installs package tarballs in a fresh npm project, typechecks
 and server-renders the documented React form, and confirms that the npm
 dependency tree resolves one core version. This release gate does not make
 every renderer or schema adapter stable.
-
-Three main branch release runs failed while publishing the first versions of
-`@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,
-`@texaryn/solid`, and `@texaryn/svelte`. npm returned 404 for the publish PUTs.
-Run [38155536808](https://github.com/texaryn/texaryn/actions/runs/38155536808)
-already set `NPM_CONFIG_ACCESS=public`, so that setting alone did not resolve
-the first publish failures. Run [38156158050](https://github.com/texaryn/texaryn/actions/runs/38156158050)
-passed build, test, and typecheck, then failed on those five publishes.
-
-The five packages were published locally through npm's 2FA flow. Their registry
-signatures are present, and their packed files match the checkout. npm rewrote
-workspace dependency ranges in each package.json to published version ranges.
-These first versions have no build provenance. Matching GitHub releases target the `main`
-commit containing those exact package versions. npm trusted publishers now bind
-all five packages to the `texaryn/texaryn` `ci-release.yml` workflow in the
-`npm-release` environment for future OIDC publishing. Main CI run
-[38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
-verified provenance and source commits for seven earlier published versions,
-then created their missing GitHub releases: `@texaryn/core` 0.15.0,
-`@texaryn/react` 0.7.0, `@texaryn/react-bootstrap` 0.6.0,
-`@texaryn/react-mui` 0.6.0, `@texaryn/schema-json` 0.8.3, `@texaryn/vue` 0.6.0,
-and `@texaryn/web-components` 0.6.0. Release recovery is complete.
 
 Draft-04 support merged in PR #222 after ChatGPT peer review and passed the
 official validation suite with 618 of 618 cases in each adapter. PR #223
@@ -2126,7 +2105,7 @@ hooks.
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. Version 0.10.0 is the current published adapter release. Hyperjump
+workaround. Version 1.0.0 is the current published adapter release. Hyperjump
 remains in CI for comparison only. This is an implementation change within the
 accepted strategy, not a later engine selection phase.
 
