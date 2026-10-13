@@ -18,7 +18,10 @@ through ADR-021 close the IR migration, plugin architecture, hydration boundary,
 and command history decisions. Migration code waits for a scheduled breaking
 change within one document family. A shared plugin API waits for two independent
 integrations to demonstrate the same unmet need.
-ADR-022 closes the schema port review trigger after the Zod adapter shipped.
+ADR-022 records the schema port evidence after the Zod adapter shipped. ADR-023
+selects the first stable package cohort and freezes the current root API shape.
+The next release milestone is 1.0.0 for core, schema-json, and React, after the
+isolated consumer and dependent version graph pass the release gate.
 Section 18 publishes local performance baselines, including isolated flat,
 conditional, and bounded-recursive schema projection. Targeted diffing remains
 gated on representative workload evidence.
@@ -209,16 +212,18 @@ TanStack Form validates this approach with its 100-line adapters.
 
 ### P2: Schema adapter pattern (not hardcoded JSON Schema)
 
-**Verdict: Keep the experimental port and JSON Schema projection.** The Zod 4
+**Verdict: Keep the current port shape for the first stable contract.** The Zod 4
 adapter now implements `SchemaEvaluationPort`, but it converts its input schema
 to JSON Schema for projection and uses Zod for validation. This tests separate
 validation with the current port. It satisfies the second-adapter review
 trigger, but does not test projection from an independent schema model. No port
-generalization is justified by current integrations. Keep the projection
-contract experimental before 1.0 and revisit it when an integration requires
-projection semantics the current boundary cannot represent faithfully.
+generalization is justified by current integrations. The current exported port
+and its types are included in `@texaryn/core` 1.0.0. Revisit the boundary only
+when an integration requires projection semantics it cannot represent
+faithfully.
 [ADR-022](docs/adr/022-schema-port-after-zod.md) records the evidence and
-decision.
+decision. [ADR-023](docs/adr/023-first-stable-release-contract.md) freezes the
+current shape for the stable release.
 
 ### P3: Strict separation of domain schema, UI description, and UI implementation
 
@@ -1818,6 +1823,9 @@ cross-family migration.
 Before 1.0: the IR and public API may change between minor versions. After 1.0:
 semver applies strictly. IR breaking changes trigger a major version. Migration
 functions are retained for at least two major versions of each document family.
+ADR-023 identifies the package roots covered by the first stable release. Other
+published packages remain independently versioned below 1.0 until their own
+compatibility decisions are made.
 
 ## 17. Testing Strategy
 
@@ -1948,6 +1956,30 @@ reconciled their matching immutable package tags and GitHub releases.
 the Emotion and Tailwind styling examples have shipped. Source for
 `@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
 `@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged.
+
+### First stable release gate
+
+The stable cohort is `@texaryn/core`, `@texaryn/schema-json`, and
+`@texaryn/react`, each at 1.0.0. Their package root exports define the supported
+public API. `SchemaEvaluationPort` is included in the core contract. The other
+nine published packages stay below 1.0 until their own compatibility evidence
+and release decisions are complete. ADR-023 records the decision.
+
+| Gate | State |
+|---|---|
+| Stable API boundary and package cohort recorded in ADR-023 | Done |
+| Security policy and release runbook name all twelve packages and independent versioning | Done |
+| React peer range bounded to the tested 18.3 and 19 versions | Done |
+| Isolated npm consumer gate packs the stable cohort and checks both React versions | Done |
+| Latest JSON Schema compatibility workflow resolves the scoped Texaryn fork | Done |
+| Changesets dry run confirms the 1.0.0 cohort and compatible dependent releases | Done, three major packages and nine dependent patches |
+| Preparation pull request and release pull request pass CI and ChatGPT review | Pending |
+| npm 1.0.0 versions, provenance, package tags, and GitHub releases verified | Pending |
+
+The consumer gate installs package tarballs in a fresh npm project, typechecks
+and imports the documented core path, and confirms that the npm dependency tree
+resolves one core version. This release gate does not make every renderer or
+schema adapter stable.
 
 Three main branch release runs failed while publishing the first versions of
 `@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,
@@ -2515,20 +2547,17 @@ incidental. @remoteoss/json-schema-form is genuinely headless but lacks `$ref`,
 
 **The case against:** The JSON Schema form space is crowded with good-enough
 solutions. Most forms are simple enough that RJSF's problems do not surface.
-The users who need stable array identity, async validation, and framework
-neutrality simultaneously may be too few to sustain a project. Building a full
-JSON Schema form library (including $ref, conditionals, oneOf/anyOf) is 6-12
-months of focused work before the first stable release. The original research
-expected the first adapter to lean on Hyperjump. That expectation was superseded
-by ADR-002 and the shipped `json-schema-library` adapter. ADR-011 records the
-long term fork strategy.
+Adoption remains an open product question. The earlier estimate of 6 to 12
+months and the 8-week MVP condition predate the completed implementation and no
+longer describe the release plan. The original research expected the first
+adapter to lean on Hyperjump. That expectation was superseded by ADR-002 and the
+shipped `json-schema-library` adapter. ADR-011 records the long term fork
+strategy.
 
-**The verdict:** The project is worth starting if and only if the author commits
-to the smallest MVP (section above), ships it within 8 weeks, and measures
-adoption before expanding scope. The architecture is sound and externally
-validated. The risk is not "is the design right?" but "is the market large enough
-for a fifth JSON Schema form library?" The MVP answers that question with
-working code rather than speculation.
+**The verdict:** The implementation sequence is complete. The first stable
+release is limited to the core, JSON Schema adapter, and React binding under
+ADR-023. Adoption evidence will determine later scope; technical completion is
+not evidence of market demand.
 
 ---
 

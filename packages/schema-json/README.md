@@ -2,7 +2,9 @@
 
 JSON Schema evaluation and validation adapter for Texaryn, backed by `json-schema-library`.
 
-> Status: pre-1.0. Public APIs may change before 1.0.
+The package root exports form the supported API for the first stable release.
+Versions below 1.0.0 remain pre-stable and may change between minor releases.
+The compatibility contract is recorded in [ADR-023](https://github.com/texaryn/texaryn/blob/main/docs/adr/023-first-stable-release-contract.md).
 
 ## Install
 

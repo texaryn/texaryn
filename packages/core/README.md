@@ -2,7 +2,9 @@
 
 Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, used with `@texaryn/schema-json` and a React, Vue or Web Components binding.
 
-> Status: pre-1.0. Public APIs may change before 1.0.
+The package root exports form the supported API for the first stable release.
+Versions below 1.0.0 remain pre-stable and may change between minor releases.
+The compatibility contract is recorded in [ADR-023](https://github.com/texaryn/texaryn/blob/main/docs/adr/023-first-stable-release-contract.md).
 
 ## Install
 
