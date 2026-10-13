@@ -9,13 +9,14 @@ const githubSource = 'https://github.com/texaryn/texaryn/blob/main/'
 const websitePath = '/texaryn/concepts/performance/'
 
 const source = (await readFile(sourcePath, 'utf8')).replace(/\r\n?/g, '\n')
-const title = '# Texaryn: Technical Roadmap\n'
+const title = '# Texaryn: Product Roadmap\n'
 if (!source.startsWith(title)) {
   throw new Error(`Expected ${sourcePath} to begin with ${JSON.stringify(title)}.`)
 }
 
 const body = source
   .slice(title.length)
+  .replace(/^\n+/, '')
   .replaceAll(
     '](apps/docs/src/content/docs/concepts/performance.md)',
     `](${websitePath})`,
@@ -26,10 +27,8 @@ const body = source
 const page = [
   '---',
   'title: Texaryn roadmap',
-  'description: Product direction, shipped milestones, and evidence based follow ups.',
+  'description: First stable release status, available capabilities, and evidence based follow ups.',
   '---',
-  '',
-  `> This page is generated from the repository's [ROADMAP.md](${githubSource}ROADMAP.md).`,
   '',
   body,
 ].join('\n')

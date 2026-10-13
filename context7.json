@@ -3,8 +3,11 @@
   "url": "https://context7.com/texaryn/texaryn",
   "public_key": "pk_eiACou75TeVgVmyHmZH5C",
   "projectTitle": "Texaryn",
-  "description": "Framework-neutral, headless runtime that turns JSON Schema into forms, rendered through React, Vue or Web Components bindings.",
-  "folders": ["apps/docs/src/content/docs", "packages"],
+  "description": "Framework-neutral TypeScript toolkit for schema-driven forms and standalone display documents, rendered through React, Angular, Vue, Svelte, SolidJS or Web Components.",
+  "folders": [
+    "apps/docs/src/content/docs",
+    "packages"
+  ],
   "excludeFolders": [
     "spikes",
     "packages/schema-json/spike",
@@ -17,7 +20,12 @@
     "packages/schema-json-hyperjump",
     "packages/hints-rjsf"
   ],
-  "excludeFiles": ["CHANGELOG.md", "THIRD-PARTY-NOTICES.md", "ROADMAP.md", "404.md"],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "THIRD-PARTY-NOTICES.md",
+    "ROADMAP-ENGINEERING-ARCHIVE.md",
+    "404.md"
+  ],
   "rules": [
     "Install @texaryn/core and @texaryn/schema-json together with the binding for the app's framework: @texaryn/react, @texaryn/vue or @texaryn/web-components. Core is headless and renders nothing by itself.",
     "@texaryn/react-bootstrap and @texaryn/react-mui are widget registries over @texaryn/react. Install them next to @texaryn/react, not in place of it, and pass createBootstrapRegistry() or createMuiRegistry() to FormRoot.",
@@ -31,6 +39,6 @@
     "UI hints replace uiSchema. They are keyed by JSON Pointer, for example '/email', and carry widget, placeholder, helpText, order and validationTrigger ('blur', 'change' or 'submit').",
     "To translate built-in widget text, pass a FormMessages object from @texaryn/core as messages on FormProvider, provideFormRuntime or <texaryn-form>, instead of replacing widgets for their copy.",
     "@texaryn/examples, @texaryn/playground, @texaryn/schema-json-hyperjump and @texaryn/hints-rjsf are private workspace packages that are not published to npm. Do not install or import them.",
-    "Every package is pre-1.0 and versions on its own, so version numbers differ between packages. Install the latest of each rather than matching numbers across them."
+    "@texaryn/core, @texaryn/schema-json and @texaryn/react are stable 1.0.0 packages. The other nine published packages are independently versioned below 1.0.0 and may introduce breaking changes in minor releases. Follow each package version separately."
   ]
 }

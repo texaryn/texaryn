@@ -1,0 +1,2648 @@
+# Texaryn engineering roadmap archive
+
+> Archived engineering research, decisions, and milestone history. This file is retained for reference and is not the current product roadmap. See the [current roadmap](ROADMAP.md) for release status and direction. Package versions and milestone status below are historical. Check the [package catalog](README.md#packages) and GitHub for current release information.
+
+*From Latin texere: to weave, construct, compose.*
+
+A framework-neutral, headless runtime for declarative interfaces. Forms shipped
+first, and the versioned IR now also supports standalone display documents.
+Server-driven updates, AI generation, a visual builder, native array reorder,
+and collaborative scalar editing merged in PR #214. Angular, Svelte, and Solid
+renderers merged in PRs #211 to #213. Five new npm packages and their GitHub
+releases are published. Trusted publishers are configured for all five packages.
+Main CI run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614) reconciled
+seven previously published versions that lacked GitHub releases. Draft-04 JSON
+Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
+and its minor package release was published through
+[PR #223](https://github.com/texaryn/texaryn/pull/223).
+This completes the current implementation sequence through Draft-04. ADR-018
+through ADR-021 close the IR migration, plugin architecture, hydration boundary,
+and command history decisions. Migration code waits for a scheduled breaking
+change within one document family. A shared plugin API waits for two independent
+integrations to demonstrate the same unmet need.
+ADR-022 records the schema port evidence after the Zod adapter shipped. ADR-023
+selects the first stable package cohort and freezes the current root API shape.
+The first stable release is published. `@texaryn/core`, `@texaryn/schema-json`,
+and `@texaryn/react` are 1.0.0. The nine optional integration packages retain
+independent pre-1.0 versions.
+Section 18 publishes local performance baselines, including isolated flat,
+conditional, and bounded-recursive schema projection. Targeted diffing remains
+gated on representative workload evidence.
+
+This document is the output of a structured research phase covering 12+ existing
+projects, three server-driven UI systems, and the headless UI pattern space. It
+takes explicit positions and records the evidence or trigger needed to revisit
+each decision.
+
+The current state and follow-up triggers are in [Status, 2026-10-13](#status-2026-10-13).
+
+The `@texaryn/svelte` implementation merged in
+[PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
+bindings, a default component registry, package and site documentation,
+playground integration, and shared example conformance coverage. Version 0.2.0
+is published on npm.
+
+The `@texaryn/solid` renderer merged in
+[PR #213](https://github.com/texaryn/texaryn/pull/213). It adds SolidJS
+bindings, a default component registry, package and site documentation,
+playground integration, and cross-framework state sharing coverage. Its checks
+passed against `main`, including 98.46% Codecov patch coverage. Version 0.2.0
+is published on npm.
+
+The long term JSON Schema engine decision is
+[ADR-011](docs/adr/011-long-term-json-schema-engine.md): production uses a
+Texaryn maintained fork of `json-schema-library` through
+`@texaryn/schema-json`. PR #207 merged that dependency change, and PR #208
+published version 0.8.2 through the protected `npm-release` workflow. The private
+Hyperjump adapter is a CI comparison implementation, not a planned production
+migration.
+
+The source fixes and release setup are merged to the Texaryn fork as
+[PR #1](https://github.com/texaryn/json-schema-library/pull/1). Version 11.6.6
+is [published on npm](https://www.npmjs.com/package/@texaryn/json-schema-library/v/11.6.6)
+and has a matching [GitHub release](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6).
+Merged PR #207 replaces the upstream dependency, removes the packaged
+workaround, and adds a patch changeset for `@texaryn/schema-json`. PR #208
+published version 0.8.2 against fork version 11.6.6. PR #216 published
+`@texaryn/schema-json` 0.8.3 on npm and created its immutable Git tag. Main CI
+run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
+reconciled its matching GitHub release. PR #223 published version 0.9.0 with
+Draft-04 support. Version 1.0.0 is the current published release on
+[npm](https://www.npmjs.com/package/@texaryn/schema-json/v/1.0.0) and has a
+matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%401.0.0).
+
+## Table of Contents
+
+1. [Problem Statement and Market Gap](#1-problem-statement-and-market-gap)
+2. [Competitive Landscape](#2-competitive-landscape)
+3. [Architectural Principles](#3-architectural-principles-challenged)
+4. [System Architecture](#4-system-architecture)
+5. [IR Design](#5-ir-design)
+6. [Stable Identity Model](#6-stable-identity-model)
+7. [State and Reactivity Model](#7-state-and-reactivity-model)
+8. [Validation Architecture](#8-validation-architecture)
+9. [Schema Evaluation Architecture](#9-schema-evaluation-architecture)
+10. [Renderer Contract](#10-renderer-contract)
+11. [Actions and Effects](#11-actions-and-effects)
+12. [Extensibility](#12-extensibility)
+13. [AI and Server-Driven UI](#13-ai-and-server-driven-ui)
+14. [Package Structure](#14-package-structure)
+15. [Security Model](#15-security-model)
+16. [Versioning and Compatibility](#16-versioning-and-compatibility)
+17. [Testing Strategy](#17-testing-strategy)
+18. [Performance Model](#18-performance-model)
+19. [Milestones and First PRs](#19-milestones-and-first-prs)
+20. [Assessment: Decisions, Risks, and Viability](#20-assessment-decisions-risks-and-viability)
+
+---
+
+## 1. Problem Statement and Market Gap
+
+No existing project combines all of: a framework-neutral headless core, a typed
+and versioned UI intermediate representation, per-field reactive state, stable
+array identity across mutations, async validation with per-field lifecycle, JSON
+Schema 2020-12 with annotation collection, declarative actions, and a renderer
+contract that allows conformance testing.
+
+The closest projects each fall short in specific, structural ways:
+
+**RJSF** (14k+ stars, most widely deployed): no IR, no headless runtime, no
+dirty/touched tracking, no async validation, centralized mutable state with full
+recomputation per keystroke, fragile array key regeneration on reorder.
+
+**JSON Forms** (2k+ stars, framework-neutral claim): genuinely has a
+framework-neutral core, but pays for it with 1858 lines of parallel Redux-shaped
+store implementations across React/Angular/Vue. Untyped `options: any` bag on
+every UI Schema element breaks the IR contract (renderers pass arbitrary
+framework-specific data through it). Positional array identity only. AJV-coupled
+error model.
+
+**TanStack Form** (v1.33.5, ~4k stars, headless): framework-neutral core
+(11,525 LOC in `@tanstack/form-core`) with seven working adapters (React, Vue,
+Angular, Solid, Lit, Svelte, Preact). Has async validation with AbortController
+cancellation, per-cause error maps, dirty/touched/pristine tracking, Standard
+Schema V1 integration (Zod/Valibot/ArkType work out of the box), pluggable
+validation scheduling, and cross-field dependency linking. But: fields mount
+imperatively (`<form.Field name="foo">`), with no concept of schema-driven
+generation. Zero JSON Schema support (grep confirms nothing across packages/ and
+docs/). Positional array identity only (meta shifting by index on every mutation).
+The type system's 20+ generic parameters collapse to `any` when `TFormData` is
+derived at runtime, forfeiting the library's primary type-safety asset. It solves
+"headless form state management" but not "schema to UI."
+
+**@remoteoss/json-schema-form** (~300 stars): genuinely headless with a Field[]
+IR. But: mutates fields in place, no `$ref` resolution, no `dependencies`
+keyword, hand-rolled validator, incomplete JSON Schema coverage. Embeds UI hints
+via `x-jsf-presentation` directly in the schema, conflating domain and
+presentation.
+
+**JSFE** (Web Components): mid-rewrite, TC39 signals, partially headless. But:
+no validation pipeline, no conditionals in current code, `formAssociated` and
+shadow DOM form participation are unresolved.
+
+**First target user:** a React developer building a form-heavy application from
+JSON Schema (configuration screens, multi-step onboarding, admin panels, data
+entry tools). They have tried RJSF and hit one of: broken array reorder, no async
+validation, no per-field dirty/touched state, or inability to customize without
+forking a theme. They want a solution that works today in React but does not lock
+them into React for the long term. Angular and Vue developers are secondary
+targets, reachable once a second renderer ships.
+
+The gap is real. The question is whether it is worth a new project or an
+incremental fix to an existing one. Section 20 answers this directly.
+
+## 2. Competitive Landscape
+
+### Projects Studied
+
+| Project | Framework | Headless | IR | Stable ID | Async Val | 2020-12 | State |
+|---|---|---|---|---|---|---|---|
+| RJSF | React | No | No | No | No | No | Centralized mutable |
+| JSON Forms | Neutral (vendored stores) | Partial | UI Schema (untyped) | No | No | Via AJV plugin | Per-store |
+| Uniforms | React | No | Bridge pattern | No | No | No | Context |
+| @remoteoss/json-schema-form | Neutral | Yes | Field[] | No | No | Partial | Mutated in place |
+| JSFE | Web Components | Partial | No | No | No | No | Signals (WIP) |
+| Formly | Angular | No | FieldConfig | No | Via custom | No | Angular Forms |
+| TanStack Form | Neutral (7 adapters) | Yes | No | No (positional) | Yes | No | @tanstack/store |
+| Informed | React | No | No | No | Yes | No | Context |
+| React Hook Form | React | No | No | No | Yes | No | Refs |
+
+### Server-Driven UI Systems
+
+Three independent systems converged on the same IR shape: A2UI (Airbnb), DivKit
+(Yandex), and json-render (ThoughtWorks). Each uses a flat component map keyed
+by stable ID, a root reference, a separate data model, a constrained component
+catalog, and declarative actions. This convergent pattern is the strongest
+external signal for what the IR should look like.
+
+**Adaptive Cards** (Microsoft) takes a different approach with a tree structure
+and no stable identity, designed for card-sized content rather than full
+applications.
+
+### Headless UI Patterns
+
+**Zag.js** provides the most transferable architecture: a three-layer split of
+pure state machine, framework adapter (`useMachine`), and prop getter functions.
+The machine is the headless core; the adapter translates reactive primitives; the
+prop getters produce framework-specific DOM attributes. This is the pattern to
+follow for renderer bindings.
+
+**React Aria** splits into `@react-stately` (state logic, no DOM) and
+`@react-aria` (DOM behavior, accessibility). The two-layer separation is clean
+but React-specific at both layers.
+
+**Downshift** pioneered the prop-getter pattern and `stateReducer` for consumer
+customization. Both ideas are worth adopting.
+
+### Key Takeaway
+
+The convergent evidence points to: flat node map IR, per-node reactive state,
+prop-getter renderer binding, host-registered declarative actions. Every project
+that chose a different shape hit a documented wall.
+
+## 3. Architectural Principles (Challenged)
+
+The original proposal listed ten principles. Here they are, each challenged
+against the research evidence.
+
+### P1: Pure TypeScript core, zero framework dependencies
+
+**Verdict: Keep.** JSON Forms proved this is achievable but showed the cost:
+parallel store implementations. The solution is to not use a store abstraction at
+all. Per-node `Store<T>` instances with a `getSnapshot() + subscribe(cb) => unsubscribe`
+adapter contract push the framework integration to the thinnest possible layer.
+TanStack Form validates this approach with its 100-line adapters.
+
+### P2: Schema adapter pattern (not hardcoded JSON Schema)
+
+**Verdict: Keep the current port shape for the first stable contract.** The Zod 4
+adapter now implements `SchemaEvaluationPort`, but it converts its input schema
+to JSON Schema for projection and uses Zod for validation. This tests separate
+validation with the current port. It satisfies the second-adapter review
+trigger, but does not test projection from an independent schema model. No port
+generalization is justified by current integrations. The current exported port
+and its types are included in `@texaryn/core` 1.0.0. Revisit the boundary only
+when an integration requires projection semantics it cannot represent
+faithfully.
+[ADR-022](docs/adr/022-schema-port-after-zod.md) records the evidence and
+decision. [ADR-023](docs/adr/023-first-stable-release-contract.md) freezes the
+current shape for the stable release.
+
+### P3: Strict separation of domain schema, UI description, and UI implementation
+
+**Verdict: Keep, but kill the "normalized domain model" layer.** The original
+proposal described four layers: domain schema, normalized domain model, headless
+runtime, UI IR. Three suffice. The "normalized domain model" adds a
+representation between the original schema and the compiled IR that nothing
+consumes. JSON Schema with resolved `$ref` and evaluated conditionals
+(`if`/`then`/`else`) compiles directly into IR nodes. Adding an intermediate
+normalized form creates a maintenance surface with no consumer. The Zod adapter
+uses JSON Schema for projection, so it creates no need for a common
+intermediate. Revisit only if an adapter must project directly from another
+schema model.
+
+### P4: Deterministic core (same inputs produce same state)
+
+**Verdict: Keep, with a precise definition.** "Deterministic" means:
+the compiler is a pure function of its inputs. Stable array identity is
+history-dependent (two runtimes with identical data can have different identity
+maps), so the compiler consumes identity rather than owning it:
+
+```typescript
+compile(input: {
+  projection: SchemaProjection   // resolved schema for current data
+  uiHints: UIHints
+  identities: IdentityMap        // current identity snapshot
+}): UIDocument
+```
+
+Given the same projection, the same UI hints, and the same identity snapshot,
+the IR is identical. State transitions are deterministic:
+`dispatch(command, currentState) => nextState` is pure. Side effects (validation
+requests, action execution) are modeled as effects emitted by the state machine,
+not performed inside it. This is the Elm architecture applied to form state.
+
+### P5: Versioned, typed IR
+
+**Verdict: Keep. This is the project's primary differentiator.** JSON Forms'
+untyped `options: any` bag is the cautionary tale. Every node in the IR has a
+discriminated union type. The IR carries a version number. Renderers declare
+which IR version they support. Breaking changes to the IR require a major version
+bump with a migration function.
+
+### P6: Per-field reactive state
+
+**Verdict: Keep, with signals as internal implementation and `Store<T>` as public
+contract.** The TC39 Signals proposal (Stage 1) defines a useful internal shape.
+`@preact/signals-core` is the most mature implementation but its effect scheduler
+creates conflict risk when embedded in frameworks that have their own scheduling.
+Recommendation: implement a minimal signal core (~200 lines) following the TC39
+spec surface, exposed through `Store<T>` (`getSnapshot + subscribe`). The public
+contract is stable regardless of the internal reactive engine. When TC39 Signals
+ships natively, swap the internals with no public API change.
+
+### P7: Stable identity for array items
+
+**Verdict: Keep. This is the second most important differentiator.** Every
+studied project either uses positional identity (JSON Forms, @remoteoss) or
+generates brittle keys (RJSF's `Math.random()` in a key generator that
+regenerates on reorder). The solution: each array item gets an opaque stable ID
+at creation time, stored in a parallel identity map. JSON Pointer paths use
+indices for data access; the runtime maps between index and stable ID
+transparently. Move and reorder operations preserve identity. Renderers receive
+stable IDs, never indices.
+
+### P8: Declarative actions (host-registered, not arbitrary JS)
+
+**Verdict: Keep, following the server-driven UI convergent pattern.** A2UI and
+DivKit both landed on: actions are named, registered by the host, and invoked
+with serializable arguments. The runtime validates that the action exists and
+that its arguments match the registered schema before dispatching. This is
+necessary for the server-driven and AI-generated UI stories, and costs nothing
+for the simple form case where the only actions are submit and reset.
+
+### P9: Renderer registry with introspectable capabilities
+
+**Verdict: Keep, but simplify.** The original framing suggested renderers would
+declare capabilities like "supports drag-and-drop reorder." This is overdesigned
+for v1. A simpler contract: the renderer registers widget components keyed by
+node type (or by node type + format). The runtime matches IR nodes to widgets
+using a tester/rank system inspired by JSON Forms. Capability introspection can
+be added when a concrete use case demands it.
+
+### P10: AI as optional producer/editor of IR, not runtime dependency
+
+**Verdict: Keep. This is a constraint, not an abstraction.** AI produces IR (or
+schema + UI hints). The runtime processes IR. The runtime has no AI dependency.
+This is correct by construction as long as the IR is the only exchange format.
+No special "AI mode" in the runtime.
+
+### Principles Not Proposed That Should Be
+
+**P11: No arbitrary executable expressions in the serialized IR.** Dynamic
+behavior is represented using declarative predicates or delegated to the schema
+evaluation layer. The runtime evaluates these deterministically as data changes.
+
+The IR is serializable and contains no user-authored code, no template language,
+and no Turing-complete expression evaluator. This prevents the expression sandbox
+problem (Angular templates, Adaptive Cards expressions, Formly's expression
+parser).
+
+But "no expressions" does not mean "resolved once at compile time." JSON Schema
+conditionals (`if`/`then`/`else`, `dependentSchemas`) depend on runtime data. When
+a user changes `country` from `"FR"` to `"US"`, the active schema changes and the
+IR must reflect it. The schema evaluation layer maintains an active-schema
+projection that reacts to data changes. The IR compiler produces a new snapshot
+from that projection. The runtime diffs old and new IR and patches only the
+changed nodes.
+
+The boundary: the schema evaluation port owns "which fields exist and what
+constraints apply given the current data." The IR contains the resolved result,
+not the rules that produced it. Renderers never evaluate predicates; they read
+booleans.
+
+**P12: Renderer conformance testing.** A renderer is correct if it passes a
+conformance suite. The suite feeds IR snapshots to the renderer and asserts DOM
+structure, ARIA attributes, and interaction behavior. This is how the "any
+framework" promise becomes testable rather than aspirational.
+
+## 4. System Architecture
+
+```
+                    Domain Description
+                      JSON Schema
+                          |
+               +----------+----------+
+               | Schema Evaluation   |  (refs, active schemas, annotations)
+               | Port                |  (reacts to data changes)
+               |                     |
+               |  resolve(ptr, data) |
+               |  annotations(ptr)   |
+               |  validate(data)     |
+               +----------+----------+
+                          |
+                 Active Domain Projection
+                 (which fields exist, what
+                  constraints apply, given
+                  current data)
+                          |
+               +----------+----------+
+               |    IR Compiler      |  (pure: projection + hints => IR)
+               +----------+----------+
+                          |
+                 Texaryn UI IR
+                (flat node map, versioned,
+                 semantic, serializable)
+                          |
+               +----------+----------+
+               |  Deterministic      |  (pure TypeScript, zero deps)
+               |  Runtime            |
+               |                     |
+               |  - State manager    |
+               |  - Command bus      |
+               |  - Validation       |
+               |    orchestrator     |
+               |  - Identity map     |
+               |  - Action handler   |
+               +----------+----------+
+                          |
+                  Runtime State
+                 (per-node stores:
+                  value, errors,
+                  dirty, touched,
+                  visible, disabled)
+                          |
+                  getSnapshot()
+                  subscribe()
+                          |
+               +----------+----------+
+               | Renderer Binding    |  (one per framework)
+               |                     |
+               |  - subscribe to     |
+               |    node stores      |
+               |  - widget lookup    |
+               |  - prop getters     |
+               +----------+----------+
+                          |
+               +----------+----------+
+               |   Widget Layer      |  (React, Angular, Vue, WC, etc.)
+               |                     |
+               |  - TextInput        |
+               |  - Select           |
+               |  - Checkbox         |
+               |  - ArrayControl     |
+               |  - ObjectLayout     |
+               |  - Custom           |
+               +----------+----------+
+```
+
+Four boundaries to protect: schema evaluation, UI IR, runtime state, renderer.
+Each is a distinct representation with a distinct owner.
+
+### Data Flow
+
+1. **Schema in.** The schema evaluation port receives a JSON Schema (or future
+   alternative), resolves all `$ref` pointers, and prepares an evaluator that
+   can project the active schema for any data state. Annotations (title,
+   description, default, readOnly, examples) are collected at resolution time
+   for static schemas, or re-evaluated per pointer when the active schema depends
+   on data.
+
+2. **Compile.** The IR compiler asks the schema evaluation port for the active
+   domain projection given the current data. It walks that projection to produce
+   a flat node map. Each node has a stable ID, a JSON Pointer to its data
+   location, a node type (field, container, text, action), and the collected
+   annotations as typed properties.
+
+3. **Re-evaluate.** When data changes (via a command), the runtime asks the
+   schema evaluation port whether the active domain projection changed. For
+   schemas without conditionals, the projection is stable and this is a no-op.
+   For schemas with `if`/`then`/`else` or `dependentSchemas`, the port re-resolves
+   the affected pointers against the new data. If the projection changed, the IR
+   compiler produces a new snapshot. The runtime diffs old and new IR, updates
+   only the changed node stores, and preserves stable IDs for array items that
+   moved.
+
+4. **Render.** Framework bindings subscribe to node stores via
+   `getSnapshot()`/`subscribe()`. When a store updates, only the affected widget
+   re-renders. The widget receives its props through a prop getter function that
+   translates runtime state into framework-specific attributes.
+
+5. **Command.** User input dispatches typed commands (`SetValue`, `InsertItem`,
+   `RemoveItem`, `MoveItem`, `Submit`, `Reset`). The command handler updates the
+   data store, marks dirty/touched state, triggers schema re-evaluation for
+   data-dependent conditionals, and schedules validation.
+
+### Package Dependency Graph
+
+```mermaid
+C4Component
+  title Texaryn JSON Schema engine boundary
+
+  System_Ext(forkEngine, "@texaryn/json-schema-library 11.6.6", "Published production engine, adopted by merged PR #207")
+  System_Ext(hyperjumpEngine, "@hyperjump/json-schema 1.18", "Private comparison engine")
+
+  Container_Boundary(texaryn, "Texaryn workspace") {
+    Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
+    Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 1.0.0", "Builds Texaryn projections and validation results with the maintained fork")
+    Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
+    Component(renderers, "React, Vue, Angular, Solid, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
+  }
+
+  Rel(core, port, "defines")
+  Rel(productionAdapter, core, "depends on")
+  Rel(comparisonAdapter, core, "depends on")
+  Rel(renderers, core, "depends on")
+  Rel(productionAdapter, port, "implements")
+  Rel(comparisonAdapter, port, "implements for CI comparison")
+  Rel(productionAdapter, forkEngine, "published 1.0.0 uses")
+  Rel(comparisonAdapter, hyperjumpEngine, "uses")
+```
+
+Styling integrations remain separate from framework bindings.
+`@texaryn/react-bootstrap` renders native HTML with Bootstrap 5 classes and
+declares `@texaryn/react`, `react`, and `bootstrap: ^5.3` as peer dependencies.
+Widgets map field state onto classes such as `form-control`, `form-label`,
+`form-select`, `form-check`, `is-invalid`, `invalid-feedback`, `btn`, and
+`btn-primary`. The package does not depend on `react-bootstrap`. It proves that
+Texaryn can integrate with a CSS and markup framework without an intermediate
+component library.
+
+`@texaryn/react-mui` tests a different boundary by wrapping a third-party React
+component system. The playground also demonstrates Emotion and Tailwind as
+application-owned styles around the default widgets, with no styling dependency
+added to a renderer package. These targets test three distinct integration
+modes: CSS and markup conventions, component systems, and application-owned
+styling.
+
+## 5. IR Design
+
+The IR is a flat map of nodes, not a tree. This is the convergent pattern from
+A2UI, json-render, and DivKit. A flat map allows O(1) node lookup, streaming
+updates (add/remove/update individual nodes without re-sending the tree), and
+deterministic diffing.
+
+### Node Map Structure
+
+```typescript
+interface UIDocument {
+  version: 1                // IR version, integer (see section 16)
+  rootId: NodeId            // entry point into the node map
+  nodes: Record<NodeId, UINode>
+}
+// No data, no validation state, no interaction state.
+// The IR describes structure. Runtime state is separate (see below).
+
+type NodeId = string & { __brand: 'NodeId' }
+
+type UINode =
+  | FieldNode
+  | ContainerNode
+  | TextNode
+  | ActionNode
+
+interface NodeBase {
+  id: NodeId
+  type: string              // discriminant
+  parentId: NodeId | null
+  dataPointer: JsonPointer | null  // pointer for this IR snapshot; can change on recompile
+  order: number             // sibling order within parent
+  visible: boolean          // resolved (not an expression)
+  disabled: boolean         // resolved
+  annotations: NodeAnnotations
+}
+
+interface NodeAnnotations {
+  title?: string
+  description?: string
+  readOnly?: boolean
+  writeOnly?: boolean
+  deprecated?: boolean
+  examples?: unknown[]
+  default?: unknown
+}
+```
+
+### Field Nodes
+
+```typescript
+interface FieldNode extends NodeBase {
+  type: 'field'
+  fieldType: FieldType
+  format?: string           // JSON Schema format (email, uri, date, etc.)
+  constraints: FieldConstraints
+  enumValues?: EnumOption[]
+  widget?: string           // explicit widget override (from UI hints)
+}
+// No value, validation, or interaction state. Those live in RuntimeState.
+
+type FieldType =
+  | 'string' | 'number' | 'integer' | 'boolean'
+  | 'array'  | 'object'
+
+interface FieldConstraints {
+  required?: boolean
+  minLength?: number
+  maxLength?: number
+  minimum?: number
+  maximum?: number
+  exclusiveMinimum?: number
+  exclusiveMaximum?: number
+  multipleOf?: number
+  pattern?: string
+  minItems?: number
+  maxItems?: number
+  uniqueItems?: boolean
+}
+
+interface EnumOption {
+  value: unknown
+  title?: string            // from annotation or oneOf/anyOf title
+}
+
+// ValidationState and InteractionState are runtime-only (not in the IR).
+// See RuntimeState below.
+```
+
+### Container Nodes
+
+```typescript
+interface ContainerNode extends NodeBase {
+  type: 'container'
+  containerType: 'object' | 'array' | 'group' | 'layout'
+  children: NodeId[]        // ordered child IDs
+  arrayMeta?: ArrayMeta     // present only for array containers
+}
+
+interface ArrayMeta {
+  itemIds: StableItemId[]   // stable identity, see section 6
+  itemKey?: string          // from UI hints, JSON Pointer relative to item, e.g. '/id'
+  minItems?: number
+  maxItems?: number
+  canAdd: boolean           // derived from maxItems constraint
+  canRemove: boolean        // derived from minItems constraint
+  canReorder: boolean       // from UI hints, default false
+}
+
+type StableItemId = string & { __brand: 'StableItemId' }
+```
+
+### Text and Action Nodes
+
+```typescript
+interface TextNode extends NodeBase {
+  type: 'text'
+  content: string
+  textRole: 'heading' | 'paragraph' | 'help' | 'error-summary'
+}
+
+interface ActionNode extends NodeBase {
+  type: 'action'
+  actionType: string        // registered action name
+  label: string
+  actionArgs?: Record<string, unknown>
+  buttonRole: 'submit' | 'reset' | 'button'
+}
+```
+
+### Design Decisions
+
+**Why flat, not tree?** A tree forces the renderer to walk from the root to find
+a changed node. A flat map with parent/children references gives both: O(1) node
+access and reconstructible tree structure. Streaming updates (server-driven UI,
+collaborative editing) can patch individual nodes without retransmitting the
+document.
+
+**Why no executable expressions?** The `visible` and `disabled` fields are
+booleans, not expressions. The schema evaluation port resolves
+`if`/`then`/`else` and `dependentSchemas` against current data; the IR compiler
+produces resolved booleans from that projection. When data changes and the active
+schema shifts, the port re-evaluates, the compiler produces a new IR snapshot, and
+the runtime patches the changed nodes. Renderers never evaluate conditions; they
+read the resolved result.
+
+This does not mean the IR is static. It means the IR contains snapshots, not
+programs. The dynamic behavior lives in the schema evaluation layer, which the
+runtime invokes deterministically on data changes. The tradeoff is that the
+schema evaluation port runs on every data change for schemas with conditionals.
+Section 18 covers the performance implications.
+
+**Why typed constraints instead of raw schema?** The renderer should never need
+to interpret JSON Schema keywords. `FieldConstraints` exposes the subset of
+schema constraints that affect UI behavior (showing "3/100 characters", disabling
+add button at maxItems). The validator handles the rest.
+
+**Why `widget?: string` on FieldNode?** This is the escape hatch for UI hints.
+A schema or UI hint document can specify "use a textarea for this string field"
+or "use a slider for this number." Without it, the renderer chooses based on
+type + format + constraints, which is correct 80% of the time and wrong for the
+other 20%.
+
+**What happens when schema and UI hints disagree?** UI hints are overrides, and
+the schema is the source of truth for data structure. A UI hint can change
+presentation (widget choice, ordering, placeholder text, visibility) but cannot
+change the data model (add a field not in the schema, change a field's type, make
+a required field optional). If a UI hint references a JSON Pointer that does not
+exist in the schema, the compiler ignores it and logs a warning. If a UI hint
+sets `hidden: true` on a required field, the field is hidden but still validated
+(the user must supply the value through a default or programmatic means). This
+rule is simple: UI hints affect how nodes render, never what nodes exist or what
+validation runs.
+
+### What the IR Does Not Contain
+
+No data values. No validation state. No dirty/touched/interaction state. No
+framework-specific data. No CSS classes. No event handlers. No component
+references. No `options: any`. The IR describes structure and constraints. The
+runtime owns all mutable state. This avoids the two-sources-of-truth problem
+(value in the IR vs value in the store).
+
+### Runtime State (Separate from IR)
+
+```typescript
+interface RuntimeState {
+  data: unknown                            // current form data
+  nodes: Map<NodeId, NodeRuntimeState>     // per-node mutable state
+  identities: IdentityMap                  // stable array identity
+  submission: SubmissionState              // submission lifecycle
+}
+
+interface NodeRuntimeState {
+  value: unknown                           // current field value
+  validation: ValidationState
+  interaction: InteractionState
+}
+
+interface ValidationState {
+  status: 'idle' | 'pending' | 'valid' | 'invalid'
+  errors: ValidationError[]
+}
+
+interface ValidationError {
+  instancePointer: string                  // JSON Pointer to the failing location
+  keyword: string                          // JSON Schema keyword that failed
+  message?: string
+  params: Record<string, unknown>
+}
+
+interface InteractionState {
+  dirty: boolean
+  touched: boolean
+  pristine: boolean                        // inverse of dirty, for convenience
+  modified: boolean                        // value differs from initial
+}
+```
+
+The IR and runtime state are joined by `NodeId`: the IR says "this node is a
+required email field with maxLength 100," and the runtime state says "its current
+value is `'alice@example.com'`, it is valid, dirty, and touched." Renderers
+receive both through `Store<T>` instances (section 7).
+
+## 6. Stable Identity Model
+
+Three kinds of identity serve three purposes:
+
+| Identity | Purpose | Example | Lifetime |
+|---|---|---|---|
+| `NodeId` | Identify a node in the IR | `"node_12"` | Positional: reassigned when the structure before it changes |
+| `StableItemId` | Identify an array item | `"item_7"` | Stable across move/insert/remove |
+| `IdentityKey` | Address an array container across recompiles | `"p=rows/i=item_1/p=tags"` | Stable for the logical container's lifetime |
+| JSON Pointer | Address data | `"/address/street"` | Changes when array items move |
+
+### The Problem
+
+JSON Pointer uses array indices: `/items/0`, `/items/1`. When item 0 is removed,
+the former item 1 becomes `/items/0`. Every framework's reconciliation algorithm
+uses keys to match old and new elements. If the key is the index, removal
+triggers re-mount of every subsequent item. If the key is derived from the data
+(like RJSF's approach), identical data values produce duplicate keys.
+
+RJSF's `generateRowId` uses `Math.random()`, which means IDs regenerate on every
+render cycle that reconstructs the array. JSON Forms uses the array index as
+identity, which means reorder is not distinguishable from "delete all and
+recreate."
+
+### The Solution
+
+The runtime maintains a parallel identity map:
+
+```typescript
+interface IdentityMap {
+  // For each array container, addressed by its IdentityKey, the stable item IDs in order
+  arrayIdentities: Map<IdentityKey, StableItemId[]>
+
+  // Reverse lookup: stable item ID to its container key and current index
+  itemLookup: Map<StableItemId, { containerKey: IdentityKey; index: number }>
+}
+```
+
+An `IdentityKey` is built from the property names and `StableItemId`s on the
+path to the array (`p=rows/i=item_1/p=tags`), never from a positional node id,
+so it does not move when rows above it are reordered and a nested array keeps
+its item identities when its row moves. It is exposed as
+`ArrayMeta.identityKey`, stable for the logical container's lifetime and
+otherwise opaque. The compiler returns identity only for the arrays it
+visited, so an array that leaves the document is minted afresh when it
+returns, while an inactive one is still compiled and keeps its ids.
+
+When the runtime processes an `InsertItem` command:
+
+1. Generate a new `StableItemId` (monotonic counter, not random).
+2. Insert it at the specified position in the identity array.
+3. Update the index of every subsequent item in the reverse lookup.
+4. Recompile the affected container's children.
+
+When the runtime processes a `MoveItem` command:
+
+1. Remove the `StableItemId` from its current position.
+2. Insert it at the new position.
+3. Update indices in the reverse lookup.
+4. The `StableItemId` is unchanged; only the index changes.
+5. The renderer sees the same key at a different position and animates the move.
+
+When data arrives from outside (server push, undo, reset):
+
+1. The runtime diffs the new array against the old using a configurable matcher.
+2. Default matcher: reference equality on primitives, deep equality on objects.
+   This is best-effort: two items with identical content are fundamentally
+   ambiguous and may swap identities. The runtime accepts an optional identity
+   hint (`itemKey`: a JSON Pointer relative to the item, e.g. `/id`) to resolve
+   the ambiguity. When present, the matcher uses it instead of deep equality.
+   The hint lives in runtime configuration or UI hints, not in the JSON Schema
+   itself (identity is Texaryn behavior, not data semantics).
+3. Matched items keep their `StableItemId`. Unmatched items get new IDs.
+4. This is the one case where identity can change, and it is explicit. `Reset`
+   is wholesale state replacement, not a structural edit: `InsertItem`,
+   `RemoveItem` and `MoveItem` preserve the identity of everything they do not
+   touch, while a `Reset` re-establishes it by matching, so the nested arrays
+   under a row that changed position may be minted afresh. This is revisited
+   only if a binding starts using `Reset` for routine parent-driven value
+   synchronisation, where re-minting would cost focus and widget state.
+
+### JSON Pointer Mapping
+
+Renderers and the validation layer need JSON Pointers for data access. The
+runtime provides a lookup:
+
+```typescript
+function resolvePointer(itemId: StableItemId): string
+// Returns "/items/2" for the item currently at index 2
+
+function resolveItemId(pointer: string, containerId: NodeId): StableItemId
+// Returns the stable ID for the item at that index in that container
+```
+
+The JSON Pointer is stored in the IR snapshot (`NodeBase.dataPointer`) but can
+change between snapshots when items above it are inserted or removed. The
+`StableItemId` remains constant across recompilation; the pointer does not, and
+neither does the positional `NodeId`, which is why renderers key rows by
+`StableItemId` and object children by property name.
+
+## 7. State and Reactivity Model
+
+### Per-Node State
+
+Each node in the IR has an associated state object. The public contract is
+`Store<T>`, not signals:
+
+```typescript
+interface Store<T> {
+  getSnapshot(): T
+  subscribe(listener: () => void): () => void  // returns unsubscribe
+}
+```
+
+Signals are an internal implementation detail. The TC39 Signals proposal (Stage 1
+as of 2025) defines a useful shape, and the internal implementation follows it:
+
+```typescript
+// Internal only. Not exported from @texaryn/core.
+interface Signal<T> {
+  get(): T
+  set(value: T): void
+}
+
+interface Computed<T> {
+  get(): T  // derived, recomputes when dependencies change
+}
+```
+
+Each node exposes its state as `Store<T>` instances:
+
+```typescript
+interface NodeState {
+  value: Store<unknown>
+  errors: Store<ValidationError[]>
+  dirty: Store<boolean>
+  touched: Store<boolean>
+  validationStatus: Store<'idle' | 'pending' | 'valid' | 'invalid'>
+  visible: Store<boolean>          // reactive view of the current IR snapshot's resolved value
+  disabled: Store<boolean>         // reactive view of the current IR snapshot's resolved value
+}
+```
+
+The internal signal graph drives computation. The `Store<T>` wrapper exposes the
+result. If the TC39 proposal ships natively, or a different reactive engine proves
+better, the internal implementation swaps with no public API change.
+
+### Why Not @preact/signals-core?
+
+`@preact/signals-core` is the most mature TC39-shaped signal implementation. But
+its effect scheduler assumes it owns the microtask queue, which conflicts with
+React's concurrent mode scheduler and Angular's change detection. Embedding it
+in a framework-neutral core would force every framework adapter to work around
+scheduling conflicts.
+
+Instead: implement a minimal signal core (~200 lines) that provides `Signal`,
+`Computed`, and `batch()`. No effect scheduler. Framework adapters use
+`getSnapshot() + subscribe(callback) => unsubscribe` (React's `useSyncExternalStore`
+contract, also implementable in every other framework). When the TC39 Signals
+proposal advances to Stage 3 with native browser support, swap the internal
+implementation with no public API change.
+
+### Framework Binding Contract
+
+The `Store<T>` interface (defined above) is the binding contract. Each framework
+adapter consumes it:
+
+- **React**: `useSyncExternalStore(store.subscribe, store.getSnapshot)`
+- **Vue**: `shallowRef` seeded from `getSnapshot()`, updated via `subscribe`
+- **Angular**: `signal()` seeded from `getSnapshot()`, updated via `subscribe`
+- **Svelte**: `readable` store wrapping `subscribe`
+- **Web Components**: subscription in `connectedCallback`, cleanup in
+  `disconnectedCallback`
+
+### Commands (Not Events)
+
+User interactions dispatch typed commands, not raw events:
+
+```typescript
+type Command =
+  | { type: 'SetValue';    nodeId: NodeId; value: unknown }
+  | { type: 'InsertItem';  containerId: NodeId; index: number; value?: unknown }
+  | { type: 'RemoveItem';  containerId: NodeId; index: number }
+  | { type: 'MoveItem';    containerId: NodeId; from: number; to: number }
+  | { type: 'SetTouched';  nodeId: NodeId }
+  | { type: 'Submit' }
+  | { type: 'Reset';       data?: unknown }
+```
+
+Commands are tagged values, but `subscribeMutations()` is a data-change feed,
+not a complete command observer. It reports before and after data and documents
+when the data reference changes, and includes the command when dispatch caused
+that change. `Submit`, `SetTouched`, and no-op commands can commit without a
+mutation notification. A command's serializable shape does not define durable
+history, replay, transport, or undo. The command handler is a pure function:
+
+```typescript
+function processCommand(state: FormState, command: Command): {
+  nextState: FormState
+  effects: Effect[]
+}
+```
+
+Effects are descriptions of side effects to perform:
+
+```typescript
+type Effect =
+  | { type: 'validate';     nodeIds: NodeId[] }
+  | { type: 'recompile';    reason: 'data-changed' | 'schema-changed' }
+  | { type: 'executeAction'; actionType: string; args: unknown }
+  | { type: 'notify';       event: string; payload: unknown }
+```
+
+The effect executor sits outside the pure core. This separation allows the
+command handler to be tested without mocking validation or action execution.
+
+### Submission Lifecycle
+
+Submission is the one workflow complex enough to warrant a state machine:
+
+```
+idle ──submit──> validating ──all valid──> submitting ──success──> submitted
+                     |                        |
+                     +-─ invalid ──> idle      +-─ error ──> idle
+```
+
+The machine tracks: which validations are pending, whether any failed, whether
+submission is in progress, and the submission result. It emits effects
+(run validations, execute submit action) rather than performing them.
+
+XState is a good fit for this machine but is not a dependency of the core. The
+machine is hand-coded as a reducer function, ~50 lines. XState integration is an
+optional adapter for consumers who already use it.
+
+## 8. Validation Architecture
+
+### Validation as Part of the Schema Evaluation Port
+
+The headless core does not validate. It delegates to the `SchemaEvaluationPort`
+(section 9), which includes `validate()` and optional `validateAt?()` alongside
+`project()`. The validation methods use `MaybePromise`:
+
+```typescript
+type MaybePromise<T> = T | Promise<T>
+
+// These methods live on SchemaEvaluationPort (section 9).
+// Shown here for the validation architecture discussion.
+//
+//   validate(data: unknown): MaybePromise<ValidationResult>
+//   validateAt?(data: unknown, pointer: JsonPointer): MaybePromise<ValidationResult>
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+}
+```
+
+The port accepts both synchronous and asynchronous validators via `MaybePromise`.
+The runtime normalizes internally with `await`, so synchronous validators take the
+fast path (no microtask deferral when the result is already resolved), while
+async validators (server-side checks, debounced validation, cross-field lookups)
+work without a separate port.
+
+### Why MaybePromise, Not Pure Async
+
+RJSF has no async validation. Adding it retroactively would require changing
+every call site that assumes `isValid` is synchronous, including the
+`retrieveSchema` hot path where `isValid` is called during schema resolution.
+The port must accommodate async from day one.
+
+But pure `Promise<T>` on every call has real costs: Promise scheduling overhead,
+harder-to-debug stack traces, and testing complexity where every assertion needs
+`await`. `MaybePromise<T>` gives synchronous validators (AJV, @cfworker) a
+genuinely synchronous fast path while keeping the port open for async validators
+from the start.
+
+### Validator Implementations
+
+The comparison below is an exploratory research snapshot from before ADR-002
+and ADR-011. Its recommendations describe the candidates at that time. The
+accepted production engine strategy is recorded in ADR-011.
+
+#### AJV (v8.20.0, 378M weekly downloads, 33KB gzipped)
+
+The most widely used JavaScript JSON Schema validator. Supports 2020-12 natively
+since v8. Compiles schemas to JavaScript functions, making it the fastest
+validator for repeated validation. Error paths use `instancePath` (JSON Pointer).
+
+**Disqualified for annotation collection.** AJV's documentation explicitly states
+that metadata keywords (title, description, default, readOnly, writeOnly,
+examples, deprecated) are "reserved but not collected." The docs note "format
+keywords will still collect annotations once supported," confirming annotations
+are planned, not implemented. You would have to traverse the schema yourself to
+collect metadata, which defeats the purpose of running it through applicators.
+
+**Maintenance:** Joined OpenJS Foundation. Last release v8.20.0 (April 2026),
+last commit May 2026. Releases are infrequent; the pace has declined from its
+peak. v8.18.0 was a security fix (CVE-2025-69873). Stable but not rapidly
+evolving.
+
+**CSP incompatible.** Uses `new Function()` for code generation. Does not work
+in Cloudflare Workers, strict CSP environments, or some browser extensions
+without build-step precompilation.
+
+**Recommendation:** support as a validation-only adapter for consumers who
+already use it. Do not couple the core to it.
+
+#### @hyperjump/json-schema (v1.17.8, 337K weekly downloads, 71KB gzipped)
+
+Full 2020-12 compliance including vocabularies and annotation collection. This is
+the only JavaScript validator that implements the spec's annotation collection
+algorithm.
+
+**Annotation collection is the critical differentiator.** The library provides a
+dedicated `annotate()` function (separate from `validate()`) that processes an
+instance through a schema and returns an annotated node AST. The API includes:
+- `annotate(schemaUri, instance, outputFormat)`: produces the annotated tree
+- `annotation(instance, keyword, dialectId)`: retrieves annotations at a location
+- `annotatedWith(instance, keyword, dialectId)`: yields nodes with an annotation
+
+This correctly implements the JSON Schema spec rule that annotations within a
+failing branch of oneOf/anyOf/then/else are ignored even when the instance
+validates against the complete document.
+
+**Maintained by a JSON Schema spec author.** The maintainer (Jason Desrosiers) is
+a core contributor to the specification and a top StackOverflow answerer for the
+jsonschema tag. The library was built as the reference implementation for
+annotation collection. Last publish: August 2026 (24 days ago). Only 7 open
+issues. Steady release cadence.
+
+**CSP safe.** Pure interpretation (no `eval`, no `new Function`). Works in
+browsers, Node, web workers, and Cloudflare Workers.
+
+**Performance tradeoff.** Slower than AJV (interpreted, no code generation). For
+a form runtime that validates on user interaction (not millions of records), this
+is unlikely to matter.
+
+**Recommendation:** use as the reference validator implementation. Annotation
+collection through applicators is the mechanism the IR compiler depends on.
+
+#### @cfworker/json-schema (v4.1.1, 7.7M weekly downloads, 6KB gzipped)
+
+Designed for Cloudflare Workers. Supports drafts 4, 7, 2019-09, 2020-12.
+Validated against ~4,500 assertions from the json-schema-test-suite. Error output
+includes `instanceLocation` and `keywordLocation` as JSON Pointers.
+
+**No annotation collection.** The `validate()` function returns
+`{ valid, errors }` only. Internal `evaluated` tracking for
+`unevaluatedProperties`/`unevaluatedItems` is never exposed.
+
+**CSP safe.** No `eval`, no `new Function`. The smallest bundle of all
+candidates.
+
+**Maintenance note:** last npm publish January 2025 (19 months ago). High
+download count is driven by RJSF which bundles it as an alternative validator.
+
+**Recommendation:** viable as a lightweight validation-only adapter for
+CSP-restricted environments, paired with separate annotation extraction.
+
+#### json-schema-library (v11.6.2, 548K weekly downloads, 31KB gzipped)
+
+A surprise find. This library was designed with form builder use cases in mind
+(the author also maintains `@sagold/react-json-editor`). Supports drafts 04
+through 2020-12.
+
+**Partial annotation support, with form-builder-oriented APIs:**
+- `getNode(pointer)`: resolves a JSON Pointer through the compiled schema and
+  returns the resolved schema node, giving access to title, description, default,
+  readOnly, writeOnly
+- `getChildSelection()`: lists available sub-schema options for oneOf scenarios
+- `getData()`: generates default-populated objects from schemas
+- `eachNode()`: traverses all schema nodes
+
+This is not the JSON Schema spec's formal annotation collection through
+applicators. It resolves the effective schema at any data pointer, from which you
+can read metadata directly. For the 90% case (properties, allOf, simple oneOf),
+this works. For the edge case (annotations from a oneOf branch that fails locally
+but contributes to a passing full-document evaluation), only @hyperjump is correct.
+
+**CSP safe.** No code generation.
+
+**Actively maintained.** Latest release July 2026. Steady cadence.
+
+**Recommendation:** worth evaluating as an alternative to @hyperjump if full
+spec-compliant annotation collection proves unnecessary in practice. The
+form-builder-oriented API (`getNode`, `getChildSelection`) may be more practical
+to integrate.
+
+#### Validator Comparison
+
+| | AJV | @hyperjump | @cfworker | json-schema-library |
+|---|---|---|---|---|
+| 2020-12 | Yes | Yes | Yes | Yes |
+| Annotations | No | Yes (spec) | No | Partial (pragmatic) |
+| CSP safe | No | Yes | Yes | Yes |
+| Bundle (gzip) | 33KB | 71KB | 6KB | 31KB |
+| Downloads/week | 378M | 337K | 7.7M | 548K |
+| Last publish | 2026-04 | 2026-08 | 2025-01 | 2026-07 |
+| Status | Stable, slowing | Active | Slow | Active |
+
+#### Historical Annotation Analysis
+
+The core remains independent of validator APIs. Texaryn's supported JSON Schema
+adapter follows ADR-011. `SchemaEvaluationPort` is the boundary that isolates
+the runtime from that engine; it is not a promise to support arbitrary
+consumer selected engines.
+
+The initial research treated formal annotation collection as a possible engine
+responsibility. It is not sufficient by itself for form projection: absent
+properties have no instance location to annotate, and annotation results for
+failing branches do not describe every field an incomplete form must expose.
+Texaryn therefore combines schema structure, data dependent evaluation, and its
+own projection rules. Hyperjump's `annotate()` API remains useful for internal
+comparison, but it is not a required production dependency under ADR-011.
+
+### Validation Scheduling
+
+The runtime decides when to validate, not the renderer:
+
+- **On blur** (default): validate the field when `SetTouched` fires
+- **On change**: validate after every `SetValue`, debounced
+- **On submit**: validate all fields on `Submit`
+- **On demand**: the host can trigger validation for specific nodes
+
+Scheduling is configurable per-field and globally. The configuration lives in UI
+hints, not in the schema.
+
+### Error Mapping
+
+Validation errors reference JSON Pointers. The runtime maps them to `NodeId`
+using the identity model from section 6. Errors for nested properties map to the
+deepest matching node. Errors for array items map to the specific item's node
+using the stable identity map.
+
+## 9. Schema Evaluation Architecture
+
+### The Port
+
+The schema evaluation port is the boundary between schema description and the
+IR compiler. `@texaryn/schema-json` projects JSON Schema. `@texaryn/schema-zod`
+projects the JSON Schema generated from a Zod input schema and validates with
+Zod. The port owns two responsibilities: producing a resolved projection for
+current data, and validation.
+
+```typescript
+type MaybePromise<T> = T | Promise<T>
+
+interface SchemaEvaluationPort {
+  project(data: unknown): SchemaProjection
+  // Returns the full resolved view of the schema given current data.
+  // Handles $ref resolution, if/then/else, dependentSchemas, oneOf/anyOf
+  // discrimination, and annotation collection in a single pass.
+  // SchemaProjection is a transient resolved view, not a long-lived
+  // normalized-domain layer.
+
+  validate(
+    data: unknown
+  ): MaybePromise<ValidationResult>
+  // Full-document validation. Authoritative: the result accounts for
+  // cross-property constraints, dependentRequired, if/then/else,
+  // contains, unevaluated*, and combinators.
+
+  validateAt?(
+    data: unknown,
+    pointer: JsonPointer
+  ): MaybePromise<ValidationResult>
+  // Optional single-pointer validation with explicitly weaker semantics.
+  // May miss cross-property and combinator constraints. A fast path
+  // for on-blur feedback, not part of the correctness model. The runtime
+  // falls back to full validate() when this is absent or on submit.
+}
+
+interface SchemaProjection {
+  nodes: Map<JsonPointer, NodeProjection>
+}
+
+interface NodeProjection {
+  type: JsonSchemaType
+  format?: string
+  constraints: FieldConstraints
+  children?: ChildProjection[]    // for object/array types
+  enumValues?: EnumOption[]       // for enum types
+  active: boolean                 // false if hidden by conditionals
+  annotations: AnnotationSet
+}
+
+interface AnnotationSet {
+  title?: string
+  description?: string
+  readOnly?: boolean
+  writeOnly?: boolean
+  deprecated?: boolean
+  examples?: unknown[]
+  default?: unknown
+}
+```
+
+The data flow is:
+
+```text
+JSON Schema + data
+       ↓
+SchemaEvaluationPort.project()
+       ↓
+SchemaProjection  (transient resolved view)
+       ↓  + UIHints + IdentityMap
+     compile()
+       ↓
+   UIDocument
+```
+
+The IR compiler calls `project()` to build the flat node map.
+The runtime calls `project()` again after data changes to detect whether the
+active projection shifted, and re-compiles affected subtrees if it did.
+
+### Selected JSON Schema Engine
+
+`json-schema-library` is the selected long term production engine under
+ADR-011. Its form oriented node reduction and schema traversal APIs fit the
+adapter's projection work. The production adapter remains responsible for
+combining those APIs with Texaryn's rules for missing fields, inactive branches,
+recursion boundaries, and renderer facing projection data. Engine fixes belong
+in the Texaryn maintained fork; Texaryn specific projection policy does not.
+
+### JSON Schema Adapter
+
+The numbered scope below is the original v1 proposal. Shipped capabilities and
+current limits are recorded in the package support guide and latest status.
+Later implementation work supersedes this initial scope where they differ.
+
+The published `@texaryn/schema-json` adapter implements `SchemaEvaluationPort`
+for JSON Schema using the engine selected by ADR-011. Its responsibilities:
+
+1. **$ref resolution.** Resolve all `$ref` pointers including recursive refs.
+   Use `$anchor` and `$dynamicAnchor` from 2020-12. A recursive schema expands
+   once past the data: below the last location that holds data, a path is cut
+   where it would apply the same schemas again, and the past-the-data object
+   whose schemas would repeat carries a `recursion` boundary instead of a
+   placeholder node (ADR-007). Local `$defs`/`$ref` is in the MVP scope;
+   remote `$ref` and `$dynamicRef` are deferred.
+
+2. **Active schema projection.** Process `if`/`then`/`else`,
+   `dependentSchemas`/`dependentRequired`, and the draft-07 `dependencies`
+   keyword against current data. Return `active: true/false` per pointer.
+   This is the schema evaluation layer's core job: maintaining which fields
+   exist and which constraints apply as data changes.
+
+3. **oneOf/anyOf discrimination.** When a field uses `oneOf` or `anyOf`,
+   determine which sub-schema applies to the current data. This is where JSON
+   Forms falls down: it destroys data that does not match the newly selected
+   sub-schema. The correct behavior: preserve all data, validate against the
+   selected sub-schema, and report active/inactive branches.
+
+4. **Annotation collection.** Extract `title`, `description`, `default`,
+   `readOnly`, `writeOnly`, `deprecated`, `examples` from the applicable
+   sub-schemas. For `oneOf`/`anyOf`, collect from the matching branch.
+   @hyperjump/json-schema provides spec-compliant annotation collection through
+   its `annotate()` API (currently marked experimental). This is the strongest
+   existing implementation for data-dependent annotation resolution, but it is
+   one adapter implementation, not the architecture.
+
+5. **Format handling.** Map JSON Schema `format` values to IR field types and
+   widget hints. `"email"` produces a string field with `format: "email"`;
+   the renderer decides whether that means `<input type="email">` or a custom
+   email widget.
+
+### Adapter Packaging
+
+The schema evaluation port is defined in `@texaryn/core` (interface only).
+The supported production implementation and the private CI comparison
+implementation live in separate packages:
+
+1. `@texaryn/schema-json`: published production adapter. Version 1.0.0 uses
+   the Texaryn maintained `json-schema-library` fork at version 11.6.6.
+2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
+   supported production option or a planned migration target.
+
+The port keeps engine details out of the core runtime. The supported production
+engine is a project decision recorded in ADR-011.
+
+### UI Hints
+
+UI hints are not part of the JSON Schema. They are a separate document that maps
+JSON Pointers to presentation overrides:
+
+```typescript
+interface UIHints {
+  [jsonPointer: string]: FieldHints | ArrayHints
+}
+
+interface FieldHints {
+  widget?: string           // override widget selection
+  order?: number            // override sibling order
+  placeholder?: string
+  helpText?: string
+  colSpan?: number          // layout hint for grid containers
+  hidden?: boolean          // force hide regardless of schema
+  validationTrigger?: 'blur' | 'change' | 'submit'
+}
+
+interface ArrayHints extends FieldHints {
+  itemKey?: JsonPointer     // pointer relative to item, e.g. '/id'
+  canReorder?: boolean      // enable drag-to-reorder UI
+}
+```
+
+UI hints are optional. Without them, the compiler produces a usable IR from the
+schema alone. With them, the IR can be customized without modifying the schema.
+
+This is explicitly not `x-jsf-presentation` embedded in the schema (the
+@remoteoss approach). Schema and presentation are separate inputs to the
+compiler.
+
+### Draft Support
+
+**JSON Schema 2020-12** is the primary target. Full support including:
+`$ref`, `$dynamicRef`, `$anchor`, `$dynamicAnchor`, `$vocabulary`,
+`if`/`then`/`else`, `dependentSchemas`, `dependentRequired`,
+`prefixItems`/`items`, `unevaluatedProperties`/`unevaluatedItems`.
+
+**Draft 2019-09** is supported because 2020-12 is a minor revision of it.
+
+**Draft-07** is supported through a dialect-aware evaluator that processes
+draft-07 schemas natively, using draft-07 semantics. This is not keyword
+mapping: `$ref` behavior, tuple arrays (`items` + `additionalItems`),
+`dependencies`, and evaluation semantics differ between drafts, so a translation
+layer would introduce silent semantic bugs. The underlying validator libraries
+(AJV, @hyperjump, json-schema-library) already handle multiple dialects natively;
+the adapter delegates to the dialect the schema declares.
+
+**Draft-04** is supported with native dialect detection, validation, reference
+resolution, and metaschema support. Its different `id`, `definitions`, and
+`$ref` semantics are handled as Draft-04 behavior rather than translated into
+2020-12 keywords. The implementation merged in PR #222. Its mandatory official
+validation suite passed 618 of 618 cases in each adapter. The minor package
+release is [`@texaryn/schema-json` 0.9.0 on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.9.0),
+with a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.9.0),
+published through PR #223.
+
+### Dialect Detection
+
+```typescript
+type Dialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
+
+interface DialectConfig {
+  defaultDialect: Dialect    // used when $schema is absent
+}
+
+function detectDialect(
+  schema: unknown,
+  config: DialectConfig
+): Dialect {
+  if (typeof schema !== 'object' || schema === null) return config.defaultDialect
+  const s = schema as Record<string, unknown>
+  if (typeof s.$schema === 'string') {
+    if (s.$schema.includes('draft-04')) return 'draft-04'
+    if (s.$schema.includes('draft-07')) return 'draft-07'
+    if (s.$schema.includes('2019-09')) return '2019-09'
+    if (s.$schema.includes('2020-12')) return '2020-12'
+  }
+  return config.defaultDialect
+}
+```
+
+When `$schema` is absent, the adapter uses a configurable `defaultDialect`
+(initially `'draft-07'`, since the majority of schemas in the wild use draft-07)
+rather than guessing from keyword heuristics. The consumer can set this to
+`'2020-12'` if they know their schemas are modern.
+
+## 10. Renderer Contract
+
+### Widget Registration
+
+```typescript
+interface RendererRegistry {
+  register(tester: WidgetTester, component: unknown, rank?: number): void
+  resolve(node: UINode): unknown  // returns the best-matching component
+}
+
+interface WidgetTester {
+  test(node: UINode): boolean
+  rank: number  // higher rank wins when multiple testers match
+}
+```
+
+This is the JSON Forms tester/rank pattern, which is its best design decision.
+A widget registers with a tester function and a rank. When the runtime needs a
+component for a node, it runs all testers and picks the highest-ranked match.
+
+Example registrations:
+
+```typescript
+// Default: any string field gets TextInput
+registry.register({ test: n => n.type === 'field' && n.fieldType === 'string', rank: 1 }, TextInput)
+
+// Override: string fields with format "email" get EmailInput
+registry.register({ test: n => n.type === 'field' && n.format === 'email', rank: 2 }, EmailInput)
+
+// Override: string fields with widget hint "textarea" get Textarea
+registry.register({ test: n => n.type === 'field' && n.widget === 'textarea', rank: 3 }, Textarea)
+```
+
+### Prop Getters
+
+Following Zag.js and Downshift, the renderer binding provides prop getter
+functions rather than raw props:
+
+```typescript
+interface FieldProps {
+  getLabelProps(): Record<string, unknown>
+  getInputProps(): Record<string, unknown>
+  getErrorProps(): Record<string, unknown>
+  getDescriptionProps(): Record<string, unknown>
+}
+```
+
+Prop getters handle ARIA attributes, `id` generation, `htmlFor` linking, error
+association via `aria-describedby`, and required/disabled state. The widget
+author calls `getInputProps()` and spreads the result onto their element.
+
+This solves the accessibility gap in every studied project: RJSF's accessibility
+depends on each widget theme implementing it correctly; JSON Forms has no
+accessibility contract at all. Prop getters centralize the ARIA logic in the
+binding layer, not in individual widgets.
+
+### Conformance Suite
+
+A renderer is correct if it passes the conformance test suite. The suite provides:
+
+1. **IR snapshots** covering every node type, field type, and format.
+2. **Assertions** for DOM structure (label/input/error association), ARIA
+   attributes (required, invalid, describedby), and keyboard interaction.
+3. **Interaction tests** that dispatch commands and verify the widget responds
+   correctly (value change, touch on blur, array add/remove/reorder).
+
+The suite is framework-agnostic. It accepts a `render` function and a
+`querySelector` function, so it works with React Testing Library, Angular
+TestBed, and bare DOM.
+
+```typescript
+interface ConformanceSuiteConfig {
+  render(ir: UIDocument, registry: RendererRegistry): Element
+  querySelector(root: Element, selector: string): Element | null
+  dispatchEvent(element: Element, event: Event): void
+  waitForUpdate(): Promise<void>  // wait for framework rendering cycle
+}
+```
+
+## 11. Actions and Effects
+
+### Action Registry
+
+```typescript
+interface ActionRegistry {
+  register(
+    actionType: string,
+    handler: ActionHandler,
+    schema?: unknown  // JSON Schema for args validation
+  ): void
+
+  dispatch(actionType: string, args: unknown): Promise<ActionResult>
+}
+
+type ActionHandler = (args: unknown, context: ActionContext) => Promise<ActionResult>
+
+interface ActionContext {
+  getData(): unknown
+  getNodeState(nodeId: NodeId): NodeState
+  dispatch(command: Command): void
+}
+
+interface ActionResult {
+  ok: boolean
+  data?: unknown
+  error?: string
+}
+```
+
+Actions are registered by the host application, not defined in the schema or IR.
+The IR can reference action types by name (`ActionNode.actionType`), and the
+runtime validates that the action exists before allowing the node to render as
+enabled.
+
+### Built-in Actions
+
+Two actions are always registered:
+
+- `submit`: collects form data, runs full validation, calls the user-provided
+  submit handler
+- `reset`: resets form data to initial values, clears dirty/touched/validation
+  state
+
+All other actions are host-defined. Examples: "navigate", "openModal",
+"addToCart". The runtime has no opinion about what they do.
+
+### Why Not Arbitrary Expressions?
+
+The Adaptive Cards expression language and Formly's expression parser both
+created Turing-complete evaluation in the template layer. This prevents static
+analysis, creates security risks for server-driven UI, and makes the IR
+unpredictable (the same IR can produce different results depending on the
+expression evaluation context).
+
+Declarative actions with serializable arguments avoid all three problems.
+The tradeoff: you cannot express "when this field changes, set that field to
+this value" in the IR. You express it in the host application's action handler.
+This is the correct boundary for a headless runtime.
+
+## 12. Extensibility
+
+### Extension Points
+
+The system has five extension points, ordered from most to least common:
+
+1. **Widgets.** Register a component for a specific node type/format/widget
+   combination. This is the primary extension mechanism.
+
+2. **Schema evaluation adapters.** Implement the `SchemaEvaluationPort` for a
+   different validation library or schema format.
+
+3. **Actions.** Register host-specific action handlers.
+
+4. **Future schema formats.** Add a direct projection adapter for another
+   schema model only when its required behavior cannot be represented through
+   JSON Schema projection. The Zod adapter currently delegates projection to
+   `@texaryn/schema-json`; ADR-022 records the evidence and revisit trigger.
+
+5. **IR transforms.** Post-compilation transforms that modify the IR before
+   the renderer sees it. Use cases: add layout wrappers, inject help text,
+   apply theme-specific node attributes.
+
+### Plugin Model
+
+Plugins are plain functions that receive the runtime configuration and register
+their extensions:
+
+```typescript
+interface Plugin {
+  name: string
+  setup(runtime: RuntimeConfig): void
+}
+
+interface RuntimeConfig {
+  widgets: RendererRegistry
+  actions: ActionRegistry
+  schemaEval: SchemaEvaluationPort
+  transforms: TransformPipeline
+}
+```
+
+No lifecycle hooks. No dependency injection. No middleware chain. A plugin is a
+function that calls `register` on the registries it cares about. This is
+deliberately minimal.
+
+Formly's extension pipeline is more powerful (lifecycle hooks, pre/post
+processing, wrapper injection) but also more complex. The minimal plugin model
+can grow toward Formly's if demand warrants it. Starting with it would be
+premature.
+
+### IR Transforms
+
+```typescript
+type IRTransform = (document: UIDocument) => UIDocument
+
+interface TransformPipeline {
+  add(transform: IRTransform, priority?: number): void
+  apply(document: UIDocument): UIDocument
+}
+```
+
+Transforms run after compilation and before the renderer receives the IR. They
+are pure functions (deterministic, no side effects). Use cases:
+
+- **Layout injection**: wrap every top-level field group in a layout container
+- **Help text injection**: add text nodes below fields that have descriptions
+- **Conditional removal**: strip nodes based on feature flags
+
+Transforms are optional. The IR is usable without them.
+
+## 13. AI and Server-Driven UI
+
+### IR as Exchange Format
+
+The IR (section 5) is the exchange format for server-driven and AI-generated UI.
+A server or an AI model produces a `UIDocument` (or a partial update to one),
+and the runtime processes it identically to a locally compiled document.
+
+This works because:
+- The IR is serializable (JSON).
+- The IR is typed and versioned.
+- The IR contains no expressions (no evaluation context dependency).
+- The IR contains no framework-specific data.
+
+### Server-Driven UI Flow
+
+```
+Server ──(versioned snapshot)────> Update Session ──> DocumentRuntime
+  |                                  |                       |
+  |  revision 12                     | validate and commit   | notify
+  |                                  |                       |
+  +──(revision 13 patch or data)─────+                       |
+```
+
+The first message is a full version 2 document and data snapshot. Each later
+update uses the next revision and contains a restricted JSON Patch, replacement
+data, or both. A higher revision snapshot can resynchronize the session. The
+session validates the whole resulting document and data before one atomic
+runtime publication. Its patch subset supports `add`, `remove`, and `replace`
+under `/nodes`; it does not implement every RFC 6902 operation. The session
+bounds message size, JSON depth, document nodes and depth, collections, patch
+operations, and update rate. The host limits raw request bytes before parsing.
+See [ADR-013](docs/adr/013-server-driven-document-updates.md) for the protocol.
+
+### AI-Generated UI Flow
+
+An AI model (local or remote) generates IR in one of two ways:
+
+1. **Schema generation.** The AI produces a JSON Schema and optional UI hints.
+   The runtime compiles them through the normal pipeline. This is safer because
+   the schema is validated before compilation.
+
+2. **IR generation.** The AI produces a `UIDocument` directly. The runtime
+   validates the IR against the versioned type definitions before rendering. This
+   is faster (skips compilation) but requires the AI to produce valid IR.
+
+In both cases, the runtime validates the input before processing. Malformed
+schemas or IR documents are rejected with typed errors, not rendered with
+undefined behavior.
+
+### Security Boundary
+
+Server-driven and AI-generated UI introduces a trust boundary. The IR can
+reference action types, but actions execute only if the host registered them.
+An IR document that references an unregistered action type renders the action
+button as disabled.
+
+This is the same pattern as DivKit's action catalog: the server can describe
+what actions exist, but the client decides which are allowed.
+
+Remote IR executes no dynamic code. Every action registration supplies a
+synchronous argument validator when that action accepts arguments. Core clones
+and freezes the validated arguments before dispatch, while authorization stays
+in the host handler. The versioned structural validator rejects unknown node
+types and properties. The update session bounds input work and rate limits
+updates.
+
+## 14. Package Structure
+
+The tree below records the original source layout proposal. Current published
+packages and the selected engine are tracked in the status section and ADR-011.
+
+```
+packages/
+  core/               @texaryn/core
+    src/
+      ir/             IR type definitions, document builder
+      compiler/       Schema-to-IR compiler
+      state/          Signal implementation, node state
+      commands/       Command types, command handler
+      identity/       Stable identity map
+      actions/        Action registry, built-in actions
+      validation/     Validation orchestrator, scheduler
+      transforms/     IR transform pipeline
+      index.ts        Public API
+
+  schema-json/        @texaryn/schema-json
+    src/
+      evaluation/     SchemaEvaluationPort implementation
+      refs/           $ref resolution (local $defs first, remote later)
+      conditionals/   if/then/else, dependencies, active schema projection
+      annotations/    Annotation extraction
+      dialects/       Draft detection, draft-07 compat
+      index.ts
+
+  schema-json-hyperjump/  @texaryn/schema-json-hyperjump
+    src/              Private CI comparison adapter backed by
+                      @hyperjump/json-schema
+
+  react/              @texaryn/react
+    src/
+      hooks/          useForm, useField, useFieldArray
+      binding/        Store-to-React bridge (useSyncExternalStore)
+      prop-getters/   ARIA prop generators
+      components/     FormRoot, FieldRenderer, ArrayRenderer
+      index.ts
+
+  vue/                @texaryn/vue
+  angular/            @texaryn/angular
+  wc/                 @texaryn/wc
+
+  test-suite/         @texaryn/test-suite
+    src/
+      fixtures/       IR snapshots for every node type
+      assertions/     DOM structure, ARIA, interaction
+      runner/         Framework-agnostic test runner
+```
+
+### Dependency Rules
+
+1. `core` has zero runtime dependencies.
+2. `schema-json` depends on `core` and its selected JSON Schema engine.
+3. `schema-json-hyperjump` depends on `core` and `@hyperjump/json-schema` as a
+   private CI comparison package.
+4. Framework packages depend on `core` and their respective framework as a
+   peer dependency.
+5. `test-suite` depends on `core` only.
+
+### Build
+
+TypeScript with project references. Each package compiles to ESM and CJS.
+The core emits `.d.ts` files that downstream packages consume.
+
+Monorepo tooling: pnpm workspaces or npm workspaces. Turborepo or Nx for build
+orchestration. The choice is not load-bearing; either works.
+
+## 15. Security Model
+
+### Threat Model
+
+The primary threats come from remote IR (server-driven UI, AI-generated UI):
+
+1. **Malicious IR injection.** An attacker crafts an IR document that references
+   actions the host did not intend to expose, or that contains node properties
+   designed to cause XSS through the renderer.
+
+2. **Schema injection.** An attacker provides a JSON Schema that causes excessive
+   computation (deeply nested `$ref`, exponential `oneOf` combinatorics).
+
+3. **Validation bypass.** An attacker submits data that passes client-side
+   validation but exploits differences between the client validator and the
+   server validator.
+
+### Mitigations
+
+**IR validation.** Every external `UIDocument` is validated against its
+versioned structural contract. Unknown properties and node types are rejected.
+An action with no host registration renders disabled, and direct invocation is
+rejected. Actions that accept arguments have a registered argument validator.
+
+**Schema expansion limits.** A recursive schema's projection past the data has two
+fixed limits per projection, 16 objects and 512 nodes, and a schema that applies
+itself at one instance location is rejected when the adapter is created
+(ADR-007). The `oneOf`/`anyOf` evaluator has a branch limit (default: 20).
+These prevent resource exhaustion from adversarial schemas.
+
+**No HTML in IR.** The IR contains strings (titles, descriptions, error
+messages), never HTML. Renderers must escape all string content. The conformance
+suite asserts this.
+
+**Validation is advisory.** Client-side validation is a UX feature. The server
+must re-validate every submission. The runtime makes no guarantee that validated
+data is safe; it guarantees that data _reported as valid_ matched the schema at
+the time of validation.
+
+**Content Security Policy.** The runtime executes no dynamic code. No `eval`, no
+`Function()`, no `innerHTML` assignment. Framework renderers must follow their
+framework's security guidelines (React's JSX escaping, Angular's DomSanitizer).
+
+### Expressions and Code Execution
+
+The runtime has no expression language and executes no user-provided code. This
+is a deliberate security decision, not a missing feature. Every project that
+added an expression language (Formly, Adaptive Cards, Angular forms) eventually
+needed to sandbox it. The correct design is to not have one.
+
+## 16. Versioning and Compatibility
+
+### What Gets Versioned
+
+Four surfaces have independent version considerations:
+
+1. **Runtime API** (`@texaryn/core` public exports). Follows semver. Breaking
+   changes require a major bump.
+
+2. **IR format** (`UIDocument` type definition). Form and display documents
+   are separate families, each with its own local version. Breaking changes
+   follow ADR-018: migrations only run within one family, and no migration
+   converts a form document into a display document.
+
+3. **Schema evaluation contract** (`SchemaEvaluationPort`). Defined in `core`,
+   implemented in `schema-json-*` packages. Changes affect every adapter.
+
+4. **Renderer contract** (widget registration, prop getters, conformance suite).
+   Changes here affect every renderer. The conformance suite is versioned with
+   the core, and renderers target a suite version.
+
+### IR Versioning Strategy
+
+[ADR-018](docs/adr/018-ir-versioning-by-family.md) keeps the existing form v1
+and display v2 wire shapes as the first versions of separate document
+families. They are not successive versions, and no migration converts between
+them. No runtime migrator is needed until a same-family breaking change is
+scheduled.
+
+For a future breaking change, the document envelope will identify a stable
+family and a family-local version. A pure one-step migration runs explicitly
+on a detached document before runtime creation. It cannot mutate the input or
+create a runtime on failure. Unknown families, unsupported versions, and
+missing migration steps are rejected. Persisted documents without a family
+discriminator, if any exist, use a dedicated legacy reader rather than a
+cross-family migration.
+
+### Breaking Change Policy
+
+Before 1.0: the IR and public API may change between minor versions. After 1.0:
+semver applies strictly. IR breaking changes trigger a major version. Migration
+functions are retained for at least two major versions of each document family.
+ADR-023 identifies the package roots covered by the first stable release. Other
+published packages remain independently versioned below 1.0 until their own
+compatibility decisions are made.
+
+## 17. Testing Strategy
+
+### Layers
+
+1. **Unit tests for the pure core.** The compiler, command handler, identity map,
+   and validation orchestrator are pure functions. Test them with property-based
+   testing (fast-check): generate random schemas and data, assert invariants
+   (all nodes have unique IDs, identity map is consistent, commands are
+   reversible).
+
+2. **Integration tests for the JSON Schema adapter.** The adapter is tested
+   against the JSON Schema Test Suite (the official test suite used by validator
+   implementations). This catches $ref resolution bugs, conditional evaluation
+   bugs, and annotation collection gaps.
+
+3. **Conformance tests for renderers.** Each renderer runs the conformance suite
+   (section 10). This is the mechanism that makes "works with any framework" a
+   tested claim.
+
+4. **Snapshot tests for the IR.** A set of reference schemas with expected IR
+   output. These detect unintended IR changes during refactoring.
+
+5. **Performance benchmarks.** Compilation time, state update time, and memory
+   usage for representative schemas (10 fields, 50 fields, 200 fields, nested
+   arrays). Run in CI with regression thresholds.
+
+### Property-Based Testing Invariants
+
+These invariants hold for any valid schema and data:
+
+- Every `NodeId` in the document is unique.
+- Every `parentId` references an existing node.
+- Every `children` array contains only existing `NodeId` values.
+- The `rootId` exists and has `parentId: null`.
+- Every non-null `dataPointer` resolves to a location in the data when the
+  field's closest required ancestor is present. Optional unfilled fields may
+  have a `dataPointer` whose parent path does not yet exist in the data.
+- The identity map is consistent: every `StableItemId` maps to an existing
+  index, and every index maps back to the correct `StableItemId`.
+- `processCommand(state, command)` followed by the inverse command returns to
+  the original state (for reversible commands: SetValue, MoveItem).
+
+### Test Runner
+
+Vitest. It supports TypeScript natively, runs in Node (for core tests), and can
+run in browser mode (for renderer tests). The test infrastructure has no
+dependency on the core.
+
+## 18. Performance Model
+
+### Hotspots
+
+1. **IR compilation.** Runs on initial render and on every data change for
+   schemas with conditionals. The compiler walks the schema tree and produces a
+   flat node map. The baseline in
+   [Performance](apps/docs/src/content/docs/concepts/performance.md) measured
+   0.0635 ms at p95 for a 50-field compile with a prepared projection, below the
+   1 ms target.
+
+2. **Diffing.** When the IR is recompiled, the runtime diffs old and new node
+   maps to determine which signals to update. A naive diff (iterate all nodes,
+   compare) is O(n) where n is node count. The 200-field prepared compile is
+   0.1499 ms at p95, but excludes runtime node diffing and renderer updates. The
+   synthetic 1,000-row array case measures aggregate projection and compilation
+   inside a structural command: 15.8 to 16.9 ms at p50 and 17.1 to 19.6 ms at
+   p95. It does not isolate diffing cost. Keep targeted diffing deferred until a
+   representative application workload shows that its forms routinely need
+   this array size or exceed its interaction latency target.
+
+3. **Validation.** Async validation introduces latency by definition. The
+   scheduling strategy (section 8) controls when validation runs. The runtime
+   should batch validation requests: if three fields change in quick succession,
+   run one validation pass, not three.
+
+4. **Store updates.** Per-node stores mean a value change updates the affected
+   node store, and the framework adapter subscribes to that store. The
+   [cross-renderer baseline](apps/docs/src/content/docs/concepts/performance.md)
+   measures six Texaryn renderer paths over the same core runtime and workload.
+   A separate Draft 7 comparison measures one Texaryn React and RJSF form
+   workload, including each path's setup and conditional updates.
+
+### Published Baseline
+
+The core, React, and browser measurements are published in the
+[Performance baseline](apps/docs/src/content/docs/concepts/performance.md):
+schema preparation, isolated flat, conditional, and bounded-recursive schema
+projection, React server render, browser input-to-DOM latency, individual array
+commands at three sizes, mounted and retained browser heap, validation
+throughput, and a production browser comparison of React, Vue, Svelte, Solid,
+Angular, and Web Components. That comparison reports mount, conditional
+activation, and conditional removal for one shared 50-field form. A separate
+RJSF comparison measures setup, mount, and conditional updates for one shared
+Draft 7 form. These are local workload baselines, not CI thresholds or general
+performance rankings. Projection measurements report their schema shape, node
+and boundary counts, sample counts, and environment. They do not infer a
+transferable per-node cost.
+
+### Targeted Recompilation
+
+For schemas with data-dependent conditionals (`if`/`then`/`else` where the `if`
+references a specific field's value), the compiler could track which fields
+affect which conditionals. Keep this optimization deferred. The prepared
+50-field compiler is below its 1 ms target. The synthetic 1,000-row array result
+exceeds 16.7 ms at p95, but needs a representative application profile before
+it justifies a broader invalidation contract. Revisit when a supported workload
+shows repeated structural operations above 16.7 ms at p95.
+
+## 19. Milestones and First PRs
+
+### Status, 2026-10-13
+
+Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. PR #214
+merged the document runtime, AI kit, visual builder, array reorder, and scalar
+collaboration work. Published packages are `@texaryn/core` 1.0.0,
+`@texaryn/schema-json` 1.0.0, `@texaryn/react` 1.0.0,
+`@texaryn/react-bootstrap` 0.8.0, `@texaryn/react-mui` 0.8.0,
+`@texaryn/vue` 0.8.0, `@texaryn/web-components` 0.8.0,
+`@texaryn/angular` 0.4.0, `@texaryn/collaboration-yjs` 0.3.0,
+`@texaryn/schema-zod` 0.3.0, `@texaryn/solid` 0.4.0, and
+`@texaryn/svelte` 0.4.0.
+Release PR [#254](https://github.com/texaryn/texaryn/pull/254) published the
+stable cohort and nine integration minors. Main workflow run
+[#38342681771](https://github.com/texaryn/texaryn/actions/runs/38342681771)
+verified all twelve registry versions, npm provenance, and source commits, then
+reconciled their matching immutable package tags and GitHub releases.
+`@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
+the Emotion and Tailwind styling examples have shipped. Source for
+`@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
+`@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged.
+
+### First stable release gate
+
+The stable cohort is `@texaryn/core`, `@texaryn/schema-json`, and
+`@texaryn/react`, each at 1.0.0. Their package root exports define the supported
+public API. `SchemaEvaluationPort` is included in the core contract. The other
+nine published packages stay below 1.0 until their own compatibility evidence
+and release decisions are complete. ADR-023 records the decision.
+
+| Gate | State |
+|---|---|
+| Stable API boundary and package cohort recorded in ADR-023 | Done |
+| Security policy and release runbook name all twelve packages and independent versioning | Done |
+| React peer ranges bounded to the tested 18.3 and 19 versions across the stable binding and its UI integrations | Done |
+| Isolated npm consumer gate packs the stable cohort and checks both React versions | Done |
+| Latest JSON Schema compatibility workflow resolves the scoped Texaryn fork | Done |
+| Changesets dry run confirms the stable cohort and dependency compatibility transitions | Done, three stable majors and nine dependent pre-stable minors |
+| Preparation and release pull requests pass CI and ChatGPT review | Done, PRs #253, #254, #255, and #256 |
+| npm versions, provenance, package tags, and GitHub releases verified | Done, [main workflow run #38342681771](https://github.com/texaryn/texaryn/actions/runs/38342681771) |
+
+The consumer gate installs package tarballs in a fresh npm project, typechecks
+and server-renders the documented React form, and confirms that the npm
+dependency tree resolves one core version. This release gate does not make
+every renderer or schema adapter stable.
+
+Draft-04 support merged in PR #222 after ChatGPT peer review and passed the
+official validation suite with 618 of 618 cases in each adapter. PR #223
+published `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2 with npm
+provenance. Main CI run
+[#38174908644](https://github.com/texaryn/texaryn/actions/runs/38174908644)
+verified provenance and created both matching GitHub releases.
+
+ADR-022 closes the P2 review trigger after the Zod adapter shipped. The
+adapter uses Zod for validation and generated JSON Schema for projection, so it
+exercises the port without introducing an independent projection model. The
+current port shape is part of the stable core 1.0.0 contract. Generalized
+cross-schema projection remains deferred until an integration requires
+semantics the current boundary cannot represent faithfully.
+
+Section 18 publishes local baselines for flat, conditional, and bounded-
+recursive adapter projection, compiler timing, React server render, browser
+input-to-DOM latency, array commands, memory deltas, validation throughput, a
+production comparison of six Texaryn renderer paths, and one production RJSF
+comparison on a conditional form. Other form library
+comparisons are not planned until a concrete adoption or product decision
+defines equivalent functionality and timing boundaries. The RJSF comparison is
+the only current competitor performance comparison. JSON Forms uses a UI
+Schema and renderer set; TanStack Form is headless and does not generate fields
+from JSON Schema. The RJSF figures are one workload baseline, not a ranking
+across form libraries.
+The Bootstrap and MUI React integrations are complete. No additional UI
+library package is scheduled; container binding primitives remain deferred
+until integrations show duplicated composition beyond field and array hooks.
+Targeted diffing stays deferred until supported application workloads show
+repeated structural operations above the interaction target.
+
+The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
+verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
+found a runtime replacement edge case in `FormRoot`; binding and teardown now
+follow the active form, with regression coverage. Follow-up review found no
+remaining actionable issues. The SolidJS renderer in PR #213 passed build,
+typecheck, package verification, full test suite, and site build against `main`,
+with 98.46% Codecov patch coverage. ChatGPT review findings about read-only
+control state and object enum comparison were fixed, and follow-up review found
+no remaining actionable issues.
+
+ADR-012 accepts a standalone, schema independent display document runtime for
+tables, lists, layouts, text, and actions. Its implementation is in PR #214.
+Core runtime support and semantic renderer roots cover React, Vue, Solid,
+Svelte, Angular, and Web Components. ChatGPT reviewed the ADR, runtime, and
+renderer changes and found no remaining actionable issues. Forms remain on
+version 1 and `FormRuntime`.
+
+ADR-013 accepts bounded versioned updates for those display documents. Core
+provides snapshot replacement, a restricted patch session, monotonic revisions,
+fixed JSON and collection limits, explicit action argument validators, and
+atomic runtime publication. ChatGPT reviewed the protocol and implementation
+and found no remaining actionable issues.
+
+ADR-014 accepts a provider-neutral AI generation kit. Its versioned output
+contract supports schema-generated version 1 forms and direct version 2 display
+documents. The downloadable schema and instructions, bounded repair example,
+runtime acceptance checks, and deterministic fixtures are in PR #214. The kit
+adds no AI SDK or runtime package. ChatGPT's final code review found no
+remaining actionable findings. ADR-015 accepts a playground-only visual form
+builder that edits simple scalar properties in the existing JSON Schema source,
+while retaining the JSON editor for advanced schemas.
+
+ADR-016 accepts native drag reorder for array controls in all renderer packages.
+Stable item IDs resolve to current indexes at drop time, nested array ownership
+is scoped to its own DOM region, and the accessible Up and Down controls remain
+the keyboard and touch path. The implementation and renderer coverage are in
+PR #214. ADR-017 selects an optional Yjs adapter for collaborative scalar edits.
+`@texaryn/collaboration-yjs` stores an immutable baseline and JSON Pointer
+overrides, while the host supplies `Y.Doc` and its provider. Structural edits
+and concurrent array ordering remain outside version 1. ChatGPT's final code
+review confirmed the four reported runtime findings are resolved and found no
+remaining actionable issues.
+
+Before rebasing onto `main`, PR #214 passed the full suite with 5,627 tests
+across 168 files, along with build, typecheck, package verification, docs, and
+site checks. The branch is now rebased onto `main`, and the rebased tree passes
+the full test suite and typecheck locally.
+
+PR #241 resolves the eight tracked playground issues, #231 through #238.
+Schema drafts survive edits and renderer changes, invalid drafts preserve the
+last valid preview, and form data has an explicit reset action. The example
+browser, mobile layout, styling boundaries, validation copy, form ownership,
+and accessible data inspector are resolved. Renderer packages load on demand.
+Resizable panes, keyboard separators, and saved layouts merged in PR #245.
+Edited schema sharing in PR #246 and the CodeMirror 6 JSON editor in PR #247
+keep custom schemas in the workbench. Shared links carry custom schemas up to
+12,000 UTF-8 bytes. Larger drafts persist in browser storage and stay local to
+that browser. The editor checks the schema with `checkSchema`, completes
+keywords for the declared dialect, and loads on demand in a separate 133.4 KB
+gzip payload.
+
+PR #248 adds example data presets, a public `Validate` command, and responsive
+preview width controls. Invalid example states show field errors across all
+nine renderer implementations without submitting the form. Phone, tablet, and
+fit widths report both the selected maximum and the effective rendered width.
+Preset labels continue to match carried data when an edited example schema is
+restored.
+
+PR #249 adds a lazy keyboard command palette for examples, renderers, data
+presets, layout, theme, schema formatting and copying, data copying, and docs.
+The palette opens with Ctrl K or Command K and from the desktop or phone
+controls. It restores focus after closing and shows a recoverable message if
+its chunk fails to load.
+
+The first load is 167.9 KB gzip across the entry and a shared chunk; renderer
+code remains in separate chunks. `site:build` keeps the first load under 175 KB
+gzip, the editor under 150 KB gzip, and the command palette under 25 KB gzip.
+These two PRs complete the playground follow ups in issue #239.
+
+No UI library package is scheduled. Container binding primitives remain
+deferred until integrations show duplicated composition beyond field and array
+hooks.
+
+ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
+uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
+published, and merged PR #207 replaces upstream 11.6.2 and its packaged
+workaround. Version 1.0.0 is the current published adapter release. Hyperjump
+remains in CI for comparison only. This is an implementation change within the
+accepted strategy, not a later engine selection phase.
+
+The post-release list, ordered after the Backstage adoption exercise, has 11
+items: 10 are resolved for Texaryn and 1 is declined. Remaining upstream
+tracking and policy differences do not block Texaryn.
+
+| # | Item | State |
+|---|------|-------|
+| 1 | Implicit structural type inference | Done (#115) |
+| 2 | Conditional projection | Done (#117, #118) |
+| 3 | `oneOf` inside `dependencies` crash and Draft 7 reference registry overwrite | Source fixes for both engine defects are merged in Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1), and fork [11.6.6 is published](https://github.com/texaryn/json-schema-library/releases/tag/v11.6.6). Merged PR #207 replaces upstream 11.6.2, removes the packaged workaround, and adds a patch changeset for `@texaryn/schema-json`. Main CI passed. PR #208 published version 0.8.2 and created its immutable release. |
+| 4 | `default` semantics | Done, ADR-003 accepted |
+| 5 | Material UI v4 support for Backstage | Declined |
+| 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
+| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all six renderer families |
+| 8 | External schema resources | Done in merged PRs #192 and #194 under ADR-009 and ADR-010; released in [PR #195](https://github.com/texaryn/texaryn/pull/195). The host supplied resolver performs no network access and defaults to 128 unique retrieval URIs. Static external references validate and project, external dynamic references validate, and bounded opt-in dynamic references project. PR #194 also adds recursive projection, view-only expansion at recursion and budget boundaries, property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT peer review found no remaining actionable issues. Main CI run [38079464364](https://github.com/texaryn/texaryn/actions/runs/38079464364) passed build, docs, package and site checks, typecheck, the full suite with 5,302 tests across 146 files, and CI Gate. Overall line coverage was 96.78%. |
+| 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
+| 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
+| 11 | Hyperjump suite deviations (#108) | Closed after upstream PR #129 fixed #128; the `file:` identifier refusal remains documented upstream policy, and #127 remains deliberate behavior |
+
+PR #192 fixes the published adapter defects in #176 and #178, implements optional projected submission from #126, and adds the reserved projection marker collision error from #183. PR #185 pins `json-schema-library` to 11.6.2 as decided in #183. Issue #183 is closed: projection and validation coherence is guarded by `ProjectionValidationDivergenceError`, the cross-dialect instance-edge matrix covers `additionalItems`, `prefixItems`, `unevaluatedProperties`, and `unevaluatedItems`, and the reserved marker collision has a specific error and regression case. Targeted #177 work fixes Unicode local references and the `propertyNames` and `prefixItems` with `items: false` error pointers. [PR #197](https://github.com/texaryn/texaryn/pull/197) removes the four recorded recursive pointer differences. The Hyperjump official suite baseline records two additional passing cases after the upgrade to 1.18.0.
+
+The #177 work fixes the typeless array-row shape gap, removes scalar child entries from Hyperjump projections, aligns selected draft-07 reference branches, and removes the four recursive pointer exceptions. PR #197's recursive parity suite checks every fixture, including non-local resource references, and records zero active-flag differences. A nested conditional beneath an inactive branch is omitted at a location already supplied by an active declaration unless a schema identifier or reference keeps that branch; kept fields remain inactive, consistent with ADR-007. For a missing instance location with no recorded `if` result, Hyperjump evaluates the compiled local `if` schema against `{}`; it preserves recorded results and ancestor branch choices, and declines fallback across nested `$id` resources or dynamic and external references. The resolver supports external resource validation and static `$ref` projection. ADR-010 records bounded opt-in dynamic projection and its focused cases; ChatGPT peer review found no remaining actionable issues.
+
+Shared conformance coverage now includes an inactive `anyOf` branch inside an array row, pure `$ref` targets of both boolean values, Draft 7 false-reference siblings, and a renderable `$ref` sibling in 2020-12. Hyperjump matches `json-schema-library` on those cases. ChatGPT peer review found no actionable findings.
+
+Projection shape inference now includes unconditional `allOf` members in the schema-json adapter. Shared conformance covers typeless object shapes supplied only by `allOf` and mixed object plus array families across `allOf`; both adapters now produce matching projections and diagnostics.
+
+The Draft 7 registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Texaryn fork [PR #1](https://github.com/texaryn/json-schema-library/pull/1) carries the merged source fix and tests. Upstream [PR #133](https://github.com/sagold/json-schema-library/pull/133) remains open. Cross-projection subtree caching stays deferred under ADR-007 because shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission.
+
+Hyperjump now infers an object shape when all unselected `oneOf` or `anyOf` alternatives imply objects, and marks missing object-only `anyOf` branches active when they accept `{}`. It retains ambiguous families when an alternative's `allOf` members conflict. Shared conformance covers these cases and no longer records these adapter differences.
+
+PR #192 contains Hyperjump shape and activity parity fixes, missing-scope conditional evaluation, selected draft-07 conditional reference recovery in the primary adapter, and the ADR-009 resolver. Local pointers through custom containers preserve nested resource bases, and aliases retain the enclosing resource identity. The follow-up adds external resource coverage and preserves the inherited dialect when a retrieved schema omits `$schema`. Generated API documentation covers the public resolver options and error type. The completed changes are included in the main CI result above.
+
+The weekly and manually dispatched compatibility workflow compares published upstream releases with the committed adapter pin. PR #203 lets pnpm continue when the latest package no longer matches the exact patch key. Its run against upstream 11.6.5 reached the adapter and conformance suites: 3,390 tests passed and two candidate-precedence tests failed with the `dynamicId` error tracked in upstream [issue #124](https://github.com/sagold/json-schema-library/issues/124). Fork 11.6.6 is published. Merged PR #207 moves the adapter source to the fork and removes its packaged workaround. See [manual run 38090688846](https://github.com/texaryn/texaryn/actions/runs/38090688846).
+
+Both adapters project members governed by schema-valued `additionalProperties`, including names required in a separate `allOf` scope. Only currently applicable required names become active default targets. Applicable schemas compose with declared properties, and Draft 7 references under `additionalProperties` retain their projected shape. Names covered by `properties` or `patternProperties` in the same scope do not take this path. Boolean `additionalProperties` does not provide a projected field shape.
+
+#121 is fixed in published adapter 0.8.1 by merged PR #193, which packages a patched ESM runtime from `json-schema-library@11.6.2`. Texaryn fork PR #1 moves the `oneOf` reduction correction into maintained source and includes the Draft 7 registry fix. Fork 11.6.6 is published, and merged PR #207 changes the next adapter release to `@texaryn/json-schema-library` while removing the packaged workaround. PR #208 published version 0.8.2 and created its immutable release. #120 is fixed in both adapters (#131, #132); its original fixture now reaches the fixed #121 path. The #108 baseline drops the two enum-reference deviations fixed by upstream PR 129; it retains the deliberate sibling `$id` difference and the documented `file:` policy.
+
+PR #194 combines bounded dynamic and recursive form projection, view-only expansion for recursion and budget boundaries, stable property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT review found that the memo key omitted dynamic scope. The adapter disables this memo during dynamic projection, and follow-up review found no remaining actionable findings. PR #194 is merged in commit `82f38e9`; its main CI run passed as recorded above. Issue #179 is closed after integration. The bounded dynamic projection is shipped, while finalized-subtree caching remains deferred.
+
+The isolated performance branch passed 563 schema-json tests, the package build, and typecheck. The missing-value memo reduced median projection time from 33.322 ms to 16.457 ms on the Draft 7 metaschema, and from 51.770 ms to 26.651 ms on a nested schema, with identical output digests. A separate static cache and reduction guard measured 1.5% to 4.1% median gains on its measured workloads. These measurements are local and have not been rerun on the combined branch.
+
+The ChatGPT design review recommends keeping finalized-subtree caching deferred. Shared breadth-first budgets, recursion ancestry, branch applicability, pointer ownership, and expansion tokens affect admission, so a cached subtree cannot safely bypass the current traversal queue.
+
+The Draft 7 reference registry overwrite report is filed upstream as [json-schema-library issue #138](https://github.com/sagold/json-schema-library/issues/138). Issue #179 is closed after the bounded dynamic projection merged. Cross-projection subtree caching remains deferred.
+
+Version PR #195 published `@texaryn/core` 0.14.0, `@texaryn/schema-json` 0.8.0, `@texaryn/react` 0.6.0, `@texaryn/react-bootstrap` 0.5.0, `@texaryn/react-mui` 0.5.0, `@texaryn/vue` 0.5.0, and `@texaryn/web-components` 0.5.0. Release PR #204 published `@texaryn/schema-json` 0.8.1; main CI run [38095274387](https://github.com/texaryn/texaryn/actions/runs/38095274387) passed and created the immutable `@texaryn/schema-json@0.8.1` tag and matching GitHub release. The release workflow creates one immutable `@texaryn/package@version` tag and matching GitHub release for each package.
+
+
+### Phase 0: Foundation (PRs 1-5)
+
+**Goal:** A compilable monorepo with types, the pure core, and one test.
+
+1. **Monorepo scaffold.** pnpm workspace, TypeScript project references,
+   `packages/core`, `packages/schema-json`, `packages/react`. Build script that
+   compiles all packages. No code yet.
+
+2. **IR type definitions and `SchemaEvaluationPort` interface.** All types from
+   section 5, `Store<T>` interface, `SchemaEvaluationPort` interface, and
+   `MaybePromise<T>` type in `packages/core/src/`. Export from the package root.
+   Tests assert the types compile.
+
+3. **`Store<T>` binding spike, then signal implementation.** First: a trivial
+   `Store<T>` backed by a plain variable and callback list, with binding tests
+   for React (`useSyncExternalStore`) and one of Vue (`shallowRef` +
+   `subscribe`) or Angular (`signal()` + `subscribe`). This proves the contract
+   works across two frameworks before investing in signal internals. Then:
+   ~200 lines internal signal engine (`Signal`, `Computed`, `batch()`), swap the
+   trivial store for signal-backed stores. Property-based tests for consistency.
+
+4. **Command types and handler.** All command types from section 7. The handler
+   as a pure function. Tests for every command type, including reversibility.
+
+5. **Identity map.** Implementation from section 6. Tests for insert, remove,
+   move, and external data reconciliation.
+
+### Phase 1: Schema Evaluation (PRs 6-10)
+
+**Goal:** Given a JSON Schema and data, produce a valid IR backed by a real
+schema library.
+
+6. **Schema evaluator spike + ADR.** Evaluate json-schema-library and
+   @hyperjump/json-schema against the `SchemaEvaluationPort` contract. Build a
+   minimal fixture harness running both against the JSON Schema Test Suite
+   ($ref, annotations, validation). Write ADR-002 recording the choice and
+   tradeoffs. The chosen library handles $ref resolution, dialect detection,
+   and annotation collection; Texaryn does not reimplement any of these.
+
+7. **Concrete `SchemaEvaluationPort` adapter.** Implement the port with the
+   library chosen in PR6. The adapter delegates `project()` and `validate()`
+   to the library. Covers draft-07 and 2020-12 via dialect-aware evaluation
+   (section 9). Local `$ref` works through the library's resolver. ADR-009 adds
+   optional host supplied resource resolution for external `$ref`,
+   `$dynamicRef`, and `$recursiveRef` documents without adding network access
+   to Texaryn. The host owns fetching and trust policy, and the adapters cap
+   resource loading. ADR-010 adds bounded opt-in dynamic form projection for
+   supported paths; bounded dynamic projection is integrated, with subtree caching
+   deferred under ADR-007. Tests: the
+   fixture harness from PR6, expanded to core vocabulary.
+
+8. **Schema to IR compilation.** Using the concrete adapter from PR7, compile
+   primitives (string, number, integer, boolean), objects, and arrays into IR
+   nodes. FieldNodes for primitives, ContainerNodes for objects, array
+   ContainerNodes with identity map wiring. Tests: for each schema type, assert
+   the IR contains the expected node structure with correct annotations.
+
+9. **Conditional evaluation.** `if`/`then`/`else`, `dependentSchemas`,
+   `dependentRequired`, draft-07 `dependencies`. The concrete adapter re-resolves
+   affected pointers when data changes. Tests: change data, verify the active
+   schema projection updates and IR reflects new visibility.
+
+10. **oneOf/anyOf discrimination.** The concrete adapter determines which
+    sub-schema applies given current data. Data preservation (not destruction).
+    Tests: switch between sub-schemas, verify data is preserved.
+
+### Phase 2: React Renderer (PRs 11-15)
+
+**Goal:** Render a JSON Schema form in React.
+
+11. **React binding.** `useForm` hook that creates a runtime instance,
+    subscribes to `Store<T>` via `useSyncExternalStore`, returns the document.
+    `useField` hook for individual field subscription.
+
+12. **Prop getters.** ARIA-correct label, input, error, and description props.
+    Tests assert correct `aria-describedby`, `aria-required`, `aria-invalid`.
+
+13. **Default widget set.** TextInput, NumberInput, Checkbox, Select, Textarea,
+    DateInput, ArrayControl, ObjectLayout. Each uses prop getters.
+
+14. **Conformance suite (initial).** Test fixtures for every field type. Run
+    against the React widget set. This is the proof that the conformance testing
+    strategy works.
+
+15. **Demo application.** A single-page app that loads a JSON Schema from a
+    textarea, renders the form, and shows the output data in real time. This is
+    the project's calling card.
+
+### Phase 3: Validation and Polish (PRs 16-20)
+
+**Goal:** Production-ready validation, error display, and form submission.
+
+16. **Second `SchemaEvaluationPort` adapter.** Implement the port with the
+    library not chosen for PR7 (the other of json-schema-library or
+    @hyperjump/json-schema). Run the same test suite against both adapters to
+    prove the port abstraction holds.
+
+17. **Validation orchestrator.** Wire validation scheduling (blur, change, submit
+    triggers). Connect validation results to `NodeRuntimeState.validation`.
+    Tests: blur a required empty field, verify the error surfaces; type valid
+    input, verify the error clears.
+
+18. **Error display.** Wire validation errors to field nodes. Error summary
+    action node. Conformance tests for error ARIA attributes (`aria-invalid`,
+    `aria-describedby` pointing to error text).
+
+19. **Form submission.** Submission lifecycle state machine. Submit action.
+    Disabled state during submission. Error handling.
+
+20. **Documentation and first release.** API reference (generated from types).
+    Getting started guide. Migration guide from RJSF. Publish 0.1.0 to npm.
+
+### Phase 3.x: UI Integration Contract (shipped before Phase 4)
+
+Proves that a third-party UI ecosystem consumes Texaryn without duplicating
+renderer glue and without core changes, so the renderer contract is exercised
+by a second consumer before the Vue renderer freezes more of it.
+
+- `useFieldBinding(node)` in `@texaryn/react`: the composition layer for field
+  widgets (value and `setValue`, label, description, placeholder, display-gated
+  errors, ARIA prop getters) with two DOM adapters, `domInputProps` for text,
+  number, textarea and select controls and `domCheckboxProps` for checkboxes.
+  The default field widgets are built on it.
+- `@texaryn/react-bootstrap`: native HTML with Bootstrap 5 classes, no
+  `react-bootstrap` dependency, no CSS loaded by the package, versioned
+  independently of the core group. It passes the renderer and ARIA conformance
+  suites unchanged; those suites now take a registry factory.
+- `@texaryn/react-mui` validates the contract with Material UI controlled
+  props, `helperText`, error state, and theming. Its registry factory is tested
+  through the shared renderer conformance suite.
+- The playground switches between the default, Bootstrap, and MUI renderers.
+  It owns the Bootstrap stylesheet and MUI theme provider.
+- Container binding primitives remain deferred. Bootstrap and MUI widgets use
+  the same React hooks for field binding and array behavior, so the current
+  integrations do not show duplicated non-presentational composition.
+
+### Phase 4: Second Renderer (complete)
+
+Vue and Web Components shipped as framework-neutral renderer proofs. The
+additional renderer phase later shipped Svelte, Solid, and Angular. React,
+Vue, Svelte, Solid, Angular, and Web Components now share the core renderer
+contract. React UI integrations for Bootstrap and MUI are complete under
+Phase 3.x.
+
+### Phase 5+: Post-Validation
+
+MUI and custom styling examples are complete. PR #210 merged the Zod 4 adapter
+and TypeBox coverage, and `@texaryn/schema-zod` 0.1.2 is published. The
+additional renderer phase is complete. The items below are shipped or closed by
+an accepted ADR. IR migration and plugin API implementation remain gated by the
+triggers recorded in ADR-018 and ADR-019.
+
+1. Additional renderers: Angular in PR #211, Svelte in PR #212, and Solid in PR #213. Complete.
+2. Standalone display documents in PR #214 under ADR-012.
+3. Bounded server-driven document updates in PR #214 under ADR-013.
+4. Provider-neutral AI generation in PR #214 under ADR-014.
+5. The playground visual form builder in PR #214 under ADR-015.
+6. Native array reorder under ADR-016.
+7. Collaborative scalar editing under ADR-017.
+8. Draft-04 JSON Schema support is complete in PR #222. Its mandatory official
+   validation suite passed 618 of 618 cases in each adapter. PR #223 published
+   `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
+9. IR versioning is complete as a decision in ADR-018. Form and display
+   documents remain separate families. Migration code waits for a scheduled
+   breaking change within one family.
+10. The plugin ecosystem decision is complete in ADR-019. Core has no shared
+    plugin container or transform pipeline. Revisit only after two independent
+    integrations demonstrate the same unmet extension requirement.
+11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs; configure
+    trusted publishing for each package; and recover seven existing published
+    versions with missing GitHub releases. Complete. The five package releases
+    are published, trusted publishers are configured, and CI run 38164624614 recovered the
+    seven earlier releases.
+
+## 20. Assessment: Decisions, Risks, and Viability
+
+### The 5 Most Important Architectural Decisions
+
+**1. Flat node map IR, not a tree.**
+Three independent server-driven UI systems (A2UI, DivKit, json-render) converged
+on this shape. It enables O(1) node access, streaming partial updates, and
+deterministic diffing. This is the most externally validated decision in the
+architecture.
+
+**2. Per-node `Store<T>` with `getSnapshot+subscribe` binding contract.**
+This pushes framework integration to the thinnest possible layer (~100 lines per
+framework) and guarantees that a value change re-renders one widget, not the
+entire form. It avoids JSON Forms' parallel store problem and RJSF's full
+re-render problem. Signals are internal; the public contract is stable regardless
+of the reactive implementation.
+
+**3. Stable identity as a first-class concept, separate from JSON Pointer.**
+Every studied project either lacks this or implements it incorrectly. It is the
+prerequisite for correct array reorder, animation, and undo. Building it into the
+core from day one prevents the "bolt it on later" failure mode.
+
+**4. `MaybePromise` validator port, not synchronous-only.**
+RJSF's synchronous `isValid` call during schema resolution is the root cause of
+its inability to add async validation. `MaybePromise<T>` gives synchronous
+validators a genuine fast path while keeping the port open for server-side
+validation, debounced validation, and cross-field validation from day one.
+
+**5. Schema evaluation as a separate port that reacts to data changes.**
+The schema evaluation layer (not the IR) owns "which fields exist and what
+constraints apply." The IR contains resolved snapshots, not expressions or
+predicates. But the evaluation port re-projects the active schema when data
+changes, so conditional schemas (`if`/`then`/`else`, `dependentSchemas`) produce
+correct, up-to-date IR. Renderers remain pure functions of the current snapshot.
+This avoids both the "stale IR" problem (compile-once) and the "expression
+sandbox" problem (Turing-complete template language).
+
+### The 5 Biggest Risks
+
+**1. Second system effect.** This project is designed by someone who maintained
+AJSF (Angular JSON Schema Form) and understands every failure mode of the
+existing tools. The temptation is to solve every problem at once. The milestones
+deliberately defer non-form use cases, but scope creep during implementation is
+the likeliest failure mode.
+
+**2. Adoption threshold.** RJSF has 14k+ stars, JSON Forms has 2k+, TanStack
+Form has 4k+. A new project must be dramatically better at a specific task to
+overcome switching costs. "Better architecture" is not enough; "this form that
+took 200 lines in RJSF takes 40 lines here, and array reorder works" is.
+
+**3. Signal implementation risk.** The TC39 Signals proposal is at Stage 1. It
+may change significantly or stall. A custom 200-line implementation is small
+enough to maintain but is also code that every other signal library's community
+has already debugged. The mitigation: exhaustive property-based testing, and the
+`getSnapshot+subscribe` contract is stable regardless of the internal
+implementation.
+
+**4. JSON Schema complexity.** Full 2020-12 support including `$dynamicRef`,
+`unevaluatedProperties`, and annotation collection through applicators is a
+significant implementation effort. The JSON Schema Test Suite helps, but edge
+cases in $ref resolution and oneOf discrimination have bitten every project.
+
+**5. The "one more renderer" trap.** Each new renderer (Vue, Angular, Web
+Components, Svelte, Solid) is a maintenance commitment. React-only with a
+credible second renderer proof is better than five half-maintained renderers.
+
+### Decisions That Would Be Expensive to Reverse
+
+**1. Flat node map vs tree IR.** Once renderers consume a flat map, switching to a
+tree structure changes every renderer and every IR consumer. Commit early, with
+the convergent evidence from A2UI/DivKit/json-render as justification.
+
+**2. Stable identity as a core concept.** If array identity is added later as a
+bolt-on, every command, every renderer, and every test must be retrofitted. RJSF
+and JSON Forms both show that positional identity, once shipped, becomes permanent.
+
+**3. The `getSnapshot+subscribe` binding contract.** Every framework adapter is
+built against this interface. Changing it means rewriting every adapter. The
+contract is minimal enough that it should survive, but if it turns out to be
+insufficient for pull-based frameworks (Solid, Svelte 5), the alternatives
+(exposing raw signals, adding a `pull()` method) are additive rather than
+breaking.
+
+**4. Schema evaluation as a port boundary.** The division between "schema
+evaluation port resolves the active schema" and "IR compiler produces snapshots
+from that projection" shapes every data flow in the system. If the evaluation
+logic is baked into the compiler instead, extracting it later requires splitting
+a monolithic component. If the port interface is wrong (too chatty, too coarse,
+missing a method the compiler needs), every adapter must be rewritten. This
+boundary deserves an ADR before PR #1.
+
+**5. `MaybePromise` validator contract.** Making the port sync-only after shipping
+it as `MaybePromise` is additive (callers already handle both). Making it async
+after shipping sync would break every call site. `MaybePromise` is the
+cheapest starting position because sync validators return plain values (no
+`Promise.resolve()` wrapper needed) and async validators work without a separate
+port.
+
+### Smallest MVP Worth Publishing
+
+A package that takes a JSON Schema (draft-07 or 2020-12) and renders a working
+form in React with:
+- Object, string, number, integer, boolean, enum fields
+- Required validation (sync)
+- Async validation (server-side, debounced)
+- Dirty and touched tracking
+- Arrays with add, remove, and stable identity
+- Local `$defs`/`$ref` (reusable schema fragments)
+- Submit with loading state
+- Typed commands with supported JSON payloads
+
+This is phases 0-3. Local `$ref` is included because a JSON Schema form builder
+without it looks toy-like in its first release, and local `$ref` resolution is
+straightforward compared to remote refs or `$dynamicRef`. If this demo form does
+not feel meaningfully better than the equivalent RJSF or JSON Forms code, the
+project does not have product-market fit and should not proceed.
+
+Deferred from MVP:
+- Remote `$ref`
+- `$dynamicRef`
+- `unevaluatedProperties`/`unevaluatedItems`
+- Complex `oneOf`/`anyOf` UI generation
+- `if`/`then`/`else` UI generation (schema evaluation port supports it; UI
+  generation from it is deferred)
+
+### Phase 5+ Execution Order
+
+1. Schema authoring: TypeBox through JSON Schema and the Zod 4 adapter. Zod is
+   merged, and `@texaryn/schema-zod` 0.1.2 is published.
+2. Additional renderers: Angular, Svelte, and Solid in PRs #211 to #213.
+3. Display documents, bounded updates, AI generation, the visual builder, array
+   reorder, and collaborative scalar editing in PR #214 under ADR-012 to ADR-017.
+4. Draft-04 JSON Schema support is complete in PR #222. PR #223 published
+   `@texaryn/schema-json` 0.9.0 and `@texaryn/schema-zod` 0.1.2.
+5. IR migration milestone complete as a decision in ADR-018. No cross-family
+   migration is planned. Add same-family migration code only with a scheduled
+   breaking format change.
+6. Plugin ecosystem milestone complete as a decision in ADR-019. Do not add a
+   shared plugin container or transform pipeline unless two independent
+   integrations demonstrate the same unmet requirement.
+7. SSR hydration boundary complete as a decision in ADR-020. Recreate runtimes
+   from matching application inputs. Do not serialize runtime objects.
+8. Command history complete as a decision in ADR-021. Persistence, replay, and
+   undo stay in the host application.
+9. Performance baseline published in Section 18. Revisit targeted diffing when
+   representative application workloads exceed the documented interaction
+   target.
+
+### Why Not Build on TanStack Form?
+
+This is the strongest counterargument to a new project and deserves a direct
+answer.
+
+TanStack Form provides: a tested framework-neutral core, seven working adapters,
+async validation with cancellation, Standard Schema V1 integration, and pluggable
+validation scheduling. Building a schema-driven layer on top is feasible: pipe
+AJV errors through `prefixSchemaToErrors` into `GlobalFormValidationError`, and
+the error path format is compatible.
+
+Three layers would need to be built on top: (a) schema traversal and field-set
+derivation (the entire JSON Schema `$ref`/conditional/oneOf/annotation stack),
+(b) annotation extraction and widget mapping (the entire renderer registry), and
+(c) the identity model (stable array item IDs replacing positional identity).
+
+The problem is (c). TanStack Form's `metaHelper` remaps field metadata by index
+on every array mutation. Its `fieldInfo` record is keyed by dot/bracket path
+strings. Stable identity requires a parallel mapping layer that intercepts every
+array operation and translates between stable IDs and positional paths. This is
+not building on top; it is working around a core design decision.
+
+The type system collapse is also structural: TanStack Form's 23 generic
+parameters on `FieldApi` are its primary differentiator, and they all degenerate
+to `any` when the form shape is derived from a runtime JSON Schema. You gain the
+adapter set but lose the feature that justifies the library's complexity.
+
+**The verdict on TanStack Form:** if the goal were "add JSON Schema support to an
+existing form state manager," TanStack Form would be the right foundation. But
+Texaryn's goal is "schema to UI through a typed IR." The IR, the stable identity
+model, and the annotation-driven compilation pipeline are not features that sit
+on top of a form state manager; they replace its core data structures. Building
+them inside TanStack Form's abstractions would mean fighting its type system, its
+identity model, and its store shape.
+
+### Does This Project Deserve to Exist?
+
+Yes, with a narrow scope and an honest assessment of the competition.
+
+**The case for:** No existing project provides stable array identity, async
+validation, and a typed IR in a headless, framework-neutral package with JSON
+Schema 2020-12 annotation collection. TanStack Form is headless and
+framework-neutral but has no schema-driven generation, no IR, and no stable
+identity. RJSF has the widest JSON Schema support but is React-locked with
+architectural problems that cannot be fixed incrementally (centralized state, no
+IR, synchronous validation). JSON Forms is the closest competitor but its untyped
+options bag, positional array identity, and AJV coupling are structural, not
+incidental. @remoteoss/json-schema-form is genuinely headless but lacks `$ref`,
+`dependencies`, and mutates fields in place.
+
+**The case against:** The JSON Schema form space is crowded with good-enough
+solutions. Most forms are simple enough that RJSF's problems do not surface.
+Adoption remains an open product question. The earlier estimate of 6 to 12
+months and the 8-week MVP condition predate the completed implementation and no
+longer describe the release plan. The original research expected the first
+adapter to lean on Hyperjump. That expectation was superseded by ADR-002 and the
+shipped `json-schema-library` adapter. ADR-011 records the long term fork
+strategy.
+
+**The verdict:** The implementation sequence is complete. The first stable
+release is limited to the core, JSON Schema adapter, and React binding under
+ADR-023. Adoption evidence will determine later scope; technical completion is
+not evidence of market demand.
+
+---
+
+## Architecture Diagram
+
+```
+                  Domain Description
+                    JSON Schema
+                        |
+                        v
+              Schema Evaluation Port
+          refs / active schemas / annotations
+          (reacts to data changes)
+                        |
+                        v
+                   IR Compiler
+                        |
+                        v
+             +--------------------+
+             | Texaryn UI IR      |
+             | versioned          |
+             | flat node map      |
+             | semantic           |
+             | serializable       |
+             +--------------------+
+                        |
+                        v
+              Deterministic Runtime
+        state / identity / rules / actions
+          validation / dirty / touched
+                        |
+                 getSnapshot()
+                 subscribe()
+                        |
+          +-------------+-------------+
+          v             v             v
+       React          Vue          Angular
+```
+
+Four boundaries: schema evaluation != UI IR != runtime state != renderer.
+
+## ADR Required Before PR #1
+
+**Schema evaluation boundary.** The division between "schema evaluation port
+resolves the active schema given current data" and "IR compiler produces snapshots
+from that projection" is the most consequential boundary in the system. It
+determines: (a) whether the IR can be produced without data (no, for schemas with
+conditionals), (b) when re-compilation happens (on data changes that affect the
+active schema), (c) what the schema evaluation port's `project()` method returns,
+and (d) whether json-schema-library's `getNode(pointer, data)` pattern can back
+the port directly. This boundary is expensive to reverse: if evaluation logic is
+baked into the compiler, extracting it later requires splitting a monolithic
+component. If the port interface is wrong, every adapter must be rewritten. Write
+the ADR, prototype the port with a 10-field schema that has one `if`/`then`/`else`
+conditional, and verify the boundary holds before committing to it.
+
+## Questions Closed by Implementation and ADRs
+
+Questions 1 through 7 are resolved. The decisions leave measured performance
+comparisons and application-specific persistence formats to later evidence.
+
+1. **Should the IR support layout hints (grid columns, flex direction) or leave
+   all layout to the renderer?** Resolved in [ADR-012](docs/adr/012-non-form-ui-runtime.md):
+   the IR carries semantic layout containers, while each renderer chooses its
+   markup and spacing. Grid and flex hints remain deferred.
+
+2. **Applicable sub-schema selection.** Resolved by the existing
+   `SchemaEvaluationPort.project(data)` boundary in
+   [`packages/core/src/schema/port.ts`](packages/core/src/schema/port.ts).
+   Adapters determine the active projection and keep dialect-specific
+   composition semantics out of core. The port exposes projection and
+   validation, with no separate branch-selection method.
+
+3. **Validation scheduling.** Resolved in
+   [`packages/core/src/runtime/validation-scheduler.ts`](packages/core/src/runtime/validation-scheduler.ts).
+   Change validation is debounced by 300 milliseconds by default, configurable
+   through `validationDebounceMs`. Blur and submit validate immediately.
+   Per-field hints select the trigger.
+
+4. **React binding lifecycle.** Resolved. React Context provides the runtime to
+   nested components, and `useSyncExternalStore` connects components to core
+   stores. The two mechanisms serve different purposes.
+
+5. **Store contract across renderer frameworks.** The shipped React, Vue,
+   Angular, Solid, and Svelte adapters consume `getSnapshot` and `subscribe`
+   through their native state primitives. This establishes functional
+   compatibility. A local React and core baseline is published in
+   [Section 18](#18-performance-model). A local baseline compares six Texaryn
+   renderer paths on one conditional form. A separate local comparison covers
+   one Draft 7 workload in Texaryn React and RJSF. Defer JSON Forms and
+   TanStack Form measurements until a concrete adoption or product decision
+   defines equivalent functionality and timing boundaries. RJSF is the only
+   current competitor performance comparison. Do not treat its baseline as a
+   ranking across form libraries.
+
+6. **Server rendering across processes.** Resolved in
+   [ADR-020](docs/adr/020-recreate-runtimes-at-hydration-boundaries.md): the
+   server and browser create separate runtimes from matching application
+   inputs. Core does not serialize runtime objects or transfer interaction
+   state. Hosts define a versioned payload if they need to restore an
+   in-progress form.
+
+7. **Command history persistence.** Resolved in
+   [ADR-021](docs/adr/021-keep-command-history-host-owned.md): persistence,
+   replay, and undo stay host-owned. `subscribeMutations()` reports data changes
+   and the command when one caused the change. It is not a complete command or
+   audit feed. Capturing commands dispatched by renderers needs a separate contract.
