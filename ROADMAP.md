@@ -8,7 +8,7 @@ Server-driven updates, AI generation, a visual builder, native array reorder,
 and collaborative scalar editing merged in PR #214. Angular, Svelte, and Solid
 renderers merged in PRs #211 to #213. Five new npm packages and their GitHub
 releases are published. Trusted publishers are configured for all five packages.
-Run [#220](https://github.com/texaryn/texaryn/actions/runs/38164624614) reconciled
+Main CI run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614) reconciled
 seven previously published versions that lacked GitHub releases. Draft-04 JSON
 Schema support merged in [PR #222](https://github.com/texaryn/texaryn/pull/222)
 and its minor package release was published through
@@ -2323,7 +2323,7 @@ triggers recorded in ADR-018 and ADR-019.
 11. Publish the first versions of Zod, Angular, Svelte, Solid, and Yjs; configure
     trusted publishing for each package; and recover seven existing published
     versions with missing GitHub releases. Complete. The five package releases
-    are published, trusted publishers are configured, and run #220 recovered the
+    are published, trusted publishers are configured, and CI run 38164624614 recovered the
     seven earlier releases.
 
 ## 20. Assessment: Decisions, Risks, and Viability
