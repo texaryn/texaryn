@@ -1977,9 +1977,9 @@ and release decisions are complete. ADR-023 records the decision.
 | npm 1.0.0 versions, provenance, package tags, and GitHub releases verified | Pending |
 
 The consumer gate installs package tarballs in a fresh npm project, typechecks
-and imports the documented core path, and confirms that the npm dependency tree
-resolves one core version. This release gate does not make every renderer or
-schema adapter stable.
+and server-renders the documented React form, and confirms that the npm
+dependency tree resolves one core version. This release gate does not make
+every renderer or schema adapter stable.
 
 Three main branch release runs failed while publishing the first versions of
 `@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,

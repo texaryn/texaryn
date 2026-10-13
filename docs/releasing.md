@@ -23,8 +23,8 @@ three stable packages and pass the following checks:
    compatible patch release. It does not become a 1.0 package automatically.
 3. The stable consumer check installs the packed core, JSON Schema adapter, and
    React binding in a fresh npm project, without workspace aliases. It checks
-   React 18.3 and React 19, imports the packages, typechecks a consumer, and
-   confirms that npm resolved one core version.
+   React 18.3 and React 19, typechecks and server-renders the documented React
+   form, and confirms that npm resolved one core version.
 4. The JSON Schema adapter suite passes against the maintained
    `@texaryn/json-schema-library` fork. The scheduled latest check resolves
    that scoped package, rather than the unrelated upstream package name.
