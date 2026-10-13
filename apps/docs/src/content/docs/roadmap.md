@@ -1978,7 +1978,7 @@ and release decisions are complete. ADR-023 records the decision.
 | React peer range bounded to the tested 18.3 and 19 versions | Done |
 | Isolated npm consumer gate packs the stable cohort and checks both React versions | Done |
 | Latest JSON Schema compatibility workflow resolves the scoped Texaryn fork | Done |
-| Changesets dry run confirms the 1.0.0 cohort and compatible dependent releases | Done, three major packages and nine dependent patches |
+| Changesets dry run confirms the stable cohort and dependency compatibility transitions | Done, three stable majors and nine dependent pre-stable minors |
 | Preparation pull request and release pull request pass CI and ChatGPT review | Pending |
 | npm 1.0.0 versions, provenance, package tags, and GitHub releases verified | Pending |
 
