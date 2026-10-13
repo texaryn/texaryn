@@ -18,9 +18,12 @@ three stable packages and pass the following checks:
 
 1. CI passes build, typecheck, coverage, generated API documentation, package
    tarball verification, stable consumer verification, and site build checks.
-2. `pnpm changeset status` proposes 1.0.0 for the three stable packages. Any
-   dependent package that needs to accept a stable 1.x dependency receives a
-   compatible patch release. It does not become a 1.0 package automatically.
+2. `pnpm changeset status` proposes 1.0.0 for the three stable packages.
+   Review the packed ranges for each dependent package. When accepting a stable
+   1.x dependency drops its prior pre-1.0 range, that package receives its next
+   pre-stable minor version. Use a patch only when the packed range still
+   accepts the previously supported dependency line. Dependent packages do not
+   become 1.0 packages automatically.
 3. The stable consumer check installs the packed core, JSON Schema adapter, and
    React binding in a fresh npm project, without workspace aliases. It checks
    React 18.3 and React 19, typechecks and server-renders the documented React
@@ -42,8 +45,9 @@ After the preparation pull request merges to `main`, the Changesets workflow
 opens or updates a `Version Packages` pull request on
 `changeset-release/main`. Review the generated versions, internal dependency
 ranges, and changelogs. The stable cohort must be exactly 1.0.0. A dependent
-0.x package can receive a patch version to widen its internal dependency range
-to `^1.0.0` while keeping its own public API pre-stable.
+0.x package that stops accepting its former internal 0.x dependency line
+receives its own minor version, keeping existing consumers on the earlier
+dependent minor line.
 
 Merge the version pull request only after its full CI run passes. Changesets
 keeps versions independent because `.changeset/config.json` has no fixed
@@ -65,7 +69,7 @@ that are missing.
 ## Verify the stable release
 
 After the workflow completes, verify all three packages and any dependent
-patch releases:
+pre-stable minor releases:
 
 ```sh
 npm view @texaryn/core version dist-tags
