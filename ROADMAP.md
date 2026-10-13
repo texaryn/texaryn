@@ -459,7 +459,7 @@ C4Component
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
     Component(productionAdapter, "@texaryn/schema-json", "Published 0.9.0", "Builds Texaryn projections and validation results with the maintained fork")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
-    Component(renderers, "React, Vue, Angular, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
+    Component(renderers, "React, Vue, Angular, Solid, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
   }
 
   Rel(core, port, "defines")
@@ -2101,7 +2101,7 @@ tracking and policy differences do not block Texaryn.
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
-| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all five renderer families |
+| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all six renderer families |
 | 8 | External schema resources | Done in merged PRs #192 and #194 under ADR-009 and ADR-010; released in [PR #195](https://github.com/texaryn/texaryn/pull/195). The host supplied resolver performs no network access and defaults to 128 unique retrieval URIs. Static external references validate and project, external dynamic references validate, and bounded opt-in dynamic references project. PR #194 also adds recursive projection, view-only expansion at recursion and budget boundaries, property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT peer review found no remaining actionable issues. Main CI run [38079464364](https://github.com/texaryn/texaryn/actions/runs/38079464364) passed build, docs, package and site checks, typecheck, the full suite with 5,302 tests across 146 files, and CI Gate. Overall line coverage was 96.78%. |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
