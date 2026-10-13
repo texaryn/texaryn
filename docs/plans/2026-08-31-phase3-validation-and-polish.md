@@ -8,7 +8,7 @@
 
 **Tech Stack:** @hyperjump/json-schema (1.x), vitest, @changesets/cli v3, typedoc
 
-**Spec:** ROADMAP.md sections 8 (Validation Architecture), 9 (Schema Evaluation Architecture), 10 (Renderer Contract), lines 1895-2094 (Phase 3 tasks)
+**Spec:** ROADMAP-ENGINEERING-ARCHIVE.md sections 8 (Validation Architecture), 9 (Schema Evaluation Architecture), 10 (Renderer Contract), lines 1895-2094 (Phase 3 tasks)
 
 ## Global Constraints
 
