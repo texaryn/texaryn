@@ -34,7 +34,7 @@ projects, three server-driven UI systems, and the headless UI pattern space. It
 takes explicit positions and records the evidence or trigger needed to revisit
 each decision.
 
-The current state and follow-up triggers are in [Status, 2026-10-12](#status-2026-10-12).
+The current state and follow-up triggers are in [Status, 2026-10-13](#status-2026-10-13).
 
 The `@texaryn/svelte` implementation merged in
 [PR #212](https://github.com/texaryn/texaryn/pull/212). It adds Svelte 5 store
@@ -67,9 +67,9 @@ published version 0.8.2 against fork version 11.6.6. PR #216 published
 `@texaryn/schema-json` 0.8.3 on npm and created its immutable Git tag. Main CI
 run [#38164624614](https://github.com/texaryn/texaryn/actions/runs/38164624614)
 reconciled its matching GitHub release. PR #223 published version 0.9.0 with
-Draft-04 support.
-Version 0.8.2 is [published on npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.8.2)
-and has a matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.8.2).
+Draft-04 support. Version 0.10.0 is the current published release on
+[npm](https://www.npmjs.com/package/@texaryn/schema-json/v/0.10.0) and has a
+matching [GitHub release](https://github.com/texaryn/texaryn/releases/tag/%40texaryn/schema-json%400.10.0).
 
 ## Table of Contents
 
@@ -463,9 +463,9 @@ C4Component
   Container_Boundary(texaryn, "Texaryn workspace") {
     Component(core, "@texaryn/core", "Runtime", "Owns the schema port and framework neutral state")
     Component(port, "SchemaEvaluationPort", "Interface", "project(data) and validate(data)")
-    Component(productionAdapter, "@texaryn/schema-json", "Published 0.8.2", "Builds Texaryn projections and validation results with the maintained fork")
+    Component(productionAdapter, "@texaryn/schema-json", "Published 0.10.0", "Builds Texaryn projections and validation results with the maintained fork")
     Component(comparisonAdapter, "@texaryn/schema-json-hyperjump", "Private CI adapter", "Compares a second engine against shared conformance cases")
-    Component(renderers, "React, Vue, Angular, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
+    Component(renderers, "React, Vue, Angular, Solid, Svelte, and Web Components", "Renderer packages", "Consume core runtime state")
   }
 
   Rel(core, port, "defines")
@@ -474,7 +474,7 @@ C4Component
   Rel(renderers, core, "depends on")
   Rel(productionAdapter, port, "implements")
   Rel(comparisonAdapter, port, "implements for CI comparison")
-  Rel(productionAdapter, forkEngine, "published 0.8.2 uses")
+  Rel(productionAdapter, forkEngine, "published 0.10.0 uses")
   Rel(comparisonAdapter, hyperjumpEngine, "uses")
 ```
 
@@ -1289,7 +1289,7 @@ The schema evaluation port is defined in `@texaryn/core` (interface only).
 The supported production implementation and the private CI comparison
 implementation live in separate packages:
 
-1. `@texaryn/schema-json`: published production adapter. Version 0.8.2 uses
+1. `@texaryn/schema-json`: published production adapter. Version 0.10.0 uses
    the Texaryn maintained `json-schema-library` fork at version 11.6.6.
 2. `@texaryn/schema-json-hyperjump`: private CI comparison adapter. It is not a
    supported production option or a planned migration target.
@@ -1359,7 +1359,7 @@ published through PR #223.
 ### Dialect Detection
 
 ```typescript
-type Dialect = 'draft-07' | '2019-09' | '2020-12'
+type Dialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 
 interface DialectConfig {
   defaultDialect: Dialect    // used when $schema is absent
@@ -1372,6 +1372,7 @@ function detectDialect(
   if (typeof schema !== 'object' || schema === null) return config.defaultDialect
   const s = schema as Record<string, unknown>
   if (typeof s.$schema === 'string') {
+    if (s.$schema.includes('draft-04')) return 'draft-04'
     if (s.$schema.includes('draft-07')) return 'draft-07'
     if (s.$schema.includes('2019-09')) return '2019-09'
     if (s.$schema.includes('2020-12')) return '2020-12'
@@ -1790,12 +1791,10 @@ Four surfaces have independent version considerations:
 1. **Runtime API** (`@texaryn/core` public exports). Follows semver. Breaking
    changes require a major bump.
 
-2. **IR format** (`UIDocument` type definition). Carries its own version number
-   inside the document. Breaking changes to the IR shape require:
-   - A new IR version number.
-   - A migration function from the old version to the new one.
-   - Renderers declare which IR versions they support.
-   - The runtime can run the migration at compile time.
+2. **IR format** (`UIDocument` type definition). Form and display documents
+   are separate families, each with its own local version. Breaking changes
+   follow ADR-018: migrations only run within one family, and no migration
+   converts a form document into a display document.
 
 3. **Schema evaluation contract** (`SchemaEvaluationPort`). Defined in `core`,
    implemented in `schema-json-*` packages. Changes affect every adapter.
@@ -1806,34 +1805,25 @@ Four surfaces have independent version considerations:
 
 ### IR Versioning Strategy
 
-The IR version is a single integer, not semver. It increments on every breaking
-change. Migration functions form a chain:
+[ADR-018](https://github.com/texaryn/texaryn/blob/main/docs/adr/018-ir-versioning-by-family.md) keeps the existing form v1
+and display v2 wire shapes as the first versions of separate document
+families. They are not successive versions, and no migration converts between
+them. No runtime migrator is needed until a same-family breaking change is
+scheduled.
 
-```typescript
-const migrations: Record<number, (doc: UIDocument) => UIDocument> = {
-  2: migrateV1ToV2,
-  3: migrateV2ToV3,
-}
-
-function migrateToLatest(doc: UIDocument): UIDocument {
-  let current = doc
-  while (current.version < LATEST_VERSION) {
-    const migrate = migrations[current.version + 1]
-    if (!migrate) throw new Error(`No migration from v${current.version}`)
-    current = migrate(current)
-  }
-  return current
-}
-```
-
-This allows persisted IR documents (server-driven UI scenarios) to survive
-runtime upgrades.
+For a future breaking change, the document envelope will identify a stable
+family and a family-local version. A pure one-step migration runs explicitly
+on a detached document before runtime creation. It cannot mutate the input or
+create a runtime on failure. Unknown families, unsupported versions, and
+missing migration steps are rejected. Persisted documents without a family
+discriminator, if any exist, use a dedicated legacy reader rather than a
+cross-family migration.
 
 ### Breaking Change Policy
 
 Before 1.0: the IR and public API may change between minor versions. After 1.0:
 semver applies strictly. IR breaking changes trigger a major version. Migration
-functions are provided for at least two major versions back.
+functions are retained for at least two major versions of each document family.
 
 ## 17. Testing Strategy
 
@@ -1944,22 +1934,26 @@ shows repeated structural operations above 16.7 ms at p95.
 
 ## 19. Milestones and First PRs
 
-### Status, 2026-10-12
+### Status, 2026-10-13
 
 Phases 0 to 4 and the UI integration contract (Phase 3.x) have shipped. PR #214
 merged the document runtime, AI kit, visual builder, array reorder, and scalar
-collaboration work. Published packages include `@texaryn/core` 0.15.0,
-`@texaryn/schema-json` 0.9.0, `@texaryn/react` 0.7.0,
-`@texaryn/react-bootstrap` 0.6.0, `@texaryn/react-mui` 0.6.0,
-`@texaryn/vue` 0.6.0, `@texaryn/web-components` 0.6.0,
-`@texaryn/angular` 0.2.0, `@texaryn/collaboration-yjs` 0.1.0,
-`@texaryn/schema-zod` 0.1.2, `@texaryn/solid` 0.2.0, and
-`@texaryn/svelte` 0.2.0.
+collaboration work. Published packages include `@texaryn/core` 0.16.0,
+`@texaryn/schema-json` 0.10.0, `@texaryn/react` 0.8.0,
+`@texaryn/react-bootstrap` 0.7.0, `@texaryn/react-mui` 0.7.0,
+`@texaryn/vue` 0.7.0, `@texaryn/web-components` 0.7.0,
+`@texaryn/angular` 0.3.0, `@texaryn/collaboration-yjs` 0.2.0,
+`@texaryn/schema-zod` 0.2.0, `@texaryn/solid` 0.3.0, and
+`@texaryn/svelte` 0.3.0.
+Release PR [#243](https://github.com/texaryn/texaryn/pull/243) published these
+versions. Main workflow run
+[#38331566080](https://github.com/texaryn/texaryn/actions/runs/38331566080)
+verified all twelve registry versions, npm provenance, and source commits, then
+reconciled their matching immutable package tags and GitHub releases.
 `@texaryn/schema-json-hyperjump` and `@texaryn/hints-rjsf` are private. MUI and
 the Emotion and Tailwind styling examples have shipped. Source for
 `@texaryn/schema-zod`, `@texaryn/angular`, `@texaryn/svelte`,
-`@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged. Their published
-versions are 0.1.2, 0.2.0, 0.2.0, 0.2.0, and 0.1.0 respectively.
+`@texaryn/solid`, and `@texaryn/collaboration-yjs` has merged.
 
 Three main branch release runs failed while publishing the first versions of
 `@texaryn/angular`, `@texaryn/collaboration-yjs`, `@texaryn/schema-zod`,
@@ -2100,12 +2094,13 @@ hooks.
 ADR-011 fixes the long term JSON Schema engine strategy. The production adapter
 uses a Texaryn maintained `json-schema-library` fork. Fork version 11.6.6 is
 published, and merged PR #207 replaces upstream 11.6.2 and its packaged
-workaround. Version 0.8.2 is published. Hyperjump remains in CI for comparison
-only. This is an
-implementation change within the accepted strategy, not a later engine
-selection phase.
+workaround. Version 0.10.0 is the current published adapter release. Hyperjump
+remains in CI for comparison only. This is an implementation change within the
+accepted strategy, not a later engine selection phase.
 
-The post-release list, ordered after the Backstage adoption exercise, has 11 items: 8 are complete, 1 is declined, and 2 retain upstream dependencies.
+The post-release list, ordered after the Backstage adoption exercise, has 11
+items: 10 are resolved for Texaryn and 1 is declined. Remaining upstream
+tracking and policy differences do not block Texaryn.
 
 | # | Item | State |
 |---|------|-------|
@@ -2115,7 +2110,7 @@ The post-release list, ordered after the Backstage adoption exercise, has 11 ite
 | 4 | `default` semantics | Done, ADR-003 accepted |
 | 5 | Material UI v4 support for Backstage | Declined |
 | 6 | i18n seam, ErrorSummary parity, failed-submit focus | Done (#159, #161, #162), ADR-004 and ADR-005 |
-| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all five renderer families |
+| 7 | Renderer reorder parity | Done, ADR-008; Up and Down controls are available in all six renderer families |
 | 8 | External schema resources | Done in merged PRs #192 and #194 under ADR-009 and ADR-010; released in [PR #195](https://github.com/texaryn/texaryn/pull/195). The host supplied resolver performs no network access and defaults to 128 unique retrieval URIs. Static external references validate and project, external dynamic references validate, and bounded opt-in dynamic references project. PR #194 also adds recursive projection, view-only expansion at recursion and budget boundaries, property candidate caching, guarded reductions, and static-only missing-value branch validation memoization. ChatGPT peer review found no remaining actionable issues. Main CI run [38079464364](https://github.com/texaryn/texaryn/actions/runs/38079464364) passed build, docs, package and site checks, typecheck, the full suite with 5,302 tests across 146 files, and CI Gate. Overall line coverage was 96.78%. |
 | 9 | Recursive schemas (#119) | Done (#180), ADR-007 |
 | 10 | Typeless locations in the hyperjump adapter (#116) | Done (#182) |
