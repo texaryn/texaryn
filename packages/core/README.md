@@ -378,7 +378,7 @@ That boundary is what allows the same runtime model to support different schema 
 - [`@texaryn/react`](../react/README.md), React bindings and default renderer
 - [`@texaryn/vue`](../vue/README.md), Vue 3 bindings and default renderer
 
-See the [repository README](../../README.md) for the package overview, the [roadmap](../../ROADMAP.md) for current status, and the [engineering roadmap archive](../../ROADMAP-ENGINEERING-ARCHIVE.md) for the detailed historical design record.
+See the [repository README](../../README.md) and [ROADMAP](../../ROADMAP.md) for the full architecture.
 
 ## License
 
