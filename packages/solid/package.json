@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/solid",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SolidJS bindings, renderer, and default widgets for Texaryn",
   "keywords": ["solid-js", "json-schema", "forms", "form-builder", "schema-driven", "dynamic-forms", "typescript"],
   "type": "module",

@@ -1,5 +1,19 @@
 # @texaryn/react-bootstrap
 
+## 0.7.0
+
+### Minor Changes
+
+- 3e79b3e: Give every renderer one localized validation message contract and normalize
+  adapter parameters so built-in widgets do not display evaluator diagnostics.
+
+### Patch Changes
+
+- Updated dependencies [35cb55f]
+- Updated dependencies [3e79b3e]
+  - @texaryn/core@0.16.0
+  - @texaryn/react@0.8.0
+
 ## 0.6.0
 
 ### Minor Changes
