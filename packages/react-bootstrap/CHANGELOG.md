@@ -1,5 +1,19 @@
 # @texaryn/react-bootstrap
 
+## 0.8.0
+
+### Minor Changes
+
+- 35b07c2: Aligns the React UI integrations with the stable React binding's supported peer range.
+- 0ad9d1f: Moves optional integrations to the stable internal dependency lines while
+  keeping existing pre-stable dependent ranges on their previous minor versions.
+
+### Patch Changes
+
+- Updated dependencies [aa0bc46]
+  - @texaryn/core@1.0.0
+  - @texaryn/react@1.0.0
+
 ## 0.7.0
 
 ### Minor Changes
