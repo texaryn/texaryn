@@ -1969,7 +1969,7 @@ and release decisions are complete. ADR-023 records the decision.
 |---|---|
 | Stable API boundary and package cohort recorded in ADR-023 | Done |
 | Security policy and release runbook name all twelve packages and independent versioning | Done |
-| React peer range bounded to the tested 18.3 and 19 versions | Done |
+| React peer ranges bounded to the tested 18.3 and 19 versions across the stable binding and its UI integrations | In progress |
 | Isolated npm consumer gate packs the stable cohort and checks both React versions | Done |
 | Latest JSON Schema compatibility workflow resolves the scoped Texaryn fork | Done |
 | Changesets dry run confirms the stable cohort and dependency compatibility transitions | Done, three stable majors and nine dependent pre-stable minors |

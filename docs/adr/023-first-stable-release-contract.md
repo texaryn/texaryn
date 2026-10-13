@@ -45,7 +45,9 @@ ADR-018.
 The stable React binding supports `react` 18.3 and 19. Its package peer range
 and the isolated consumer test use those supported major versions. Browser
 integration tests in the release gate run in Chromium. No compatibility claim
-for another browser engine is made by that test gate.
+for another browser engine is made by that test gate. React Bootstrap and React
+MUI declare the same React peer range because they require the stable React
+binding.
 
 The production JSON Schema engine remains the maintained
 `@texaryn/json-schema-library` fork selected in ADR-011. The Hyperjump adapter,
