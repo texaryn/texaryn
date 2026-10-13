@@ -1,5 +1,17 @@
 # @texaryn/svelte
 
+## 0.4.0
+
+### Minor Changes
+
+- 0ad9d1f: Moves optional integrations to the stable internal dependency lines while
+  keeping existing pre-stable dependent ranges on their previous minor versions.
+
+### Patch Changes
+
+- Updated dependencies [aa0bc46]
+  - @texaryn/core@1.0.0
+
 ## 0.3.0
 
 ### Minor Changes

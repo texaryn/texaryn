@@ -1,5 +1,11 @@
 # @texaryn/core
 
+## 1.0.0
+
+### Major Changes
+
+- aa0bc46: Freezes the core, JSON Schema adapter, and React package root exports under the first stable SemVer contract.
+
 ## 0.16.0
 
 ### Minor Changes
