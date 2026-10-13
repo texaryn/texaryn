@@ -1998,9 +1998,9 @@ verified provenance and created both matching GitHub releases.
 ADR-022 closes the P2 review trigger after the Zod adapter shipped. The
 adapter uses Zod for validation and generated JSON Schema for projection, so it
 exercises the port without introducing an independent projection model. The
-current port remains experimental. No generalization is planned until an
-integration requires projection semantics the current boundary cannot
-represent faithfully.
+current port shape is part of the stable core 1.0.0 contract. Generalized
+cross-schema projection remains deferred until an integration requires
+semantics the current boundary cannot represent faithfully.
 
 Section 18 publishes local baselines for flat, conditional, and bounded-
 recursive adapter projection, compiler timing, React server render, browser
