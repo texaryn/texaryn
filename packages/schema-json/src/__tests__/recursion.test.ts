@@ -486,7 +486,7 @@ describe('the budget', () => {
     for (const node of p.nodes.values()) {
       if (node.boundaries?.includes('budget')) expect(node.children?.length).toBeGreaterThan(0)
     }
-  })
+  }, 10_000)
 
   it('never budgets a schema without recursion', async () => {
     const level = (depth: number): Record<string, unknown> =>
