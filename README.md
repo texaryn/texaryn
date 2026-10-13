@@ -179,7 +179,7 @@ pnpm --filter @texaryn/playground dev
 
 ## Status
 
-Texaryn is pre-1.0, and public APIs may change before 1.0, so pin exact versions. The [roadmap](ROADMAP.md) records what is planned.
+The first stable compatibility contract covers `@texaryn/core`, `@texaryn/schema-json`, and `@texaryn/react`. Each package versions independently. Packages below 1.0.0 remain pre-stable and may change between minor releases. The [roadmap](ROADMAP.md) records the release gate and follow-up triggers.
 
 Issues and focused pull requests are welcome. For a change to a package boundary, open an issue first.
 

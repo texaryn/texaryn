@@ -2,7 +2,9 @@
 
 React bindings, hooks, prop getters, renderer components, and default widgets for Texaryn.
 
-> Status: pre-1.0. Public APIs may change before 1.0.
+The package root exports form the supported API for the first stable release.
+Versions below 1.0.0 remain pre-stable and may change between minor releases.
+The compatibility contract is recorded in [ADR-023](https://github.com/texaryn/texaryn/blob/main/docs/adr/023-first-stable-release-contract.md).
 
 ## Install
 
@@ -10,7 +12,7 @@ React bindings, hooks, prop getters, renderer components, and default widgets fo
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/react react react-dom
 ```
 
-`@texaryn/react` requires React 18 or newer.
+`@texaryn/react` supports React 18.3 and React 19.
 
 ## Quick start
 
