@@ -5,7 +5,7 @@ description: First stable release status, available capabilities, and evidence b
 
 Updated: 13 October 2026
 
-Texaryn is a framework-neutral TypeScript toolkit for schema-driven forms and standalone display documents. Form schemas compile through an adapter into a runtime rendered by framework bindings. Display documents use a separate schema-free runtime for lists, tables, layouts, text, and host actions.
+Texaryn is a framework-neutral TypeScript toolkit for schema-driven forms and standalone display documents. It turns JSON Schema into forms that can render in React, Angular, Vue, Svelte, SolidJS, or Web Components. Display documents present lists, tables, layouts, text, and actions handled by the application that uses Texaryn.
 
 ## Current status
 
@@ -23,7 +23,7 @@ The stable release covers the three named package contracts. The other integrati
 
 **Forms and validation.** JSON Schema Draft 4, Draft 7, 2019-09, and 2020-12 are supported. Forms render through React, Angular, Vue, Svelte, SolidJS, and Web Components. Each renderer family has default widgets. React also has optional Bootstrap 5 and Material UI v9 widgets.
 
-**Display documents.** Lists, tables, layouts, text, and host actions work without a form schema. Applications can update display documents with server-driven changes.
+**Display documents.** Lists, tables, layouts, text, and actions handled by the application work without a form schema. Applications can update display documents as server data changes.
 
 **Playground.** The visual form builder edits common field properties. The JSON editor remains available for advanced schemas.
 
