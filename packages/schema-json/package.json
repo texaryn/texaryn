@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/schema-json",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "JSON Schema adapter for Texaryn forms, with field projection and validation for Draft 4, Draft 7, 2019-09 and 2020-12",
   "keywords": [
     "json-schema",

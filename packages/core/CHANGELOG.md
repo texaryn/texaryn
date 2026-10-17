@@ -1,5 +1,11 @@
 # @texaryn/core
 
+## 1.0.1
+
+### Patch Changes
+
+- 6c1f9d1: Publish updated package READMEs and discovery metadata for schema-driven forms and display documents. Public APIs and runtime behavior are unchanged.
+
 ## 1.0.0
 
 ### Major Changes

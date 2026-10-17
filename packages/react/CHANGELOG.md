@@ -1,5 +1,13 @@
 # @texaryn/react
 
+## 1.0.1
+
+### Patch Changes
+
+- 6c1f9d1: Publish updated package READMEs and discovery metadata for schema-driven forms and display documents. Public APIs and runtime behavior are unchanged.
+- Updated dependencies [6c1f9d1]
+  - @texaryn/core@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
