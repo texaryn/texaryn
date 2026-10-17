@@ -1,6 +1,6 @@
 ---
 title: Custom styling
-description: Style the default React widgets with application-owned Emotion or Tailwind CSS.
+description: Choose Bootstrap or Material UI widgets, or style the default React controls with your own CSS.
 ---
 
 Texaryn's default React widgets render semantic HTML. Wrap `FormRoot` in your
@@ -17,9 +17,52 @@ adapter, form runtime, or widget registry.
 
 The wrapper owns styles. The default registry continues to own labels, input
 bindings, validation messages, and array actions. For controls that need
-different markup or behavior, register custom widgets instead.
+different markup or behavior, [register custom widgets](https://github.com/texaryn/texaryn/tree/main/packages/react#custom-widgets) instead.
+
+## Bootstrap 5
+
+In an application using `@texaryn/react`, add the widget package and CSS:
+
+```sh
+pnpm add @texaryn/react-bootstrap bootstrap
+```
+
+```tsx
+import { createBootstrapRegistry } from '@texaryn/react-bootstrap'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+const registry = createBootstrapRegistry()
+```
+
+Pass `registry` to `FormRoot` in place of `createDefaultRegistry()`. Texaryn
+renders native HTML with Bootstrap 5.3 classes; it does not load Bootstrap CSS
+or JavaScript itself. The CSS import assumes a bundler that supports it.
+
+## Material UI v9
+
+Add the widget package, Material UI and its default styling engine:
+
+```sh
+pnpm add @texaryn/react-mui @mui/material @emotion/react @emotion/styled
+```
+
+```tsx
+import { createMuiRegistry } from '@texaryn/react-mui'
+
+const registry = createMuiRegistry()
+```
+
+Pass `registry` to `FormRoot`. The widgets use Material UI v9. The application
+owns its theme and any `ThemeProvider` or `CssBaseline`; Texaryn adds neither.
+
+Both widget packages require the React binding. Other frameworks use their
+own default widgets or custom registries.
 
 ## Emotion
+
+The examples below assume application-owned CSS variables: `--tx-text`,
+`--tx-border-strong`, `--tx-surface-raised` and `--tx-accent`. Define them on
+your styling scope or replace them with colors from your theme.
 
 Use an Emotion styled wrapper and descendant selectors to scope CSS to the
 rendered form:

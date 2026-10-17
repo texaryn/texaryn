@@ -156,7 +156,7 @@ here requires them to.
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
 - [`@texaryn/react`](../react/README.md), the React binding over the same runtime
 
-See the [repository README](../../README.md) for the complete architecture.
+See the [architecture guide](https://texaryn.github.io/texaryn/concepts/architecture/) for the package boundaries and runtime contracts.
 
 ## License
 

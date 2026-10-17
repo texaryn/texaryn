@@ -3,8 +3,14 @@ title: Architecture
 description: How the packages divide the work, and why the boundaries sit where they do.
 ---
 
-Texaryn is a small set of packages with deliberately narrow boundaries. Each
-one can be understood without reading the others.
+Texaryn separates schema evaluation, state and rendering. An adapter reads the
+schema; the headless runtime owns behavior; a framework binding renders the
+result. Replacing a widget does not require reimplementing schema rules.
+
+A form uses a version 1 UI document and `FormRuntime`. A standalone display
+uses a version 2 document and `createDocumentRuntime`, without a schema adapter.
+These are two document families, not successive versions of the same format.
+See [What is Texaryn?](/texaryn/start/what-is-texaryn/) for the full pipeline.
 
 ## Packages
 
@@ -68,7 +74,8 @@ Each capability declares the layer its semantic proof belongs to.
 - **Runtime** covers behaviour over time: commands, validation triggers, array
   identity, submission.
 - **Renderer** covers what reaches the page, including accessibility, and is
-  proven by shared conformance suites across every supported renderer.
+  covered by shared conformance suites for React, Vue, Svelte and Web
+  Components, plus dedicated Angular and SolidJS renderer suites.
 
 Keeping those apart is what stops a renderer concern from being answered by a
 runtime test, or an accessibility claim from resting on one design system's

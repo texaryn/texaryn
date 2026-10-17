@@ -114,8 +114,12 @@ When the projection withholds a location, an object above it says why in
   listed in `children`, and the object that carries `budget` still shows its
   own fields.
 
-Each is absent on an object for which its condition does not hold. A binding
-can ignore them; the built-in bindings render the fields that are projected.
+Each is absent on an object for which its condition does not hold. An adapter
+can also expose `boundaryTargets` with opaque tokens for withheld locations.
+The built-in bindings offer expansion controls for those targets. A custom
+widget dispatches `{ type: 'ExpandBoundary', containerId, targetToken }` using
+the container's current target token. Expanding reveals more fields without
+writing data. Automatic expansion still follows the data as described above.
 
 `initialization: 'schema-defaults'` never writes into recursion expanded past
 the data. A node the projection reached only by expanding the recursion
@@ -180,6 +184,24 @@ other unsupported applicators. It also rejects root relative resource IDs,
 assertion siblings beside `$dynamicRef`, and `$recursiveRef` values other than
 `'#'` or with siblings. Projection support is limited to the cases listed
 above. ADR-010 records the supported paths.
+
+## Initial data and schema defaults
+
+`initialData` supplies values. By default, schema `default` annotations are
+metadata and do not write data into the form. Opt in through the runtime options:
+
+```ts
+const form = useForm(adapter, {
+  initialData: { name: 'Ada' },
+  initialization: 'schema-defaults',
+})
+```
+
+Initialization fills absent values with defaults from the active projection;
+it does not overwrite supplied values. Conflicting defaults and defaults that
+would expand recursive data indefinitely are refused. The runtime's
+`initialization` store reports writes and refusals. The recursive-reference
+section above describes the recursion limits.
 
 ## Validation scope
 

@@ -1,0 +1,93 @@
+---
+title: Vue renderer
+description: Build a Texaryn form in Vue 3.5 with composables, default widgets and an error summary.
+---
+
+Use `@texaryn/vue` in a Vue 3.5 or newer application. The binding observes
+Texaryn's runtime through Vue refs; schema evaluation and validation stay in
+the schema adapter.
+
+## Install
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue
+```
+
+## Create the adapter before mounting
+
+In `src/main.ts`, create the adapter and pass it to the root component:
+
+```ts
+import { createApp } from 'vue'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import App from './App.vue'
+
+async function main() {
+  const adapter = await createJsonSchemaAdapter({
+    type: 'object',
+    title: 'Profile',
+    required: ['name'],
+    properties: {
+      name: { type: 'string', title: 'Name', minLength: 2 },
+    },
+  })
+  createApp(App, { adapter }).mount('#app')
+}
+
+void main()
+```
+
+The page needs `<div id="app"></div>`. Awaiting the adapter inside
+`<script setup>` would make the component asynchronous and require a
+`Suspense` boundary. Preparing it before mounting avoids that requirement.
+
+## Render and submit
+
+In `src/App.vue`:
+
+```vue
+<script setup lang="ts">
+import type { SchemaEvaluationPort } from '@texaryn/core'
+import {
+  ErrorSummary, FormRoot, createDefaultRegistry, provideFormRuntime, useForm,
+} from '@texaryn/vue'
+
+const props = defineProps<{ adapter: SchemaEvaluationPort }>()
+const form = useForm(props.adapter, {
+  initialData: { name: '' },
+  onSubmit: (data) => console.log('Submitted', data),
+})
+const registry = createDefaultRegistry()
+provideFormRuntime(form.runtime)
+
+function submit() {
+  form.dispatch({ type: 'Submit' })
+}
+</script>
+
+<template>
+  <form novalidate @submit.prevent="submit">
+    <ErrorSummary />
+    <FormRoot :registry="registry" />
+    <button type="submit">Submit</button>
+  </form>
+</template>
+```
+
+Submit an empty name to show the error summary. Enter at least two characters
+and submit to log the data. The example does not send a network request.
+
+`FormRoot` renders fields, not a native form. The application owns the form
+element and its submit event. Components that inject the runtime must be
+descendants of the component that calls `provideFormRuntime`.
+
+## Own the runtime lifetime
+
+Call `useForm` in `setup()` or an active Vue effect scope. It destroys the
+runtime and unsubscribes when that scope ends. The returned `data`, `document`
+and `submission` values are refs; read `.value` in script code.
+
+Use [Validation and submission](/texaryn/guides/validation-and-submission/)
+for the shared lifecycle, and the
+[Vue package reference](https://github.com/texaryn/texaryn/tree/main/packages/vue)
+for custom widgets, reactive node IDs and localized messages.

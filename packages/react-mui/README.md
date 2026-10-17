@@ -10,7 +10,7 @@ Material UI v9 widgets for Texaryn: MUI components on top of `@texaryn/react`.
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/react @texaryn/react-mui @mui/material @emotion/react @emotion/styled react react-dom
 ```
 
-`@mui/material` is a peer dependency (`^9.0.0`), and so are `@texaryn/react` and `react` (18 or newer). `@emotion/react` and `@emotion/styled` are MUI's default styling engine, not a Texaryn dependency: MUI needs them on the page to render its `sx` prop and its component styles, and this package never imports them itself.
+`@mui/material` is a peer dependency (`^9.0.0`), and so are `@texaryn/react` and `react` (18.3 or 19). `@emotion/react` and `@emotion/styled` are MUI's default styling engine, not a Texaryn dependency: MUI needs them on the page to render its `sx` prop and its component styles, and this package never imports them itself.
 
 ## Quick start
 
@@ -130,7 +130,7 @@ registry.register({ test: (n) => n.type === 'field' && n.format === 'email', ran
 - [`@texaryn/core`](../core/README.md), runtime and renderer contracts
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
 
-See the [repository README](../../README.md) for the complete architecture.
+See the [architecture guide](https://texaryn.github.io/texaryn/concepts/architecture/) for the package boundaries and runtime contracts.
 
 ## License
 

@@ -1,0 +1,109 @@
+---
+title: Web Components and plain JavaScript
+description: Render a Texaryn form with DOM mounting functions or a custom element, without a framework dependency.
+---
+
+`@texaryn/web-components` renders native controls in light DOM. Use the
+mounting functions inside a form your application owns, or let the
+`<texaryn-form>` custom element own the form and runtime.
+
+## Install
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/web-components
+```
+
+This example uses a TypeScript application with a bundler, such as Vite's
+vanilla TypeScript template. The package has no rendering framework dependency
+and loads no stylesheet.
+
+## Add the form markup
+
+Place this markup in your page:
+
+```html
+<form id="profile" novalidate>
+  <div id="fields"></div>
+  <button type="submit">Submit</button>
+</form>
+```
+
+## Mount the fields and error summary
+
+In `src/main.ts`:
+
+```ts
+import { createFormRuntime } from '@texaryn/core'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import {
+  createDefaultRegistry, mountErrorSummary, mountForm,
+} from '@texaryn/web-components'
+
+async function main() {
+  const adapter = await createJsonSchemaAdapter({
+    type: 'object',
+    title: 'Profile',
+    required: ['name'],
+    properties: {
+      name: { type: 'string', title: 'Name', minLength: 2 },
+    },
+  })
+  const runtime = createFormRuntime(adapter, {
+    initialData: { name: '' },
+    onSubmit: (data) => console.log('Submitted', data),
+  })
+  const form = document.querySelector<HTMLFormElement>('#profile')!
+  const fields = document.querySelector<HTMLElement>('#fields')!
+  const mount = mountForm(fields, runtime, {
+    registry: createDefaultRegistry(),
+    idPrefix: 'profile',
+  })
+  const summary = mountErrorSummary(form, mount)
+  const controller = new AbortController()
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    runtime.dispatch({ type: 'Submit' })
+  }, { signal: controller.signal })
+
+  return () => {
+    controller.abort()
+    summary.unmount()
+    mount.unmount()
+    runtime.destroy()
+  }
+}
+
+const cleanup = main()
+
+export async function removeProfileForm() {
+  const dispose = await cleanup
+  dispose()
+  document.querySelector('#profile')?.remove()
+}
+```
+
+Submit an empty name to show errors, then enter at least two characters and
+submit to log the data. `main()` returns a promise for a cleanup function. This example retains that
+promise; call `removeProfileForm()` when the application removes the form
+without leaving the page. It awaits setup, removes the listener and rendered
+content, destroys the runtime, and removes the native form. For a page that
+stays mounted, the browser releases resources when the page closes. Each form
+on a page needs its own `idPrefix`.
+
+## Use the custom element instead
+
+Call `defineTexarynForm()` once to register `<texaryn-form>`. Assign its
+`registry`, `options` and `port` before appending it. In this mode the element
+creates a runtime and destroys it when removed. Set `options` before `port`:
+options are read when the runtime is created.
+
+For a runtime owned elsewhere, assign `runtime` instead of `port`. The element
+borrows that runtime and never destroys it. The two modes are mutually
+exclusive. The element owns a native form, so do not nest it inside another
+`<form>`.
+
+See the
+[custom element reference](https://github.com/texaryn/texaryn/tree/main/packages/web-components)
+for a complete element example, events and localized messages. For standalone
+lists and tables, use `mountDocument` as described in
+[Display documents](/texaryn/guides/display-documents/).

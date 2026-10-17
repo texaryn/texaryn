@@ -122,7 +122,7 @@ The package depends on `@texaryn/core` and Svelte. It does not depend on
 - [`@texaryn/schema-json`](../schema-json/README.md), JSON Schema adapter
 - [`@texaryn/react`](../react/README.md), React bindings for the same runtime
 
-See the [repository README](../../README.md) for the complete architecture.
+See the [architecture guide](https://texaryn.github.io/texaryn/concepts/architecture/) for the package boundaries and runtime contracts.
 
 ## License
 

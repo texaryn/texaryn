@@ -1,0 +1,87 @@
+---
+title: Validation and submission
+description: Choose when errors appear, submit a validated snapshot, and handle pending or failed submissions.
+---
+
+import Example from '../../../components/Example.astro'
+
+Texaryn validates form data through the schema adapter. The runtime decides
+when validation runs, which errors are visible, and when to call `onSubmit`.
+Start with the [React setup](/texaryn/start/getting-started/) or your
+[framework binding](/texaryn/start/choose-packages/) before using this guide.
+
+## Validation
+
+Validation timing is configured per field through the `validationTrigger`
+hint:
+
+- `'blur'` runs when the field loses focus.
+- `'change'` runs as the user types, with debounce.
+- `'submit'` runs only on submission.
+
+When a matching blur or change occurs, Texaryn validates the full form
+snapshot and distributes the returned errors back to nodes by JSON Pointer.
+The trigger decides *when* validation runs, not which part of the form is
+validated.
+
+<Example id="runtime-validation-triggers" />
+
+The runtime tracks `showErrors` per node, so an error appears only once the
+field has been interacted with or a Submit has been attempted. The prop getters
+set `aria-invalid` and link `aria-describedby` to the error element.
+
+`FieldErrors` renders inline errors per field and is included in the default
+widgets. `ErrorSummary` renders a named group above the form, headed by an
+`h2`, listing every visible error with a link to its field, and takes focus
+once a failed submit settles.
+
+<Example id="accessibility-error-association" />
+
+## Submit
+
+Dispatch a `Submit` command to start the lifecycle:
+
+```ts
+form.dispatch({ type: 'Submit' })
+```
+
+It moves through `idle`, `validating`, `submitting` and `submitted`.
+
+Submit captures the current data as an immutable snapshot, and both validation
+and `onSubmit` operate on that snapshot. Edits during `validating` cancel the
+attempt. Once `onSubmit` is running, edits update live data without changing
+the captured payload.
+
+If validation fails, submission returns to `idle` and every invalid field
+shows its errors, touched or not: a Submit attempt opens the display gate that
+blur and change validation leave closed until the user touches a field.
+`submission.attempts` counts the accepted attempts since the last Reset.
+`submission.error` is set only when the validator or `onSubmit` throws or
+rejects, and the state returns to `idle`. A fresh Submit clears a previous
+error. A duplicate Submit while validating or submitting does nothing.
+
+<Example id="runtime-submission" />
+
+## Show submission feedback
+
+In React, `useForm` subscribes to submission state. Disable the button while an
+attempt is pending, and show a message if the validator or submit handler throws:
+
+```tsx
+<button
+  type="submit"
+  disabled={
+    form.submission.status === 'validating' ||
+    form.submission.status === 'submitting'
+  }
+>
+  {form.submission.status === 'submitting' ? 'Saving…' : 'Save'}
+</button>
+{form.submission.error != null && (
+  <p role="alert">Could not save. Please try again.</p>
+)}
+```
+
+Place the button inside the native form from the getting-started example.
+Validation failures appear through `ErrorSummary` and the field widgets;
+`submission.error` represents an exception, not an invalid field.

@@ -12,7 +12,7 @@ Texaryn is a framework-neutral TypeScript toolkit for schema-driven forms and st
 2. [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) evaluates and validates JSON Schema.
 3. [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) provides React bindings, a renderer, and default widgets.
 
-Nine other published packages provide optional framework, UI library, schema, and collaboration integrations. Each follows its own version. Packages below 1.0.0 remain pre-stable and may introduce breaking changes in minor releases. See the [package catalog](https://github.com/texaryn/texaryn#packages) for live npm versions and package purposes.
+Nine other published packages provide optional framework, UI library, schema, and collaboration integrations. Each follows its own version. Packages below 1.0.0 remain pre-stable and may introduce breaking changes in minor releases. See the [package catalog](https://texaryn.github.io/texaryn/start/choose-packages/) for live npm versions and package purposes.
 
 The stable release covers the three named package contracts. The other integrations are not part of the stable cohort.
 
@@ -42,7 +42,7 @@ These are conditions for reconsidering work, not promised deliverables.
 
 1. [Try the playground](https://texaryn.github.io/texaryn/playground/).
 2. [Follow the getting started guide](https://texaryn.github.io/texaryn/start/getting-started/).
-3. [Browse packages and current npm versions](https://github.com/texaryn/texaryn#packages).
+3. [Browse packages and current npm versions](https://texaryn.github.io/texaryn/start/choose-packages/).
 4. [View GitHub releases](https://github.com/texaryn/texaryn/releases).
 5. [Report an issue or contribute](https://github.com/texaryn/texaryn/issues).
 

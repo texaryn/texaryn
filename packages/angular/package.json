@@ -1,7 +1,7 @@
 {
   "name": "@texaryn/angular",
   "version": "0.4.0",
-  "description": "Angular signal bindings and default widgets for Texaryn",
+  "description": "Schema-driven forms and display documents for Angular, with signals, standalone components and default widgets",
   "keywords": [
     "angular",
     "json-schema",

@@ -127,11 +127,12 @@ heading.
 - `objectLayout`, `arrayControl`
 - types: `DomWidget`, `WidgetFactory`, `NodeBinding`, `RenderContext`, `Mount`, `ErrorSummaryOptions`, `ErrorSummaryMount`
 
-## Not in this release
+## Limits
 
-Shadow DOM, `formAssociated` and `ElementInternals`, nesting inside another
-`<form>`, group and layout containers beyond objects and arrays, and text and
-action nodes.
+The custom element does not support Shadow DOM, `formAssociated`,
+`ElementInternals`, or nesting inside another `<form>`. Forms use the version 1 document. Standalone display documents support
+groups, layouts, lists, tables, text and actions through `mountDocument`; see
+[Display documents](https://texaryn.github.io/texaryn/guides/display-documents/).
 
 ## Related packages
 
@@ -140,7 +141,7 @@ action nodes.
 - [`@texaryn/react`](../react/README.md), the React binding over the same runtime
 - [`@texaryn/vue`](../vue/README.md), the Vue binding over the same runtime
 
-See the [repository README](../../README.md) for the complete architecture.
+See the [architecture guide](https://texaryn.github.io/texaryn/concepts/architecture/) for the package boundaries and runtime contracts.
 
 ## License
 

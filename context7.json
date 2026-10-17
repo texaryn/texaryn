@@ -18,7 +18,8 @@
     ".changeset",
     "packages/examples",
     "packages/schema-json-hyperjump",
-    "packages/hints-rjsf"
+    "packages/hints-rjsf",
+    "apps/docs/src/content/docs/api"
   ],
   "excludeFiles": [
     "CHANGELOG.md",
@@ -27,18 +28,24 @@
     "404.md"
   ],
   "rules": [
-    "Install @texaryn/core and @texaryn/schema-json together with the binding for the app's framework: @texaryn/react, @texaryn/vue or @texaryn/web-components. Core is headless and renders nothing by itself.",
+    "For forms, install @texaryn/core, a schema adapter and one framework binding. Bindings are @texaryn/react, @texaryn/angular, @texaryn/vue, @texaryn/svelte, @texaryn/solid and @texaryn/web-components. Core is headless and renders nothing by itself. Read https://texaryn.github.io/texaryn/start/choose-packages/ for peer versions and setup.",
+    "Use @texaryn/schema-json for JSON Schema or TypeBox JSON Schema output. Use @texaryn/schema-zod with Zod 4 for Zod validation and input-shape projection. Zod refinements and transforms do not become projected field constraints; the Zod adapter does not expose projectSubmission.",
     "@texaryn/react-bootstrap and @texaryn/react-mui are widget registries over @texaryn/react. Install them next to @texaryn/react, not in place of it, and pass createBootstrapRegistry() or createMuiRegistry() to FormRoot.",
     "@texaryn/react-mui needs @mui/material v9, @emotion/react and @emotion/styled on the page. @texaryn/react-bootstrap loads no stylesheet, so the page loads Bootstrap 5.3 CSS itself.",
-    "createJsonSchemaAdapter(schema) from @texaryn/schema-json is async: await it, then pass the adapter to useForm or createFormRuntime. The dialect comes from $schema, with Draft 7 as the fallback.",
-    "Supported dialects are Draft 4, Draft 7, 2019-09 and 2020-12; Draft 6 is not. Remote $ref, $dynamicRef and tuple arrays are outside the form projection scope, so use local $ref and homogeneous arrays. A recursive local $ref is supported and expands once past the data; a schema that applies itself at one location, such as allOf: [{ $ref: '#' }], is rejected by createJsonSchemaAdapter with SameLocationCycleError.",
-    "React: create the registry once with createDefaultRegistry(), call const form = useForm(adapter, options), then render <FormProvider value={form.runtime}> around <ErrorSummary /> and <FormRoot registry={registry} />.",
-    "Vue 3.5+: call useForm and provideFormRuntime(form.runtime) in setup(). FormRoot and ErrorSummary must be descendants of the component that called provideFormRuntime, which cannot inject what it provided itself. Placing them in its template is enough.",
-    "Web Components: call defineTexarynForm() once, then on a <texaryn-form> element set options before port, since options are read when the runtime is created. Set port or runtime, never both: that throws.",
-    "In React and Vue, FormRoot renders no <form> element. Start submission with dispatch({ type: 'Submit' }) and read submission.status, which moves through idle, validating, submitting and submitted.",
-    "UI hints replace uiSchema. They are keyed by JSON Pointer, for example '/email', and carry widget, placeholder, helpText, order and validationTrigger ('blur', 'change' or 'submit').",
-    "To translate built-in widget text, pass a FormMessages object from @texaryn/core as messages on FormProvider, provideFormRuntime or <texaryn-form>, instead of replacing widgets for their copy.",
-    "@texaryn/examples, @texaryn/playground, @texaryn/schema-json-hyperjump and @texaryn/hints-rjsf are private workspace packages that are not published to npm. Do not install or import them.",
-    "@texaryn/core, @texaryn/schema-json and @texaryn/react are stable 1.0.0 packages. The other nine published packages are independently versioned below 1.0.0 and may introduce breaking changes in minor releases. Follow each package version separately."
+    "createJsonSchemaAdapter(schema) from @texaryn/schema-json is async: await it before creating or mounting a form. The dialect comes from $schema, with Draft 7 as the fallback. Supported dialects are Draft 4, Draft 7, 2019-09 and 2020-12; Draft 6 is not supported.",
+    "Form projection and schema validation have different limits. Static external $ref resources use the host-provided resolveResource resolver and must share the root dialect; Texaryn performs no network requests. Dynamic scope aware projection is opt in with dynamicReferenceProjection: 'local' for supported paths. Tuple arrays do not have a dedicated control projection. Read https://texaryn.github.io/texaryn/guides/json-schema-support/ before claiming support for a keyword or reference pattern.",
+    "A recursive local $ref expands once past the data, subject to projection budgets. A same-location cycle such as allOf: [{ $ref: \"#\" }] is rejected by createJsonSchemaAdapter with SameLocationCycleError.",
+    "React 18.3 or 19: create the registry once, call useForm(adapter, options), then render FormProvider around ErrorSummary and FormRoot. The application owns a native form with noValidate, prevents the submit event default and dispatches Submit. FormRoot does not create the native form.",
+    "Vue 3.5+: call useForm and provideFormRuntime(form.runtime) in setup(). FormRoot and ErrorSummary must be descendants of the component that provides the runtime. Prepare the async schema adapter before mounting unless a Suspense boundary is provided.",
+    "Angular uses signals and standalone components. Svelte uses readable stores and Svelte components. SolidJS uses owned reactive subscriptions. Follow each binding guide for component APIs and runtime lifetime; do not copy React APIs into other frameworks.",
+    "Web Components: call defineTexarynForm() once, then set options before port on texaryn-form. Assign port or runtime, never both. The element owns a native form and must not be nested in another form. mountForm renders only the field tree and borrows its runtime; its host owns the native form and runtime cleanup.",
+    "UI hints are keyed by JSON Pointer, for example /email, and carry widget, placeholder, helpText, order and validationTrigger (blur, change or submit). initialData supplies values. Schema defaults do not write form data unless initialization: 'schema-defaults' is requested.",
+    "Submit captures data as an immutable snapshot, validates it and calls onSubmit only when valid. Read submission.status for idle, validating, submitting or submitted. submission.error represents a thrown or rejected validator or handler, not field validation errors.",
+    "To translate built-in widget text, supply FormMessages through the binding. validationMessage controls displayed error text without changing ValidationError objects. Field titles supplied by the schema remain application-owned.",
+    "Form documents use UIDocument version 1 and FormRuntime. Standalone display documents use version 2 and createDocumentRuntime, without a schema adapter or editable fields. Version 2 is a separate document family, not an upgrade to form documents. Display nodes cover lists, tables, layouts, text and host actions. Both families use the framework bindings.",
+    "The AI generation contract is versioned independently of UI document versions. Texaryn supplies validators and example generation contracts, not a model service or provider SDK. Host applications authorize action handlers and accept only registered widgets and actions.",
+    "@texaryn/collaboration-yjs is optional and shares scalar field edits. The host supplies a Y.Doc and provider. Concurrent structural edits and array ordering are outside its contract.",
+    "@texaryn/docs, @texaryn/examples, @texaryn/playground, @texaryn/schema-json-hyperjump and @texaryn/hints-rjsf are private workspace packages, not npm packages. Do not instruct consumers to install or import them.",
+    "@texaryn/core, @texaryn/schema-json and @texaryn/react have stable 1.0 root-export contracts. The other nine published packages version independently below 1.0 and may introduce breaking changes in minor releases. Follow each package version separately."
   ]
 }

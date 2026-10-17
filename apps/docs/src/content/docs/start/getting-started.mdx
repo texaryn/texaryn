@@ -1,214 +1,123 @@
 ---
 title: Getting started
-description: Turn a JSON Schema into a working form with schema evaluation, a headless runtime and a React renderer.
+description: Build and submit your first JSON Schema form in a React TypeScript application.
 ---
 
 import Example from '../../../components/Example.astro'
 
-Texaryn turns a JSON Schema into a working form: schema evaluation, a headless
-runtime, and a renderer.
+This example renders a profile form with a required name and a newsletter
+checkbox. Invalid submissions show errors; valid submissions log the data to
+the browser console.
+
+Using another framework? [Choose your packages](/texaryn/start/choose-packages/)
+links to setup for all six bindings.
 
 ## Install
+
+In an existing React TypeScript application, add:
 
 ```bash
 pnpm add @texaryn/core @texaryn/schema-json @texaryn/react
 ```
 
-The first stable contract covers `@texaryn/core`, `@texaryn/schema-json`, and
-`@texaryn/react`. Versions below 1.0.0 remain pre-stable. The React binding
-supports React 18.3 and React 19. See the [roadmap](/texaryn/roadmap/) for
-current package stability and project direction.
+React 18.3 and React 19 are supported. The core, JSON Schema adapter and React
+binding are at 1.0. See [package stability](/texaryn/roadmap/#current-status)
+for the other bindings and adapters.
 
-## Create the adapter
+## Render your first form
 
-A schema adapter implements the `SchemaEvaluationPort` the runtime consumes:
-
-```ts
-import { createJsonSchemaAdapter } from '@texaryn/schema-json'
-
-const schema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  type: 'object',
-  title: 'Contact form',
-  properties: {
-    name: { type: 'string', title: 'Full name', minLength: 1 },
-    email: { type: 'string', title: 'Email', format: 'email' },
-    age: { type: 'integer', title: 'Age', minimum: 0, maximum: 150 },
-    subscribe: { type: 'boolean', title: 'Subscribe to newsletter' },
-    bio: { type: 'string', title: 'Bio', maxLength: 500 },
-  },
-  required: ['name', 'email'],
-}
-
-const adapter = await createJsonSchemaAdapter(schema)
-```
-
-The dialect is detected from `$schema`. Draft 4, Draft 7, 2019-09 and 2020-12
-are supported. If `$schema` is missing or unrecognized, the default is Draft 7.
-See [JSON Schema support](/texaryn/guides/json-schema-support/) for dialect
-configuration, supported form capabilities and validation limits.
-
-TypeScript projects can also author schemas with TypeBox and pass the JSON
-Schema output directly to this adapter. Zod 4 projects can use the separate
-[`@texaryn/schema-zod` adapter](/texaryn/guides/schema-adapters/).
-
-## Create the form
-
-`useForm` creates the runtime and subscribes to its stores:
+Replace `src/main.tsx` with the following code. Your page must contain
+`<div id="root"></div>`. For example, the Vite React TypeScript template
+provides that element.
 
 ```tsx
+import { createRoot } from 'react-dom/client'
+import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import {
-  useForm,
-  FormProvider,
-  FormRoot,
-  ErrorSummary,
-  createDefaultRegistry,
+  ErrorSummary, FormProvider, FormRoot, createDefaultRegistry, useForm,
 } from '@texaryn/react'
 
-const registry = createDefaultRegistry()
-
-function App() {
-  const form = useForm(adapter, {
-    initialData: { name: '', email: '', subscribe: false },
-    hints: {
-      '/name': { validationTrigger: 'blur' },
-      '/email': { validationTrigger: 'change', placeholder: 'you@example.com' },
-      '/bio': { widget: 'textarea' },
-    },
-    onSubmit: async (data) => {
-      await save(data)
+async function main() {
+  const adapter = await createJsonSchemaAdapter({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    title: 'Profile',
+    required: ['name'],
+    properties: {
+      name: { type: 'string', title: 'Name', minLength: 2 },
+      newsletter: { type: 'boolean', title: 'Subscribe to newsletter' },
     },
   })
+  const registry = createDefaultRegistry()
 
-  return (
-    <FormProvider value={form.runtime}>
-      <form
-        noValidate
-        onSubmit={(event) => {
+  function App() {
+    const form = useForm(adapter, {
+      initialData: { name: '', newsletter: false },
+      onSubmit: (data) => console.log('Submitted', data),
+    })
+
+    return (
+      <FormProvider value={form.runtime}>
+        <form noValidate onSubmit={(event) => {
           event.preventDefault()
           form.dispatch({ type: 'Submit' })
-        }}
-      >
-        <ErrorSummary />
-        <FormRoot registry={registry} />
+        }}>
+          <ErrorSummary />
+          <FormRoot registry={registry} />
+          <button type="submit">Submit</button>
+        </form>
+      </FormProvider>
+    )
+  }
 
-        <button
-          type="submit"
-          disabled={
-            form.submission.status === 'validating' ||
-            form.submission.status === 'submitting'
-          }
-        >
-          Submit
-        </button>
-      </form>
-    </FormProvider>
-  )
+  createRoot(document.getElementById('root')!).render(<App />)
 }
+
+void main()
 ```
 
-Outside React, use `createFormRuntime` from `@texaryn/core` directly:
+Start your application's development server. Submit an empty name: the error
+summary takes focus and links to the name field. Enter at least two characters
+and submit again: `onSubmit` logs the form data. Replace that callback with
+your application's save function when connecting a backend.
 
-```ts
-import { createFormRuntime } from '@texaryn/core'
-
-const runtime = createFormRuntime(adapter, { initialData, hints, onSubmit })
-runtime.dispatch({ type: 'Submit' })
-```
-
-## Render
-
-`FormProvider` makes the runtime available to the tree. `FormRoot` walks the
-UI document and renders each node through the registry. It does not create a
-native form. The application owns that element and connects its submit event
-to the runtime, which keeps the renderer safe to compose inside an existing
-form.
-
-`createDefaultRegistry()` covers text input, number input, checkbox, select,
-textarea, object layout and array control. Replace or extend widgets with a
-custom registry.
+`FormRoot` renders the field tree, not a native form. The application owns
+`<form>`, prevents its default navigation, and dispatches `Submit`. This also
+supports submission with Enter. `noValidate` leaves validation to Texaryn.
 
 <Example id="basics-object" />
 
-## Use another look
+## Separate data from presentation
 
-The renderer is presentation over the same runtime, so changing it changes
-markup and nothing else.
-
-For **Bootstrap 5**, install `@texaryn/react-bootstrap` alongside `bootstrap`
-and load Bootstrap 5.3 CSS on the page; the package renders the classes but
-never loads the stylesheet. Pass `createBootstrapRegistry()` to `FormRoot`.
-
-For **Material UI**, install `@texaryn/react-mui` alongside `@mui/material`,
-`@emotion/react` and `@emotion/styled`. Pass `createMuiRegistry()` to
-`FormRoot`. The package is theme neutral: it renders no `ThemeProvider` and no
-`CssBaseline`, so wrap the tree in your own theme or take MUI's default.
-
-For **Angular**, install `@texaryn/angular` in an Angular 20 or newer application.
-Its standalone components observe the same Texaryn runtime through Angular
-signals. See the [Angular renderer guide](/texaryn/guides/angular/) for setup and
-custom widget examples.
-
-For **Svelte**, install `@texaryn/svelte` with Svelte 5. It bridges the runtime
-stores to Svelte readable stores and includes a component renderer. See the
-[Svelte renderer guide](/texaryn/guides/svelte/) for setup and custom widgets.
-
-## Validation
-
-Validation timing is configured per field through the `validationTrigger`
-hint:
-
-- `'blur'` runs when the field loses focus.
-- `'change'` runs as the user types, with debounce.
-- `'submit'` runs only on submission.
-
-When a matching blur or change occurs, Texaryn validates the full form
-snapshot and distributes the returned errors back to nodes by JSON Pointer.
-The trigger decides *when* validation runs, not which part of the form is
-validated.
-
-<Example id="runtime-validation-triggers" />
-
-The runtime tracks `showErrors` per node, so an error appears only once the
-field has been interacted with or a Submit has been attempted. The prop getters
-set `aria-invalid` and link `aria-describedby` to the error element.
-
-`FieldErrors` renders inline errors per field and is included in the default
-widgets. `ErrorSummary` renders a named group above the form, headed by an
-`h2`, listing every visible error with a link to its field, and takes focus
-once a failed submit settles.
-
-<Example id="accessibility-error-association" />
-
-## Submit
-
-Dispatch a `Submit` command to start the lifecycle:
+The schema defines the data contract. UI hints choose how a field is presented
+and when it is validated. Add `hints` to the `useForm` options:
 
 ```ts
-form.dispatch({ type: 'Submit' })
+hints: {
+  '/name': {
+    placeholder: 'Your full name',
+    helpText: 'Use at least two characters.',
+    validationTrigger: 'blur',
+  },
+},
 ```
 
-It moves through `idle`, `validating`, `submitting` and `submitted`.
+Hint keys are JSON Pointers: `/name` addresses the top-level `name` property.
+The hint does not change the schema's `minLength` constraint.
 
-Submit captures the current data as an immutable snapshot, and both validation
-and `onSubmit` operate on that snapshot. Edits during `validating` cancel the
-attempt. Once `onSubmit` is running, edits update live data without changing
-the captured payload.
+`initialData` supplies starting values. A schema's `default` annotations do
+not populate the form unless schema-default initialization is explicitly
+requested. See [initialization](/texaryn/guides/json-schema-support/#initial-data-and-schema-defaults)
+for that option and its limits.
 
-If validation fails, submission returns to `idle` and every invalid field
-shows its errors, touched or not: a Submit attempt opens the display gate that
-blur and change validation leave closed until the user touches a field.
-`submission.attempts` counts the accepted attempts since the last Reset.
-`submission.error` is set only when the validator or `onSubmit` throws or
-rejects, and the state returns to `idle`. A fresh Submit clears a previous
-error. A duplicate Submit while validating or submitting does nothing.
+## Choose the next step
 
-<Example id="runtime-submission" />
-
-## Next
-
-- The [API reference](/texaryn/api/) for the full type surface
-- [Migrating from RJSF](/texaryn/guides/migrating-from-rjsf/) if you are
-  porting an existing form
-- [Architecture](/texaryn/concepts/architecture/) for how the packages divide
-  the work
+- **Validation and saving:** configure error timing, pending state and failed
+  requests in [Validation and submission](/texaryn/guides/validation-and-submission/).
+- **Appearance:** use Bootstrap, Material UI or your own CSS with
+  [Custom styling](/texaryn/guides/custom-styling/).
+- **Schemas:** use TypeBox or Zod through [Schema adapters](/texaryn/guides/schema-adapters/).
+  The [JSON Schema support guide](/texaryn/guides/json-schema-support/) covers
+  dialect selection, generated fields and validation limits.
+- **Runtime contracts:** read [Architecture](/texaryn/concepts/architecture/)
+  or look up a type in the [API reference](/texaryn/api/).
