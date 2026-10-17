@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Framework-neutral TypeScript runtime for schema-driven forms and display documents, with form state, validation, submission and renderer contracts",
   "keywords": [
     "json-schema",

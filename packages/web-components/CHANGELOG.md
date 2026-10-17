@@ -1,5 +1,13 @@
 # @texaryn/web-components
 
+## 0.8.1
+
+### Patch Changes
+
+- 6c1f9d1: Publish updated package READMEs and discovery metadata for schema-driven forms and display documents. Public APIs and runtime behavior are unchanged.
+- Updated dependencies [6c1f9d1]
+  - @texaryn/core@1.0.1
+
 ## 0.8.0
 
 ### Minor Changes
