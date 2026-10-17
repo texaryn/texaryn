@@ -48,6 +48,8 @@ export default defineConfig({
     mermaid({ autoTheme: true, enableLog: false }),
     starlight({
       title: 'Texaryn',
+      logo: { src: '../../assets/logo/texaryn-mark.svg' },
+      favicon: '/favicon.svg',
       // Both halves of the theme, because they have to agree on where the
       // preference lives. Overriding only the picker would leave the boot
       // script reading Starlight's key and stamping the wrong mode before the
@@ -57,6 +59,14 @@ export default defineConfig({
         ThemeSelect: './src/components/ThemeSelect.astro',
       },
       head: [
+        { tag: 'meta', attrs: { property: 'og:image', content: `https://texaryn.github.io${BASE_PATH}social-card.png` } },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+        { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Texaryn. Schema-driven forms. Your framework. Your design system.' } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: `https://texaryn.github.io${BASE_PATH}social-card.png` } },
+        { tag: 'meta', attrs: { name: 'twitter:image:alt', content: 'Texaryn. Schema-driven forms. Your framework. Your design system.' } },
+        { tag: 'meta', attrs: { name: 'theme-color', content: '#073B63' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: `${BASE_PATH}apple-touch-icon.png` } },
         {
           tag: 'script',
           content: analyticsScript,
@@ -82,7 +92,7 @@ export default defineConfig({
         },
       ],
       description:
-        'A framework-neutral runtime for schema-driven interfaces. Schema adapters in, any renderer out.',
+        'Build schema-driven forms and display documents with a headless TypeScript runtime. Use your framework, schema adapter and design system.',
       // A broken link fails the build from the first commit. Turning this on
       // once a site already has content means starting with a backlog and
       // learning to ignore it.
@@ -93,12 +103,9 @@ export default defineConfig({
           sidebar: { label: 'API reference', collapsed: true },
           typeDoc: {
             entryPointStrategy: 'packages',
-            // No package README pages: those stay package-local quick
-            // references rather than becoming a second copy on the site. The
-            // generated index would otherwise link to pages that do not
-            // exist, so the index is authored instead.
             packageOptions: { readme: 'none' },
-            readme: 'none',
+            readme: './src/api-overview.md',
+            name: 'API reference',
             entryFileName: 'index',
             disableSources: true,
             excludePrivate: true,
@@ -116,23 +123,35 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Texaryn',
           description:
-            'Texaryn is a framework-neutral, headless runtime that turns JSON Schema or Zod schemas into working forms. A schema adapter projects the schema, the core runtime owns state, validation and submission, and a React, Angular, Vue, Svelte, Solid or Web Components binding renders the result.',
+            'Texaryn is a framework-neutral TypeScript runtime for schema-driven forms and standalone display documents. JSON Schema, TypeBox or Zod schemas produce forms with validation and submission. Display documents render lists, tables, layouts, text and host actions without a schema adapter. Both paths support React, Angular, Vue, Svelte, SolidJS and Web Components.',
           details: [
+            'Forms use version 1 UI documents and FormRuntime. Standalone display documents use version 2 and createDocumentRuntime, without a schema adapter or editable fields. These are separate document families, not successive versions of one format.',
             'Texaryn packages version independently. The first stable contract covers the root exports of `@texaryn/core`, `@texaryn/schema-json`, and `@texaryn/react`. Packages below 1.0.0 remain pre-stable and may change between minor releases. An application installs `@texaryn/core` and a schema adapter: `@texaryn/schema-json` for JSON Schema or `@texaryn/schema-zod` for Zod 4. It also installs one binding: `@texaryn/react`, `@texaryn/angular`, `@texaryn/vue`, `@texaryn/svelte`, `@texaryn/solid` or `@texaryn/web-components`. TypeBox emits JSON Schema and works with `@texaryn/schema-json`. The per-binding usage lives in each package README in the GitHub repository.',
+            'The application owns the native form element for the component bindings and mountForm. Prevent its submit default and dispatch Submit. The texaryn-form custom element owns its own native form. UI hints use JSON Pointer keys. Schema defaults do not write data unless initialization is explicitly set to schema-defaults.',
+            'Projection and validation support differ. Static external references use a host resolver; dynamic reference projection is opt in for supported paths. Consult the JSON Schema support guide before claiming support. Private workspace packages are not consumer dependencies.',
             '`@texaryn/react-bootstrap` and `@texaryn/react-mui` are widget registries over `@texaryn/react`, not bindings of their own. The per-binding usage lives in each package README in the GitHub repository.',
           ].join('\n\n'),
           promote: [
             'index',
             'start/getting-started',
+            'start/choose-packages',
+            'guides/validation-and-submission',
             'concepts/architecture',
             'guides/json-schema-support',
             'guides/ai-generation',
+            'guides/display-documents',
+            'guides/schema-adapters',
             'guides/migrating-from-rjsf',
           ],
           demote: ['api/**', '404'],
           exclude: ['api/**', '404'],
           customSelectors: { all: ['.sl-anchor-link'] },
           customSets: [
+            {
+              label: 'Getting started',
+              description: 'package selection, a runnable React form, validation and submission',
+              paths: ['start/getting-started', 'start/choose-packages', 'guides/validation-and-submission'],
+            },
             {
               label: 'API reference',
               description: `the generated type reference for ${API_PACKAGE_NAMES.join(', ')}`,
@@ -157,6 +176,7 @@ export default defineConfig({
           items: [
             { label: 'What is Texaryn?', slug: 'start/what-is-texaryn' },
             { label: 'Getting started', slug: 'start/getting-started' },
+            { label: 'Choose your packages', slug: 'start/choose-packages' },
             { label: 'Roadmap', slug: 'roadmap' },
           ],
         },
@@ -170,6 +190,7 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
+            { label: 'Validation and submission', slug: 'guides/validation-and-submission' },
             { label: 'JSON Schema support', slug: 'guides/json-schema-support' },
             { label: 'Schema adapters', slug: 'guides/schema-adapters' },
             { label: 'Display documents', slug: 'guides/display-documents' },
@@ -178,12 +199,21 @@ export default defineConfig({
               label: 'JSON Schema validation compatibility',
               slug: 'guides/json-schema-conformance',
             },
-            { label: 'Angular renderer', slug: 'guides/angular' },
-            { label: 'Svelte renderer', slug: 'guides/svelte' },
-            { label: 'SolidJS renderer', slug: 'guides/solid' },
             { label: 'Migrating from RJSF', slug: 'guides/migrating-from-rjsf' },
             { label: 'Localizing built-in copy', slug: 'guides/localizing-built-in-copy' },
             { label: 'Custom styling', slug: 'guides/custom-styling' },
+          ],
+        },
+        {
+          label: 'Framework bindings',
+          collapsed: true,
+          items: [
+            { label: 'React', slug: 'start/getting-started' },
+            { label: 'Angular', slug: 'guides/angular' },
+            { label: 'Vue', slug: 'guides/vue' },
+            { label: 'Svelte', slug: 'guides/svelte' },
+            { label: 'SolidJS', slug: 'guides/solid' },
+            { label: 'Web Components', slug: 'guides/web-components' },
           ],
         },
         typeDocSidebarGroup,

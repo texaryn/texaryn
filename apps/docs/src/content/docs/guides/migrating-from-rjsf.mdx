@@ -24,7 +24,7 @@ to change.
 | `validate`, `customValidate`, `liveValidate` | schema adapter validation, `validationTrigger` hints |
 | `onSubmit` | `onSubmit` option plus the submission lifecycle |
 | `showErrorList` / `ErrorList` | `visibleErrors` store, `ErrorSummary` component |
-| `transformErrors` | no equivalent |
+| `transformErrors` | no direct equivalent; `FormMessages.validationMessage` controls displayed text |
 
 ## Key differences
 
@@ -68,15 +68,14 @@ cancellation, rather than calling a handler straight after validation.
 
 <Example id="runtime-submission" />
 
-**A recursive schema grows with the data.** RJSF 5.24.13 renders a recursive
-object schema level after level until the page stops responding. RJSF 6
-detects the cycle and renders `CyclicSchemaExpandTemplate` there, an explicit
-action the user takes to show the next level. Texaryn expands the recursion
-once past the data, and filling a level shows the next, so the form needs no
-expand action. A schema that applies itself at one instance location, such as
-`allOf: [{ $ref: '#' }]` at the root, is rejected when the adapter is created.
+**A recursive schema grows with the data.** Texaryn expands a recursive
+schema once past the data, and filling a level exposes the next. A projection
+boundary can also offer an explicit expansion control through `ExpandBoundary`.
+Automatic growth and manual expansion coexist. A schema that applies itself
+at one instance location, such as `allOf: [{ $ref: '#' }]` at the root, is
+rejected when the adapter is created.
 [JSON Schema support](/texaryn/guides/json-schema-support/#recursive-references)
-describes both.
+covers recursion, budget boundaries and expansion.
 
 <Example id="reference-recursive" />
 
@@ -90,16 +89,24 @@ describes both.
    `WidgetComponent` entries in a renderer registry. `NodeRenderer` dispatches
    to the registry by semantic type and widget hint.
 
-3. **Replace `formData` plumbing.** Drop the `formData` prop and `onChange`
-   handler. Pass `initialData` to `useForm` or `createFormRuntime`, and read
-   live data from `form.data` or `runtime.data`.
+3. **Adapt `formData` synchronization.** `initialData` supplies the runtime's
+   starting values; changing that option does not make the form controlled.
+   Read live data from `form.data`, or subscribe to `runtime.data` for autosave
+   and parent-state synchronization. A subscription returns an unsubscribe
+   function that the host calls on teardown. Keep that integration rather than
+   discarding the existing `onChange` behavior.
+
+   To load a different record, dispatch `{ type: 'Reset', data: nextData }`.
+   Reset establishes a new baseline and clears interaction state. It is not
+   a way to echo every parent update back into an active form. Reconcile
+   external edits with the user's current draft before applying them.
 
 4. **Port validation.** Remove `validate`, `customValidate` and `liveValidate`.
    Set `validationTrigger` per field. The schema adapter handles standard JSON
    Schema validation; validation beyond the schema has no equivalent yet.
 
 5. **Port submission.** Replace the `onSubmit` prop with the `onSubmit` option,
-   dispatch `{ type: 'Submit' }` from a button, and read
+   dispatch `{ type: 'Submit' }` from the native form's submit handler, and read
    `form.submission.status` and `form.submission.error` for feedback.
 
 6. **Review array identity.** Test reordering and removal. Reach for the
@@ -112,7 +119,9 @@ describes both.
 
 ## What has no equivalent
 
-- `transformErrors`: error message customization is not available.
+- `transformErrors`: there is no error transformation hook. Use
+  `FormMessages.validationMessage` to customize displayed messages without
+  changing the validation result. See [Localizing built-in copy](/texaryn/guides/localizing-built-in-copy/).
 - `extraErrors`: injecting server-side errors after validation is not
   supported.
 - `formContext`: use React context or component props directly.

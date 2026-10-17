@@ -1,7 +1,7 @@
 {
   "name": "@texaryn/react",
   "version": "1.0.0",
-  "description": "React bindings, hooks, prop getters, and default widgets for Texaryn",
+  "description": "Schema-driven forms and display documents for React, with hooks, accessible field bindings and default widgets",
   "keywords": [
     "react",
     "json-schema",

@@ -1,7 +1,7 @@
 {
   "name": "@texaryn/web-components",
   "version": "0.8.0",
-  "description": "A <texaryn-form> custom element over the Texaryn runtime, with native default widgets",
+  "description": "Schema-driven forms and display documents for the DOM, with a custom form element and native widgets",
   "keywords": [
     "web-components",
     "custom-elements",

@@ -1,15 +1,27 @@
 ---
 title: What is Texaryn?
-description: The layer between a declarative description of a domain and a framework-specific interface.
+description: What Texaryn builds, when to use it, and how schemas, runtimes and renderers fit together.
 ---
 
-Texaryn sits between a declarative description of a domain and the interface a
-particular framework renders for it. You describe what the data is; Texaryn
-decides what the interface has to express; a renderer decides how it looks.
+Texaryn is a TypeScript runtime for schema-driven forms and standalone display
+documents. It manages behavior independently of the framework that draws the
+interface.
 
-Texaryn handles two kinds of document. A form starts from a schema and edits
-data. A display document is written directly and presents data as lists,
-tables, layouts, text and actions, with no schema and no editable fields.
+Use it when a form follows a schema, when the fields change with the answers,
+or when the same data contract needs different framework or design system
+integrations. You keep control of the components and application logic.
+
+## Forms or display documents?
+
+- **Forms edit data.** Start from JSON Schema, TypeBox or Zod. Texaryn projects
+  fields from the schema and current values, manages validation and submission,
+  and renders controls through a framework binding.
+- **Display documents present data.** Describe lists, tables, layouts, text and
+  actions directly, without a schema adapter or editable fields. The host
+  application supplies action handlers.
+
+A display document is not a newer replacement for a form document. They have
+different contracts and use different runtimes.
 
 ## Two paths, one set of bindings
 
@@ -66,8 +78,12 @@ That is also what makes the claim testable. CI runs the shared example
 catalog through the React, Vue, Svelte and Web Components renderers, and the
 Angular and SolidJS bindings have renderer suites of their own.
 
-## Status
+## Start building
 
-The guides, concept pages and a generated API reference all live on this
-site. Each package README in the repository stays a quick reference for
-that package.
+Follow [Getting started](/texaryn/start/getting-started/) for a complete React
+form, or [choose your packages](/texaryn/start/choose-packages/) for another
+framework. For an interface without editable fields, start with
+[Display documents](/texaryn/guides/display-documents/).
+
+The [roadmap](/texaryn/roadmap/) records package stability. The core, JSON
+Schema adapter and React binding are at 1.0; other packages remain below 1.0.

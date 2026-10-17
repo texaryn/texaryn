@@ -45,25 +45,35 @@ Parse the model response as JSON, validate the envelope with the downloaded
 schema, then pass the selected content through Texaryn's runtime APIs. The
 runtime checks are still necessary because structural JSON Schema validation
 cannot prove document graph reachability, collection validity or complete
-form projection.
+form projection. The outline below names host-owned checks explicitly; it is
+not a complete acceptance implementation. The runtime alone does not enforce
+the generation kit's schema subset or input limits.
 
 ```ts
 import { createDocumentRuntime, createFormRuntime } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 
 const envelopeAdapter = await createJsonSchemaAdapter(generationContract)
-const output: unknown = JSON.parse(modelText)
+const output: unknown = parseBoundedModelJson(modelText)
 const envelopeResult = await envelopeAdapter.validate(output)
 if (!envelopeResult.valid) throw new Error('Invalid Texaryn generation envelope')
 
 if (isFormOutput(output)) {
   assertAllowedWidgets(output.hints, hostWidgetNames)
-  const schemaAdapter = await createJsonSchemaAdapter(output.schema)
+  const resources = await validateFormSchemaPolicy(output.schema, hostResources)
+  const schemaAdapter = await createJsonSchemaAdapter(output.schema, {
+    resolveResource: (uri) => resources.get(new URL(uri).href.split('#')[0]),
+    maxExternalResources: 8,
+  })
   const projection = schemaAdapter.project({})
   if (projection.diagnostics?.length) {
     throw new Error('The schema leaves form content without a projected control')
   }
   const form = createFormRuntime(schemaAdapter, { hints: output.hints })
+  if (!Object.values(form.document.getSnapshot().nodes).some((node) => node.type === 'field')) {
+    form.destroy()
+    throw new Error('The generated form has no projected fields')
+  }
   renderForm(form)
 } else {
   assertAllowedActions(output.document, hostActions)
@@ -75,8 +85,16 @@ if (isFormOutput(output)) {
 }
 ```
 
-`isFormOutput`, `assertAllowedWidgets`, `assertAllowedActions`, and the render
-functions above belong to the host. Validate the envelope before narrowing its
+`parseBoundedModelJson` must cap response bytes before parsing and bound JSON
+depth and value counts. `validateFormSchemaPolicy` must validate the root and
+mapped resource schemas against the declared dialect's metaschema, enforce the
+version 1 keyword and reference subset described above, and return a bounded
+map of allowed resources. Neither helper is a Texaryn export.
+
+Those checks, `isFormOutput`, `assertAllowedWidgets`, `assertAllowedActions`,
+and the render functions belong to the host. The executable
+[acceptance implementation](https://github.com/texaryn/texaryn/blob/main/packages/examples/src/ai-generation/index.ts)
+shows their required behavior. Validate the envelope before narrowing its
 type. The host owns action handlers and authorization. Version 2 runtime
 validation checks the full node graph, pointers, row keys, selected values,
 limits, and action argument validators before returning a runtime.

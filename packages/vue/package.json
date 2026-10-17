@@ -1,7 +1,7 @@
 {
   "name": "@texaryn/vue",
   "version": "0.8.0",
-  "description": "Vue 3 bindings, composables, and default widgets for Texaryn",
+  "description": "Schema-driven forms and display documents for Vue 3, with composables and default widgets",
   "keywords": [
     "vue",
     "json-schema",

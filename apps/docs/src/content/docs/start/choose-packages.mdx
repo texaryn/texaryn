@@ -1,0 +1,79 @@
+---
+title: Choose your packages
+description: Pick a schema adapter, framework binding and optional widget integration for your Texaryn application.
+---
+
+A form needs three pieces: `@texaryn/core`, a schema adapter, and a framework
+binding. Display documents need the core and a binding, without a schema adapter.
+
+## Choose a framework
+
+Start in an application that already has the framework installed. For JSON
+Schema forms, install `@texaryn/core` and `@texaryn/schema-json`, then add one
+binding from this table.
+
+| Framework | Add this binding | Supported peer version | Setup |
+| --- | --- | --- | --- |
+| React | `@texaryn/react` | React 18.3 or 19 | [Getting started](/texaryn/start/getting-started/) |
+| Angular | `@texaryn/angular` | Angular 20 or newer | [Angular guide](/texaryn/guides/angular/) |
+| Vue | `@texaryn/vue` | Vue 3.5 or newer | [Vue guide](/texaryn/guides/vue/) |
+| Svelte | `@texaryn/svelte` | Svelte 5.20 or newer | [Svelte guide](/texaryn/guides/svelte/) |
+| SolidJS | `@texaryn/solid` | SolidJS 1.9 | [SolidJS guide](/texaryn/guides/solid/) |
+| Plain JavaScript | `@texaryn/web-components` | No framework dependency | [Web Components guide](/texaryn/guides/web-components/) |
+
+For example, in a Vue application:
+
+```sh
+pnpm add @texaryn/core @texaryn/schema-json @texaryn/vue
+```
+
+The bindings observe the same runtime contracts. Their component APIs and
+runtime lifetime rules follow their own frameworks; see each setup guide.
+
+## Choose a schema
+
+- **JSON Schema:** use `@texaryn/schema-json`. It supports Draft 4, Draft 7,
+  2019-09 and 2020-12. Check [support and limits](/texaryn/guides/json-schema-support/)
+  for your keywords and reference patterns.
+- **TypeBox:** pass its JSON Schema output to `@texaryn/schema-json`.
+  No separate Texaryn TypeBox package is needed.
+- **Zod 4:** use `@texaryn/schema-zod` with `zod` instead of installing the
+  JSON Schema adapter directly. Zod validates; JSON Schema conversion supplies
+  the field projection. [Conversion limits](/texaryn/guides/schema-adapters/#zod-4)
+  matter for refinements and transforms.
+
+## Choose a look
+
+Every binding includes default widgets and accepts a custom registry.
+React also has [Bootstrap 5](https://www.npmjs.com/package/@texaryn/react-bootstrap)
+and [Material UI v9](https://www.npmjs.com/package/@texaryn/react-mui) widget packages.
+The [styling guide](/texaryn/guides/custom-styling/) covers their setup and
+styling the default React controls with your own CSS.
+
+## Published packages
+
+Each badge links to the package's current npm version. Packages version
+independently: `@texaryn/core`, `@texaryn/schema-json` and `@texaryn/react` are
+at 1.0. The other packages remain below 1.0 and may introduce breaking changes
+in minor releases. See the [roadmap](/texaryn/roadmap/#current-status) for the
+compatibility contract.
+
+| Package | npm | Purpose |
+| --- | --- | --- |
+| [`@texaryn/core`](https://www.npmjs.com/package/@texaryn/core) | [![npm version for @texaryn/core](https://img.shields.io/npm/v/@texaryn%2Fcore?label=)](https://www.npmjs.com/package/@texaryn/core) | Headless form and display runtimes |
+| [`@texaryn/schema-json`](https://www.npmjs.com/package/@texaryn/schema-json) | [![npm version for @texaryn/schema-json](https://img.shields.io/npm/v/@texaryn%2Fschema-json?label=)](https://www.npmjs.com/package/@texaryn/schema-json) | JSON Schema evaluation, projection and validation |
+| [`@texaryn/schema-zod`](https://www.npmjs.com/package/@texaryn/schema-zod) | [![npm version for @texaryn/schema-zod](https://img.shields.io/npm/v/@texaryn%2Fschema-zod?label=)](https://www.npmjs.com/package/@texaryn/schema-zod) | Zod 4 validation with JSON Schema projection |
+| [`@texaryn/react`](https://www.npmjs.com/package/@texaryn/react) | [![npm version for @texaryn/react](https://img.shields.io/npm/v/@texaryn%2Freact?label=)](https://www.npmjs.com/package/@texaryn/react) | React hooks, form and display components |
+| [`@texaryn/angular`](https://www.npmjs.com/package/@texaryn/angular) | [![npm version for @texaryn/angular](https://img.shields.io/npm/v/@texaryn%2Fangular?label=)](https://www.npmjs.com/package/@texaryn/angular) | Angular signals and standalone components |
+| [`@texaryn/vue`](https://www.npmjs.com/package/@texaryn/vue) | [![npm version for @texaryn/vue](https://img.shields.io/npm/v/@texaryn%2Fvue?label=)](https://www.npmjs.com/package/@texaryn/vue) | Vue composables, form and display components |
+| [`@texaryn/svelte`](https://www.npmjs.com/package/@texaryn/svelte) | [![npm version for @texaryn/svelte](https://img.shields.io/npm/v/@texaryn%2Fsvelte?label=)](https://www.npmjs.com/package/@texaryn/svelte) | Svelte readable stores and components |
+| [`@texaryn/solid`](https://www.npmjs.com/package/@texaryn/solid) | [![npm version for @texaryn/solid](https://img.shields.io/npm/v/@texaryn%2Fsolid?label=)](https://www.npmjs.com/package/@texaryn/solid) | SolidJS subscriptions and components |
+| [`@texaryn/web-components`](https://www.npmjs.com/package/@texaryn/web-components) | [![npm version for @texaryn/web-components](https://img.shields.io/npm/v/@texaryn%2Fweb-components?label=)](https://www.npmjs.com/package/@texaryn/web-components) | Custom element and DOM mounting functions |
+| [`@texaryn/react-bootstrap`](https://www.npmjs.com/package/@texaryn/react-bootstrap) | [![npm version for @texaryn/react-bootstrap](https://img.shields.io/npm/v/@texaryn%2Freact-bootstrap?label=)](https://www.npmjs.com/package/@texaryn/react-bootstrap) | Bootstrap 5 form widgets for React |
+| [`@texaryn/react-mui`](https://www.npmjs.com/package/@texaryn/react-mui) | [![npm version for @texaryn/react-mui](https://img.shields.io/npm/v/@texaryn%2Freact-mui?label=)](https://www.npmjs.com/package/@texaryn/react-mui) | Material UI v9 form widgets for React |
+| [`@texaryn/collaboration-yjs`](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | [![npm version for @texaryn/collaboration-yjs](https://img.shields.io/npm/v/@texaryn%2Fcollaboration-yjs?label=)](https://www.npmjs.com/package/@texaryn/collaboration-yjs) | Shared scalar field edits through Yjs |
+
+The Yjs adapter covers shared scalar edits. The host supplies a `Y.Doc` and
+provider; concurrent array ordering is outside its contract. See the
+[package README](https://github.com/texaryn/texaryn/tree/main/packages/collaboration-yjs)
+for setup.

@@ -1,52 +1,85 @@
 ---
-title: Texaryn
-description: A framework-neutral runtime for schema-driven interfaces.
+title: Schema-driven forms and UI
+description: Build forms from JSON Schema, TypeBox or Zod. Share validation and submission across six framework bindings, with your own design system.
 template: splash
 hero:
-  tagline: Describe a form or a display once. Render it with React, Angular, Vue, Svelte, SolidJS or Web Components.
+  title: Schema-driven forms.<br />Your UI.
+  tagline: Turn JSON Schema, TypeBox or Zod schemas into dynamic forms. Texaryn handles state, validation and submission. Your framework and components control the look.
+  image:
+    html: '<img src="/texaryn/favicon.svg" alt="" width="400" height="400" style="width:100%;height:auto" />'
   actions:
-    - text: What is Texaryn?
-      link: /texaryn/start/what-is-texaryn/
+    - text: Build your first form
+      link: /texaryn/start/getting-started/
       icon: right-arrow
-    # The splash template hides the sidebar, so without this the landing page
-    # offers no route to the playground at all.
-    - text: Open the playground
+    - text: Try the playground
       link: /texaryn/playground/
       icon: rocket
       variant: secondary
-    - text: View on GitHub
-      link: https://github.com/texaryn/texaryn
-      icon: external
+    - text: Choose your framework
+      link: /texaryn/start/choose-packages/
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components'
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components'
+import Example from '../../components/Example.astro'
 
-Supports JSON Schema Draft 4, Draft 7, 2019-09 and 2020-12, with automatic dialect detection.
-See [JSON Schema support](/texaryn/guides/json-schema-support/) for capabilities and limitations.
-See the [Texaryn roadmap](/texaryn/roadmap/) for current release status and evidence driven follow ups.
+**React · Angular · Vue · Svelte · SolidJS · Web Components**
+
+Build a settings page, an onboarding flow, or a form whose fields change with
+the answers. Keep the schema as the data contract and choose how each control
+renders.
 
 <CardGrid>
-  <Card title="Schema in, UI out">
-    A JSON Schema, TypeBox or Zod schema becomes a projection, a typed UI
-    document, then a rendered form. Lists, tables and layouts skip the schema
-    as display documents. The schema adapters and runtimes import no
-    rendering framework.
+  <Card title="Use your design system" icon="pencil">
+    Start with native controls, Bootstrap 5 or Material UI for React, or
+    register your own widgets. Presentation stays separate from schema rules.
   </Card>
-  <Card title="One document, many renderers">
-    The same document renders through React, Angular, Vue, Svelte, SolidJS or
-    Web Components. Switching renderer changes presentation, not state.
+  <Card title="Share behavior across frameworks" icon="setting">
+    Validation, submission and array identity live in a headless TypeScript
+    runtime. Each binding renders the result through its own components.
   </Card>
-  <Card title="Proven, not asserted">
-    Every advertised capability carries an executable example, and the build
-    fails when one is claimed without a demonstration.
+  <Card title="Let fields follow the data" icon="list-format">
+    Conditionals, references and dependencies decide which fields appear.
+    The schema adapter evaluates them as values change.
   </Card>
-  <Card title="Roadmap and milestones">
-    Read the current product direction, shipped milestones, and the conditions
-    for revisiting deferred work.
-  </Card>
-  <Card title="Framework neutral by construction">
-    The runtime is plain TypeScript. React is one binding over it rather than
-    an assumption baked into the core.
+  <Card title="Inspect each step" icon="magnifier">
+    Explore the schema, projection, UI document and live data in the
+    playground. The guides link to examples from the executable catalog.
   </Card>
 </CardGrid>
+
+## See what you can build
+
+Open an example, edit its schema or data, and switch renderers in the playground.
+
+<Example id="conditional-if-then-else" />
+<Example id="runtime-array-interactions" />
+
+Need to present data without editable fields? [Display documents](/texaryn/guides/display-documents/)
+render lists, tables, layouts, text and host actions through the same bindings,
+without a schema adapter. The [AI generation guide](/texaryn/guides/ai-generation/)
+defines the structured output a model can produce for either path.
+
+## Start with your stack
+
+<CardGrid>
+  <LinkCard title="Build your first form" description="A complete React example, from installation to a validated submission." href="/texaryn/start/getting-started/" />
+  <LinkCard title="Choose your packages" description="Setup guides for all six bindings, schema adapters and optional widgets." href="/texaryn/start/choose-packages/" />
+  <LinkCard title="Check schema support" description="Supported JSON Schema keywords, dialects, projection and validation limits." href="/texaryn/guides/json-schema-support/" />
+  <LinkCard title="Understand the architecture" description="How adapters, runtimes and renderers work together." href="/texaryn/concepts/architecture/" />
+</CardGrid>
+
+## Know the compatibility contract
+
+The core, JSON Schema adapter and React binding are at **1.0**. Other packages
+version independently and remain below 1.0. Read the [roadmap](/texaryn/roadmap/)
+for release status and product direction.
+
+JSON Schema Draft 4, Draft 7, 2019-09 and 2020-12 are supported. Supported
+dialects do not mean every keyword generates a control: the
+[support guide](/texaryn/guides/json-schema-support/) separates form generation
+from validation coverage.
+
+Texaryn is [Apache-2.0 licensed](https://github.com/texaryn/texaryn/blob/main/LICENSE).
+[Browse the source](https://github.com/texaryn/texaryn) or
+[report an issue](https://github.com/texaryn/texaryn/issues).

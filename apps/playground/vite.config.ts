@@ -5,7 +5,7 @@ import linkerPlugin from '@angular/compiler-cli/linker/babel'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { PLAYGROUND_PATH } from '../../site.config.mjs'
+import { BASE_PATH, PLAYGROUND_PATH } from '../../site.config.mjs'
 import { themeBootScript } from '../../theme.config.mjs'
 import { manualChunks } from './src/chunking'
 
@@ -19,6 +19,29 @@ function themeBoot(): Plugin {
     name: 'texaryn-theme-boot',
     transformIndexHtml() {
       return [{ tag: 'script', children: themeBootScript(), injectTo: 'head-prepend' }]
+    },
+  }
+}
+
+function playgroundMetadata(): Plugin {
+  const pageUrl = `https://texaryn.github.io${PLAYGROUND_PATH}`
+  const imageUrl = `https://texaryn.github.io${BASE_PATH}social-card.png`
+  return {
+    name: 'texaryn-playground-metadata',
+    transformIndexHtml() {
+      return [
+        { tag: 'link', attrs: { rel: 'canonical', href: pageUrl } },
+        { tag: 'link', attrs: { rel: 'icon', href: `${BASE_PATH}favicon.svg`, type: 'image/svg+xml' } },
+        { tag: 'meta', attrs: { property: 'og:title', content: 'Texaryn Playground: schema-driven forms' } },
+        { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+        { tag: 'meta', attrs: { property: 'og:url', content: pageUrl } },
+        { tag: 'meta', attrs: { property: 'og:description', content: 'Edit schemas and data, explore conditional fields and arrays, and compare framework bindings and design systems.' } },
+        { tag: 'meta', attrs: { property: 'og:image', content: imageUrl } },
+        { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Texaryn. Schema-driven forms. Your framework. Your design system.' } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: imageUrl } },
+        { tag: 'meta', attrs: { name: 'twitter:image:alt', content: 'Texaryn. Schema-driven forms. Your framework. Your design system.' } },
+      ]
     },
   }
 }
@@ -76,6 +99,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     ...(mode === 'benchmark' ? [angularPartialLinker()] : []),
     themeBoot(),
+    ...(mode === 'pages' ? [playgroundMetadata()] : []),
     tailwindcss(),
     svelte(),
     react(),

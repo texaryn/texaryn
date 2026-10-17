@@ -353,7 +353,7 @@ The schema adapter interprets data semantics. The core compiles and runs the for
 - [`@texaryn/react-mui`](../react-mui/README.md), Material UI v9 widget registry
 - [`@texaryn/playground`](../../apps/playground/README.md), repository playground application
 
-See the [repository README](../../README.md) for the complete architecture.
+See the [architecture guide](https://texaryn.github.io/texaryn/concepts/architecture/) for the package boundaries and runtime contracts.
 
 ## License
 
