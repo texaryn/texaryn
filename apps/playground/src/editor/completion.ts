@@ -82,6 +82,37 @@ type Position =
 type PositionChild = { kind: 'child'; node: SyntaxNode; role: Role }
 type PositionResult = Exclude<Position, null> | PositionChild
 
+function objectChildPosition(
+  property: SyntaxNode,
+  pos: number,
+  role: Role,
+  key: string,
+): PositionChild | null {
+  const colon = property.getChild(':')
+  if (!colon || colon.to > pos) return null
+  for (let value = colon.nextSibling; value; value = value.nextSibling) {
+    if (!isValueNode(value) || !containsCursor(value, pos)) continue
+    const childRole = role === 'schema' ? memberRole(key, value) : elementRole(role, value)
+    return { kind: 'child', node: value, role: childRole }
+  }
+  return null
+}
+
+function objectPropertyPosition(
+  doc: string,
+  property: SyntaxNode,
+  pos: number,
+  role: Role,
+  before: string | undefined,
+): PositionResult | null {
+  const key = keyOf(doc, property)
+  if (key === null) return null
+  const child = objectChildPosition(property, pos, role, key)
+  if (child) return child
+  if (role === 'schema' && before === ':' && Object.hasOwn(VALUE_LISTS, key)) return { kind: 'value', key }
+  return null
+}
+
 function objectPosition(
   doc: string,
   node: SyntaxNode,
@@ -91,16 +122,7 @@ function objectPosition(
 ): PositionResult | null {
   for (let property = node.firstChild; property; property = property.nextSibling) {
     if (property.type.isError || property.name !== 'Property' || !containsCursor(property, pos)) continue
-    const key = keyOf(doc, property)
-    const colon = property.getChild(':')
-    if (key === null || !colon || colon.to > pos) return null
-    for (let value = colon.nextSibling; value; value = value.nextSibling) {
-      if (!isValueNode(value) || !containsCursor(value, pos)) continue
-      const childRole = role === 'schema' ? memberRole(key, value) : elementRole(role, value)
-      return { kind: 'child', node: value, role: childRole }
-    }
-    if (role === 'schema' && before === ':' && Object.hasOwn(VALUE_LISTS, key)) return { kind: 'value', key }
-    return null
+    return objectPropertyPosition(doc, property, pos, role, before)
   }
   if (role === 'schema' && (before === '{' || before === ',')) return { kind: 'keyword' }
   return null

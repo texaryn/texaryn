@@ -10,31 +10,28 @@ function limitFor(error: ValidationError): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
+interface LimitMessage {
+  readonly withoutLimit: string
+  readonly withLimit: (limit: number) => string
+}
+
+const LIMIT_MESSAGES: Readonly<Record<string, LimitMessage>> = {
+  minLength: { withoutLimit: 'This value is too short.', withLimit: (limit) => `Enter at least ${limit} characters.` },
+  maxLength: { withoutLimit: 'This value is too long.', withLimit: (limit) => `Enter no more than ${limit} characters.` },
+  minimum: { withoutLimit: 'This value is below the minimum.', withLimit: (limit) => `Enter a value of at least ${limit}.` },
+  exclusiveMinimum: { withoutLimit: 'This value must be above the minimum.', withLimit: (limit) => `Enter a value greater than ${limit}.` },
+  maximum: { withoutLimit: 'This value is above the maximum.', withLimit: (limit) => `Enter a value of at most ${limit}.` },
+  exclusiveMaximum: { withoutLimit: 'This value must be below the maximum.', withLimit: (limit) => `Enter a value less than ${limit}.` },
+  minItems: { withoutLimit: 'Add more items.', withLimit: (limit) => `Add at least ${limit} items.` },
+  maxItems: { withoutLimit: 'Remove some items.', withLimit: (limit) => `Use no more than ${limit} items.` },
+  minProperties: { withoutLimit: 'Add more fields.', withLimit: (limit) => `Provide at least ${limit} fields.` },
+  maxProperties: { withoutLimit: 'Remove some fields.', withLimit: (limit) => `Provide no more than ${limit} fields.` },
+}
+
 function limitValidationMessage(keyword: string, limit: number | undefined): string | undefined {
-  switch (keyword) {
-    case 'minLength':
-      return limit === undefined ? 'This value is too short.' : `Enter at least ${limit} characters.`
-    case 'maxLength':
-      return limit === undefined ? 'This value is too long.' : `Enter no more than ${limit} characters.`
-    case 'minimum':
-      return limit === undefined ? 'This value is below the minimum.' : `Enter a value of at least ${limit}.`
-    case 'exclusiveMinimum':
-      return limit === undefined ? 'This value must be above the minimum.' : `Enter a value greater than ${limit}.`
-    case 'maximum':
-      return limit === undefined ? 'This value is above the maximum.' : `Enter a value of at most ${limit}.`
-    case 'exclusiveMaximum':
-      return limit === undefined ? 'This value must be below the maximum.' : `Enter a value less than ${limit}.`
-    case 'minItems':
-      return limit === undefined ? 'Add more items.' : `Add at least ${limit} items.`
-    case 'maxItems':
-      return limit === undefined ? 'Remove some items.' : `Use no more than ${limit} items.`
-    case 'minProperties':
-      return limit === undefined ? 'Add more fields.' : `Provide at least ${limit} fields.`
-    case 'maxProperties':
-      return limit === undefined ? 'Remove some fields.' : `Provide no more than ${limit} fields.`
-    default:
-      return undefined
-  }
+  const message = LIMIT_MESSAGES[keyword]
+  if (!message) return undefined
+  return limit === undefined ? message.withoutLimit : message.withLimit(limit)
 }
 
 function formatValidationMessage(format: unknown): string {
