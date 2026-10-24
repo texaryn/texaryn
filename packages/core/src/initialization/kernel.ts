@@ -210,7 +210,7 @@ function repeatsPresentAncestor(
   return properAncestors(segments).some((ancestor) => {
     if (isAbsent(data, ancestor.segments, provisional)) return false
     const earlier = view.defaultSources?.get(ancestor.location)
-    return earlier !== undefined && earlier.some((source) => sources.includes(source))
+    return earlier?.some((source) => sources.includes(source)) ?? false
   })
 }
 

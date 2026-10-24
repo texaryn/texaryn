@@ -382,7 +382,7 @@ export function createFormRuntime(
       : undefined
 
   const construction = initialize?.(suppliedData, unstatedRoot)
-  if (construction !== undefined && construction.outcome === 'budget-exhausted') {
+  if (construction?.outcome === 'budget-exhausted') {
     // This surface returns a value, so it throws: the caller is in a position
     // to catch a runtime it never received. `Reset` is not, and reports.
     throw new Error(
