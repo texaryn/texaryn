@@ -299,13 +299,12 @@ for (const pkg of packages) {
       } else {
         mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
       }
-      const expectedExports = pkg.name === '@texaryn/core'
-        ? ['createFormRuntime', 'createDocumentRuntime', 'createDocumentUpdateSession']
-        : pkg.name === '@texaryn/svelte'
-          ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
-          : pkg.name === '@texaryn/solid'
-            ? ['createForm', 'createDefaultRegistry', 'FormRoot']
-            : [pkg.expectedExport]
+      const knownExports = {
+        '@texaryn/core': ['createFormRuntime', 'createDocumentRuntime', 'createDocumentUpdateSession'],
+        '@texaryn/svelte': ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot'],
+        '@texaryn/solid': ['createForm', 'createDefaultRegistry', 'FormRoot'],
+      }
+      const expectedExports = knownExports[pkg.name] ?? [pkg.expectedExport]
       for (const expectedExport of expectedExports) {
         if (!(expectedExport in mod)) {
           console.error(`Expected export "${expectedExport}" not found in ${pkg.name}`)

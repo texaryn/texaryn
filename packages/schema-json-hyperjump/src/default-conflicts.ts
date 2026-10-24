@@ -180,7 +180,9 @@ export function collectDefaultConflicts(
     const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
     if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(current)) {
       current.forEach((item, index) => {
-        const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+        let tuple: 'prefixItems' | 'items' | undefined
+        if (prefixItems?.[index] != null) tuple = 'prefixItems'
+        else if (tupleItems?.[index] != null) tuple = 'items'
         const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
         if (itemSchema === undefined) return
         if (!projected.has(`${pointer}/${index}`)) return

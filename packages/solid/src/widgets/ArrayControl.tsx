@@ -60,7 +60,9 @@ export function ArrayControl(props: { node: UINode }) {
     queueMicrotask(() => {
       const row = [...document.querySelectorAll<HTMLElement>('[data-array-item-id]')]
         .find((candidate) => candidate.dataset.arrayItemId === itemId)
-      const direction = to < from && to === 0 ? 'down' : to > from && to === itemIds().length - 1 ? 'up' : undefined
+      let direction: 'down' | 'up' | undefined
+      if (to < from && to === 0) direction = 'down'
+      else if (to > from && to === itemIds().length - 1) direction = 'up'
       if (direction) row?.querySelector<HTMLButtonElement>(`[data-reorder-direction="${direction}"]`)?.focus()
     })
   }

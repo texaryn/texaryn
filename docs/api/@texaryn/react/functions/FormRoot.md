@@ -14,7 +14,7 @@ Renders the UI document tree. The consumer owns any native form element and subm
 
 ### \_\_namedParameters
 
-[`FormRootProps`](../interfaces/FormRootProps.md)
+`Readonly`\<[`FormRootProps`](../interfaces/FormRootProps.md)\>
 
 ## Returns
 

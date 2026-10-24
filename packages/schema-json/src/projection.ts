@@ -787,15 +787,13 @@ function eachApplicable(
       const matching = oneOf.filter((branch) =>
         branchApplies(branch, data, currentScope, branchApplicability),
       )
-      const selected =
-        matching.length === 1
-          ? matching[0]
-          : selectProvisionalBranch(
-              resolved,
-              typeof data === 'object' && data !== null
-                ? (data as Record<string, unknown>)
-                : undefined,
-            )
+      let selected: SchemaNode | undefined
+      if (matching.length === 1) selected = matching[0]
+      else {
+        let dataRecord: Record<string, unknown> | undefined
+        if (typeof data === 'object' && data !== null) dataRecord = data as Record<string, unknown>
+        selected = selectProvisionalBranch(resolved, dataRecord)
+      }
       if (selected) visit(selected, currentScope)
     }
 
@@ -1370,11 +1368,9 @@ function computeRequiredSet(
   dataRecord: Record<string, unknown> | undefined,
 ): Set<string> {
   const baseSchema = resolved.schema as Record<string, unknown>
-  const requiredSource = Array.isArray(reducedSchema?.required)
-    ? (reducedSchema.required as string[])
-    : Array.isArray(baseSchema.required)
-      ? (baseSchema.required as string[])
-      : []
+  let requiredSource: string[] = []
+  if (Array.isArray(reducedSchema?.required)) requiredSource = reducedSchema.required as string[]
+  else if (Array.isArray(baseSchema.required)) requiredSource = baseSchema.required as string[]
   const required = new Set(requiredSource)
 
   if (resolved.dependentRequired && dataRecord) {
@@ -1826,14 +1822,14 @@ function walk(
     // wrapper case), it has already been reduced against the real `data` at this
     // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
     // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
-    let reducedNode =
-      resolved === original
-        ? requiresReduction(resolved)
-          ? original.allOf && hasReferencedAllOf(original)
-            ? reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
-            : resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
-          : resolved
-        : resolved
+    let reducedNode: SchemaNode | undefined = resolved
+    if (resolved === original && requiresReduction(resolved)) {
+      if (original.allOf && hasReferencedAllOf(original)) {
+        reducedNode = reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
+      } else {
+        reducedNode = resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
+      }
+    }
     if (reducedNode && resolved === original && (!member || data !== undefined)) {
       // Missing child data has no evaluated conditional branch to recover.
       reducedNode = resolveSelectedConditionalReference(

@@ -47,7 +47,9 @@ export function resolveUnescapedPath(document: unknown, path: string): string {
   readings(document, parts, 0, [], search)
   if (search.truncated) return ''
   const { found } = search
-  const segments = found.length === 0 ? parts : found.length === 1 ? found[0]! : sharedPrefix(found)
+  let segments = parts
+  if (found.length === 1) segments = found[0]!
+  else if (found.length > 1) segments = sharedPrefix(found)
   return segments.map((segment) => `/${escapeSegment(segment)}`).join('')
 }
 

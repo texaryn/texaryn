@@ -63,15 +63,27 @@ function validationMessage(error: ValidationError): string {
 }
 
 /** Names carry the row's 1-based position, never its value: mutable, often blank, sometimes sensitive. */
+function addItemAccessibleName(itemTemplateTitle: string | undefined, containerTitle: string | undefined): string {
+  if (containerTitle !== undefined) return `Add item to ${containerTitle}`
+  if (itemTemplateTitle === undefined) return 'Add item'
+  return `Add ${itemTemplateTitle}`
+}
+
+function boundaryAccessibleName(
+  boundary: 'recursion' | 'budget',
+  containerTitle: string | undefined,
+  position: number,
+  count: number,
+): string {
+  const title = boundary === 'recursion' ? 'Expand recursive fields' : 'Show more fields'
+  const name = count > 1 ? `${title} ${position}` : title
+  return withContainer(name, 'in', containerTitle)
+}
+
 export const englishMessages: FormMessages & Required<Pick<FormMessages, 'expandBoundary'>> = {
   addItem: ({ itemTemplateTitle, containerTitle }) => ({
     label: 'Add',
-    accessibleName:
-      containerTitle !== undefined
-        ? `Add item to ${containerTitle}`
-        : itemTemplateTitle === undefined
-          ? 'Add item'
-          : `Add ${itemTemplateTitle}`,
+    accessibleName: addItemAccessibleName(itemTemplateTitle, containerTitle),
   }),
   removeItem: ({ position, itemTitle, containerTitle }) => ({
     label: 'Remove',
@@ -87,18 +99,7 @@ export const englishMessages: FormMessages & Required<Pick<FormMessages, 'expand
   }),
   expandBoundary: ({ boundary, containerTitle, position, count }) => ({
     label: boundary === 'recursion' ? 'Expand' : 'Show more fields',
-    accessibleName:
-      boundary === 'recursion'
-        ? withContainer(
-            `${count > 1 ? `Expand recursive fields ${position}` : 'Expand recursive fields'}`,
-            'in',
-            containerTitle,
-          )
-        : withContainer(
-            `${count > 1 ? `Show more fields ${position}` : 'Show more fields'}`,
-            'in',
-            containerTitle,
-          ),
+    accessibleName: boundaryAccessibleName(boundary, containerTitle, position, count),
   }),
   requiredIndicator: () => ({ text: '(required)', placement: 'after' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),

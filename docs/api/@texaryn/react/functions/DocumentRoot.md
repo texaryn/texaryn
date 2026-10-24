@@ -12,7 +12,7 @@
 
 ### \_\_namedParameters
 
-[`DocumentRootProps`](../interfaces/DocumentRootProps.md)
+`Readonly`\<[`DocumentRootProps`](../interfaces/DocumentRootProps.md)\>
 
 ## Returns
 

@@ -646,12 +646,12 @@ function mapValidationError(error: JsonError, resolve: PointerResolver): Validat
   // name in data.key; consumers expect the error located at the missing property itself.
   const missingKey = code === 'required-property-error' && typeof data.key === 'string' ? data.key : undefined
   // These two report the parent as data.value; the child's own key says which child failed.
-  const lastKey =
-    code === 'no-additional-properties-error' && typeof data.property === 'string'
-      ? data.property
-      : code === 'additional-items-error' && data.key !== undefined
-        ? String(data.key)
-        : undefined
+  let lastKey: string | undefined
+  if (code === 'no-additional-properties-error' && typeof data.property === 'string') {
+    lastKey = data.property
+  } else if (code === 'additional-items-error' && data.key !== undefined) {
+    lastKey = String(data.key)
+  }
   return {
     instancePointer: resolve(basePointer, { code, value: data.value, missingKey, lastKey }),
     keyword,

@@ -16,7 +16,7 @@ the case screen readers do not reliably announce.
 
 ### \_\_namedParameters
 
-[`FieldErrorsProps`](../interfaces/FieldErrorsProps.md)
+`Readonly`\<[`FieldErrorsProps`](../interfaces/FieldErrorsProps.md)\>
 
 ## Returns
 

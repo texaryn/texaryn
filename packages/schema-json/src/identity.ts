@@ -108,11 +108,10 @@ function keyIn(map: object, entries: () => Iterable<readonly [string, unknown]>,
 }
 
 function memberKey(parent: SchemaNode, keyword: string, node: SchemaNode): string | undefined {
-  const map =
-    keyword === 'properties' ? parent.properties
-    : keyword === '$defs' || keyword === 'definitions' ? parent.$defs
-    : keyword === 'dependencies' || keyword === 'dependentSchemas' ? parent.dependentSchemas
-    : undefined
+  let map: Record<string, SchemaNode | boolean> | undefined
+  if (keyword === 'properties') map = parent.properties
+  else if (keyword === '$defs' || keyword === 'definitions') map = parent.$defs
+  else if (keyword === 'dependencies' || keyword === 'dependentSchemas') map = parent.dependentSchemas
   if (map) return keyIn(map, () => Object.entries(map), node)
   const patterns = parent.patternProperties
   if (keyword === 'patternProperties' && patterns) {

@@ -44,7 +44,9 @@ function createControl(kind: Kind): Control {
   if (kind === 'enum') return document.createElement('select')
   if (kind === 'textarea') return document.createElement('textarea')
   const input = document.createElement('input')
-  input.type = kind === 'boolean' ? 'checkbox' : kind === 'number' ? 'number' : 'text'
+  if (kind === 'boolean') input.type = 'checkbox'
+  else if (kind === 'number') input.type = 'number'
+  else input.type = 'text'
   return input
 }
 

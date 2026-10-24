@@ -100,16 +100,14 @@ export function getInputProps(
     describedByIds.push(makeId(idPrefix, node.id, 'error'))
   }
 
+  const nativeReadOnly = hasNativeReadOnly(node)
+  const readOnlyProps = nativeReadOnly ? { readOnly: true } : { 'aria-readonly': true as const }
   const props: InputProps = {
     id,
     name: node.dataPointer || node.id,
     value: fieldState.value,
     disabled: fieldState.disabled,
-    ...(node.readOnly
-      ? hasNativeReadOnly(node)
-        ? { readOnly: true }
-        : { 'aria-readonly': true as const }
-      : {}),
+    ...(node.readOnly ? readOnlyProps : {}),
     'aria-required': Boolean(node.constraints?.required),
     'aria-describedby': describedByIds.length > 0 ? describedByIds.join(' ') : undefined,
     onChange: fieldState.onChange,

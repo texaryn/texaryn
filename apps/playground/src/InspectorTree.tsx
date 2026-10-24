@@ -54,12 +54,15 @@ function TreeNode({
   const [isOpen, setIsOpen] = useState(depth === 0)
   const entries = entriesFor(value)
   const visibleEntries = entries?.filter((entry) => !(hideUnset && entry.value === undefined))
+  let valueKind = typeof value
+  if (value === undefined) valueKind = 'undefined'
+  else if (value === null) valueKind = 'null'
 
   if (!entries || entries.length === 0) {
     return (
       <div className="pg-tree__leaf" style={{ '--pg-tree-depth': depth } as CSSProperties}>
         <span className="pg-tree__key">{name}</span>
-        <span className={`pg-tree__value pg-tree__value--${value === undefined ? 'undefined' : value === null ? 'null' : typeof value}`}>
+        <span className={`pg-tree__value pg-tree__value--${valueKind}`}>
           {preview(value)}
         </span>
       </div>

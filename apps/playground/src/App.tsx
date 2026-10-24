@@ -245,6 +245,24 @@ function FormWorkspace({
     event.preventDefault()
     submit()
   }
+  let rendererContent: ReactNode
+  if (rendererLoadError) {
+    rendererContent = <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
+  } else if (Renderer) {
+    rendererContent = (
+      <Renderer
+        runtime={form.runtime}
+        theme={resolvedTheme}
+        onSubmit={handleSubmit}
+        onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
+      />
+    )
+  } else {
+    rendererContent = <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
+  }
+  let submitLabel = 'Submit'
+  if (form.submission.status === 'validating') submitLabel = 'Validating...'
+  else if (form.submission.status === 'submitting') submitLabel = 'Submitting...'
   const rendererSurface = (
     <RendererSurface
       rendererKey={rendererKey}
@@ -252,18 +270,7 @@ function FormWorkspace({
       theme={resolvedTheme}
       defaultStyleMode={defaultStyleMode}
     >
-      {rendererLoadError ? (
-        <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
-      ) : Renderer ? (
-        <Renderer
-          runtime={form.runtime}
-          theme={resolvedTheme}
-          onSubmit={handleSubmit}
-          onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
-        />
-      ) : (
-        <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
-      )}
+      {rendererContent}
     </RendererSurface>
   )
   const controls = (
@@ -282,11 +289,7 @@ function FormWorkspace({
             form.submission.status === 'submitting'
           }
         >
-          {form.submission.status === 'validating'
-            ? 'Validating...'
-            : form.submission.status === 'submitting'
-              ? 'Submitting...'
-              : 'Submit'}
+          {submitLabel}
         </button>
 
         <label className="pg-checkbox-label">
@@ -680,13 +683,13 @@ export function App() {
   const applyFailed = adapterState.status === 'ready' && Boolean(adapterState.error)
   const applying =
     !parseError && !applyFailed && (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
-  const previewNotice = parseError
-    ? 'Invalid JSON. This preview shows the last valid schema.'
-    : applyFailed
-      ? `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
-      : applying
-        ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
-        : null
+  let previewNotice: string | null = null
+  if (parseError) previewNotice = 'Invalid JSON. This preview shows the last valid schema.'
+  else if (applyFailed) {
+    previewNotice = `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
+  } else if (applying) {
+    previewNotice = 'Applying schema changes. The preview shows the last valid schema until they are ready.'
+  }
 
   const paletteCommands = useMemo(() => {
     const actions: CommandActions = {
@@ -883,6 +886,14 @@ export function App() {
     </>
   )
 
+  let notReadyState: { className: string; message: string } | null = null
+  if (adapterState.status === 'loading') notReadyState = { className: 'pg-empty', message: 'Loading…' }
+  else if (adapterState.status === 'error') {
+    notReadyState = { className: 'pg-error', message: adapterState.message }
+  } else if (selectedId !== CUSTOM_KEY && !adapterMatchesDraft) {
+    notReadyState = { className: 'pg-empty', message: 'Loading the selected example…' }
+  }
+
   return (
     <div className="pg-app">
       <header className="pg-header">
@@ -948,7 +959,7 @@ export function App() {
                   aria-pressed={mobilePanel === panelName}
                   onClick={() => setMobilePanel(panelName)}
                 >
-                  {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
+                  {{ preview: 'Form', schema: 'Schema', inspector: 'Inspector' }[panelName]}
                 </button>
               ))}
             </div>
@@ -988,17 +999,9 @@ export function App() {
       {createPortal(examplesContent, hosts.examples)}
       {createPortal(schemaContent, hosts.schema)}
 
-      {adapterState.status === 'loading' ? (
+      {notReadyState ? (
         <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-empty">Loading…</p>
-        </NotReady>
-      ) : adapterState.status === 'error' ? (
-        <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-error">{adapterState.message}</p>
-        </NotReady>
-      ) : selectedId !== CUSTOM_KEY && !adapterMatchesDraft ? (
-        <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-empty">Loading the selected example…</p>
+          <p className={notReadyState.className}>{notReadyState.message}</p>
         </NotReady>
       ) : (
         <FormWorkspace

@@ -287,11 +287,10 @@ const refTargets = (
   dialect: Dialect = 'draft-07',
 ): string[] => {
   if (position !== undefined) {
-    const keywords = dialect === '2020-12'
-      ? ['$ref', '$dynamicRef'] as const
-      : dialect === '2019-09'
-        ? ['$ref', '$recursiveRef'] as const
-        : ['$ref'] as const
+    let keywords: readonly ('$ref' | '$dynamicRef' | '$recursiveRef')[]
+    if (dialect === '2020-12') keywords = ['$ref', '$dynamicRef']
+    else if (dialect === '2019-09') keywords = ['$ref', '$recursiveRef']
+    else keywords = ['$ref']
     const targets: string[] = []
     for (const keyword of keywords) {
       const resolved = schemaReferenceTarget(rootSchema, position, keyword)
@@ -1139,7 +1138,9 @@ export function staticWalk(
   const walkRows = (createOnly: boolean): void => {
     if (!((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data))) return
     data.forEach((item: unknown, index: number) => {
-      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+      let tuple: 'prefixItems' | 'items' | undefined
+      if (prefixItems?.[index] != null) tuple = 'prefixItems'
+      else if (tupleItems?.[index] != null) tuple = 'items'
       const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
       const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
       if (itemSchema !== undefined) {
@@ -1419,9 +1420,9 @@ export function unselectedAlternativeFamilies(
   rootSchema: unknown,
   keyword?: 'oneOf' | 'anyOf',
 ): Set<KeywordFamily> {
-  const branches = keyword
-    ? (Array.isArray(schema[keyword]) ? schema[keyword] as unknown[] : [])
-    : branchesOf(schema)
+  let branches: unknown[]
+  if (keyword) branches = Array.isArray(schema[keyword]) ? schema[keyword] as unknown[] : []
+  else branches = branchesOf(schema)
   if (branches.length === 0) return new Set()
   const shapes: ProjectionShape[] = []
   const branchFamilies: Set<KeywordFamily>[] = []

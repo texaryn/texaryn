@@ -302,11 +302,9 @@ function makeBranchChecker(
       const branchPointer = `${schemaPointer}${suffix}`
       const skipDraft07Reference =
         dialect === 'draft-07' && analyzeReferences(branchPointer).containsReference
-      const ifValid = scopeValidity.has(ifKey)
-        ? scopeValidity.get(ifKey)
-        : skipDraft07Reference
-          ? undefined
-          : missingIfResult(schemaPointer, instancePointer)
+      let ifValid: boolean | undefined
+      if (scopeValidity.has(ifKey)) ifValid = scopeValidity.get(ifKey)
+      else if (!skipDraft07Reference) ifValid = missingIfResult(schemaPointer, instancePointer)
       return suffix === '/then' ? ifValid === true : ifValid === false
     }
 

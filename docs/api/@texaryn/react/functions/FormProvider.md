@@ -20,7 +20,7 @@ the fields do.
 
 ### \_\_namedParameters
 
-[`FormProviderProps`](../interfaces/FormProviderProps.md)
+`Readonly`\<[`FormProviderProps`](../interfaces/FormProviderProps.md)\>
 
 ## Returns
 
