@@ -139,10 +139,11 @@ for (const pkg of packages) {
     }
 
     console.log(`\n  import smoke test:`)
-    const extractDir =
-      pkg.name === '@texaryn/schema-json' || pkg.name === '@texaryn/schema-zod'
-        ? (isolatedConsumerDir = mkdtempSync(join(tmpdir(), `texaryn-${pkg.name.split('/').at(-1)}-consumer-`)))
-        : join(tmp, 'extracted')
+    const isolatedConsumer = pkg.name === '@texaryn/schema-json' || pkg.name === '@texaryn/schema-zod'
+      ? mkdtempSync(join(tmpdir(), `texaryn-${pkg.name.split('/').at(-1)}-consumer-`))
+      : undefined
+    if (isolatedConsumer) isolatedConsumerDir = isolatedConsumer
+    const extractDir = isolatedConsumer ?? join(tmp, 'extracted')
     execSync(`mkdir -p ${extractDir} && tar xzf ${tarball} -C ${extractDir}`)
     if (pkg.name === '@texaryn/schema-json') {
       const isolatedNodeModules = join(extractDir, 'node_modules')

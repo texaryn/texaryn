@@ -54,7 +54,7 @@ export function sourceCommitFromVerifiedEntry(entry) {
   )
   const payload = bundle?.bundle?.dsseEnvelope?.payload
   if (typeof payload !== 'string') {
-    throw new Error(`Verified npm entry has no SLSA provenance for ${name}@${version}`)
+    throw new TypeError(`Verified npm entry has no SLSA provenance for ${name}@${version}`)
   }
 
   let statement
