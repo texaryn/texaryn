@@ -565,7 +565,7 @@ export function createFormRuntime(
     // Drop stores for node ids the recompiled document no longer contains
     // (the trailing item after an array shrinks), so the map does not grow
     // without bound across the form's lifetime.
-    for (const nodeId of [...nodeStores.keys()]) {
+    for (const nodeId of nodeStores.keys()) {
       if (!nextNodes.has(nodeId)) nodeStores.delete(nodeId)
     }
 
@@ -1039,7 +1039,7 @@ export function createFormRuntime(
           bundle.visible.set(uiNode.visible)
           bundle.disabled.set(uiNode.disabled)
         }
-        for (const nodeId of [...nodeStores.keys()]) {
+        for (const nodeId of nodeStores.keys()) {
           if (!nextNodes.has(nodeId)) nodeStores.delete(nodeId)
         }
         refreshVisibleErrors()
