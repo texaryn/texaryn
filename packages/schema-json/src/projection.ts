@@ -1581,93 +1581,25 @@ interface ProjectionWalkFrame {
   readonly dynamicReferenceAtLocation?: boolean
 }
 
-function walk(frame: ProjectionWalkFrame): void {
-  let node = frame.node
-  const {
-    pointer,
-    data,
-    active,
-    provisional,
-    nodes,
-    diagnostics,
-    declaredAt,
-    ctx,
-    member,
-    lineage,
-    path,
-  } = frame
-  let scope = frame.scope
-  let dynamicReferenceAtLocation = frame.dynamicReferenceAtLocation ?? false
-  if (ctx.cache.dynamicReferenceProjection) {
-    const entered = enterDynamicScope(node, scope)
-    node = entered.node
-    scope = entered.path
-    dynamicReferenceAtLocation ||= entered.dynamicReference
-  }
-  const info = locationInfo(declaredAt.declaring, ctx.cache)
-  const { node: original, cycle: referenceCycle, unresolved: unresolvedReference } = dereferenceChecked(node)
-  if (info.cycle || referenceCycle) {
-    diagnostics.push({
-      pointer: toPointer(pointer),
-      code: 'unresolved-projection-shape',
-      message:
-        `A "$ref" or in-place applicator cycle never leaves this location, so there is no ` +
-        `shape to render.`,
-    })
-    return
-  }
-  const pastData = member && (data === undefined || data === null)
-  const token = boundaryToken(pointer, info.key, ctx.boundaryGeneration)
-  const recursive =
-    pastData && !unresolvedReference && ((lineage?.recursive ?? false) || budgeted(info))
-  for (let ancestor = pastData ? lineage : undefined; ancestor; ancestor = ancestor.parent) {
-    if (
-      info.key !== '' &&
-      ancestor.key === info.key &&
-      !ctx.expandedBoundaryTokens.has(token)
-    ) {
-      addBoundary(ctx, ancestor.pointer, 'recursion', pointer, info.key)
-      ctx.removed.add(pointer)
-      return
-    }
-  }
-  const originalSchema = original.schema as Record<string, unknown>
-  if (recursive && lineage !== undefined) {
-    const parent = pointer.slice(0, pointer.lastIndexOf('/'))
-    let admit: boolean
-    if (isLeafSchema(originalSchema)) {
-      const covered = ctx.reserved.has(parent)
-      admit = ctx.expandedBoundaryTokens.has(token) || covered || ctx.nodesUsed < ctx.limits.nodes
-      if (admit && !covered) ctx.nodesUsed += 1
-    } else {
-      const explicitlyExpanded = ctx.expandedBoundaryTokens.has(token)
-      const retainedDeclarations = declaredAt.declaring.filter((declaration) =>
-        hasRetainedDescendant(positionOf(declaration), ctx.cache),
-      )
-      const candidateDeclarations = dynamicReferenceAtLocation
-        ? []
-        : [...declaredAt.applicable, ...retainedDeclarations]
-      const leaves = [...collectCandidateProperties(original, undefined, candidateDeclarations).values()].filter((candidate) =>
-        isLeafSchema(dereference(candidatePrototype(candidate)).schema),
-      ).length
-      admit =
-        explicitlyExpanded ||
-        (ctx.objectsUsed < ctx.limits.objects && ctx.nodesUsed + 1 + leaves <= ctx.limits.nodes)
-      if (admit) {
-        ctx.objectsUsed += 1
-        ctx.nodesUsed += explicitlyExpanded ? 1 : 1 + leaves
-        if (!explicitlyExpanded) ctx.reserved.add(pointer)
-      }
-    }
-    if (!admit) {
-      addBoundary(ctx, parent, 'budget', pointer, info.key)
-      ctx.removed.add(pointer)
-      return
-    }
-    ctx.flagged.add(pointer)
-  }
-  if (typeof originalSchema !== 'object' || originalSchema === null) return
+interface InitialWalkShape {
+  readonly resolved: SchemaNode
+  readonly schema: Record<string, unknown>
+  readonly type: JsonSchemaType | undefined
+}
 
+interface ComposedWalkShape extends InitialWalkShape {
+  readonly branchResolved: boolean
+  readonly composedAgainstData: boolean
+  readonly wrapperIdentified: boolean
+}
+
+function initialWalkShape(
+  original: SchemaNode,
+  originalSchema: Record<string, unknown>,
+  data: unknown,
+  scope: ValidationPath,
+  ctx: RecursionContext,
+): InitialWalkShape {
   let resolved = original
   let schema = originalSchema
   let type = resolveExplicitType(schema)
@@ -1695,7 +1627,6 @@ function walk(frame: ProjectionWalkFrame): void {
       if (!type) type = resolveExplicitType(schema)
     }
   }
-
   if (!type && ctx.cache.dynamicReferenceProjection && original.allOf?.length) {
     const reduced = original.reduceNode(data, { path: [...scope] }).node
     if (reduced) {
@@ -1704,66 +1635,34 @@ function walk(frame: ProjectionWalkFrame): void {
       type = resolveExplicitType(schema)
     }
   }
-  // Whether this node's own active branch could be determined. Stays true for every
-  // node except a typeless oneOf/anyOf wrapper whose branch could not be resolved
-  // (see below), where the node's own presence in the projection is the thing in
-  // doubt rather than only its children's.
+  return { resolved, schema, type }
+}
+
+function resolveWalkComposition(
+  original: SchemaNode,
+  data: unknown,
+  scope: ValidationPath,
+  active: boolean,
+  provisional: boolean,
+  branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
+  initial: InitialWalkShape,
+  diagnostics: ProjectionDiagnostic[],
+  pointer: string,
+): ComposedWalkShape {
+  let { resolved, schema, type } = initial
   let branchResolved = true
-
-  // A node whose own schema carries no `type` keyword, only `oneOf`/`anyOf` branches
-  // (e.g. a property schema like `{ oneOf: [{ type: 'object', ... }, ...] }`), has no
-  // type until its active branch is resolved against `data`. `original` is kept
-  // separately so every branch's properties can still be collected below for the
-  // inactive-node contract, even though only the matching branch's schema is used here.
-  // Whether a branch of this node's own `oneOf`/`anyOf` was resolved against
-  // `data`. Recorded so an unresolved shape can be attributed correctly below:
-  // on this path, "no shape" means the current value matches no branch, which
-  // is a fact about the data rather than about the schema.
   let composedAgainstData = false
-  /**
-   * Whether a typeless wrapper's branch was picked by the discriminator rather
-   * than by the evaluator. The wrapper is then shown provisionally: the schema
-   * still applies no branch, and that is what `active` reports.
-   */
   let wrapperIdentified = false
-
   if (!type && (original.oneOf || original.anyOf)) {
     composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
     if (branchNode) {
-      resolved = resolveSelectedBranch(original, branchNode, data, ctx.branchApplicability, scope)
+      resolved = resolveSelectedBranch(original, branchNode, data, branchApplicability, scope)
       schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
-      // reduceNode() returned no node at all: this is oneOf's behavior when data
-      // matches zero or multiple branches (anyOf instead returns a node with an
-      // empty merged schema in that case, which carries no explicit type either,
-      // but which does not reach this branch). This test suite's oneOf wrappers put
-      // an object schema on every branch, so 'object' is a safe stand-in type here:
-      // it lets this pointer and every candidate branch property still appear in the
-      // projection, all `active: false`, per the inactive-node contract, instead of
-      // silently dropping the whole subtree. A oneOf/anyOf wrapper whose branches are
-      // primitives (not objects) is not handled by this fallback.
       type = 'object'
       branchResolved = false
-      // The wrapper's own branch could not be resolved, so the schema applies
-      // none of them. It may still be identifiable: a discriminator present in
-      // the data picks one, and the wrapper is then exposed provisionally
-      // rather than not at all. Without that, the same schema behaves
-      // differently for having declared `type` or not, since the typed path
-      // reaches the selector below and this one used to stop here.
-      //
-      // Only the flag is recorded, deliberately. Assigning the branch to
-      // `resolved` erases the difference between what the evaluator resolved
-      // and what this projection selected, and the object path reads `resolved`
-      // as the former: it would take the branch's `required` as active
-      // requiredness, find `nodeActive` false because no branch applies, and
-      // report the field as neither required nor provisionally required.
-      // Left alone, that path selects the same branch through
-      // `selectProvisionalBranch` and attributes it to the right one of the two.
-      //
-      // Gated on this node already being exposed, for the reason the object
-      // path is: selection is local, exposure is the ancestor's to grant.
       wrapperIdentified =
         (active || provisional) &&
         selectProvisionalBranch(
@@ -1772,70 +1671,97 @@ function walk(frame: ProjectionWalkFrame): void {
         ) !== undefined
     }
   }
-
-  /**
-   * Whether the absence of a shape here is only the current value's fault.
-   *
-   * Two conditions, and both are needed. Nothing was merged in from a branch,
-   * which is what reducing against a value that satisfies none of them leaves
-   * behind; and some branch could have been rendered for a value that did
-   * satisfy it, so the composition is not unrenderable in itself.
-   *
-   * The first condition is what a coarser check missed. Entering the
-   * composition path says nothing on its own: a branch can be selected and
-   * still supply no shape, as `{ anyOf: [{ minLength: 1 }, { pattern: '^a' }] }`
-   * does for `"abc"`, where both branches match and neither describes anything
-   * this adapter renders, because scalar shapes are deliberately not inferred.
-   * That schema is genuinely unprojectable and has to be reported.
-   */
-  const isTransientBranchMiss = (): boolean =>
-    Object.keys(schema).every((keyword) => keyword === POSITION) && compositionHasRenderableAlternative(original)
-
-  // Last resort, after the oneOf/anyOf branch above has had its chance: that
-  // path handles a typeless wrapper whose type only exists once a branch is
-  // chosen, and inferring first would take a schema carrying both `properties`
-  // and `oneOf` down the object path without ever resolving its branch.
   if (!type) {
-    const shape = inferAllOfProjectionShape(resolved, schema)
-    if (shape.kind === 'resolved') {
-      type = shape.type
-    } else if (shape.kind === 'none' && composedAgainstData && isTransientBranchMiss()) {
-      // Deliberately silent, and only for this one case. A projection
-      // diagnostic describes a schema this adapter cannot turn into a shape,
-      // and a value that matches none of a composition's branches is not that:
-      // the same schema renders for a value that does match one. That is
-      // validation's subject, it is already reported there, and a form's data
-      // is in this state for most of the time someone is filling it in, so a
-      // diagnostic here would appear and disappear on each keystroke and train
-      // a caller to ignore the channel.
+    const inferred = inferAllOfProjectionShape(resolved, schema)
+    if (inferred.kind === 'resolved') {
+      type = inferred.type
     } else {
-      // Reported rather than dropped in silence. The field cannot be drawn
-      // without a shape, so the caller is told which pointer was skipped and
-      // why, instead of finding out from a form that never collected the
-      // value.
-      diagnostics.push(shapeDiagnostic(toPointer(pointer), shape, schema.enum !== undefined))
+      const transientBranchMiss =
+        Object.keys(schema).every((keyword) => keyword === POSITION) && compositionHasRenderableAlternative(original)
+      if (!(inferred.kind === 'none' && composedAgainstData && transientBranchMiss)) {
+        diagnostics.push(shapeDiagnostic(toPointer(pointer), inferred, schema.enum !== undefined))
+      }
     }
   }
+  return { resolved, schema, type, branchResolved, composedAgainstData, wrapperIdentified }
+}
 
-  // Arrays do not pass through the object path that reduces the active schema.
-  if (type === 'array' && resolved === original && original.allOf) {
-    const reduced = reduceAllOfForProjection(original, data, scope)
-    const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
-    if (reduced && reducedSchema && typeof reducedSchema === 'object') {
-      resolved = reduced
-      schema = reducedSchema
-    }
-  }
+function reduceArrayWalkShape(
+  original: SchemaNode,
+  data: unknown,
+  scope: ValidationPath,
+  shape: ComposedWalkShape,
+): ComposedWalkShape {
+  if (shape.type !== 'array' || shape.resolved !== original || !original.allOf) return shape
+  const reduced = reduceAllOfForProjection(original, data, scope)
+  const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
+  if (!reduced || !reducedSchema || typeof reducedSchema !== 'object') return shape
+  return { ...shape, resolved: reduced, schema: reducedSchema }
+}
 
-  if (!type) return
-  const selfLineage: Lineage | undefined = pastData
-    ? { key: info.key, pointer, recursive, depth: (lineage?.depth ?? 0) + 1, parent: lineage }
-    : undefined
+interface WalkPresentation {
+  readonly applicableData: unknown
+  readonly defaultConflict: string[] | undefined
+  readonly conflictedDefault: boolean
+  readonly defaultOverride: { present: boolean; value?: unknown }
+  readonly defaultSources: string[] | undefined
+  readonly nodeActive: boolean
+  readonly nodeProvisional: boolean
+  readonly nodeExposed: boolean
+}
 
-  // Reported at the location it is about, and after the shape gate above: a
-  // pointer with no node has nothing to omit an annotation from, and saying
-  // that its `default` is undecidable on top of saying it cannot be drawn at
-  // all would be the same schema reported twice.
+interface ObjectWalkInput {
+  readonly frame: ProjectionWalkFrame
+  readonly scope: ValidationPath
+  readonly dynamicReferenceAtLocation: boolean
+  readonly info: LocationInfo
+  readonly original: SchemaNode
+  readonly originalSchema: Record<string, unknown>
+  readonly resolved: SchemaNode
+  readonly schema: Record<string, unknown>
+  readonly type: JsonSchemaType
+  readonly recursive: boolean
+  readonly selfLineage: Lineage | undefined
+  readonly presentation: WalkPresentation
+}
+
+interface ObjectProjectionState {
+  readonly dataRecord: Record<string, unknown> | undefined
+  readonly reducedNode: SchemaNode | undefined
+  readonly candidateProps: ReadonlyMap<string, CandidateProperty>
+  readonly activeKeys: Set<string>
+  readonly requiredSet: Set<string>
+  readonly dynamicApplicableNodes: SchemaNode[]
+  readonly provisionalBranch: SchemaNode | undefined
+  readonly provisionalKeys: Set<string>
+  readonly provisionalRequired: Set<string>
+}
+
+interface ObjectChildInput {
+  readonly object: ObjectWalkInput
+  readonly state: ObjectProjectionState
+  readonly key: string
+  readonly index: number
+}
+
+interface ObjectChildNodes {
+  readonly childPointer: string
+  readonly childData: unknown
+  readonly childActive: boolean
+  readonly childProvisional: boolean
+  readonly childNode: SchemaNode
+  readonly childScope: ValidationPath
+  readonly scopedChildNode: SchemaNode | undefined
+  readonly hasScopedReference: boolean
+}
+
+function walkPresentation(
+  frame: ProjectionWalkFrame,
+  info: LocationInfo,
+  shape: ComposedWalkShape,
+): WalkPresentation {
+  const { data, diagnostics, declaredAt, ctx, active, provisional, pointer } = frame
+  const { type, branchResolved, wrapperIdentified } = shape
   const ambiguousDefault = disagreeingDefaults(
     collectUnconditionalDefaults(declaredAt.unconditional, ctx.cache),
   )
@@ -1850,18 +1776,12 @@ function walk(frame: ProjectionWalkFrame): void {
       sources: ambiguousDefault.map((declaration) => declaration.source),
     })
   }
-
-  // The node's own answer, which includes whatever branches this instance
-  // selects. A superset of the diagnostic's: every unconditional disagreement
-  // is also an applicable one, so the node carries both kinds and a consumer
-  // reads one place.
-  const applicableData =
-    type === 'object' && !(typeof data === 'object' && data !== null) ? {} : data
+  const applicableData = type === 'object' && !(typeof data === 'object' && data !== null) ? {} : data
   const applicableDeclarations = collectApplicableDefaults(
     declaredAt.applicable,
     applicableData,
     ctx.cache,
-    scope,
+    frame.scope,
     ctx.cache.dynamicReferenceProjection,
     ctx.branchApplicability,
   )
@@ -1878,377 +1798,188 @@ function walk(frame: ProjectionWalkFrame): void {
     present: applicableDeclarations.length > 0,
     value: applicableDeclarations[0]?.value,
   }
-
   const nodeActive = active && branchResolved
-  // A node the schema applies is never also provisional; the two report
-  // different facts and only the second is a choice this projection made. The
-  // `!nodeActive` term is belt and braces: `provisional` only ever arrives true
-  // from a parent that computed `!childActive`, so no caller can reach here
-  // with both, and dropping the term changes no observable behaviour.
   const nodeProvisional = !nodeActive && (provisional || wrapperIdentified) && (branchResolved || wrapperIdentified)
-  // Whether a form shows this node at all, which is what a descendant inherits.
   const nodeExposed = nodeActive || nodeProvisional
+  return {
+    applicableData,
+    defaultConflict,
+    conflictedDefault,
+    defaultOverride,
+    defaultSources,
+    nodeActive,
+    nodeProvisional,
+    nodeExposed,
+  }
+}
+
+interface WalkStart {
+  readonly scope: ValidationPath
+  readonly dynamicReferenceAtLocation: boolean
+  readonly info: LocationInfo
+  readonly original: SchemaNode
+  readonly unresolvedReference: boolean
+}
+
+interface PreparedWalk {
+  readonly start: WalkStart
+  readonly originalSchema: Record<string, unknown>
+  readonly recursive: boolean
+  readonly selfLineage: Lineage | undefined
+}
+
+function resolveWalkStart(frame: ProjectionWalkFrame): WalkStart {
+  let node = frame.node
+  let scope = frame.scope
+  let dynamicReferenceAtLocation = frame.dynamicReferenceAtLocation ?? false
+  if (frame.ctx.cache.dynamicReferenceProjection) {
+    const entered = enterDynamicScope(node, scope)
+    node = entered.node
+    scope = entered.path
+    dynamicReferenceAtLocation ||= entered.dynamicReference
+  }
+  const info = locationInfo(frame.declaredAt.declaring, frame.ctx.cache)
+  const { node: original, cycle, unresolved: unresolvedReference } = dereferenceChecked(node)
+  return { scope, dynamicReferenceAtLocation, info: { ...info, cycle: info.cycle || cycle }, original, unresolvedReference }
+}
+
+function recursiveAncestor(frame: ProjectionWalkFrame, info: LocationInfo, token: string): Lineage | undefined {
+  if (!frame.member || (frame.data !== undefined && frame.data !== null)) return undefined
+  for (let ancestor = frame.lineage; ancestor; ancestor = ancestor.parent) {
+    if (info.key !== '' && ancestor.key === info.key && !frame.ctx.expandedBoundaryTokens.has(token)) return ancestor
+  }
+  return undefined
+}
+
+function admitRecursiveExpansion(
+  frame: ProjectionWalkFrame,
+  token: string,
+  original: SchemaNode,
+  originalSchema: Record<string, unknown>,
+): boolean {
+  const parent = frame.pointer.slice(0, frame.pointer.lastIndexOf('/'))
+  const explicitlyExpanded = frame.ctx.expandedBoundaryTokens.has(token)
+  if (isLeafSchema(originalSchema)) {
+    const covered = frame.ctx.reserved.has(parent)
+    const admit = explicitlyExpanded || covered || frame.ctx.nodesUsed < frame.ctx.limits.nodes
+    if (admit && !covered) frame.ctx.nodesUsed += 1
+    return admit
+  }
+  const retainedDeclarations = frame.declaredAt.declaring.filter((declaration) =>
+    hasRetainedDescendant(positionOf(declaration), frame.ctx.cache),
+  )
+  const candidateDeclarations = frame.dynamicReferenceAtLocation
+    ? []
+    : [...frame.declaredAt.applicable, ...retainedDeclarations]
+  const leaves = [...collectCandidateProperties(original, undefined, candidateDeclarations).values()].filter((candidate) =>
+    isLeafSchema(dereference(candidatePrototype(candidate)).schema),
+  ).length
+  const admit = explicitlyExpanded || (frame.ctx.objectsUsed < frame.ctx.limits.objects && frame.ctx.nodesUsed + 1 + leaves <= frame.ctx.limits.nodes)
+  if (admit) {
+    frame.ctx.objectsUsed += 1
+    frame.ctx.nodesUsed += explicitlyExpanded ? 1 : 1 + leaves
+    if (!explicitlyExpanded) frame.ctx.reserved.add(frame.pointer)
+  }
+  return admit
+}
+
+function prepareWalk(frame: ProjectionWalkFrame): PreparedWalk | undefined {
+  const start = resolveWalkStart(frame)
+  const { pointer, data, member, lineage, ctx, diagnostics } = frame
+  const { info, original, unresolvedReference } = start
+  if (info.cycle) {
+    diagnostics.push({
+      pointer: toPointer(pointer),
+      code: 'unresolved-projection-shape',
+      message:
+        `A "$ref" or in-place applicator cycle never leaves this location, so there is no ` +
+        `shape to render.`,
+    })
+    return undefined
+  }
+  const pastData = member && (data === undefined || data === null)
+  const token = boundaryToken(pointer, info.key, ctx.boundaryGeneration)
+  const recursive = pastData && !unresolvedReference && ((lineage?.recursive ?? false) || budgeted(info))
+  const ancestor = recursiveAncestor(frame, info, token)
+  if (ancestor) {
+    addBoundary(ctx, ancestor.pointer, 'recursion', pointer, info.key)
+    ctx.removed.add(pointer)
+    return undefined
+  }
+  const originalSchema = original.schema as Record<string, unknown>
+  if (recursive && lineage !== undefined) {
+    if (!admitRecursiveExpansion(frame, token, original, originalSchema)) {
+      const parent = pointer.slice(0, pointer.lastIndexOf('/'))
+      addBoundary(ctx, parent, 'budget', pointer, info.key)
+      ctx.removed.add(pointer)
+      return undefined
+    }
+    ctx.flagged.add(pointer)
+  }
+  if (typeof originalSchema !== 'object' || originalSchema === null) return undefined
+  const selfLineage: Lineage | undefined = pastData
+    ? { key: info.key, pointer, recursive, depth: (lineage?.depth ?? 0) + 1, parent: lineage }
+    : undefined
+  return { start, originalSchema, recursive, selfLineage }
+}
+
+function walk(frame: ProjectionWalkFrame): void {
+  const prepared = prepareWalk(frame)
+  if (!prepared) return
+  const { start, originalSchema, recursive, selfLineage } = prepared
+  const { scope, dynamicReferenceAtLocation, info, original } = start
+  const {
+    pointer,
+    data,
+    active,
+    provisional,
+    nodes,
+    diagnostics,
+    declaredAt,
+    ctx,
+    path,
+  } = frame
+
+  const initialShape = initialWalkShape(original, originalSchema, data, scope, ctx)
+  const composedShape = resolveWalkComposition(
+    original,
+    data,
+    scope,
+    active,
+    provisional,
+    ctx.branchApplicability,
+    initialShape,
+    diagnostics,
+    pointer,
+  )
+  const shape = reduceArrayWalkShape(original, data, scope, composedShape)
+  const { resolved, schema, type } = shape
+  if (!type) return
+  const presentation = walkPresentation(frame, info, shape)
+  const {
+    defaultConflict,
+    conflictedDefault,
+    defaultOverride,
+    defaultSources,
+    nodeActive,
+    nodeProvisional,
+  } = presentation
 
   if (type === 'object') {
-    const dataRecord =
-      typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined
-
-    // reduceNode() resolves if/then/else, dependentSchemas (which also covers
-    // draft-07 schema-form dependencies), and oneOf/anyOf against `data`, merging the
-    // active branch's properties/required into the returned schema. An empty object
-    // stands in for "no data yet" so the reducers still run instead of being skipped
-    // outright. When no branch can be resolved (e.g. a oneOf with zero or multiple
-    // matches), reduceNode reports an error instead of a node; the object's own
-    // directly-declared properties are used as the active set in that case, so a
-    // discriminator field outside the oneOf branches still projects as active.
-    //
-    // When `resolved` is already the branch picked out above (typeless oneOf/anyOf
-    // wrapper case), it has already been reduced against the real `data` at this
-    // pointer; re-reducing it against `dataRecord ?? {}` here would be redundant (and,
-    // for a branch with no dynamic keywords of its own, a no-op), so it is skipped.
-    let reducedNode: SchemaNode | undefined = resolved
-    if (resolved === original && requiresReduction(resolved)) {
-      if (original.allOf && hasReferencedAllOf(original)) {
-        reducedNode = reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
-      } else {
-        reducedNode = resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
-      }
-    }
-    if (reducedNode && resolved === original && (!member || data !== undefined)) {
-      // Missing child data has no evaluated conditional branch to recover.
-      reducedNode = resolveSelectedConditionalReference(
-        original,
-        reducedNode,
-        dataRecord ?? {},
-        scope,
-        ctx.branchApplicability,
-      )
-    }
-    if (
-      reducedNode &&
-      resolved === original &&
-      !resolveExplicitType(originalSchema) &&
-      (original.oneOf || original.anyOf)
-    ) {
-      reducedNode = resolveSelectedBranch(
-        original,
-        reducedNode,
-        dataRecord ?? {},
-        ctx.branchApplicability,
-        scope,
-      )
-    }
-    const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
-    const reducedProperties =
-      (reducedSchema?.properties as Record<string, unknown> | undefined) ??
-      (schema.properties as Record<string, unknown> | undefined) ??
-      {}
-    // Dynamic applicability is rebuilt below; only retained declarations belong beside it here.
-    const retainedDeclarations = declaredAt.declaring.filter((declaration) =>
-      hasRetainedDescendant(positionOf(declaration), ctx.cache),
-    )
-    const candidateDeclarations = dynamicReferenceAtLocation
-      ? []
-      : [...declaredAt.applicable, ...retainedDeclarations]
-    let candidateProps: ReadonlyMap<string, CandidateProperty> = collectCandidateProperties(
-      original,
-      dataRecord,
-      candidateDeclarations,
-    )
-    const activeKeys = new Set([
-      ...Object.keys(reducedProperties),
-      ...additionalPropertyKeys(reducedNode, dataRecord),
-    ])
-    if (!reducedNode) {
-      for (const [key, candidate] of candidateProps) {
-        if (candidate.direct) activeKeys.add(key)
-      }
-    }
-    const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
-    const dynamicApplicableNodes: SchemaNode[] = []
-    if (ctx.cache.dynamicReferenceProjection) {
-      eachApplicable({
-        roots: [original],
-        data,
-        branchApplicability: ctx.branchApplicability,
-        visitor: (applicableNode) => {
-          dynamicApplicableNodes.push(applicableNode)
-          for (const key of Object.keys(applicableNode.properties ?? {})) activeKeys.add(key)
-          for (const key of applicableNode.required ?? []) requiredSet.add(key)
-        },
-        scope,
-        dynamicReferenceProjection: true,
-      })
-      const expandedCandidates = new Map(candidateProps)
-      const activeCandidateNode = reducedNode ?? resolved
-      if (activeCandidateNode !== original) {
-        for (const [key, candidate] of collectCandidateProperties(activeCandidateNode, dataRecord)) {
-          if (!expandedCandidates.has(key)) expandedCandidates.set(key, candidate)
-        }
-      }
-      for (const applicableNode of dynamicApplicableNodes) {
-        for (const [key, propertyNode] of Object.entries(applicableNode.properties ?? {})) {
-          if (!expandedCandidates.has(key)) expandedCandidates.set(key, { direct: propertyNode, alternatives: [] })
-        }
-      }
-      candidateProps = expandedCandidates
-    }
-    if (!reducedNode) {
-      for (const key of unconditionalRequiredKeys(declaredAt.unconditional)) requiredSet.add(key)
-    }
-
-    // Two conditions, and they are not the same kind of condition.
-    //
-    // Exposure is load-bearing. Selection is local, but whether this node is
-    // shown at all is its ancestors' to decide, and a subtree nothing exposes
-    // must not select a branch off data it happens to retain: the compiler
-    // collapses `required || provisionalRequired` into the one flag a binding
-    // reads, so a hidden field would acquire a requirement.
-    //
-    // The evaluator having selected nothing is where provisional selection
-    // exists to help, and that half is unobservable rather than wrong: a
-    // resolved branch is fully valid, so it accepts every present discriminator
-    // and the selector would return that same branch, whose keys are already
-    // the active set. Kept because doing the work is pointless and the
-    // condition states the intent.
-    const provisionalBranch =
-      nodeExposed && reducedNode === undefined
-        ? selectProvisionalBranch(original, dataRecord)
-        : undefined
-    const provisionalSchema = provisionalBranch?.schema as Record<string, unknown> | undefined
-    const provisionalKeys = new Set(
-      Object.keys((provisionalSchema?.properties as Record<string, unknown> | undefined) ?? {}),
-    )
-    for (const key of additionalPropertyKeys(provisionalBranch, dataRecord)) provisionalKeys.add(key)
-    const provisionalRequired = new Set(
-      Array.isArray(provisionalSchema?.required) ? (provisionalSchema.required as string[]) : [],
-    )
-
-    // Candidates are collected from `original`, not `resolved`, so every oneOf/anyOf
-    // branch's properties are represented (the matching branch alone, via `resolved`,
-    // would only expose its own properties).
-    const applicableRequired = applicableRequiredKeys(
-      declaredAt.applicable,
-      applicableData,
+    projectObjectProjection({
+      frame,
       scope,
-      ctx.cache.dynamicReferenceProjection,
-      ctx.branchApplicability,
-    )
-    const provisionalRequiredKeys = provisionalBranch
-      ? applicableRequiredKeys(
-          [provisionalBranch],
-          applicableData,
-          scope,
-          ctx.cache.dynamicReferenceProjection,
-          ctx.branchApplicability,
-        )
-      : new Set<string>()
-    for (const key of candidateProps.keys()) {
-      const present = dataRecord !== undefined && Object.hasOwn(dataRecord, key)
-      if (
-        (present || applicableRequired.has(key)) &&
-        applicableAdditionalPropertySchemas(
-          declaredAt.applicable,
-          key,
-          applicableData,
-          scope,
-          ctx.cache.dynamicReferenceProjection,
-          ctx.branchApplicability,
-        ).length > 0
-      ) {
-        activeKeys.add(key)
-      }
-    }
-    if (provisionalBranch) {
-      for (const key of candidateProps.keys()) {
-        if (
-          provisionalRequiredKeys.has(key) &&
-          (applicableAdditionalPropertySchemas(
-            declaredAt.applicable,
-            key,
-            applicableData,
-            scope,
-            ctx.cache.dynamicReferenceProjection,
-            ctx.branchApplicability,
-          ).length > 0 ||
-            applicableAdditionalPropertySchemas(
-              [provisionalBranch],
-              key,
-              applicableData,
-              scope,
-              ctx.cache.dynamicReferenceProjection,
-              ctx.branchApplicability,
-            ).length > 0)
-        ) {
-          provisionalKeys.add(key)
-        }
-      }
-    }
-    const propKeys = [...candidateProps.keys()]
-
-    const children: ChildProjection[] | undefined =
-      propKeys.length > 0
-        ? propKeys.map((key) => {
-            // Gated on the node applying at all. A branch that does not apply
-            // demands nothing, so reporting its `required` array as a
-            // requirement would attribute to the validator something it is not
-            // asking for.
-            const required = nodeActive && requiredSet.has(key)
-            return {
-              pointer: toPointer(`${pointer}/${escapeSegment(key)}`),
-              key,
-              required,
-              provisionalRequired: !required && provisionalRequired.has(key) ? true : undefined,
-            }
-          })
-        : undefined
-
-    nodes.set(toPointer(pointer), {
+      dynamicReferenceAtLocation,
+      info,
+      original,
+      originalSchema,
+      resolved,
+      schema,
       type,
-      format: typeof schema.format === 'string' ? schema.format : undefined,
-      constraints: extractConstraints(schema, ctx.cache.dialect),
-      children,
-      enumValues: extractEnumValues(schema),
-      active: nodeActive,
-      provisional: nodeProvisional ? true : undefined,
-      defaultConflict,
-      annotations: extractAnnotations(schema, conflictedDefault, defaultOverride),
-      ...(defaultSources !== undefined ? { defaultSources } : {}),
+      recursive,
+      selfLineage,
+      presentation,
     })
-
-    for (const [index, key] of propKeys.entries()) {
-      const childPointer = `${pointer}/${escapeSegment(key)}`
-      const childActive = nodeActive && activeKeys.has(key)
-      // A descendant inherits exposure, not activity: under a provisionally
-      // selected ancestor its own locally applicable properties are
-      // provisional too, while a locally inactive one stays inactive.
-      const childProvisional =
-        !childActive && nodeExposed && (activeKeys.has(key) || provisionalKeys.has(key))
-      const reducedChildNode = memberSchema(reducedNode, key)
-      // Precedence matters as much as the selection does. Marking the right
-      // branch provisional while taking its shape from `candidatePrototype`,
-      // which is first-wins across branches, would render another branch's
-      // widget and annotations under the selected branch's name, and would hand
-      // ADR-003's pass another branch's `default`.
-      const provisionalChildNode = memberSchema(provisionalBranch, key)
-      const candidate = candidateProps.get(key)!
-      const childData = dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined
-      const sourceChildNode = reducedChildNode ?? candidate.direct ?? candidatePrototype(candidate)
-      const sourceSchema = sourceChildNode.schema as Record<string, unknown>
-      let scopedChildNode: SchemaNode | undefined
-      let childScope = scope
-      if (ctx.cache.dynamicReferenceProjection && childActive) {
-        const nextScope: ValidationPath = [...scope]
-        if (
-          typeof sourceSchema.$dynamicAnchor === 'string' ||
-          typeof sourceSchema.$id === 'string' ||
-          sourceSchema.$recursiveAnchor === true
-        ) {
-          nextScope.push({ pointer: `#${childPointer}`, node: sourceChildNode })
-        }
-        const result = resolved.getNodeChild(key, dataRecord ?? {}, {
-          pointer: `#${childPointer}`,
-          path: nextScope,
-        })
-        if (!result.error && isSchemaNode(result.node)) {
-          scopedChildNode = result.node
-          if (nextScope.at(-1)?.node !== scopedChildNode) {
-            nextScope.push({ pointer: `#${childPointer}`, node: scopedChildNode })
-          }
-          childScope = nextScope
-        }
-      }
-      let applicableChildNode = reducedChildNode
-      let scopedApplicableChildNode = scopedChildNode
-      const hasScopedReference =
-        typeof sourceSchema.$dynamicRef === 'string' || typeof sourceSchema.$recursiveRef === 'string'
-      for (const source of applicableAdditionalPropertySchemas(
-        declaredAt.applicable,
-        key,
-        applicableData,
-        scope,
-        ctx.cache.dynamicReferenceProjection,
-        ctx.branchApplicability,
-      )) {
-        const alreadyApplicable =
-          applicableChildNode !== undefined && positionOf(applicableChildNode) === positionOf(source)
-        const alreadyScoped =
-          scopedApplicableChildNode !== undefined && positionOf(scopedApplicableChildNode) === positionOf(source)
-        if (alreadyApplicable && (!scopedApplicableChildNode || alreadyScoped)) continue
-        const reduced = reduceAdditionalPropertySchema(source, childData, scope)
-        if (!alreadyApplicable) {
-          applicableChildNode =
-            applicableChildNode === undefined
-              ? reduced
-              : mergeNode(applicableChildNode, reduced) ?? applicableChildNode
-        }
-        if (scopedApplicableChildNode && !alreadyScoped) {
-          scopedApplicableChildNode = mergeNode(scopedApplicableChildNode, reduced) ?? scopedApplicableChildNode
-        }
-      }
-      // Applicable declarations retain their authored scope here. The parent
-      // reducer merges `properties` across `allOf`, which can make an
-      // `additionalProperties` schema in a separate branch appear inapplicable.
-      // Failing that, use the reducer's child, then the selected branch, then a
-      // stable placeholder from the candidate set.
-      const childNode =
-        (hasScopedReference ? scopedApplicableChildNode : undefined) ??
-        applicableChildNode ??
-        composeChild(candidate.direct, provisionalChildNode) ??
-        candidatePrototype(candidate)
-      let positions = childPositions(
-        declaredAt,
-        key,
-        // This node's own data, not the child's: the branches being entered
-        // are this location's, so they are decided by the instance here. The
-        // child's own conditional edges are entered by the child's walk, with
-        // the child's data. `applicableData` is the reducer's object stand-in
-        // when this location has no object value yet.
-        applicableData,
-        childDeclaring(info, key),
-        scope,
-        ctx.cache.dynamicReferenceProjection,
-        ctx.branchApplicability,
-      )
-      const dynamicChildDeclarations = dynamicApplicableNodes.flatMap((applicableNode) => {
-        const dynamicChild = applicableNode.properties?.[key]
-        return dynamicChild ? [dynamicChild] : []
-      })
-      positions = {
-        ...positions,
-        declaring: extendDeclaring(positions.declaring, dynamicChildDeclarations),
-      }
-      if (scopedChildNode && hasScopedReference && !positions.declaring.includes(scopedChildNode)) {
-        positions = {
-          ...positions,
-          applicable: [...positions.applicable, scopedChildNode],
-          declaring: [...positions.declaring, scopedChildNode],
-        }
-      }
-      const enter = (): void =>
-        walk({
-          node: childNode,
-          pointer: childPointer,
-          data: childData,
-          active: childActive,
-          provisional: childProvisional,
-          nodes,
-          diagnostics,
-          declaredAt: positions,
-          ctx,
-          member: true,
-          lineage: selfLineage,
-          path: [...path, index],
-          scope: childScope,
-          dynamicReferenceAtLocation: hasScopedReference,
-        })
-      // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
-      const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
-      if (counted) {
-        ctx.queue[selfLineage.depth] ??= []
-        ctx.queue[selfLineage.depth].push({ path: [...path, index], enter })
-      } else enter()
-    }
     return
   }
 
@@ -2304,6 +2035,476 @@ function walk(frame: ProjectionWalkFrame): void {
     })
   }
 }
+
+function reduceObjectNode(input: ObjectWalkInput, dataRecord: Record<string, unknown> | undefined): SchemaNode | undefined {
+  const { original, resolved, scope, frame } = input
+  const { data, member, ctx } = frame
+  let reducedNode: SchemaNode | undefined = resolved
+  if (resolved === original && requiresReduction(resolved)) {
+    if (original.allOf && hasReferencedAllOf(original)) {
+      reducedNode = reduceAllOfForProjection(resolved, dataRecord ?? {}, scope)
+    } else {
+      reducedNode = resolved.reduceNode(dataRecord ?? {}, { path: [...scope] }).node
+    }
+  }
+  if (reducedNode && resolved === original && (!member || data !== undefined)) {
+    reducedNode = resolveSelectedConditionalReference(
+      original,
+      reducedNode,
+      dataRecord ?? {},
+      scope,
+      ctx.branchApplicability,
+    )
+  }
+  if (reducedNode && resolved === original && !resolveExplicitType(input.originalSchema) && (original.oneOf || original.anyOf)) {
+    reducedNode = resolveSelectedBranch(original, reducedNode, dataRecord ?? {}, ctx.branchApplicability, scope)
+  }
+  return reducedNode
+}
+
+function collectDynamicObjectCandidates(
+  input: ObjectWalkInput,
+  reducedNode: SchemaNode | undefined,
+  dataRecord: Record<string, unknown> | undefined,
+  candidateProps: ReadonlyMap<string, CandidateProperty>,
+  activeKeys: Set<string>,
+  requiredSet: Set<string>,
+): { candidateProps: ReadonlyMap<string, CandidateProperty>; dynamicApplicableNodes: SchemaNode[] } {
+  const { original, resolved, scope, frame } = input
+  const { data, ctx } = frame
+  if (!ctx.cache.dynamicReferenceProjection) return { candidateProps, dynamicApplicableNodes: [] }
+  const dynamicApplicableNodes: SchemaNode[] = []
+  eachApplicable({
+    roots: [original],
+    data,
+    branchApplicability: ctx.branchApplicability,
+    visitor: (applicableNode) => {
+      dynamicApplicableNodes.push(applicableNode)
+      for (const key of Object.keys(applicableNode.properties ?? {})) activeKeys.add(key)
+      for (const key of applicableNode.required ?? []) requiredSet.add(key)
+    },
+    scope,
+    dynamicReferenceProjection: true,
+  })
+  const expandedCandidates = new Map(candidateProps)
+  const activeCandidateNode = reducedNode ?? resolved
+  if (activeCandidateNode !== original) {
+    for (const [key, candidate] of collectCandidateProperties(activeCandidateNode, dataRecord)) {
+      if (!expandedCandidates.has(key)) expandedCandidates.set(key, candidate)
+    }
+  }
+  for (const applicableNode of dynamicApplicableNodes) {
+    for (const [key, propertyNode] of Object.entries(applicableNode.properties ?? {})) {
+      if (!expandedCandidates.has(key)) expandedCandidates.set(key, { direct: propertyNode, alternatives: [] })
+    }
+  }
+  return { candidateProps: expandedCandidates, dynamicApplicableNodes }
+}
+
+function collectObjectCandidates(
+  input: ObjectWalkInput,
+  dataRecord: Record<string, unknown> | undefined,
+  reducedNode: SchemaNode | undefined,
+): Pick<ObjectProjectionState, 'candidateProps' | 'activeKeys' | 'requiredSet' | 'dynamicApplicableNodes'> {
+  const { original, resolved, schema, frame } = input
+  const { declaredAt, ctx } = frame
+  const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
+  const reducedProperties =
+    (reducedSchema?.properties as Record<string, unknown> | undefined) ??
+    (schema.properties as Record<string, unknown> | undefined) ??
+    {}
+  const retainedDeclarations = declaredAt.declaring.filter((declaration) =>
+    hasRetainedDescendant(positionOf(declaration), ctx.cache),
+  )
+  const candidateDeclarations = input.dynamicReferenceAtLocation
+    ? []
+    : [...declaredAt.applicable, ...retainedDeclarations]
+  let candidateProps: ReadonlyMap<string, CandidateProperty> = collectCandidateProperties(
+    original,
+    dataRecord,
+    candidateDeclarations,
+  )
+  const activeKeys = new Set([
+    ...Object.keys(reducedProperties),
+    ...additionalPropertyKeys(reducedNode, dataRecord),
+  ])
+  if (!reducedNode) {
+    for (const [key, candidate] of candidateProps) {
+      if (candidate.direct) activeKeys.add(key)
+    }
+  }
+  const requiredSet = computeRequiredSet(resolved, reducedSchema, dataRecord)
+  const dynamic = collectDynamicObjectCandidates(input, reducedNode, dataRecord, candidateProps, activeKeys, requiredSet)
+  candidateProps = dynamic.candidateProps
+  if (!reducedNode) {
+    for (const key of unconditionalRequiredKeys(declaredAt.unconditional)) requiredSet.add(key)
+  }
+  return { candidateProps, activeKeys, requiredSet, dynamicApplicableNodes: dynamic.dynamicApplicableNodes }
+}
+
+function addApplicableAdditionalKeys(
+  input: ObjectWalkInput,
+  dataRecord: Record<string, unknown> | undefined,
+  candidateProps: ReadonlyMap<string, CandidateProperty>,
+  applicableRequired: Set<string>,
+  activeKeys: Set<string>,
+): void {
+  const { frame, scope } = input
+  const { declaredAt, ctx } = frame
+  const { applicableData } = input.presentation
+  for (const key of candidateProps.keys()) {
+    const present = dataRecord !== undefined && Object.hasOwn(dataRecord, key)
+    if (
+      (present || applicableRequired.has(key)) &&
+      applicableAdditionalPropertySchemas(
+        declaredAt.applicable,
+        key,
+        applicableData,
+        scope,
+        ctx.cache.dynamicReferenceProjection,
+        ctx.branchApplicability,
+      ).length > 0
+    ) {
+      activeKeys.add(key)
+    }
+  }
+}
+
+function addProvisionalAdditionalKeys(
+  input: ObjectWalkInput,
+  provisionalBranch: SchemaNode,
+  candidateProps: ReadonlyMap<string, CandidateProperty>,
+  provisionalRequiredKeys: Set<string>,
+  provisionalKeys: Set<string>,
+): void {
+  const { frame, scope } = input
+  const { declaredAt, ctx } = frame
+  const { applicableData } = input.presentation
+  for (const key of candidateProps.keys()) {
+    if (!provisionalRequiredKeys.has(key)) continue
+    const applicableSchemas = applicableAdditionalPropertySchemas(
+      declaredAt.applicable,
+      key,
+      applicableData,
+      scope,
+      ctx.cache.dynamicReferenceProjection,
+      ctx.branchApplicability,
+    )
+    const provisionalSchemas = applicableAdditionalPropertySchemas(
+      [provisionalBranch],
+      key,
+      applicableData,
+      scope,
+      ctx.cache.dynamicReferenceProjection,
+      ctx.branchApplicability,
+    )
+    if (applicableSchemas.length > 0 || provisionalSchemas.length > 0) provisionalKeys.add(key)
+  }
+}
+
+function objectProjectionState(input: ObjectWalkInput): ObjectProjectionState {
+  const { frame, resolved, original, scope, presentation } = input
+  const { data, declaredAt, ctx } = frame
+  const dataRecord = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined
+  const reducedNode = reduceObjectNode(input, dataRecord)
+  const candidateState = collectObjectCandidates(input, dataRecord, reducedNode)
+  const provisionalBranch =
+    presentation.nodeExposed && reducedNode === undefined
+      ? selectProvisionalBranch(original, dataRecord)
+      : undefined
+  const provisionalSchema = provisionalBranch?.schema as Record<string, unknown> | undefined
+  const provisionalKeys = new Set(
+    Object.keys((provisionalSchema?.properties as Record<string, unknown> | undefined) ?? {}),
+  )
+  for (const key of additionalPropertyKeys(provisionalBranch, dataRecord)) provisionalKeys.add(key)
+  const provisionalRequired = new Set(
+    Array.isArray(provisionalSchema?.required) ? (provisionalSchema.required as string[]) : [],
+  )
+  const applicableRequired = applicableRequiredKeys(
+    declaredAt.applicable,
+    presentation.applicableData,
+    scope,
+    ctx.cache.dynamicReferenceProjection,
+    ctx.branchApplicability,
+  )
+  const provisionalRequiredKeys = provisionalBranch
+    ? applicableRequiredKeys(
+        [provisionalBranch],
+        presentation.applicableData,
+        scope,
+        ctx.cache.dynamicReferenceProjection,
+        ctx.branchApplicability,
+      )
+    : new Set<string>()
+  addApplicableAdditionalKeys(input, dataRecord, candidateState.candidateProps, applicableRequired, candidateState.activeKeys)
+  if (provisionalBranch) {
+    addProvisionalAdditionalKeys(
+      input,
+      provisionalBranch,
+      candidateState.candidateProps,
+      provisionalRequiredKeys,
+      provisionalKeys,
+    )
+  }
+  return {
+    dataRecord,
+    reducedNode,
+    ...candidateState,
+    provisionalBranch,
+    provisionalKeys,
+    provisionalRequired,
+  }
+}
+
+function resolveDynamicChildNode(
+  object: ObjectWalkInput,
+  state: ObjectProjectionState,
+  key: string,
+  childPointer: string,
+  childActive: boolean,
+  sourceChildNode: SchemaNode,
+): { node: SchemaNode | undefined; scope: ValidationPath } {
+  const { frame, scope, resolved } = object
+  const { ctx } = frame
+  const sourceSchema = sourceChildNode.schema as Record<string, unknown>
+  let scopedChildNode: SchemaNode | undefined
+  let childScope = scope
+  if (!ctx.cache.dynamicReferenceProjection || !childActive) return { node: scopedChildNode, scope: childScope }
+  const nextScope: ValidationPath = [...scope]
+  if (
+    typeof sourceSchema.$dynamicAnchor === 'string' ||
+    typeof sourceSchema.$id === 'string' ||
+    sourceSchema.$recursiveAnchor === true
+  ) {
+    nextScope.push({ pointer: `#${childPointer}`, node: sourceChildNode })
+  }
+  const result = resolved.getNodeChild(key, state.dataRecord ?? {}, {
+    pointer: `#${childPointer}`,
+    path: nextScope,
+  })
+  if (!result.error && isSchemaNode(result.node)) {
+    scopedChildNode = result.node
+    if (nextScope.at(-1)?.node !== scopedChildNode) {
+      nextScope.push({ pointer: `#${childPointer}`, node: scopedChildNode })
+    }
+    childScope = nextScope
+  }
+  return { node: scopedChildNode, scope: childScope }
+}
+
+function mergeApplicableChildNodes(
+  object: ObjectWalkInput,
+  key: string,
+  childData: unknown,
+  reducedChildNode: SchemaNode | undefined,
+  scopedChildNode: SchemaNode | undefined,
+): { applicable: SchemaNode | undefined; scoped: SchemaNode | undefined } {
+  const { frame, scope } = object
+  const { declaredAt, ctx } = frame
+  const applicableData = object.presentation.applicableData
+  let applicableChildNode = reducedChildNode
+  let scopedApplicableChildNode = scopedChildNode
+  const sources = applicableAdditionalPropertySchemas(
+    declaredAt.applicable,
+    key,
+    applicableData,
+    scope,
+    ctx.cache.dynamicReferenceProjection,
+    ctx.branchApplicability,
+  )
+  for (const source of sources) {
+    const alreadyApplicable =
+      applicableChildNode !== undefined && positionOf(applicableChildNode) === positionOf(source)
+    const alreadyScoped =
+      scopedApplicableChildNode !== undefined && positionOf(scopedApplicableChildNode) === positionOf(source)
+    if (alreadyApplicable && (!scopedApplicableChildNode || alreadyScoped)) continue
+    const reduced = reduceAdditionalPropertySchema(source, childData, scope)
+    if (!alreadyApplicable) {
+      applicableChildNode =
+        applicableChildNode === undefined
+          ? reduced
+          : mergeNode(applicableChildNode, reduced) ?? applicableChildNode
+    }
+    if (scopedApplicableChildNode && !alreadyScoped) {
+      scopedApplicableChildNode = mergeNode(scopedApplicableChildNode, reduced) ?? scopedApplicableChildNode
+    }
+  }
+  return { applicable: applicableChildNode, scoped: scopedApplicableChildNode }
+}
+
+function resolveObjectChildNodes(
+  object: ObjectWalkInput,
+  state: ObjectProjectionState,
+  key: string,
+  childPointer: string,
+  childActive: boolean,
+  childProvisional: boolean,
+  childData: unknown,
+): ObjectChildNodes {
+  const { resolved } = object
+  const reducedChildNode = memberSchema(state.reducedNode, key)
+  const provisionalChildNode = memberSchema(state.provisionalBranch, key)
+  const candidate = state.candidateProps.get(key)!
+  const sourceChildNode = reducedChildNode ?? candidate.direct ?? candidatePrototype(candidate)
+  const sourceSchema = sourceChildNode.schema as Record<string, unknown>
+  const scoped = resolveDynamicChildNode(object, state, key, childPointer, childActive, sourceChildNode)
+  const hasScopedReference =
+    typeof sourceSchema.$dynamicRef === 'string' || typeof sourceSchema.$recursiveRef === 'string'
+  const applicable = mergeApplicableChildNodes(
+    object,
+    key,
+    childData,
+    reducedChildNode,
+    scoped.node,
+  )
+  const childNode =
+    (hasScopedReference ? applicable.scoped : undefined) ??
+    applicable.applicable ??
+    composeChild(candidate.direct, provisionalChildNode) ??
+    candidatePrototype(candidate)
+  return {
+    childPointer,
+    childData,
+    childActive,
+    childProvisional,
+    childNode,
+    childScope: scoped.scope,
+    scopedChildNode: scoped.node,
+    hasScopedReference,
+  }
+}
+
+function objectChildPositions(
+  object: ObjectWalkInput,
+  state: ObjectProjectionState,
+  key: string,
+  child: ObjectChildNodes,
+): DeclarationPositions {
+  const { frame, scope, info } = object
+  const { ctx, declaredAt } = frame
+  let positions = childPositions(
+    declaredAt,
+    key,
+    object.presentation.applicableData,
+    childDeclaring(info, key),
+    scope,
+    ctx.cache.dynamicReferenceProjection,
+    ctx.branchApplicability,
+  )
+  const dynamicChildDeclarations = state.dynamicApplicableNodes.flatMap((applicableNode) => {
+    const dynamicChild = applicableNode.properties?.[key]
+    return dynamicChild ? [dynamicChild] : []
+  })
+  positions = {
+    ...positions,
+    declaring: extendDeclaring(positions.declaring, dynamicChildDeclarations),
+  }
+  if (child.scopedChildNode && child.hasScopedReference && !positions.declaring.includes(child.scopedChildNode)) {
+    positions = {
+      ...positions,
+      applicable: [...positions.applicable, child.scopedChildNode],
+      declaring: [...positions.declaring, child.scopedChildNode],
+    }
+  }
+  return positions
+}
+
+function enterObjectChild(
+  object: ObjectWalkInput,
+  index: number,
+  child: ObjectChildNodes,
+  positions: DeclarationPositions,
+): void {
+  const { frame, recursive, selfLineage } = object
+  const { nodes, diagnostics, ctx, path } = frame
+  const enter = (): void =>
+    walk({
+      node: child.childNode,
+      pointer: child.childPointer,
+      data: child.childData,
+      active: child.childActive,
+      provisional: child.childProvisional,
+      nodes,
+      diagnostics,
+      declaredAt: positions,
+      ctx,
+      member: true,
+      lineage: selfLineage,
+      path: [...path, index],
+      scope: child.childScope,
+      dynamicReferenceAtLocation: child.hasScopedReference,
+    })
+  const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
+  if (counted) {
+    ctx.queue[selfLineage.depth] ??= []
+    ctx.queue[selfLineage.depth].push({ path: [...path, index], enter })
+  } else enter()
+}
+
+function walkObjectChild(input: ObjectChildInput): void {
+  const { object, state, key, index } = input
+  const { dataRecord, activeKeys, provisionalKeys } = state
+  const nodeActive = object.presentation.nodeActive
+  const nodeExposed = object.presentation.nodeExposed
+  const childPointer = `${object.frame.pointer}/${escapeSegment(key)}`
+  const childActive = nodeActive && activeKeys.has(key)
+  const childProvisional =
+    !childActive && nodeExposed && (activeKeys.has(key) || provisionalKeys.has(key))
+  const childData = dataRecord !== undefined && Object.hasOwn(dataRecord, key) ? dataRecord[key] : undefined
+  const child = resolveObjectChildNodes(object, state, key, childPointer, childActive, childProvisional, childData)
+  const positions = objectChildPositions(object, state, key, child)
+  enterObjectChild(object, index, child, positions)
+}
+
+function projectObjectProjection(input: ObjectWalkInput): void {
+  const { frame, schema, type, presentation } = input
+  const { pointer, nodes, ctx } = frame
+  const { defaultConflict, conflictedDefault, defaultOverride, defaultSources, nodeActive, nodeProvisional } = presentation
+  const state = objectProjectionState(input)
+  const {
+    candidateProps,
+    requiredSet,
+    provisionalRequired,
+  } = state
+  const propKeys = [...candidateProps.keys()]
+
+  const children: ChildProjection[] | undefined =
+    propKeys.length > 0
+      ? propKeys.map((key) => {
+          // Gated on the node applying at all. A branch that does not apply
+          // demands nothing, so reporting its `required` array as a
+          // requirement would attribute to the validator something it is not
+          // asking for.
+          const required = nodeActive && requiredSet.has(key)
+          return {
+            pointer: toPointer(`${pointer}/${escapeSegment(key)}`),
+            key,
+            required,
+            provisionalRequired: !required && provisionalRequired.has(key) ? true : undefined,
+          }
+        })
+      : undefined
+
+  nodes.set(toPointer(pointer), {
+    type,
+    format: typeof schema.format === 'string' ? schema.format : undefined,
+    constraints: extractConstraints(schema, ctx.cache.dialect),
+    children,
+    enumValues: extractEnumValues(schema),
+    active: nodeActive,
+    provisional: nodeProvisional ? true : undefined,
+    defaultConflict,
+    annotations: extractAnnotations(schema, conflictedDefault, defaultOverride),
+    ...(defaultSources !== undefined ? { defaultSources } : {}),
+  })
+
+  for (const [index, key] of propKeys.entries()) {
+    walkObjectChild({ object: input, state, key, index })
+  }
+  return
+
+}
+
 
 /**
  * Maps a compiled json-schema-library root node to a SchemaProjection.
