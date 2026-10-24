@@ -57,7 +57,7 @@ const maxSchemaArrayItems = 256
 const maxSchemaObjectProperties = 256
 const maxSchemaStringLength = 16_384
 const maxTotalSchemaStringLength = 65_536
-const jsonTokenDelimiter = /[\s,:\[\]{}]/
+const jsonTokenDelimiters = ',:[]{}'
 
 function bounded(value: string): string {
   const normalized = value.replace(/[\r\n\t]+/g, ' ').trim()
@@ -97,7 +97,7 @@ function skipJsonString(text: string, start: number): number {
 
 function skipJsonAtom(text: string, start: number): number {
   let index = start + 1
-  while (index < text.length && !jsonTokenDelimiter.test(text[index]!)) index += 1
+  while (index < text.length && !/\s/.test(text[index]!) && !jsonTokenDelimiters.includes(text[index]!)) index += 1
   return index
 }
 
@@ -504,21 +504,34 @@ async function checkFormSchemaKeywords(
     { document: rootDocument, path: [], schema: root },
   ]
   const visited = new Set<string>()
-  while (pending.length > 0) {
-    const { document, path, schema: candidate } = pending.pop()!
-    const position = schemaLocationKey(document, path)
-    if (visited.has(position)) continue
-    visited.add(position)
-    if (typeof candidate === 'boolean') continue
-    if (!isRecord(candidate)) throw new OutputRejectedError(['A reachable form schema must be an object or boolean schema.'])
-    assertSupportedSchemaKeywords(candidate, path)
-    if (typeof candidate.$ref === 'string') {
-      await queueFormReferenceTarget(candidate.$ref, document, documents, validatedReferenceTargets, pending, dialect)
-    }
+  function enqueueChildren(document: SchemaDocument, path: readonly string[], candidate: Record<string, unknown>): void {
     for (const child of childSchemaEntries(candidate)) {
       pending.push({ document, path: [...path, ...child.path], schema: child.schema })
     }
   }
+
+  function processPending(): Promise<void> {
+    while (pending.length > 0) {
+      const { document, path, schema: candidate } = pending.pop()!
+      const position = schemaLocationKey(document, path)
+      if (visited.has(position)) continue
+      visited.add(position)
+      if (typeof candidate === 'boolean') continue
+      if (!isRecord(candidate)) throw new OutputRejectedError(['A reachable form schema must be an object or boolean schema.'])
+      assertSupportedSchemaKeywords(candidate, path)
+      if (typeof candidate.$ref === 'string') {
+        return queueFormReferenceTarget(candidate.$ref, document, documents, validatedReferenceTargets, pending, dialect)
+          .then(() => {
+            enqueueChildren(document, path, candidate)
+            return processPending()
+          })
+      }
+      enqueueChildren(document, path, candidate)
+    }
+    return Promise.resolve()
+  }
+
+  return processPending()
 }
 
 async function validateSchemaDocument(root: unknown, dialect: SchemaDialect): Promise<void> {
@@ -658,10 +671,10 @@ async function createFormAdapter(
   }
 }
 
-async function acceptDisplayOutput(
+function acceptDisplayOutput(
   output: Record<string, unknown>,
   options: GenerationExampleOptions,
-): Promise<AcceptedRuntime> {
+): AcceptedRuntime {
   const document = output.document as Record<string, unknown>
   const actions = options.actions ?? {}
   checkActions(document, actions)
