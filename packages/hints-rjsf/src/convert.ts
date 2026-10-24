@@ -171,14 +171,7 @@ function visitSubtree(
   }
 }
 
-function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string): void {
-  checkShape(walk, ui, path, false)
-  const options = effectiveOptions(ui, path, walk.global)
-  const component = componentAt(options, 'unknown')
-  if (component) {
-    walk.components.push({ ...component, pointer: array, rows: true })
-    return
-  }
+function visitRowOptions(walk: Walk, options: Options): void {
   for (const [name, option] of options) {
     if (isGlobal(option)) continue
     if ((name === 'field' || name === 'widget') && typeof option.value !== 'string') {
@@ -195,15 +188,33 @@ function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string)
       report(walk, { code: 'unaddressable', key: `ui:${name}`, path: option.path, value: option.value, message: ROWS })
     }
   }
+}
+
+function visitRowNesting(walk: Walk, ui: JsonObject, array: JsonPointer, path: string, key: string): void {
+  const value = ui[key] as JsonValue
+  const at = append(path, key)
+  if (key === 'oneOf' || key === 'anyOf') {
+    visitSubtree(walk, value, at, key, 'conditional', conditional(key))
+  } else if (key === 'additionalItems' || key === 'additionalProperties' || isJsonArray(value)) {
+    visitSubtree(walk, value, at, key, 'unaddressable', ROWS)
+  } else if (isJsonObject(value)) {
+    visitRows(walk, value, array, at)
+  } else {
+    report(walk, { code: 'invalid-value', key, path: at, value, message: NOT_AN_OBJECT })
+  }
+}
+
+function visitRows(walk: Walk, ui: JsonObject, array: JsonPointer, path: string): void {
+  checkShape(walk, ui, path, false)
+  const options = effectiveOptions(ui, path, walk.global)
+  const component = componentAt(options, 'unknown')
+  if (component) {
+    walk.components.push({ ...component, pointer: array, rows: true })
+    return
+  }
+  visitRowOptions(walk, options)
   for (const key of Object.keys(ui)) {
-    if (key.startsWith('ui:')) continue
-    const value = ui[key] as JsonValue
-    const at = append(path, key)
-    if (key === 'oneOf' || key === 'anyOf') visitSubtree(walk, value, at, key, 'conditional', conditional(key))
-    else if (key === 'additionalItems' || key === 'additionalProperties' || isJsonArray(value)) {
-      visitSubtree(walk, value, at, key, 'unaddressable', ROWS)
-    } else if (isJsonObject(value)) visitRows(walk, value, array, at)
-    else report(walk, { code: 'invalid-value', key, path: at, value, message: NOT_AN_OBJECT })
+    if (!key.startsWith('ui:')) visitRowNesting(walk, ui, array, path, key)
   }
 }
 
@@ -283,6 +294,44 @@ function visitOption(walk: Walk, name: string, option: Option, ctx: KeyContext, 
   }
 }
 
+function visitUnprojectedNesting(
+  walk: Walk,
+  key: string,
+  value: JsonValue,
+  pointer: JsonPointer,
+  path: string,
+  kind: NodeKind,
+): void {
+  if (kind === 'array' && key === 'items') {
+    visitItems(walk, value, pointer, path)
+    return
+  }
+  if (kind === 'array' && key === 'additionalItems') {
+    visitSubtree(walk, value, path, key, 'unaddressable', 'RJSF applies it to rows past the tuple positions, and Texaryn projects none.')
+    return
+  }
+  if (kind === 'object' && key === 'additionalProperties') {
+    visitSubtree(walk, value, path, key, 'unaddressable', 'RJSF applies it to properties the data adds, and Texaryn projects no node for them.')
+    return
+  }
+  if (key === 'oneOf' || key === 'anyOf') {
+    if (isJsonArray(value)) visitSubtree(walk, value, path, key, 'conditional', conditional(key))
+    else report(walk, { code: 'invalid-value', key, path, value, message: `RJSF reads ${key} as an array of option uiSchemas.` })
+    return
+  }
+  if (key === 'classNames') {
+    report(walk, { code: 'unsupported', key, path, pointer, value, message: 'Texaryn has no styling hook per location; style the widget registered for it.' })
+    return
+  }
+  report(walk, {
+    code: 'unknown-location',
+    key,
+    path,
+    pointer,
+    message: `No child named ${key} is projected at ${where(pointer)}: either a typo, which RJSF ignores too, or a property the schema declares that this port does not project.`,
+  })
+}
+
 function visitNesting(
   walk: Walk,
   ui: JsonObject,
@@ -301,26 +350,7 @@ function visitNesting(
     else report(walk, { code: 'invalid-value', key, path: at, pointer: child.pointer, value, message: NOT_AN_OBJECT })
     return
   }
-  if (kind === 'array' && key === 'items') {
-    visitItems(walk, value, pointer, at)
-  } else if (kind === 'array' && key === 'additionalItems') {
-    visitSubtree(walk, value, at, key, 'unaddressable', 'RJSF applies it to rows past the tuple positions, and Texaryn projects none.')
-  } else if (kind === 'object' && key === 'additionalProperties') {
-    visitSubtree(walk, value, at, key, 'unaddressable', 'RJSF applies it to properties the data adds, and Texaryn projects no node for them.')
-  } else if (key === 'oneOf' || key === 'anyOf') {
-    if (isJsonArray(value)) visitSubtree(walk, value, at, key, 'conditional', conditional(key))
-    else report(walk, { code: 'invalid-value', key, path: at, value, message: `RJSF reads ${key} as an array of option uiSchemas.` })
-  } else if (key === 'classNames') {
-    report(walk, { code: 'unsupported', key, path: at, pointer, value, message: 'Texaryn has no styling hook per location; style the widget registered for it.' })
-  } else {
-    report(walk, {
-      code: 'unknown-location',
-      key,
-      path: at,
-      pointer,
-      message: `No child named ${key} is projected at ${where(pointer)}: either a typo, which RJSF ignores too, or a property the schema declares that this port does not project.`,
-    })
-  }
+  visitUnprojectedNesting(walk, key, value, pointer, at, kind)
 }
 
 function visitNode(walk: Walk, ui: JsonObject, pointer: JsonPointer, path: string, inherited: boolean, root: boolean): void {
@@ -365,10 +395,24 @@ function visitGlobal(walk: Walk, root: JsonObject): void {
       continue
     }
     const effect = GLOBAL_EFFECTS.get(key)
-    if (effect && value === effect[0] && projects(walk.projection, effect[2])) {
-      report(walk, { code: 'unsupported', key: `ui:${key}`, path, value, message: effect[1] })
+    if (effect?.[0] !== value || effect === undefined) continue
+    const [, message, affects] = effect
+    if (projects(walk.projection, affects)) {
+      report(walk, { code: 'unsupported', key: `ui:${key}`, path, value, message })
     }
   }
+}
+
+function uiChildAt(
+  ui: JsonObject,
+  node: NodeProjection | undefined,
+  segment: string,
+): { value: JsonValue | undefined; row: boolean } {
+  const items = member(ui, 'items')
+  const list = node ? node.type === 'array' : items !== undefined && member(ui, segment) === undefined
+  if (!list) return { value: segment.startsWith('ui:') ? undefined : member(ui, segment), row: false }
+  if (isJsonArray(items)) return { value: undefined, row: true }
+  return { value: isCanonicalIndex(segment) ? items : undefined, row: true }
 }
 
 function uiObjectAt(root: JsonObject, projection: SchemaProjection, pointer: string): UiLocation | undefined {
@@ -379,18 +423,10 @@ function uiObjectAt(root: JsonObject, projection: SchemaProjection, pointer: str
   let rows = false
   for (const segment of segments) {
     const node = nodeAt(projection, at as JsonPointer)
-    const items = member(ui, 'items')
-    const list = node ? node.type === 'array' : items !== undefined && member(ui, segment) === undefined
-    let next: JsonValue | undefined
-    if (list) {
-      if (isJsonArray(items)) return undefined
-      next = isCanonicalIndex(segment) ? items : undefined
-      rows = true
-    } else {
-      next = segment.startsWith('ui:') ? undefined : member(ui, segment)
-    }
-    if (!isJsonObject(next)) return undefined
-    ui = next
+    const child = uiChildAt(ui, node, segment)
+    if (!isJsonObject(child.value)) return undefined
+    ui = child.value
+    rows ||= child.row
     at = append(at, segment)
   }
   return { ui, rows }

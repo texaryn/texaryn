@@ -34,27 +34,32 @@ function isSchemaRecord(value: unknown): value is Record<string, unknown> {
   return isRecord(value) || Array.isArray(value) || typeof value === 'boolean'
 }
 
+function hasSubmissionFeature(value: Record<string, unknown>, dialect: Dialect): boolean {
+  return typeof value.$dynamicRef === 'string' ||
+    typeof value.$recursiveRef === 'string' ||
+    (!isPre2019Dialect(dialect) && ('unevaluatedItems' in value || 'unevaluatedProperties' in value))
+}
+
+function visitSchemaChildren(value: Record<string, unknown>, visit: (child: unknown) => boolean): boolean {
+  for (const [keyword, child] of Object.entries(value)) {
+    if (NON_SCHEMA_VALUES.has(keyword)) continue
+    if (SCHEMA_SINGLE.has(keyword) && isSchemaRecord(child) && visit(child)) return true
+    if (SCHEMA_LIST.has(keyword) && Array.isArray(child) && visit(child)) return true
+    if (SCHEMA_MAP.has(keyword) && isRecord(child) && visit(Object.values(child))) return true
+  }
+  return false
+}
+
 export function supportsSubmissionProjection(schemas: readonly unknown[], dialect: Dialect): boolean {
   const seen = new WeakSet<object>()
   const visit = (value: unknown): boolean => {
+    if (typeof value !== 'object' || value === null || seen.has(value)) return false
+    seen.add(value)
     if (Array.isArray(value)) {
-      if (seen.has(value)) return false
-      seen.add(value)
       return value.some(visit)
     }
     if (!isRecord(value)) return false
-    if (seen.has(value)) return false
-    seen.add(value)
-    if (typeof value.$dynamicRef === 'string' || typeof value.$recursiveRef === 'string') return true
-    if (!isPre2019Dialect(dialect) && ('unevaluatedItems' in value || 'unevaluatedProperties' in value)) return true
-
-    for (const [keyword, child] of Object.entries(value)) {
-      if (NON_SCHEMA_VALUES.has(keyword)) continue
-      if (SCHEMA_SINGLE.has(keyword) && isSchemaRecord(child) && visit(child)) return true
-      if (SCHEMA_LIST.has(keyword) && Array.isArray(child) && visit(child)) return true
-      if (SCHEMA_MAP.has(keyword) && isRecord(child) && visit(Object.values(child))) return true
-    }
-    return false
+    return hasSubmissionFeature(value, dialect) || visitSchemaChildren(value, visit)
   }
 
   return !schemas.some(visit)
@@ -66,6 +71,32 @@ function resolveReference(node: SchemaNode): SchemaNode | undefined {
     return isSchemaNode(target) ? target : undefined
   } catch {
     return undefined
+  }
+}
+
+function visitSameInstanceReference(
+  node: SchemaNode,
+  dialect: Dialect,
+  referencePath: Set<string>,
+  visit: (candidate: unknown) => void,
+): boolean {
+  if (typeof node.$ref !== 'string') return false
+  const target = resolveReference(node)
+  if (target && !referencePath.has(target.schemaLocation)) visit(target)
+  if (!isPre2019Dialect(dialect)) return false
+  referencePath.delete(node.schemaLocation)
+  return true
+}
+
+function visitSameInstanceChildren(node: SchemaNode, visit: (candidate: unknown) => void): void {
+  for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
+    for (const branch of node[keyword] ?? []) visit(branch)
+  }
+  visit(node.then)
+  visit(node.else)
+  for (const branch of Object.values(node.dependentSchemas ?? {})) visit(branch)
+  for (const dependencies of Object.values(node.propertyDependencies ?? {})) {
+    for (const branch of Object.values(dependencies)) visit(branch)
   }
 }
 
@@ -81,26 +112,9 @@ function sameInstanceSchemas(roots: readonly SchemaNode[], dialect: Dialect): Sc
     seen.add(identity)
     if (referencePath.has(node.schemaLocation)) return
     referencePath.add(node.schemaLocation)
-
-    if (typeof node.$ref === 'string') {
-      const target = resolveReference(node)
-      if (target && !referencePath.has(target.schemaLocation)) visit(target)
-      if (isPre2019Dialect(dialect)) {
-        referencePath.delete(node.schemaLocation)
-        return
-      }
-    }
+    if (visitSameInstanceReference(node, dialect, referencePath, visit)) return
     found.push(node)
-
-    for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
-      for (const branch of node[keyword] ?? []) visit(branch)
-    }
-    visit(node.then)
-    visit(node.else)
-    for (const branch of Object.values(node.dependentSchemas ?? {})) visit(branch)
-    for (const dependencies of Object.values(node.propertyDependencies ?? {})) {
-      for (const branch of Object.values(dependencies)) visit(branch)
-    }
+    visitSameInstanceChildren(node, visit)
     referencePath.delete(node.schemaLocation)
   }
 
@@ -210,58 +224,76 @@ function cloneData(value: unknown): unknown {
   return cloneObject(value, Object.entries(value).map(([key, child]) => [key, cloneData(child)]))
 }
 
+type SubmissionWalker = (validationScopes: readonly SchemaNode[], projection: SchemaNode, value: unknown) => unknown
+
+function projectArrayValue(
+  validationScopes: readonly SchemaNode[],
+  projection: SchemaNode,
+  value: unknown[],
+  dialect: Dialect,
+  walk: SubmissionWalker,
+): unknown[] {
+  return value.map((item, index) => {
+    let selection: ReturnType<SchemaNode['getNodeChild']>
+    try {
+      selection = projection.getNodeChild(index, value)
+    } catch {
+      return cloneData(item)
+    }
+    if (selection.error || !isSchemaNode(selection.node)) return cloneData(item)
+    const itemScopes = schemasForItem(validationScopes, index, dialect)
+    return walk(itemScopes.length > 0 ? itemScopes : [selection.node], selection.node, item)
+  })
+}
+
+function projectObjectValue(
+  validationScopes: readonly SchemaNode[],
+  projection: SchemaNode,
+  value: Record<string, unknown>,
+  dialect: Dialect,
+  walk: SubmissionWalker,
+): Record<string, unknown> {
+  const entries: [string, unknown][] = []
+  for (const [key, childValue] of Object.entries(value)) {
+    const childSchemas = schemasForProperty(validationScopes, key, dialect)
+    let selection: ReturnType<SchemaNode['getNodeChild']>
+    try {
+      selection = projection.getNodeChild(key, value)
+    } catch {
+      entries.push([key, cloneData(childValue)])
+      continue
+    }
+    if (selection.error) {
+      entries.push([key, cloneData(childValue)])
+      continue
+    }
+    if (!isSchemaNode(selection.node)) {
+      if (childSchemas.explicit.length === 0) entries.push([key, cloneData(childValue)])
+      continue
+    }
+    if (childSchemas.explicit.length > 0 && selectedByAdditionalProperties(projection, selection.node, key, dialect)) {
+      continue
+    }
+
+    const childScopes = [...childSchemas.explicit, ...childSchemas.additional]
+    entries.push([
+      key,
+      walk(childScopes.length > 0 ? childScopes : [selection.node], selection.node, childValue),
+    ])
+  }
+  return cloneObject(value, entries)
+}
+
 export function projectSubmissionData(
   validationRoot: SchemaNode,
   projectionRoot: SchemaNode,
   data: unknown,
   dialect: Dialect,
 ): unknown {
-  const walk = (validationScopes: readonly SchemaNode[], projection: SchemaNode, value: unknown): unknown => {
-    if (Array.isArray(value)) {
-      return value.map((item, index) => {
-        let selection: ReturnType<SchemaNode['getNodeChild']>
-        try {
-          selection = projection.getNodeChild(index, value)
-        } catch {
-          return cloneData(item)
-        }
-        if (selection.error || !isSchemaNode(selection.node)) return cloneData(item)
-        const itemScopes = schemasForItem(validationScopes, index, dialect)
-        return walk(itemScopes.length > 0 ? itemScopes : [selection.node], selection.node, item)
-      })
-    }
+  const walk: SubmissionWalker = (validationScopes, projection, value) => {
+    if (Array.isArray(value)) return projectArrayValue(validationScopes, projection, value, dialect, walk)
     if (!isRecord(value)) return value
-
-    const entries: [string, unknown][] = []
-    for (const [key, childValue] of Object.entries(value)) {
-      const childSchemas = schemasForProperty(validationScopes, key, dialect)
-      let selection: ReturnType<SchemaNode['getNodeChild']>
-      try {
-        selection = projection.getNodeChild(key, value)
-      } catch {
-        entries.push([key, cloneData(childValue)])
-        continue
-      }
-
-      if (selection.error) {
-        entries.push([key, cloneData(childValue)])
-      } else if (isSchemaNode(selection.node)) {
-        if (childSchemas.explicit.length > 0 && selectedByAdditionalProperties(projection, selection.node, key, dialect)) continue
-        entries.push([
-          key,
-          walk(
-            [...childSchemas.explicit, ...childSchemas.additional].length > 0
-              ? [...childSchemas.explicit, ...childSchemas.additional]
-              : [selection.node],
-            selection.node,
-            childValue,
-          ),
-        ])
-      } else if (childSchemas.explicit.length === 0) {
-        entries.push([key, cloneData(childValue)])
-      }
-    }
-    return cloneObject(value, entries)
+    return projectObjectValue(validationScopes, projection, value, dialect, walk)
   }
 
   return walk([validationRoot], projectionRoot, data)
