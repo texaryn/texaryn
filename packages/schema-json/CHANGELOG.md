@@ -1,5 +1,11 @@
 # @texaryn/schema-json
 
+## 1.0.2
+
+### Patch Changes
+
+- 4e0eebb: Refresh the runtime schema copy dependency to a fixed release.
+
 ## 1.0.1
 
 ### Patch Changes
