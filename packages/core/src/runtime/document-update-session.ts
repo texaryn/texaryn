@@ -25,6 +25,11 @@ interface PatchOperation {
   readonly value?: JsonValue
 }
 
+interface UpdatePayload {
+  readonly patch: readonly unknown[]
+  readonly hasData: boolean
+}
+
 interface ParentLocation {
   readonly parent: Record<string, unknown> | unknown[]
   readonly key: string
@@ -50,6 +55,41 @@ function assertRevision(value: unknown): asserts value is number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new TypeError('message.revision must be a nonnegative safe integer')
   }
+}
+
+function validateUpdateMessage(message: Record<string, unknown>): void {
+  const allowed = new Set(['protocol', 'kind', 'revision', 'patch', 'data'])
+  for (const key of Object.keys(message)) {
+    if (!allowed.has(key)) throw new TypeError(`message.${key} is not supported`)
+  }
+  for (const key of ['protocol', 'kind', 'revision']) {
+    if (!Object.hasOwn(message, key)) throw new TypeError(`message.${key} is required`)
+  }
+}
+
+function assertUpdateRevision(state: SessionState | undefined, revision: number): asserts state is SessionState {
+  if (!state) throw new Error('the first document message must be a snapshot')
+  if (revision !== state.revision + 1 || !Number.isSafeInteger(revision)) {
+    throw new Error('update revision must be exactly one greater than the current revision')
+  }
+}
+
+function readUpdatePayload(
+  message: Record<string, unknown>,
+  maxPatchOperations: number,
+): UpdatePayload {
+  const hasPatch = Object.hasOwn(message, 'patch')
+  const hasData = Object.hasOwn(message, 'data')
+  if (!hasPatch && !hasData) throw new TypeError('update must contain patch, data, or both')
+  let patch: readonly unknown[] = []
+  if (hasPatch) {
+    if (!Array.isArray(message.patch)) throw new TypeError('message.patch must be an array')
+    if (message.patch.length > maxPatchOperations) {
+      throw new TypeError(`message.patch exceeds the maximum operation count of ${maxPatchOperations}`)
+    }
+    patch = message.patch
+  }
+  return { patch, hasData }
 }
 
 function pointerTokens(path: unknown, operationIndex: number): string[] {
@@ -272,38 +312,21 @@ export function createDocumentUpdateSession(
     revision: number,
     work: JsonTraversalBudget,
   ): void {
-    const keys = Object.keys(message)
-    const allowed = new Set(['protocol', 'kind', 'revision', 'patch', 'data'])
-    for (const key of keys) if (!allowed.has(key)) throw new TypeError(`message.${key} is not supported`)
-    for (const key of ['protocol', 'kind', 'revision']) {
-      if (!Object.hasOwn(message, key)) throw new TypeError(`message.${key} is required`)
-    }
-    if (!state) throw new Error('the first document message must be a snapshot')
-    if (revision !== state.revision + 1 || !Number.isSafeInteger(revision)) {
-      throw new Error('update revision must be exactly one greater than the current revision')
-    }
+    validateUpdateMessage(message)
+    const currentState = state
+    assertUpdateRevision(currentState, revision)
     if (invalidated || !baselineMatches()) {
       invalidated = true
       throw new Error('runtime changed outside this session; a higher revision snapshot is required')
     }
 
-    const hasPatch = Object.hasOwn(message, 'patch')
-    const hasData = Object.hasOwn(message, 'data')
-    if (!hasPatch && !hasData) throw new TypeError('update must contain patch, data, or both')
-    let patch: readonly unknown[] = []
-    if (hasPatch) {
-      if (!Array.isArray(message.patch)) throw new TypeError('message.patch must be an array')
-      if (message.patch.length > maxPatchOperations) {
-        throw new TypeError(`message.patch exceeds the maximum operation count of ${maxPatchOperations}`)
-      }
-      patch = message.patch
-    }
+    const { patch, hasData } = readUpdatePayload(message, maxPatchOperations)
 
     const currentDocument = runtime.document.getSnapshot()
     const currentData = runtime.data.getSnapshot()
     if (patch.length === 0 && !hasData) {
       state = {
-        ...state,
+        ...currentState,
         revision,
         mutationVersion: control.getMutationVersion(),
       }
