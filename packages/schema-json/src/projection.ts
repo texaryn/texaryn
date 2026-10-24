@@ -482,6 +482,22 @@ function hasUnresolvedAllOfReference(node: SchemaNode, visited = new Set<string>
   return false
 }
 
+function expandAllOfBranch(
+  branch: SchemaNode,
+  stack: Set<string>,
+): { readonly node: SchemaNode; readonly changed: boolean } | undefined {
+  if (referenceOf(branch) !== undefined) {
+    const { node: target, unresolved } = dereferenceChecked(branch)
+    if (unresolved || !isSchemaNode(target)) return undefined
+    if (stack.has(positionOf(target))) return { node: branch, changed: false }
+    const expanded = expandAllOfReferences(target, stack)
+    return expanded ? { node: expanded, changed: true } : undefined
+  }
+
+  const expanded = expandAllOfReferences(branch, stack)
+  return expanded ? { node: expanded, changed: expanded !== branch } : undefined
+}
+
 function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): SchemaNode | undefined {
   const position = positionOf(node)
   if (stack.has(position)) return node
@@ -490,24 +506,10 @@ function expandAllOfReferences(node: SchemaNode, stack = new Set<string>()): Sch
   let changed = false
 
   for (const branch of node.allOf ?? []) {
-    if (referenceOf(branch) !== undefined) {
-      const { node: target, unresolved } = dereferenceChecked(branch)
-      if (unresolved || !isSchemaNode(target)) return undefined
-      if (nextStack.has(positionOf(target))) {
-        branches.push(branch)
-        continue
-      }
-      const expanded = expandAllOfReferences(target, nextStack)
-      if (!expanded) return undefined
-      branches.push(expanded)
-      changed = true
-      continue
-    }
-
-    const expanded = expandAllOfReferences(branch, nextStack)
+    const expanded = expandAllOfBranch(branch, nextStack)
     if (!expanded) return undefined
-    branches.push(expanded)
-    changed ||= expanded !== branch
+    branches.push(expanded.node)
+    changed ||= expanded.changed
   }
 
   return changed ? { ...node, allOf: branches } : node
