@@ -31,6 +31,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.4
         version: 6.2.4(svelte@5.57.2)(vite@7.3.6(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0))
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
       '@vitest/browser':
         specifier: 4.1.12
         version: 4.1.12(vite@7.3.6(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.12)
@@ -315,11 +318,7 @@ importers:
         specifier: 13.6.33
         version: 13.6.33
 
-  packages/core:
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
+  packages/core: {}
 
   packages/examples:
     dependencies:
