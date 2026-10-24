@@ -1,5 +1,7 @@
 # @texaryn/vue
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Vue 3 bindings for Texaryn: composables, provide/inject context, a renderer
 and a small set of native widgets.
 

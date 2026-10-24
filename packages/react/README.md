@@ -1,5 +1,7 @@
 # @texaryn/react
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 React bindings, hooks, prop getters, renderer components, and default widgets for Texaryn.
 
 The package root exports form the supported API for the first stable release.

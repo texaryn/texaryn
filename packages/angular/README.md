@@ -1,5 +1,7 @@
 # @texaryn/angular
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Angular signal bindings and default widgets for Texaryn.
 
 The package renders the Texaryn runtime through standalone Angular components. It uses Angular signals to observe Texaryn stores. Schema projection, validation, and form commands stay in `@texaryn/core` and the selected schema adapter.

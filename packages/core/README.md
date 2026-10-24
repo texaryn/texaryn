@@ -1,5 +1,7 @@
 # @texaryn/core
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Headless runtime for JSON Schema forms and schema-driven UI: a framework-neutral UI IR, compiler, form state and renderer registry, used with `@texaryn/schema-json` and a React, Vue or Web Components binding.
 
 The package root exports form the supported API for the first stable release.

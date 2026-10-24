@@ -1,5 +1,7 @@
 # @texaryn/schema-zod
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Zod 4 adapter for Texaryn's `SchemaEvaluationPort`.
 
 Zod remains the validation authority. Texaryn converts the Zod input schema to

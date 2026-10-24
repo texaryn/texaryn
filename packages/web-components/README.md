@@ -1,5 +1,7 @@
 # @texaryn/web-components
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 A `<texaryn-form>` custom element for Texaryn, rendering native form controls
 in light DOM. Usable from any framework, or from none.
 

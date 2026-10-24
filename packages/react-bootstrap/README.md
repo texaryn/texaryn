@@ -1,5 +1,7 @@
 # @texaryn/react-bootstrap
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Bootstrap 5 widgets for Texaryn: native HTML with Bootstrap classes, on top of `@texaryn/react`.
 
 > Status: pre-1.0. Public APIs may change before 1.0.
