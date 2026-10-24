@@ -21,9 +21,9 @@ const localModules = pathToFileURL(`${spikeRoot}/node_modules/`).href
  * unreleased code.
  */
 const published = {
-  '@texaryn/core': '0.11.0',
-  '@texaryn/react': '0.4.4',
-  '@texaryn/react-mui': '0.3.4',
+  '@texaryn/core': '1.0.1',
+  '@texaryn/react': '1.0.1',
+  '@texaryn/react-mui': '0.8.1',
   '@texaryn/schema-json': '0.6.0',
 } as const
 
