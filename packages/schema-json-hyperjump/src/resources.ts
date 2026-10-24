@@ -189,6 +189,51 @@ interface LocatedPointerTarget {
   readonly position: string
 }
 
+interface PointerChild {
+  readonly schema: unknown
+}
+
+interface PointerResourceContext {
+  readonly base: string | undefined
+  readonly resourceRoot: unknown
+  readonly resourceRootPosition: string
+}
+
+function pointerChildAt(current: unknown, segment: string): PointerChild | undefined {
+  if (Array.isArray(current)) {
+    const index = Number(segment)
+    if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) return undefined
+    return { schema: current[index] }
+  }
+  if (isRecord(current) && Object.hasOwn(current, segment)) return { schema: current[segment] }
+  return undefined
+}
+
+function pointerResourceContext(
+  schema: unknown,
+  context: PointerResourceContext,
+  position: string,
+  dialect: Dialect,
+  knownResources?: Set<string>,
+): PointerResourceContext {
+  if (!isRecord(schema) || (isPre2019Dialect(dialect) && typeof schema.$ref === 'string')) return context
+  const identifier = schemaIdentifier(schema, dialect)
+  if (typeof identifier !== 'string') return context
+  const base = resourceBase(identifier, context.base, dialect)
+  if (base === undefined) return context
+  knownResources?.add(base)
+  const embeddedDialect = detectDialect(schema, { defaultDialect: dialect })
+  if (embeddedDialect !== dialect) {
+    throw new SchemaResourceResolutionError(
+      `The resource at "${base}" uses ${embeddedDialect}, but this adapter uses ${dialect}.`,
+      base,
+      position,
+    )
+  }
+  if (isPre2019Dialect(dialect) && identifier.startsWith('#')) return context
+  return { base, resourceRoot: schema, resourceRootPosition: position }
+}
+
 function pointerTargetWithContext(
   document: unknown,
   fragment: string,
@@ -217,41 +262,16 @@ function pointerTargetWithContext(
   const segments = pointer.slice(1).split('/')
   for (const rawSegment of segments) {
     const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
-    let child: unknown
-    if (Array.isArray(current)) {
-      const index = Number(segment)
-      if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) return undefined
-      child = current[index]
-    } else if (isRecord(current) && Object.hasOwn(current, segment)) {
-      child = current[segment]
-    } else {
-      return undefined
-    }
+    const pointerChild = pointerChildAt(current, segment)
+    if (pointerChild === undefined) return undefined
 
     parentBase = base
     position = `${position}/${escape(segment)}`
-    const childId = isRecord(child) ? schemaIdentifier(child, dialect) : undefined
-    if (isRecord(child) && !(isPre2019Dialect(dialect) && typeof child.$ref === 'string') && typeof childId === 'string') {
-      const childBase = resourceBase(childId, base, dialect)
-      if (childBase !== undefined) {
-        knownResources?.add(childBase)
-        const embeddedDialect = detectDialect(child, { defaultDialect: dialect })
-        if (embeddedDialect !== dialect) {
-          throw new SchemaResourceResolutionError(
-            `The resource at "${childBase}" uses ${embeddedDialect}, but this adapter uses ${dialect}.`,
-            childBase,
-            position,
-          )
-        }
-        const startsResource = !(isPre2019Dialect(dialect) && childId.startsWith('#'))
-        if (startsResource) {
-          base = childBase
-          resourceRoot = child
-          resourceRootPosition = position
-        }
-      }
-    }
-    current = child
+    const context = pointerResourceContext(pointerChild.schema, { base, resourceRoot, resourceRootPosition }, position, dialect, knownResources)
+    base = context.base
+    resourceRoot = context.resourceRoot
+    resourceRootPosition = context.resourceRootPosition
+    current = pointerChild.schema
   }
   const target = current
   return { schema: target, parentBase, base, resourceRoot, resourceRootPosition, position }
