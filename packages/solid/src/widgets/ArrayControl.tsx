@@ -23,10 +23,10 @@ export function ArrayControl(props: { node: UINode }) {
   const canDrag = () => meta()?.canReorder === true && !container().readOnly && !container().disabled
 
   const clearDrag = () => {
-    root?.removeAttribute('data-array-drag-active')
+    if (root) delete root.dataset.arrayDragActive
     root?.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
-      row.removeAttribute('data-dragging')
-      row.removeAttribute('data-drop-target')
+      delete row.dataset.dragging
+      delete row.dataset.dropTarget
     })
     setDragSession(null)
   }
@@ -94,11 +94,11 @@ export function ArrayControl(props: { node: UINode }) {
           event.preventDefault()
           event.stopPropagation()
           if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-          event.currentTarget.setAttribute('data-drop-target', '')
+          event.currentTarget.dataset.dropTarget = ''
         }}
         onDragLeave={(event) => {
           if (Array.from(event.dataTransfer?.types ?? []).includes(arrayDragType)) {
-            event.currentTarget.removeAttribute('data-drop-target')
+            delete event.currentTarget.dataset.dropTarget
           }
         }}
         onDrop={(event) => {
@@ -146,8 +146,9 @@ export function ArrayControl(props: { node: UINode }) {
               event.dataTransfer?.setData(arrayDragType, itemId)
               if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
               setDragSession({ runtime: context.form(), identityKey, root, itemId })
-              root.setAttribute('data-array-drag-active', '')
-              event.currentTarget.closest<HTMLElement>('[data-array-row]')?.setAttribute('data-dragging', '')
+              root.dataset.arrayDragActive = ''
+              const row = event.currentTarget.closest<HTMLElement>('[data-array-row]')
+              if (row) row.dataset.dragging = ''
             }}
             onDragEnd={(event) => {
               event.dataTransfer?.clearData(arrayDragType)

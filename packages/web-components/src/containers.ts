@@ -225,10 +225,10 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
   const rows = new Map<StableItemId, Row>()
 
   function clearDrag(): void {
-    root.removeAttribute('data-array-drag-active')
+    delete root.dataset.arrayDragActive
     root.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
-      row.removeAttribute('data-dragging')
-      row.removeAttribute('data-drop-target')
+      delete row.dataset.dragging
+      delete row.dataset.dropTarget
     })
     dragSession = null
   }
@@ -269,8 +269,8 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       event.dataTransfer.setData(dragType, itemId)
       event.dataTransfer.effectAllowed = 'move'
       dragSession = { runtime: ctx.runtime, identityKey, root, itemId }
-      root.setAttribute('data-array-drag-active', '')
-      row.element.setAttribute('data-dragging', '')
+      root.dataset.arrayDragActive = ''
+      row.element.dataset.dragging = ''
     })
     handle.addEventListener('dragend', (event) => {
       event.dataTransfer?.clearData(dragType)
@@ -325,12 +325,12 @@ export function arrayControl(initial: UINode, ctx: RenderContext): DomWidget {
       dragEvent.preventDefault()
       dragEvent.stopPropagation()
       if (dragEvent.dataTransfer) dragEvent.dataTransfer.dropEffect = 'move'
-      element.setAttribute('data-drop-target', '')
+      element.dataset.dropTarget = ''
     })
     element.addEventListener('dragleave', (event) => {
       const dragEvent = event as DragEvent
       if (Array.from(dragEvent.dataTransfer?.types ?? []).includes(dragType)) {
-        element.removeAttribute('data-drop-target')
+        delete element.dataset.dropTarget
       }
     })
     element.addEventListener('drop', (event) => {

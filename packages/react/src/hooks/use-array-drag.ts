@@ -51,10 +51,10 @@ export function useArrayDrag(
 
   const clearDrag = () => {
     const root = rootRef.current
-    root?.removeAttribute('data-array-drag-active')
+    if (root) delete root.dataset.arrayDragActive
     root?.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
-      row.removeAttribute('data-dragging')
-      row.removeAttribute('data-drop-target')
+      delete row.dataset.dragging
+      delete row.dataset.dropTarget
     })
     dragSession.current = null
   }
@@ -94,8 +94,9 @@ export function useArrayDrag(
       event.dataTransfer.setData(arrayDragType, itemId)
       event.dataTransfer.effectAllowed = 'move'
       dragSession.current = { runtime, identityKey, root, itemId }
-      root.setAttribute('data-array-drag-active', '')
-      event.currentTarget.closest<HTMLElement>('[data-array-row]')?.setAttribute('data-dragging', '')
+      root.dataset.arrayDragActive = ''
+      const row = event.currentTarget.closest<HTMLElement>('[data-array-row]')
+      if (row) row.dataset.dragging = ''
     },
     onDragEnd: (event) => {
       event.dataTransfer.clearData(arrayDragType)
@@ -128,10 +129,10 @@ export function useArrayDrag(
       event.preventDefault()
       event.stopPropagation()
       event.dataTransfer.dropEffect = 'move'
-      event.currentTarget.setAttribute('data-drop-target', '')
+      event.currentTarget.dataset.dropTarget = ''
     },
     onDragLeave: (event) => {
-      if (dragPayloadPresent(event)) event.currentTarget.removeAttribute('data-drop-target')
+      if (dragPayloadPresent(event)) delete event.currentTarget.dataset.dropTarget
     },
     onDrop: (event) => {
       if (!dragPayloadPresent(event)) return

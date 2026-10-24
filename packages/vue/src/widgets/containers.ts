@@ -108,10 +108,10 @@ export const ArrayControl = defineComponent({
 
     function clearDrag(): void {
       const root = rootRef.value
-      root?.removeAttribute('data-array-drag-active')
+      if (root) delete root.dataset.arrayDragActive
       root?.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
-        row.removeAttribute('data-dragging')
-        row.removeAttribute('data-drop-target')
+        delete row.dataset.dragging
+        delete row.dataset.dropTarget
       })
       dragSession.value = null
     }
@@ -148,8 +148,9 @@ export const ArrayControl = defineComponent({
           event.dataTransfer?.setData('application/x-texaryn-array-item', itemId)
           if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
           dragSession.value = { runtime, identityKey, root, itemId }
-          root.setAttribute('data-array-drag-active', '')
-          ;(event.currentTarget as HTMLElement).closest('[data-array-row]')?.setAttribute('data-dragging', '')
+          root.dataset.arrayDragActive = ''
+          const row = (event.currentTarget as HTMLElement).closest<HTMLElement>('[data-array-row]')
+          if (row) row.dataset.dragging = ''
         },
         onDragend(event: DragEvent) {
           event.dataTransfer?.clearData('application/x-texaryn-array-item')
@@ -182,11 +183,11 @@ export const ArrayControl = defineComponent({
           event.preventDefault()
           event.stopPropagation()
           if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-          ;(event.currentTarget as HTMLElement).setAttribute('data-drop-target', '')
+          ;(event.currentTarget as HTMLElement).dataset.dropTarget = ''
         },
         onDragleave(event: DragEvent) {
           if (event.dataTransfer && Array.from(event.dataTransfer.types).includes('application/x-texaryn-array-item')) {
-            ;(event.currentTarget as HTMLElement).removeAttribute('data-drop-target')
+            delete (event.currentTarget as HTMLElement).dataset.dropTarget
           }
         },
         onDrop(event: DragEvent) {
