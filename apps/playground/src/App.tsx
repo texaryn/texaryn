@@ -298,6 +298,7 @@ function FormWorkspace({
             checked={simulateFailure}
             onChange={(e) => setSimulateFailure(e.target.checked)}
           />
+          {' '}
           Simulate failure
         </label>
         <DataPresetSelect
@@ -938,6 +939,7 @@ export function App() {
           <div className="pg-mobile-workspace">
             <label className="pg-mobile-workspace__example">
               Example
+              {' '}
               <select
                 className="pg-select"
                 value={selectedId ?? CUSTOM_KEY}
