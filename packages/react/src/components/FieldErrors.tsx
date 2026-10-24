@@ -9,6 +9,13 @@ export interface FieldErrorsProps {
   showErrors: boolean
 }
 
+function validationErrorKey(error: ValidationError, occurrences: Map<string, number>): string {
+  const identity = JSON.stringify([error.instancePointer, error.keyword, error.params])
+  const occurrence = occurrences.get(identity) ?? 0
+  occurrences.set(identity, occurrence + 1)
+  return `${identity}:${occurrence}`
+}
+
 /**
  * Always rendered, and empty while there is nothing to say. Returning null
  * until an error exists meant the region arrived already populated, which is
@@ -18,11 +25,12 @@ export function FieldErrors({ node, errors, showErrors }: Readonly<FieldErrorsPr
   const idPrefix = useFormIdPrefix()
   const messages = useFormMessages()
   const visible = showErrors ? errors : []
+  const occurrences = new Map<string, number>()
 
   return (
     <div {...getErrorProps(node, idPrefix)}>
-      {visible.map((error, index) => (
-        <div key={index}>{messages.validationMessage(error)}</div>
+      {visible.map((error) => (
+        <div key={validationErrorKey(error, occurrences)}>{messages.validationMessage(error)}</div>
       ))}
     </div>
   )

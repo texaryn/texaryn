@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import type {
   DocumentNode,
@@ -107,7 +107,10 @@ function DisplayTable({ node }: Readonly<{ node: Extract<DocumentNode, { type: '
 
 export function DocumentRoot({ runtime, registry, onActionError = console.error }: Readonly<DocumentRootProps>) {
   const document = useStore(runtime.document)
-  const context: DocumentContextValue = { runtime, document, registry, onActionError }
+  const context = useMemo<DocumentContextValue>(
+    () => ({ runtime, document, registry, onActionError }),
+    [runtime, document, registry, onActionError],
+  )
   if (!document.nodes[document.rootId]) return null
   return (
     <DocumentContext.Provider value={context}>
