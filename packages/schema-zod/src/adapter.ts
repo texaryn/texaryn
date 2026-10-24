@@ -98,19 +98,23 @@ function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): str
   if (code === 'unrecognized_keys') return 'additionalProperties'
   if (code === 'not_multiple_of') return 'multipleOf'
 
-  if (code === 'too_small' || code === 'too_big') {
-    const origin = 'origin' in issue ? issue.origin : undefined
-    const lower = code === 'too_small'
-    if (origin === 'string') return lower ? 'minLength' : 'maxLength'
-    if (origin === 'array') return lower ? 'minItems' : 'maxItems'
-    if (origin === 'object') return lower ? 'minProperties' : 'maxProperties'
-    if ('inclusive' in issue && issue.inclusive === false) {
-      return lower ? 'exclusiveMinimum' : 'exclusiveMaximum'
-    }
-    return lower ? 'minimum' : 'maximum'
-  }
+  if (code === 'too_small' || code === 'too_big') return keywordForSizeIssue(code, issue)
 
   return code
+}
+
+function keywordForSizeIssue(code: 'too_small' | 'too_big', issue: z.ZodError['issues'][number]): string {
+  const origin = 'origin' in issue ? issue.origin : undefined
+  const lower = code === 'too_small'
+  switch (origin) {
+    case 'string': return lower ? 'minLength' : 'maxLength'
+    case 'array': return lower ? 'minItems' : 'maxItems'
+    case 'object': return lower ? 'minProperties' : 'maxProperties'
+  }
+  if ('inclusive' in issue && issue.inclusive === false) {
+    return lower ? 'exclusiveMinimum' : 'exclusiveMaximum'
+  }
+  return lower ? 'minimum' : 'maximum'
 }
 
 function escapePointerSegment(segment: string): string {
