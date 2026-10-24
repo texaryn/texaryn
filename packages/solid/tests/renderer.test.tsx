@@ -62,7 +62,7 @@ describe('Solid renderer', () => {
 
     fireEvent.submit(document.querySelector('form')!)
 
-    const summary = await screen.findByRole('group')
+    const summary = await screen.findByRole('region', { name: 'There is a problem' })
     await waitFor(() => expect(document.activeElement).toBe(summary))
     expect(screen.getByRole('textbox', { name: 'Name (required)' }).getAttribute('aria-invalid')).toBe('true')
     expect(summary.querySelector('a')?.getAttribute('href')).toBeTruthy()
