@@ -111,28 +111,30 @@ function extractLengthConstraints(
   if (typeof schema.maxLength === 'number') constraints.maxLength = schema.maxLength
 }
 
-function extractExclusiveMinimumConstraint(
+function extractDraft04ExclusiveMinimumConstraint(
   schema: Record<string, unknown>,
   constraints: FieldConstraints,
-  draft04: boolean,
 ): void {
-  if (draft04 && schema.exclusiveMinimum === true && typeof schema.minimum === 'number') {
+  if (schema.exclusiveMinimum === true && typeof schema.minimum === 'number') {
     constraints.exclusiveMinimum = schema.minimum
-  } else if (typeof schema.exclusiveMinimum === 'number') {
-    constraints.exclusiveMinimum = schema.exclusiveMinimum
   }
 }
 
-function extractExclusiveMaximumConstraint(
+function extractExclusiveMinimumConstraint(schema: Record<string, unknown>, constraints: FieldConstraints): void {
+  if (typeof schema.exclusiveMinimum === 'number') constraints.exclusiveMinimum = schema.exclusiveMinimum
+}
+
+function extractDraft04ExclusiveMaximumConstraint(
   schema: Record<string, unknown>,
   constraints: FieldConstraints,
-  draft04: boolean,
 ): void {
-  if (draft04 && schema.exclusiveMaximum === true && typeof schema.maximum === 'number') {
+  if (schema.exclusiveMaximum === true && typeof schema.maximum === 'number') {
     constraints.exclusiveMaximum = schema.maximum
-  } else if (typeof schema.exclusiveMaximum === 'number') {
-    constraints.exclusiveMaximum = schema.exclusiveMaximum
   }
+}
+
+function extractExclusiveMaximumConstraint(schema: Record<string, unknown>, constraints: FieldConstraints): void {
+  if (typeof schema.exclusiveMaximum === 'number') constraints.exclusiveMaximum = schema.exclusiveMaximum
 }
 
 function extractPatternConstraint(
@@ -153,8 +155,13 @@ function extractConstraints(schema: Record<string, unknown>, dialect: Projection
   if (typeof schema.maximum === 'number' && !(draft04 && schema.exclusiveMaximum === true)) {
     constraints.maximum = schema.maximum
   }
-  extractExclusiveMinimumConstraint(schema, constraints, draft04)
-  extractExclusiveMaximumConstraint(schema, constraints, draft04)
+  if (draft04) {
+    extractDraft04ExclusiveMinimumConstraint(schema, constraints)
+    extractDraft04ExclusiveMaximumConstraint(schema, constraints)
+  } else {
+    extractExclusiveMinimumConstraint(schema, constraints)
+    extractExclusiveMaximumConstraint(schema, constraints)
+  }
   if (typeof schema.multipleOf === 'number') constraints.multipleOf = schema.multipleOf
   extractPatternConstraint(schema, constraints)
   if (typeof schema.minItems === 'number') constraints.minItems = schema.minItems
