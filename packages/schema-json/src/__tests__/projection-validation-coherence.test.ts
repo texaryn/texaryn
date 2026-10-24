@@ -92,8 +92,8 @@ function referenceRoot(dialect: keyof typeof dialectDrafts, slot: string, target
   const schema = isDraft07
     ? {
         $schema: 'http://json-schema.org/draft-07/schema#',
-        id: 'https://example.test/root',
-        definitions: { [slot]: { id: '#target', ...target } },
+        $id: 'https://example.test/root',
+        definitions: { [slot]: { $id: '#target', ...target } },
         properties: { result: { $ref: '#target' } },
       }
     : {
