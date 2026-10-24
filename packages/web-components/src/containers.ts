@@ -67,6 +67,59 @@ interface BoundaryAction {
   target: { containerId: ContainerNode['id']; targetToken: string }
 }
 
+function reconcileBoundaryActions(
+  node: ContainerNode,
+  ctx: RenderContext,
+  root: HTMLElement,
+  actions: HTMLDivElement,
+  boundaryActions: Map<string, BoundaryAction>,
+): void {
+  const boundaryTargets = node.boundaryTargets ?? []
+  if (boundaryTargets.length === 0) {
+    actions.remove()
+    boundaryActions.clear()
+    return
+  }
+  if (actions.parentNode !== root) root.append(actions)
+  const firstTargetByReason = new Map<string, (typeof boundaryTargets)[number]>()
+  for (const target of boundaryTargets) {
+    if (!firstTargetByReason.has(target.reason)) firstTargetByReason.set(target.reason, target)
+  }
+  const wantedActions: HTMLButtonElement[] = []
+  for (const [reason, target] of firstTargetByReason) {
+    const message = (ctx.messages.expandBoundary ?? englishMessages.expandBoundary)({
+      boundary: target.reason,
+      containerTitle: node.annotations.title,
+      position: 1,
+      count: 1,
+    })
+    let action = boundaryActions.get(reason)
+    if (!action) {
+      const targetRef = { containerId: node.id, targetToken: target.token }
+      const element = button(message.label, () =>
+        ctx.runtime.dispatch({
+          type: 'ExpandBoundary',
+          containerId: targetRef.containerId,
+          targetToken: targetRef.targetToken,
+        }),
+      )
+      action = { element, target: targetRef }
+      boundaryActions.set(reason, action)
+    }
+    action.target.containerId = node.id
+    action.target.targetToken = target.token
+    action.element.textContent = message.label
+    action.element.setAttribute('aria-label', message.accessibleName)
+    wantedActions.push(action.element)
+  }
+  for (const [reason, action] of boundaryActions) {
+    if (firstTargetByReason.has(reason)) continue
+    action.element.remove()
+    boundaryActions.delete(reason)
+  }
+  reorder(actions, wantedActions)
+}
+
 export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
   // Whether a node is nested is fixed for its lifetime, but its title is not:
   // a conditional subschema can add or drop one on any recompile, and this
@@ -125,50 +178,7 @@ export function objectLayout(initial: UINode, ctx: RenderContext): DomWidget {
       bindings.delete(key)
     }
     reorder(body, elements)
-    const boundaryTargets = node.boundaryTargets ?? []
-    if (boundaryTargets.length === 0) {
-      actions.remove()
-      boundaryActions.clear()
-      return
-    }
-    if (actions.parentNode !== root) root.append(actions)
-    const firstTargetByReason = new Map<string, (typeof boundaryTargets)[number]>()
-    for (const target of boundaryTargets) {
-      if (!firstTargetByReason.has(target.reason)) firstTargetByReason.set(target.reason, target)
-    }
-    const wantedActions: HTMLButtonElement[] = []
-    for (const [reason, target] of firstTargetByReason) {
-      const message = (ctx.messages.expandBoundary ?? englishMessages.expandBoundary)({
-        boundary: target.reason,
-        containerTitle: node.annotations.title,
-        position: 1,
-        count: 1,
-      })
-      let action = boundaryActions.get(reason)
-      if (!action) {
-        const targetRef = { containerId: node.id, targetToken: target.token }
-        const element = button(message.label, () =>
-          ctx.runtime.dispatch({
-            type: 'ExpandBoundary',
-            containerId: targetRef.containerId,
-            targetToken: targetRef.targetToken,
-          }),
-        )
-        action = { element, target: targetRef }
-        boundaryActions.set(reason, action)
-      }
-      action.target.containerId = node.id
-      action.target.targetToken = target.token
-      action.element.textContent = message.label
-      action.element.setAttribute('aria-label', message.accessibleName)
-      wantedActions.push(action.element)
-    }
-    for (const [reason, action] of boundaryActions) {
-      if (firstTargetByReason.has(reason)) continue
-      action.element.remove()
-      boundaryActions.delete(reason)
-    }
-    reorder(actions, wantedActions)
+    reconcileBoundaryActions(node, ctx, root, actions, boundaryActions)
   }
 
   reconcile(initial as ContainerNode)
