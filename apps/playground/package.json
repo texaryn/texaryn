@@ -14,7 +14,7 @@
     "@angular/compiler": "20.3.34",
     "@angular/core": "20.3.34",
     "@angular/platform-browser": "20.3.34",
-    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/autocomplete": "6.20.4",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-json": "6.0.2",
     "@codemirror/language": "6.13.1",
