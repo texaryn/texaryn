@@ -1,5 +1,12 @@
 # @texaryn/core
 
+## 1.1.1
+
+### Patch Changes
+
+- 286fcfc: Simplifies runtime command dispatch.
+- 6aa8002: Simplifies initialization conflict collection.
+
 ## 1.1.0
 
 ### Minor Changes
