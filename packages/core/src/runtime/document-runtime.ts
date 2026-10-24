@@ -1,6 +1,6 @@
 import { batch } from '../state/signal.js'
 import { createStore } from '../state/store.js'
-import type { Store, WritableStore } from '../state/store.js'
+import type { WritableStore } from '../state/store.js'
 import { getAtPointer, parsePointer } from '../json-pointer.js'
 import type {
   DocumentNode,
