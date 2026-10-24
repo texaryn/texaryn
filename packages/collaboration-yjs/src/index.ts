@@ -256,6 +256,10 @@ export function createYjsFormSession(
   let closed = false
   let lastNotificationError: Error | undefined
 
+  function trackCleanup(cleanup: () => void): void {
+    cleanups.push(cleanup)
+  }
+
   function detach(): void {
     for (const cleanup of cleanups.splice(0).reverse()) {
       try {
@@ -358,8 +362,8 @@ export function createYjsFormSession(
       applySharedSnapshot(initialSharedData)
     }
 
-    cleanups.push(runtime.lockArrayStructure())
-    cleanups.push(runtime.registerCommandGuard((command, context) => {
+    trackCleanup(runtime.lockArrayStructure())
+    trackCleanup(runtime.registerCommandGuard((command, context) => {
       if (command.type !== 'SetValue') {
         if (command.type === 'Reset' || command.type === 'InsertItem' || command.type === 'RemoveItem' ||
             command.type === 'MoveItem') {
@@ -391,7 +395,7 @@ export function createYjsFormSession(
       options.onCommandRejected?.(new Error(reason))
     }))
 
-    cleanups.push(runtime.subscribeMutations((mutation) => {
+    trackCleanup(runtime.subscribeMutations((mutation) => {
       if (mutation.origin === origin || closed) return
       const pointers = dataMutationPointer(mutation)
       const writes: Array<[string, JsonScalar | undefined]> = []
@@ -442,7 +446,7 @@ export function createYjsFormSession(
       }
     }
     root.observe(observer)
-    cleanups.push(() => root?.unobserve(observer))
+    trackCleanup(() => root?.unobserve(observer))
     status.set({
       status: 'ready',
       ...(lastNotificationError === undefined ? {} : { lastNotificationError }),
