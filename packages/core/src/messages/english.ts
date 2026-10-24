@@ -29,7 +29,7 @@ const LIMIT_MESSAGES: Readonly<Record<string, LimitMessage>> = {
 }
 
 function limitValidationMessage(keyword: string, limit: number | undefined): string | undefined {
-  const message = Object.prototype.hasOwnProperty.call(LIMIT_MESSAGES, keyword)
+  const message = Object.hasOwn(LIMIT_MESSAGES, keyword)
     ? LIMIT_MESSAGES[keyword]
     : undefined
   if (!message) return undefined
