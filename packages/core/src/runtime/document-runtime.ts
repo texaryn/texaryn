@@ -518,12 +518,11 @@ export function createDocumentRuntime(
 
     for (const { node, rows } of prepared) {
       const previousIdentity = previous.get(node.collectionId)
-      const compatible = previousIdentity !== undefined &&
-        previousIdentity.dataPointer === node.dataPointer &&
-        previousIdentity.rowKeyPointer === node.rowKeyPointer
+      const compatible = previousIdentity?.dataPointer === node.dataPointer &&
+        previousIdentity?.rowKeyPointer === node.rowKeyPointer
       const keyed = node.rowKeyPointer !== undefined
-      const previousKeys = compatible && keyed ? previousIdentity.idsByKey : undefined
-      const previousRows = compatible && !keyed && preserveUnkeyed ? previousIdentity.rowIds : undefined
+      const previousKeys = compatible && keyed ? previousIdentity?.idsByKey : undefined
+      const previousRows = compatible && !keyed && preserveUnkeyed ? previousIdentity?.rowIds : undefined
       const idsByKey = keyed ? new Map<string, StableItemId>() : undefined
       const ids: StableItemId[] = []
       const output: DocumentCollectionRow[] = []
@@ -660,7 +659,7 @@ export function createDocumentRuntime(
     async invokeAction(nodeId) {
       assertActive()
       const node = document.nodes[nodeId as string]
-      if (!node || node.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
+      if (node?.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
       const action = actions.get(node.actionType)
       if (!action) throw new Error(`No host action is registered for ${node.actionType}`)
       const hasArgs = Object.hasOwn(node, 'actionArgs')
