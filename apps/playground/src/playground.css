@@ -280,6 +280,7 @@ body {
 }
 
 .pg-preview-notice {
+  display: block;
   margin: 0;
   padding: 0.5rem 0.65rem;
   color: var(--tx-text-muted);
@@ -563,7 +564,10 @@ body {
 .pg-editor-tabs {
   display: flex;
   gap: 0.25rem;
-  margin-bottom: 0.5rem;
+  min-inline-size: 0;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  border: 0;
 }
 
 .pg-editor-tabs__item {
@@ -614,6 +618,7 @@ body {
 }
 
 .pg-schema-share-status {
+  display: block;
   margin: 0.4rem 0;
   color: var(--tx-text-muted);
   font-size: 0.8rem;
@@ -628,6 +633,7 @@ body {
 }
 
 .pg-builder__message {
+  display: block;
   color: var(--tx-text-muted);
   font-size: 0.8rem;
   line-height: 1.45;
@@ -718,6 +724,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .pg-width-presets button {
@@ -1081,6 +1091,8 @@ body {
   .pg-mobile-workspace__tabs {
     display: flex;
     gap: 0.25rem;
+    min-inline-size: 0;
+    margin: 0;
     padding: 0.2rem;
     background: var(--tx-bg);
     border: 1px solid var(--tx-border);
@@ -1438,7 +1450,8 @@ body {
   box-shadow: var(--tx-shadow);
 }
 
-.pg-palette__error p {
+.pg-palette__error output {
+  display: block;
   margin: 0;
 }
 

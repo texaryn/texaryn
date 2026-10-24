@@ -19,7 +19,7 @@ export function ErrorSummary({ focus = true }: Readonly<ErrorSummaryProps>) {
   const messages = useFormMessages()
   const visibleErrors = useStore(runtime.visibleErrors)
   const submission = useStore(runtime.submission)
-  const container = useRef<HTMLDivElement>(null)
+  const container = useRef<HTMLElement>(null)
   const tracker = useRef<FailedSubmitTracker | null>(null)
   tracker.current ??= createFailedSubmitTracker(submission)
 
@@ -34,7 +34,7 @@ export function ErrorSummary({ focus = true }: Readonly<ErrorSummaryProps>) {
 
   const headingId = makeId(idPrefix, 'error-summary', 'heading')
   return (
-    <div role="group" tabIndex={-1} aria-labelledby={headingId} ref={container}>
+    <section tabIndex={-1} aria-labelledby={headingId} ref={container}>
       <h2 id={headingId}>{messages.errorSummaryHeading({ count: visibleErrors.length })}</h2>
       <ul>
         {visibleErrors.map((entry: VisibleError) => (
@@ -59,6 +59,6 @@ export function ErrorSummary({ focus = true }: Readonly<ErrorSummaryProps>) {
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   )
 }

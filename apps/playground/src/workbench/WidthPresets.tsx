@@ -17,7 +17,8 @@ export function WidthPresets({
 }>) {
   const px = PREVIEW_WIDTHS.find((entry) => entry.id === width)?.px ?? null
   return (
-    <div className="pg-width-presets" role="group" aria-label="Preview width">
+    <fieldset className="pg-width-presets">
+      <legend className="pg-sr-only">Preview width</legend>
       {PREVIEW_WIDTHS.map(({ id, label }) => (
         <button key={id} type="button" aria-pressed={width === id} onClick={() => onChange(id)}>
           {label}
@@ -25,6 +26,6 @@ export function WidthPresets({
       ))}
       {px !== null && <span className="pg-width-presets__label">Maximum {px}px</span>}
       <span className="pg-width-presets__effective">Effective {effectiveWidth}px</span>
-    </div>
+    </fieldset>
   )
 }

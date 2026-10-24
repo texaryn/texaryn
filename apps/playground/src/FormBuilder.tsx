@@ -27,7 +27,7 @@ export function FormBuilder({
   if (!model.available) {
     return (
       <div className="pg-builder">
-        <p className="pg-builder__message" role="status">{model.message}</p>
+        <output className="pg-builder__message">{model.message}</output>
       </div>
     )
   }

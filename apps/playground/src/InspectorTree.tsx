@@ -131,9 +131,9 @@ export function InspectorTree({ label, value }: Readonly<{ label: string; value:
         </button>
         <span className="pg-sr-only" aria-live="polite">{copyStatus}</span>
       </div>
-      <div className="pg-tree" role="group" aria-label={`${label} value tree`}>
+      <section className="pg-tree" aria-label={`${label} value tree`}>
         <TreeNode name={label} value={value} depth={0} hideUnset={hideUnset} />
-      </div>
+      </section>
       <details className="pg-tree-view__raw">
         <summary>Raw diagnostic JSON</summary>
         <pre className="pg-pre">{rawJson}</pre>

@@ -16,7 +16,7 @@ export class PaletteBoundary extends Component<{ children: ReactNode; onDismiss:
     return this.state.failed
       ? (
         <div className="pg-palette__error">
-          <p role="status">The command palette is unavailable. Use the visible controls instead.</p>
+          <output>The command palette is unavailable. Use the visible controls instead.</output>
           <button type="button" onClick={this.props.onDismiss}>Close message</button>
         </div>
       )

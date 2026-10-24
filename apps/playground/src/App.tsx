@@ -325,7 +325,7 @@ function FormWorkspace({
       {createPortal(
         <>
           {toolbar}
-          {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
+          {previewNotice && <output className="pg-preview-notice">{previewNotice}</output>}
           <FormProvider value={form.runtime}>
             {isBootstrap ? (
               <>
@@ -842,7 +842,8 @@ export function App() {
           <CopyButton onCopy={handleCopySchema} />
         </div>
       </div>
-      <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
+      <fieldset className="pg-editor-tabs">
+        <legend className="pg-sr-only">Schema editor mode</legend>
         <button
           aria-pressed={schemaMode === 'visual'}
           className="pg-editor-tabs__item"
@@ -859,7 +860,7 @@ export function App() {
         >
           JSON
         </button>
-      </div>
+      </fieldset>
       <div id="schema-editor-panel">
         {schemaMode === 'visual' && <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />}
         <div hidden={schemaMode === 'visual'} className="pg-code-editor-frame">
@@ -875,14 +876,14 @@ export function App() {
           />
         </div>
       </div>
-      <p role="status" aria-label="Schema problems" className="pg-sr-only">
+      <output aria-label="Schema problems" className="pg-sr-only">
         {schemaIssueSentence(schemaIssues, !narrow)}
-      </p>
+      </output>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       {selectedId === CUSTOM_KEY && customSchemaToken === null && (
         <p className="pg-schema-share-note">This schema is too large to share in a link. It remains saved in this browser.</p>
       )}
-      {shareStatus && <p className="pg-schema-share-status" role="status">{shareStatus}</p>}
+      {shareStatus && <output className="pg-schema-share-status">{shareStatus}</output>}
     </>
   )
 
@@ -951,7 +952,8 @@ export function App() {
                 ))}
               </select>
             </label>
-            <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
+            <fieldset className="pg-mobile-workspace__tabs">
+              <legend className="pg-sr-only">Playground panels</legend>
               {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
                 <button
                   key={panelName}
@@ -962,7 +964,7 @@ export function App() {
                   {{ preview: 'Form', schema: 'Schema', inspector: 'Inspector' }[panelName]}
                 </button>
               ))}
-            </div>
+            </fieldset>
             <button type="button" className="pg-mobile-workspace__commands" aria-label="Open command palette" onClick={openPalette}>
               Commands
             </button>
@@ -1037,7 +1039,7 @@ export function App() {
           hint={<kbd>Ctrl K</kbd>}
         />
       )}
-      <p role="status" aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</p>
+      <output aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</output>
       <CommandPaletteSlot
         open={paletteOpen}
         onOpenChange={handlePaletteOpenChange}
