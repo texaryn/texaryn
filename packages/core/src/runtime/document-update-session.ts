@@ -257,7 +257,7 @@ export function createDocumentUpdateSession(
         // Notification reporting must not change the result of a committed update.
       }
     }
-    if (!state || state.revision !== revision) throw new Error('Document update did not commit')
+    if (state?.revision !== revision) throw new Error('Document update did not commit')
     if (!baselineMatches()) invalidated = true
   }
 
