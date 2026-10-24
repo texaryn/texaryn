@@ -326,7 +326,7 @@ function isAbsent(
     current = (current as Record<string, unknown>)[segment]
   }
   if (!isContainer(current)) return true
-  return !Object.hasOwn(current, segments.at(-1)!)
+  return !Object.hasOwn(current as object, segments.at(-1)!)
 }
 
 /**
