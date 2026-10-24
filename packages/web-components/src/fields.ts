@@ -18,7 +18,13 @@ function coerce(kind: Kind, node: FieldNode, raw: string): unknown {
 }
 
 function display(value: unknown): string {
-  return value == null ? '' : String(value)
+  if (value == null) return ''
+  if (typeof value !== 'object') return String(value)
+  try {
+    return JSON.stringify(value) ?? ''
+  } catch {
+    return '[unserializable value]'
+  }
 }
 
 /** The marker stays out of the accessible name: aria-required already reports the state, and some screen readers would say it twice. */

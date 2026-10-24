@@ -91,7 +91,13 @@ function fieldKind(node: FieldNode): FieldKind {
 function displayValue(kind: FieldKind, value: unknown): string | number {
   if (kind === 'number' && typeof value === 'number') return value
   if (kind === 'string' && typeof value === 'string') return value
-  return value == null ? '' : String(value)
+  if (value == null) return ''
+  if (typeof value !== 'object') return String(value)
+  try {
+    return JSON.stringify(value) ?? ''
+  } catch {
+    return '[unserializable value]'
+  }
 }
 
 function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {

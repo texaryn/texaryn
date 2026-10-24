@@ -293,8 +293,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   const rootScope = newScope(document, '#', initialBase, false)
   walk(document, '#', rootScope, true)
 
-  for (let cursor = 0; cursor < pending.length; cursor += 1) {
-    const { schema, scope } = pending[cursor]!
+  for (const { schema, scope } of pending) {
     if (typeof schema.$ref !== 'string') continue
     const fragment = referenceFragment(schema.$ref, scope.base)
     if (!fragment?.startsWith('/')) continue

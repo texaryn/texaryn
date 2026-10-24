@@ -94,7 +94,10 @@ export function schemaParentPosition(position: string, segmentCount: number): st
   const resource = hashIndex > 0 ? position.slice(0, hashIndex) : ''
   const fragment = hashIndex === -1 ? position : position.slice(hashIndex + 1)
   const segments = fragment === '' ? [] : fragment.replace(/^\//, '').split('/')
-  return `${resource}#${segments.length === 0 || segmentCount === 0 ? '' : `/${segments.slice(0, segmentCount).join('/')}`}`
+  const parentPath = segments.length === 0 || segmentCount === 0
+    ? ''
+    : `/${segments.slice(0, segmentCount).join('/')}`
+  return `${resource}#${parentPath}`
 }
 
 export function escapeSegment(segment: string): string {

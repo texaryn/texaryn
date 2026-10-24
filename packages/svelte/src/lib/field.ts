@@ -150,7 +150,13 @@ export function fieldKind(node: FieldNode | undefined): FieldKind {
 export function displayValue(kind: FieldKind, value: unknown): string | number {
   if (kind === 'number' && typeof value === 'number') return value
   if (kind === 'string' && typeof value === 'string') return value
-  return value == null ? '' : String(value)
+  if (value == null) return ''
+  if (typeof value !== 'object') return String(value)
+  try {
+    return JSON.stringify(value) ?? ''
+  } catch {
+    return '[unserializable value]'
+  }
 }
 
 export function sameEnumValue(left: unknown, right: unknown): boolean {
