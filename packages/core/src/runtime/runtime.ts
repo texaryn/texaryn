@@ -44,96 +44,144 @@ function isPlainRecord(value: object): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null
 }
 
-function assertSameJsonShape(before: unknown, next: unknown): void {
-  let visited = 0
-  let totalStringLength = 0
-  const active = new WeakSet<object>()
+interface JsonShapeValidationContext {
+  visited: number
+  totalStringLength: number
+  active: WeakSet<object>
+}
 
-  function visit(previous: unknown, value: unknown, pointer: string, depth: number): void {
-    visited++
-    if (visited > 100_000 || depth > 128) {
-      throw new Error('Remote form snapshot exceeds the supported JSON size or depth.')
-    }
-
-    if (isJsonScalar(previous)) {
-      if (!isJsonScalar(value)) {
-        throw new Error(`Remote form snapshot changes the scalar shape at "${pointer}".`)
-      }
-      if (typeof value === 'string') totalStringLength += value.length
-      if (totalStringLength > 1_000_000) throw new Error('Remote form snapshot exceeds the supported string size.')
-      return
-    }
-
-    if (Array.isArray(previous)) {
-      if (!Array.isArray(value) || value.length !== previous.length) {
-        throw new Error(`Remote form snapshot changes the array shape at "${pointer}".`)
-      }
-      if (Object.getOwnPropertySymbols(value).length > 0 ||
-          Object.getOwnPropertyNames(value).length !== value.length + 1 ||
-          Object.getOwnPropertySymbols(previous).length > 0 ||
-          Object.getOwnPropertyNames(previous).length !== previous.length + 1) {
-        throw new Error(`Remote form snapshot contains non-JSON array properties at "${pointer}".`)
-      }
-      if (active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
-      active.add(value)
-      for (let index = 0; index < previous.length; index++) {
-        if (!Object.hasOwn(value, index)) {
-          throw new Error(`Remote form snapshot contains a sparse array at "${pointer}".`)
-        }
-        const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
-        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, String(index))
-        if (!descriptor?.enumerable || !('value' in descriptor) ||
-            !previousDescriptor?.enumerable || !('value' in previousDescriptor)) {
-          throw new Error(`Remote form snapshot contains an accessor at "${pointer}/${index}".`)
-        }
-        visit(previousDescriptor.value, descriptor.value, `${pointer}/${index}`, depth + 1)
-      }
-      active.delete(value)
-      return
-    }
-
-    if (typeof previous === 'object' && previous !== null && isPlainRecord(previous)) {
-      if (typeof value !== 'object' || value === null || Array.isArray(value) || !isPlainRecord(value)) {
-        throw new Error(`Remote form snapshot changes the object shape at "${pointer}".`)
-      }
-      const oldKeys = Object.keys(previous).sort(compareCodeUnits)
-      const newKeys = Object.keys(value).sort(compareCodeUnits)
-      if (oldKeys.length !== newKeys.length || oldKeys.some((key, index) => key !== newKeys[index])) {
-        throw new Error(`Remote form snapshot changes object properties at "${pointer}".`)
-      }
-      if (Object.getOwnPropertySymbols(value).length > 0 ||
-          Object.getOwnPropertyNames(value).length !== newKeys.length ||
-          Object.getOwnPropertySymbols(previous).length > 0 ||
-          Object.getOwnPropertyNames(previous).length !== oldKeys.length) {
-        throw new Error(`Remote form snapshot contains non-JSON object properties at "${pointer}".`)
-      }
-      for (const key of oldKeys) {
-        const descriptor = Object.getOwnPropertyDescriptor(value, key)
-        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, key)
-        if (!descriptor?.enumerable || !('value' in descriptor) ||
-            !previousDescriptor?.enumerable || !('value' in previousDescriptor)) {
-          throw new Error(`Remote form snapshot contains an accessor at "${pointer}/${key}".`)
-        }
-        totalStringLength += key.length
-        if (totalStringLength > 1_000_000) {
-          throw new Error('Remote form snapshot exceeds the supported string size.')
-        }
-      }
-      if (active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
-      active.add(value)
-      for (const key of oldKeys) {
-        const previousDescriptor = Object.getOwnPropertyDescriptor(previous, key)!
-        const descriptor = Object.getOwnPropertyDescriptor(value, key)!
-        visit(previousDescriptor.value, descriptor.value, `${pointer}/${key}`, depth + 1)
-      }
-      active.delete(value)
-      return
-    }
-
-    throw new Error(`The current form data is not supported for remote snapshots at "${pointer}".`)
+function accountSnapshotStringLength(context: JsonShapeValidationContext, length: number): void {
+  context.totalStringLength += length
+  if (context.totalStringLength > 1_000_000) {
+    throw new Error('Remote form snapshot exceeds the supported string size.')
   }
+}
 
-  visit(before, next, '', 0)
+function assertSnapshotTraversalBudget(
+  context: JsonShapeValidationContext,
+  depth: number,
+): void {
+  context.visited++
+  if (context.visited > 100_000 || depth > 128) {
+    throw new Error('Remote form snapshot exceeds the supported JSON size or depth.')
+  }
+}
+
+function assertSnapshotProperties(
+  value: object,
+  expectedCount: number,
+  kind: 'array' | 'object',
+  pointer: string,
+): void {
+  if (Object.getOwnPropertySymbols(value).length > 0 ||
+      Object.getOwnPropertyNames(value).length !== expectedCount) {
+    throw new Error(`Remote form snapshot contains non-JSON ${kind} properties at "${pointer}".`)
+  }
+}
+
+function snapshotPropertyValues(
+  previous: object,
+  value: object,
+  key: string,
+  pointer: string,
+): [unknown, unknown] {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key)
+  const previousDescriptor = Object.getOwnPropertyDescriptor(previous, key)
+  if (!descriptor?.enumerable || !('value' in descriptor) ||
+      !previousDescriptor?.enumerable || !('value' in previousDescriptor)) {
+    throw new Error(`Remote form snapshot contains an accessor at "${pointer}".`)
+  }
+  return [previousDescriptor.value, descriptor.value]
+}
+
+function visitSameJsonShape(
+  previous: unknown,
+  value: unknown,
+  pointer: string,
+  depth: number,
+  context: JsonShapeValidationContext,
+): void {
+  assertSnapshotTraversalBudget(context, depth)
+  if (isJsonScalar(previous)) {
+    if (!isJsonScalar(value)) {
+      throw new Error(`Remote form snapshot changes the scalar shape at "${pointer}".`)
+    }
+    if (typeof value === 'string') accountSnapshotStringLength(context, value.length)
+    return
+  }
+  if (Array.isArray(previous)) {
+    assertSameArrayShape(previous, value, pointer, depth, context)
+    return
+  }
+  if (typeof previous === 'object' && previous !== null && isPlainRecord(previous)) {
+    assertSameRecordShape(previous, value, pointer, depth, context)
+    return
+  }
+  throw new Error(`The current form data is not supported for remote snapshots at "${pointer}".`)
+}
+
+function assertSameArrayShape(
+  previous: unknown[],
+  value: unknown,
+  pointer: string,
+  depth: number,
+  context: JsonShapeValidationContext,
+): asserts value is unknown[] {
+  if (!Array.isArray(value) || value.length !== previous.length) {
+    throw new Error(`Remote form snapshot changes the array shape at "${pointer}".`)
+  }
+  assertSnapshotProperties(value, value.length + 1, 'array', pointer)
+  assertSnapshotProperties(previous, previous.length + 1, 'array', pointer)
+  if (context.active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
+  context.active.add(value)
+  for (let index = 0; index < previous.length; index++) {
+    if (!Object.hasOwn(value, index)) {
+      throw new Error(`Remote form snapshot contains a sparse array at "${pointer}".`)
+    }
+    const childPointer = `${pointer}/${index}`
+    const [previousValue, nextValue] = snapshotPropertyValues(previous, value, String(index), childPointer)
+    visitSameJsonShape(previousValue, nextValue, childPointer, depth + 1, context)
+  }
+  context.active.delete(value)
+}
+
+function assertSameRecordShape(
+  previous: Record<string, unknown>,
+  value: unknown,
+  pointer: string,
+  depth: number,
+  context: JsonShapeValidationContext,
+): asserts value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || !isPlainRecord(value)) {
+    throw new Error(`Remote form snapshot changes the object shape at "${pointer}".`)
+  }
+  const oldKeys = Object.keys(previous).sort(compareCodeUnits)
+  const newKeys = Object.keys(value).sort(compareCodeUnits)
+  if (oldKeys.length !== newKeys.length || oldKeys.some((key, index) => key !== newKeys[index])) {
+    throw new Error(`Remote form snapshot changes object properties at "${pointer}".`)
+  }
+  assertSnapshotProperties(value, newKeys.length, 'object', pointer)
+  assertSnapshotProperties(previous, oldKeys.length, 'object', pointer)
+  for (const key of oldKeys) {
+    snapshotPropertyValues(previous, value, key, `${pointer}/${key}`)
+    accountSnapshotStringLength(context, key.length)
+  }
+  if (context.active.has(value)) throw new Error('Remote form snapshot contains a cycle.')
+  context.active.add(value)
+  for (const key of oldKeys) {
+    const childPointer = `${pointer}/${key}`
+    const [previousValue, nextValue] = snapshotPropertyValues(previous, value, key, childPointer)
+    visitSameJsonShape(previousValue, nextValue, childPointer, depth + 1, context)
+  }
+  context.active.delete(value)
+}
+
+function assertSameJsonShape(before: unknown, next: unknown): void {
+  visitSameJsonShape(before, next, '', 0, {
+    visited: 0,
+    totalStringLength: 0,
+    active: new WeakSet<object>(),
+  })
 }
 
 function jsonValuesEqual(left: unknown, right: unknown): boolean {
