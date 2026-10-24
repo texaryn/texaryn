@@ -294,21 +294,13 @@ function referencesIn({
   const visitedLocalReferences = new Set<number>()
   const referenceKeywordSet = new Set(referenceKeywords(dialect))
 
-  const visit = (
-    schema: unknown,
+  const recordSchemaContext = (
+    record: Record<string, unknown>,
     parentBase: string | undefined,
     position: string,
     resourceRoot: unknown,
     resourceRootPosition: string,
-  ): void => {
-    if (typeof schema !== 'object' || schema === null) return
-    if (Array.isArray(schema)) {
-      if (seenAtBase(seen, schema, parentBase)) return
-      schema.forEach((child, index) => visit(child, parentBase, `${position}/${index}`, resourceRoot, resourceRootPosition))
-      return
-    }
-
-    const record = schema as Record<string, unknown>
+  ) => {
     const identifier = schemaIdentifier(record, dialect)
     const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
     const base = ignoresSiblings ? parentBase : resourceBase(identifier, parentBase, dialect)
@@ -324,74 +316,156 @@ function referencesIn({
       }
     }
     const startsResource = !ignoresSiblings && typeof identifier === 'string' && !(isPre2019Dialect(dialect) && identifier.startsWith('#'))
-    const currentRoot = startsResource ? schema : resourceRoot
+    const currentRoot = startsResource ? record : resourceRoot
     const currentRootPosition = startsResource ? position : resourceRootPosition
     contextsByPosition.set(position, { base, resourceRoot: currentRoot, resourceRootPosition: currentRootPosition })
-    if (seenAtBase(seen, schema, parentBase)) return
+    return { identifier, ignoresSiblings, base, currentRoot, currentRootPosition }
+  }
+
+  const recordAnchors = (
+    schema: Record<string, unknown>,
+    parentBase: string | undefined,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void => {
+    const { identifier, ignoresSiblings, base } = context
     if (!ignoresSiblings && isPre2019Dialect(dialect) && typeof identifier === 'string' && identifier.startsWith('#')) {
       const anchorUri = absoluteUri(identifier, parentBase) ?? (parentBase === undefined ? identifier : undefined)
       if (anchorUri !== undefined) anchorTargets.set(anchorUri, { schema, base, position })
     }
-    if (!isPre2019Dialect(dialect) && typeof record.$anchor === 'string') {
-      anchorTargets.set(`${base ?? ''}#${record.$anchor}`, { schema, base, position })
+    if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
+      anchorTargets.set(`${base ?? ''}#${schema.$anchor}`, { schema, base, position })
     }
-    if (dialect === '2020-12' && typeof record.$dynamicAnchor === 'string') {
-      anchorTargets.set(`${base ?? ''}#${record.$dynamicAnchor}`, { schema, base, position })
+    if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+      anchorTargets.set(`${base ?? ''}#${schema.$dynamicAnchor}`, { schema, base, position })
     }
+  }
+
+  const recordReferences = (
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void => {
+    const { base, currentRoot, currentRootPosition } = context
     for (const keyword of referenceKeywordSet) {
       const reference = record[keyword]
-      if (typeof reference === 'string') {
-        references.set(JSON.stringify([base, reference]), { base, reference, position: `${position}/${keyword}` })
-        const resolved = absoluteUri(reference, base)
-        const localUri = resolved ?? (base === undefined && reference.startsWith('#') ? reference : undefined)
-        if (localUri !== undefined && (base === undefined || withoutFragment(localUri) === base)) {
-          localReferences.push({
-            uri: localUri,
-            base,
-            resourceRoot: currentRoot,
-            resourceRootPosition: currentRootPosition,
-          })
-        }
+      if (typeof reference !== 'string') continue
+      references.set(JSON.stringify([base, reference]), { base, reference, position: `${position}/${keyword}` })
+      const resolved = absoluteUri(reference, base)
+      const localUri = resolved ?? (base === undefined && reference.startsWith('#') ? reference : undefined)
+      if (localUri !== undefined && (base === undefined || withoutFragment(localUri) === base)) {
+        localReferences.push({
+          uri: localUri,
+          base,
+          resourceRoot: currentRoot,
+          resourceRootPosition: currentRootPosition,
+        })
       }
     }
+  }
 
-    if (isPre2019Dialect(dialect) && typeof record.$ref === 'string') {
-      for (const keyword of ['definitions', '$defs']) {
-        const children = record[keyword]
-        if (isRecord(children)) {
-          for (const [key, child] of Object.entries(children)) {
-            if (isRecord(child) || typeof child === 'boolean') {
-              visit(child, base, `${position}/${keyword}/${escape(key)}`, currentRoot, currentRootPosition)
-            }
-          }
-        }
+  const visit = (
+    schema: unknown,
+    parentBase: string | undefined,
+    position: string,
+    resourceRoot: unknown,
+    resourceRootPosition: string,
+  ): void => {
+    if (typeof schema !== 'object' || schema === null) return
+    if (Array.isArray(schema)) {
+      if (!seenAtBase(seen, schema, parentBase)) {
+        schema.forEach((child, index) => visit(child, parentBase, `${position}/${index}`, resourceRoot, resourceRootPosition))
       }
       return
     }
 
+    const record = schema as Record<string, unknown>
+    const context = recordSchemaContext(record, parentBase, position, resourceRoot, resourceRootPosition)
+    if (seenAtBase(seen, schema, parentBase)) return
+    recordAnchors(record, parentBase, position, context)
+    recordReferences(record, position, context)
+    visitChildren(record, position, context)
+  }
+
+  function visitChildren(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void {
+    if (visitLegacyDefinitions(record, position, context)) return
+    visitSingleSchemas(record, position, context)
+    visitListSchemas(record, position, context)
+    visitMapSchemas(record, position, context)
+    visitTupleItems(record, position, context)
+  }
+
+  function visitLegacyDefinitions(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): boolean {
+    if (!isPre2019Dialect(dialect) || typeof record.$ref !== 'string') return false
+    for (const keyword of ['definitions', '$defs']) {
+      const children = record[keyword]
+      if (!isRecord(children)) continue
+      for (const [key, child] of Object.entries(children)) {
+        if (isRecord(child) || typeof child === 'boolean') {
+          visit(child, context.base, `${position}/${keyword}/${escape(key)}`, context.currentRoot, context.currentRootPosition)
+        }
+      }
+    }
+    return true
+  }
+
+  function visitSingleSchemas(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void {
     for (const keyword of SINGLE[dialect]) {
       const child = record[keyword]
       if (isRecord(child) || typeof child === 'boolean') {
-        visit(child, base, `${position}/${keyword}`, currentRoot, currentRootPosition)
+        visit(child, context.base, `${position}/${keyword}`, context.currentRoot, context.currentRootPosition)
       }
     }
+  }
+
+  function visitListSchemas(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void {
     for (const keyword of LIST[dialect]) {
       const children = record[keyword]
       if (Array.isArray(children)) {
-        children.forEach((child, index) => visit(child, base, `${position}/${keyword}/${index}`, currentRoot, currentRootPosition))
+        children.forEach((child, index) => visit(child, context.base, `${position}/${keyword}/${index}`, context.currentRoot, context.currentRootPosition))
       }
     }
+  }
+
+  function visitMapSchemas(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void {
     for (const keyword of MAP[dialect]) {
       const children = record[keyword]
       if (!isRecord(children)) continue
       for (const [key, child] of Object.entries(children)) {
         if (isRecord(child) || typeof child === 'boolean') {
-          visit(child, base, `${position}/${keyword}/${escape(key)}`, currentRoot, currentRootPosition)
+          visit(child, context.base, `${position}/${keyword}/${escape(key)}`, context.currentRoot, context.currentRootPosition)
         }
       }
     }
+  }
+
+  function visitTupleItems(
+    record: Record<string, unknown>,
+    position: string,
+    context: ReturnType<typeof recordSchemaContext>,
+  ): void {
     if (dialect !== '2020-12' && Array.isArray(record.items)) {
-      record.items.forEach((child, index) => visit(child, base, `${position}/items/${index}`, currentRoot, currentRootPosition))
+      record.items.forEach((child, index) => visit(child, context.base, `${position}/items/${index}`, context.currentRoot, context.currentRootPosition))
     }
   }
 
