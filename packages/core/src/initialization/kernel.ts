@@ -234,26 +234,8 @@ function collect(
   sourced: readonly SourcedWrite[],
 ): { writes: Write[]; conflicts: DefaultConflict[]; refusals: DefaultRefusal[] } {
   const candidates: Write[] = []
-  const conflicts: DefaultConflict[] = []
   const refusals: DefaultRefusal[] = []
-  const conflicted = new Set<Location>()
-
-  // Both loops are over `reachable`, and both skip a location that is already
-  // filled. A conflict at a location holding a value explains nothing: the pass
-  // was not going to write there anyway, and reporting it would say a value was
-  // withheld that the data already has.
-  //
-  // A conflicted ancestor is found through this same set rather than a wider
-  // one, because exposure is inherited: a location the projection exposes has
-  // ancestors it also exposes, in both adapters. The one exception is an
-  // adapter that projects a node whose parent it dropped, which is #116, and
-  // there the ancestor has no node and so no diagnostic either.
-  for (const [location, sources] of view.conflicts) {
-    if (!view.reachable.has(location)) continue
-    if (!isAbsent(data, parsePointer(location), provisional)) continue
-    conflicted.add(location)
-    conflicts.push({ location, sources })
-  }
+  const { conflicts, conflicted } = collectConflicts(data, view, provisional)
 
   for (const location of view.reachable) {
     if (!view.defaults.has(location)) continue
@@ -302,6 +284,33 @@ function collect(
   )
 
   return { writes, conflicts, refusals }
+}
+
+function collectConflicts(
+  data: unknown,
+  view: InitializationView,
+  provisional: ReadonlySet<Location>,
+): { conflicts: DefaultConflict[]; conflicted: Set<Location> } {
+  const conflicts: DefaultConflict[] = []
+  const conflicted = new Set<Location>()
+
+  // A conflict at a location holding a value explains nothing: the pass was not
+  // going to write there anyway, and reporting it would say a value was withheld
+  // that the data already has.
+  //
+  // A conflicted ancestor is found through this same set rather than a wider
+  // one, because exposure is inherited: a location the projection exposes has
+  // ancestors it also exposes, in both adapters. The one exception is an
+  // adapter that projects a node whose parent it dropped, which is #116, and
+  // there the ancestor has no node and so no diagnostic either.
+  for (const [location, sources] of view.conflicts) {
+    if (!view.reachable.has(location)) continue
+    if (!isAbsent(data, parsePointer(location), provisional)) continue
+    conflicted.add(location)
+    conflicts.push({ location, sources })
+  }
+
+  return { conflicts, conflicted }
 }
 
 /**
