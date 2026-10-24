@@ -15,7 +15,7 @@
     "@texaryn/react": "1.0.1",
     "@texaryn/react-mui": "0.8.1",
     "@texaryn/schema-json": "0.6.0",
-    "react": "^19.0.0",
+    "react": "^19.3.1",
     "react-dom": "^19.0.0",
     "yaml": "^2.7.0"
   },
@@ -25,14 +25,15 @@
     "@rjsf/validator-ajv8": "5.24.13",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^26.6.5",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.3.0",
     "@types/react-dom": "^19.0.0",
     "jsdom": "^26.0.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "fast-uri": "3.1.9"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
