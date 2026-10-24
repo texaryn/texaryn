@@ -287,20 +287,29 @@ function validateDocumentNode(
   }
 }
 
+function recordChildOwner(
+  parentId: NodeId,
+  childId: NodeId,
+  nodes: ReadonlyMap<NodeId, DocumentNode>,
+  seenChildren: Set<NodeId>,
+  childOwners: Map<NodeId, NodeId>,
+): void {
+  if (seenChildren.has(childId)) fail(`document.nodes.${parentId}.children`, 'contains a duplicate child')
+  seenChildren.add(childId)
+  const childNode = nodes.get(childId)
+  if (!childNode) fail(`document.nodes.${parentId}.children`, `references missing node ${childId}`)
+  if (childNode.parentId !== parentId) fail(`document.nodes.${childId}.parentId`, 'does not agree with its parent children list')
+  if (childOwners.has(childId)) fail(`document.nodes.${childId}`, 'has more than one parent')
+  childOwners.set(childId, parentId)
+}
+
 function assertChildOwnership(nodes: ReadonlyMap<NodeId, DocumentNode>): Map<NodeId, NodeId> {
   const childOwners = new Map<NodeId, NodeId>()
   for (const [parentId, node] of nodes) {
     if (node.type !== 'container') continue
     const seenChildren = new Set<NodeId>()
     for (const child of node.children) {
-      const childId = child as NodeId
-      if (seenChildren.has(childId)) fail(`document.nodes.${parentId}.children`, 'contains a duplicate child')
-      seenChildren.add(childId)
-      const childNode = nodes.get(childId)
-      if (!childNode) fail(`document.nodes.${parentId}.children`, `references missing node ${childId}`)
-      if (childNode.parentId !== parentId) fail(`document.nodes.${childId}.parentId`, 'does not agree with its parent children list')
-      if (childOwners.has(childId)) fail(`document.nodes.${childId}`, 'has more than one parent')
-      childOwners.set(childId, parentId)
+      recordChildOwner(parentId, child as NodeId, nodes, seenChildren, childOwners)
     }
   }
   return childOwners
