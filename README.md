@@ -17,8 +17,8 @@
   <a href="https://github.com/texaryn/texaryn/actions/workflows/ci-release.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/texaryn/texaryn/ci-release.yml?branch=main&label=CI" alt="CI" />
   </a>
-  <a href="https://codecov.io/gh/texaryn/texaryn">
-    <img src="https://img.shields.io/codecov/c/github/texaryn/texaryn?label=coverage" alt="coverage" />
+  <a href="https://sonarcloud.io/component_measures?id=texaryn_texaryn&metric=coverage">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage" alt="SonarQube Cloud coverage" />
   </a>
   <a href="./LICENSE">
     <img src="https://img.shields.io/github/license/texaryn/texaryn?label=license" alt="license" />

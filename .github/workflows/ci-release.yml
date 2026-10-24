@@ -45,22 +45,11 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - run: pnpm exec playwright install chromium --with-deps
       - run: pnpm test:coverage
-      - name: Upload coverage to Codecov
-        # Fork pull requests receive no id-token, so an OIDC upload from them can only fail.
-        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          use_oidc: true
-          files: ./coverage/lcov.info
-          fail_ci_if_error: true
       - if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
