@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/collaboration-yjs",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Optional Yjs collaboration for scalar fields in Texaryn forms",
   "keywords": [
     "yjs",

@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/react",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Schema-driven forms and display documents for React, with hooks, accessible field bindings and default widgets",
   "keywords": [
     "react",

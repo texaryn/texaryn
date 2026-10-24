@@ -1,5 +1,15 @@
 # @texaryn/core
 
+## 1.1.0
+
+### Minor Changes
+
+- 8e7ba1f: Render object field values as JSON text instead of generic object labels.
+
+### Patch Changes
+
+- 5acddeb: Refactor document update and remote snapshot validation into focused steps while preserving their behavior.
+
 ## 1.0.2
 
 ### Patch Changes

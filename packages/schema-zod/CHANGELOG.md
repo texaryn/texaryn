@@ -1,5 +1,16 @@
 # @texaryn/schema-zod
 
+## 0.3.3
+
+### Patch Changes
+
+- 3428b92: Refactor union error serialization while preserving its output.
+- Updated dependencies [5acddeb]
+- Updated dependencies [8e7ba1f]
+- Updated dependencies [8e7ba1f]
+  - @texaryn/core@1.1.0
+  - @texaryn/schema-json@1.0.4
+
 ## 0.3.2
 
 ### Patch Changes
