@@ -114,6 +114,31 @@ interface NormalizationContext {
   dialect: Dialect
 }
 
+function normalizeSchemaValue(
+  key: string,
+  value: unknown,
+  position: Position,
+  bases: readonly Position[],
+  context: NormalizationContext,
+): [string, unknown] {
+  if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) {
+    return [key, schemaAt(value, position, bases, context)]
+  }
+  if (LIST.has(key) && Array.isArray(value)) {
+    return [key, value.map((item, index) => schemaAt(item, below(position, String(index)), bases, context))]
+  }
+  if (MAP.has(key) && isRecord(value)) {
+    const member = key === '$defs' || key === 'definitions'
+    return [
+      key,
+      Object.fromEntries(
+        Object.entries(value).map(([name, schema]) => [name, schemaAt(schema, below(position, name, member), bases, context)]),
+      ),
+    ]
+  }
+  return [key, copy(value)]
+}
+
 function schemaAt(
   schema: unknown,
   position: Position,
@@ -138,19 +163,7 @@ function schemaAt(
   for (const [key, value] of Object.entries(schema)) {
     const at = below(position, key)
     if (dropped(key) || (key === 'if' && bare)) continue
-    if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) {
-      entries.push([key, schemaAt(value, at, within, context)])
-    } else if (LIST.has(key) && Array.isArray(value)) {
-      entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within, context))])
-    } else if (MAP.has(key) && isRecord(value)) {
-      const member = key === '$defs' || key === 'definitions'
-      entries.push([
-        key,
-        Object.fromEntries(
-          Object.entries(value).map(([name, m]) => [name, schemaAt(m, below(at, name, member), within, context)]),
-        ),
-      ])
-    } else entries.push([key, copy(value)])
+    entries.push(normalizeSchemaValue(key, value, at, within, context))
   }
   return Object.fromEntries(entries)
 }
