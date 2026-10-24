@@ -103,30 +103,60 @@ function compositionHasRenderableAlternative(node: SchemaNode): boolean {
   return branches.some(branchHasRenderableAlternative)
 }
 
-function extractConstraints(schema: Record<string, unknown>, dialect: ProjectionCache['dialect']): FieldConstraints {
-  const constraints: FieldConstraints = {}
+function extractLengthConstraints(
+  schema: Record<string, unknown>,
+  constraints: FieldConstraints,
+): void {
   if (typeof schema.minLength === 'number') constraints.minLength = schema.minLength
   if (typeof schema.maxLength === 'number') constraints.maxLength = schema.maxLength
+}
+
+function extractExclusiveMinimumConstraint(
+  schema: Record<string, unknown>,
+  constraints: FieldConstraints,
+  draft04: boolean,
+): void {
+  if (draft04 && schema.exclusiveMinimum === true && typeof schema.minimum === 'number') {
+    constraints.exclusiveMinimum = schema.minimum
+  } else if (typeof schema.exclusiveMinimum === 'number') {
+    constraints.exclusiveMinimum = schema.exclusiveMinimum
+  }
+}
+
+function extractExclusiveMaximumConstraint(
+  schema: Record<string, unknown>,
+  constraints: FieldConstraints,
+  draft04: boolean,
+): void {
+  if (draft04 && schema.exclusiveMaximum === true && typeof schema.maximum === 'number') {
+    constraints.exclusiveMaximum = schema.maximum
+  } else if (typeof schema.exclusiveMaximum === 'number') {
+    constraints.exclusiveMaximum = schema.exclusiveMaximum
+  }
+}
+
+function extractPatternConstraint(
+  schema: Record<string, unknown>,
+  constraints: FieldConstraints,
+): void {
+  if (schema.pattern instanceof RegExp) constraints.pattern = schema.pattern.source
+  else if (typeof schema.pattern === 'string') constraints.pattern = schema.pattern
+}
+
+function extractConstraints(schema: Record<string, unknown>, dialect: ProjectionCache['dialect']): FieldConstraints {
+  const constraints: FieldConstraints = {}
   const draft04 = dialect === 'draft-04'
+  extractLengthConstraints(schema, constraints)
   if (typeof schema.minimum === 'number' && !(draft04 && schema.exclusiveMinimum === true)) {
     constraints.minimum = schema.minimum
   }
   if (typeof schema.maximum === 'number' && !(draft04 && schema.exclusiveMaximum === true)) {
     constraints.maximum = schema.maximum
   }
-  if (draft04 && schema.exclusiveMinimum === true && typeof schema.minimum === 'number') {
-    constraints.exclusiveMinimum = schema.minimum
-  } else if (typeof schema.exclusiveMinimum === 'number') {
-    constraints.exclusiveMinimum = schema.exclusiveMinimum
-  }
-  if (draft04 && schema.exclusiveMaximum === true && typeof schema.maximum === 'number') {
-    constraints.exclusiveMaximum = schema.maximum
-  } else if (typeof schema.exclusiveMaximum === 'number') {
-    constraints.exclusiveMaximum = schema.exclusiveMaximum
-  }
+  extractExclusiveMinimumConstraint(schema, constraints, draft04)
+  extractExclusiveMaximumConstraint(schema, constraints, draft04)
   if (typeof schema.multipleOf === 'number') constraints.multipleOf = schema.multipleOf
-  if (schema.pattern instanceof RegExp) constraints.pattern = schema.pattern.source
-  else if (typeof schema.pattern === 'string') constraints.pattern = schema.pattern
+  extractPatternConstraint(schema, constraints)
   if (typeof schema.minItems === 'number') constraints.minItems = schema.minItems
   if (typeof schema.maxItems === 'number') constraints.maxItems = schema.maxItems
   if (typeof schema.uniqueItems === 'boolean') constraints.uniqueItems = schema.uniqueItems
