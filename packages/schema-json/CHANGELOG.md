@@ -1,5 +1,18 @@
 # @texaryn/schema-json
 
+## 1.0.6
+
+### Patch Changes
+
+- b5304fa: Simplifies schema graph child traversal.
+- aa8f47d: Simplifies schema identity traversal.
+- aa8f47d: Simplifies schema path traversal.
+- aa8f47d: Simplifies allOf reference expansion.
+- 55aefac: Refines schema projection constraint extraction.
+- 97ce30b: Simplifies local pointer target resolution.
+- Updated dependencies [6aa8002]
+  - @texaryn/core@1.1.1
+
 ## 1.0.5
 
 ### Patch Changes

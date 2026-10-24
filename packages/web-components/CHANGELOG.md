@@ -1,5 +1,13 @@
 # @texaryn/web-components
 
+## 0.8.5
+
+### Patch Changes
+
+- aac73fc: Simplifies native field rendering logic.
+- Updated dependencies [6aa8002]
+  - @texaryn/core@1.1.1
+
 ## 0.8.4
 
 ### Patch Changes
