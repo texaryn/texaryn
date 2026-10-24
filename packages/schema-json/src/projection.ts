@@ -2722,7 +2722,8 @@ function removeDeletedProjectionChildren(
 ): void {
   for (const node of nodes.values()) {
     if (!node.children?.some((child) => removed.has(child.pointer))) continue
-    ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(
+    const mutableNode = node as { children?: NodeProjection['children'] }
+    mutableNode.children = node.children.filter(
       (child) => !removed.has(child.pointer),
     )
   }
@@ -2745,12 +2746,14 @@ function attachProjectionBoundaries(
   for (const [pointer, reasons] of ctx.boundaries) {
     const node = nodes.get(toPointer(pointer))
     if (!node) continue
-    ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
+    const mutableNode = node as { boundaries?: readonly ProjectionBoundary[] }
+    mutableNode.boundaries = (
       ['recursion', 'budget'] as const
     ).filter((reason) => reasons.has(reason))
     const targets = ctx.boundaryTargets.get(pointer)
     if (targets) {
-      ;(node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }).boundaryTargets = [
+      const mutableNode = node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }
+      mutableNode.boundaryTargets = [
         ...targets.values(),
       ]
     }
