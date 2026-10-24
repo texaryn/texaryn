@@ -168,11 +168,11 @@ importers:
         specifier: ^9.4.0
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@rjsf/core':
-        specifier: 5.24.13
-        version: 5.24.13(react@19.2.8)
+        specifier: 6.11.0
+        version: 6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))
       '@rjsf/validator-ajv8':
         specifier: 6.11.0
-        version: 6.11.0
+        version: 6.11.0(@rjsf/utils@6.11.0(react@19.2.8))
       '@texaryn/angular':
         specifier: workspace:*
         version: link:../../packages/angular
@@ -2192,18 +2192,24 @@ packages:
       '@types/react':
         optional: true
 
-  '@rjsf/core@5.24.13':
-    resolution: {integrity: sha512-ONTr14s7LFIjx2VRFLuOpagL76sM/HPy6/OhdBfq6UukINmTIs6+aFN0GgcR0aXQHFDXQ7f/fel0o/SO05Htdg==}
-    engines: {node: '>=14'}
+  '@rjsf/core@6.11.0':
+    resolution: {integrity: sha512-8Hp3nd2RysjfmxHKy3/1GJtdAaDBt9VkU/c+pSXrs332BvliJM/Tp/QXTTnHYKYUSi1klFTygnvq1ujSefpcug==}
+    engines: {node: '>=20'}
     peerDependencies:
-      '@rjsf/utils': ^5.24.x
-      react: ^16.14.0 || >=17
+      '@rjsf/utils': ^6.11.0
+      react: '>=18'
 
   '@rjsf/utils@5.24.13':
     resolution: {integrity: sha512-rNF8tDxIwTtXzz5O/U23QU73nlhgQNYJ+Sv5BAwQOIyhIE2Z3S5tUiSVMwZHt0julkv/Ryfwi+qsD4FiE5rOuw==}
     engines: {node: '>=14'}
     peerDependencies:
       react: ^16.14.0 || >=17
+
+  '@rjsf/utils@6.11.0':
+    resolution: {integrity: sha512-jWYFXmPR5OVehb66Z2RDJFEgI7b7YSXe0FIco5kb7noqaDmjMOMFu4MnDKXPJLLdOW6YRd3MYZCbIPWvJeua4g==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@rjsf/validator-ajv8@6.11.0':
     resolution: {integrity: sha512-pTzuYODewEE3qkTC5UwGvVvG0eetq72/h+rP9PsjPhF1lp2KZ5WrR44a29ipSnMTP2vorO80AvC/O9AXvBfVYw==}
@@ -2821,6 +2827,9 @@ packages:
   '@types/js-yaml@4.0.9':
     resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
+  '@types/json-schema@7.0.15':
+    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -2967,6 +2976,9 @@ packages:
     peerDependenciesMeta:
       '@vue/server-renderer':
         optional: true
+
+  '@x0k/json-schema-merge@1.1.0':
+    resolution: {integrity: sha512-QA8fHqP7e+Lvi4ih8X9r1ZnITC2Lo0uhh5qpP8yM7l6HYs7KljtMfoljSRh52jfU55oXSyO4/GhMyjqh8rQjWQ==}
 
   abbrev@5.0.0:
     resolution: {integrity: sha512-/XrFJgzQQQHpti1raDJC6m4ws6aNktmjBlhk8Fdlk7LwCEuDoieEJJY9OFHjfiFJFFRM2tK+Ky/IsfbbmlMu1w==}
@@ -3725,6 +3737,10 @@ packages:
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
+  fast-equals@6.2.1:
+    resolution: {integrity: sha512-s7KFkLPAAbIDGTh+nVYhjTiwKGvgMXAUG5vwzg8vQKj7NSRZ4eEGExBQ4rq9V90fTYVWd1cb/Wr4ffCNBmLQMQ==}
+    engines: {node: '>=6.0.0'}
+
   fast-string-truncated-width@3.0.3:
     resolution: {integrity: sha512-0jjjIEL6+0jag3l2XWWizO64/aZVtpiGE3t0Zgqxv0DPuxiMjvB3M24fCyhZUO4KomJQPj3LTSUnDP3GpdwC0g==}
 
@@ -4362,13 +4378,22 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
-  markdown-to-jsx@7.7.17:
-    resolution: {integrity: sha512-7mG/1feQ0TX5I7YyMZVDgCC/y2I3CiEhIRQIhyov9nGBP5eoVrOXXHuL5ZP8GRfxVZKRiXWJgwXkb9It+nQZfQ==}
-    engines: {node: '>= 10'}
+  markdown-to-jsx@9.10.3:
+    resolution: {integrity: sha512-J5/NCmNYQ0ExsnThzvF3F1fSzNYLgROcW2diUqRqoIoiyhoy8DSI06jLuMYk0c86SQd/FiVYJrV6tIgci9S2tQ==}
+    engines: {node: '>= 18'}
     peerDependencies:
-      react: '>= 0.14.0'
+      react: '>= 16.0.0'
+      react-native: '*'
+      solid-js: '>=1.0.0'
+      vue: '>=3.0.0'
     peerDependenciesMeta:
       react:
+        optional: true
+      react-native:
+        optional: true
+      solid-js:
+        optional: true
+      vue:
         optional: true
 
   marked-terminal@7.3.0:
@@ -7160,13 +7185,15 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@rjsf/core@5.24.13(react@19.2.8)':
+  '@rjsf/core@6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))':
     dependencies:
-      lodash: 4.18.1
-      lodash-es: 4.18.1
-      markdown-to-jsx: 7.7.17(react@19.2.8)
-      prop-types: 15.8.1
+      '@rjsf/utils': 6.11.0(react@19.2.8)
+      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))
       react: 19.2.8
+    transitivePeerDependencies:
+      - react-native
+      - solid-js
+      - vue
 
   '@rjsf/utils@5.24.13(react@19.2.8)':
     dependencies:
@@ -7177,8 +7204,18 @@ snapshots:
       react: 19.2.8
       react-is: 18.3.1
 
-  '@rjsf/validator-ajv8@6.11.0':
+  '@rjsf/utils@6.11.0(react@19.2.8)':
     dependencies:
+      '@x0k/json-schema-merge': 1.1.0
+      fast-equals: 6.2.1
+      fast-uri: 4.2.1
+      jsonpointer: 5.0.1
+      react: 19.2.8
+      react-is: 18.3.1
+
+  '@rjsf/validator-ajv8@6.11.0(@rjsf/utils@6.11.0(react@19.2.8))':
+    dependencies:
+      '@rjsf/utils': 6.11.0(react@19.2.8)
       ajv: 8.20.0
       ajv-formats: 2.1.1(ajv@8.20.0)
 
@@ -7711,6 +7748,8 @@ snapshots:
 
   '@types/js-yaml@4.0.9': {}
 
+  '@types/json-schema@7.0.15': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -7966,6 +8005,10 @@ snapshots:
       vue-component-type-helpers: 3.3.11
     optionalDependencies:
       '@vue/server-renderer': 3.5.42
+
+  '@x0k/json-schema-merge@1.1.0':
+    dependencies:
+      '@types/json-schema': 7.0.15
 
   abbrev@5.0.0: {}
 
@@ -8816,6 +8859,8 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
+  fast-equals@6.2.1: {}
+
   fast-string-truncated-width@3.0.3: {}
 
   fast-string-width@3.0.2:
@@ -9460,9 +9505,11 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  markdown-to-jsx@7.7.17(react@19.2.8):
+  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3)):
     optionalDependencies:
       react: 19.2.8
+      solid-js: 1.9.17
+      vue: 3.5.42(typescript@5.8.3)
 
   marked-terminal@7.3.0(marked@9.1.6):
     dependencies:

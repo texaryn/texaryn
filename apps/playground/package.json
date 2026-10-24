@@ -28,7 +28,7 @@
     "@lezer/highlight": "1.2.5",
     "@lezer/json": "1.0.3",
     "@mui/material": "^9.4.0",
-    "@rjsf/core": "5.24.13",
+    "@rjsf/core": "6.11.0",
     "@rjsf/validator-ajv8": "6.11.0",
     "@texaryn/angular": "workspace:*",
     "@texaryn/core": "workspace:*",
