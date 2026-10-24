@@ -763,9 +763,7 @@ function collectDocumentReferences(
 }
 
 function scanReferencedPointerTargets(state: ReferencedPointerScanState): void {
-  for (let index = 0; index < state.pendingReferences.length; index += 1) {
-    scanReferencedPointerTarget(state.pendingReferences[index]!, state)
-  }
+  for (const reference of state.pendingReferences) scanReferencedPointerTarget(reference, state)
 }
 
 function scanReferencedPointerTarget(
@@ -1497,7 +1495,9 @@ async function scanExternalResourceQueue(state: ExternalResourceState): Promise<
       entryPointerFragments: current.pointerTarget === undefined ? [] : [current.pointerTarget],
     })
     // Resource loading changes the graph, so references resolve in traversal order.
-    for (const reference of references) await processExternalReference(reference, state)
+    for (const reference of references) {
+      await processExternalReference(reference, state) // NOSONAR: resource loading changes the graph, so references resolve in traversal order.
+    }
   }
 }
 
