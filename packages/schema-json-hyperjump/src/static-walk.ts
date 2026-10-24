@@ -1338,38 +1338,34 @@ function prepareStaticWalkNode(
 }
 
 function walkStaticNode(frame: StaticWalkFrame): void {
-  const {
-    schema,
-    schemaPointer,
-    rootSchema,
-    recursion,
-    path,
-    conditional = false,
-  } = frame
+  const { schema, rootSchema, recursion } = frame
   if (!isRecord(schema)) return
-  const reference = referenceShape(schema, rootSchema, schemaPointer, recursion.cache.dialect)
+  const reference = referenceShape(schema, rootSchema, frame.schemaPointer, recursion.cache.dialect)
   if (reference.skip) return
-  const referenceHasNoShape = reference.hasNoShape
   const inactiveConditionalRetained =
     (frame.inactiveConditionalRetained ?? false) &&
-    retainedConditionalBranch(schemaPointer, recursion.cache)
+    retainedConditionalBranch(frame.schemaPointer, recursion.cache)
+  const walkFrame = { ...frame, inactiveConditionalRetained }
+  const nextPath = createPathCursor(frame.path)
+  if (!walkResolvedReferences(walkFrame, schema)) return
+
+  const nodeState = prepareStaticWalkNode(walkFrame, schema, reference.hasNoShape, inactiveConditionalRetained)
+  walkPreparedStaticNode(walkFrame, schema, nodeState, nextPath)
+}
+
+function createPathCursor(path: readonly number[]): PathCursor {
   let step = 0
-  const nextPath = (): readonly number[] => [...path, step++]
-  if (!walkResolvedReferences(frame, schema)) return
+  return () => [...path, step++]
+}
 
-  const nodeState = prepareStaticWalkNode(frame, schema, referenceHasNoShape, inactiveConditionalRetained)
-  const {
-    node,
-    existed,
-    exposed,
-    suppressNestedInactiveBranches,
-    properties,
-    location,
-    required,
-    applicableRequired,
-  } = nodeState
+function walkPreparedStaticNode(
+  frame: StaticWalkFrame,
+  schema: Record<string, unknown>,
+  nodeState: StaticWalkNodeState,
+  nextPath: PathCursor,
+): void {
+  const { exposed, suppressNestedInactiveBranches } = nodeState
   walkPropertyChildren(frame, schema, nodeState, nextPath)
-
   walkAllOfBranches(frame, schema, nextPath)
   walkLiveConditionalBranch(frame, schema, suppressNestedInactiveBranches, nextPath)
 
