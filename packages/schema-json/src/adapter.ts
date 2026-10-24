@@ -407,7 +407,41 @@ function collectAuthoredReferencePaths(schema: unknown): WeakMap<object, string[
   const paths = new WeakMap<object, string[][]>()
   const ancestors = new Set<object>()
 
-  const visit = (value: unknown, keywords: string[]): void => {
+  function visitMapChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_MAP_KEYWORDS) {
+      const map = current[keyword]
+      if (typeof map !== 'object' || map === null || Array.isArray(map)) continue
+      for (const child of Object.values(map)) visit(child, [...keywords, keyword])
+    }
+  }
+
+  function visitArrayChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+      const branches = current[keyword]
+      if (Array.isArray(branches)) {
+        for (const child of branches) visit(child, [...keywords, keyword])
+      }
+    }
+  }
+
+  function visitSingleChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
+      visit(current[keyword], [...keywords, keyword])
+    }
+  }
+
+  function visitItems(current: Record<string, unknown>, keywords: string[]): void {
+    if (Object.hasOwn(current, 'items')) {
+      const items = current.items
+      if (Array.isArray(items)) {
+        for (const child of items) visit(child, [...keywords, 'prefixItems'])
+      } else {
+        visit(items, [...keywords, 'items'])
+      }
+    }
+  }
+
+  function visit(value: unknown, keywords: string[]): void {
     if (typeof value !== 'object' || value === null || Array.isArray(value) || ancestors.has(value)) return
     ancestors.add(value)
     const current = value as Record<string, unknown>
@@ -417,28 +451,10 @@ function collectAuthoredReferencePaths(schema: unknown): WeakMap<object, string[
       paths.set(value, found)
     }
 
-    for (const keyword of SCHEMA_MAP_KEYWORDS) {
-      const map = current[keyword]
-      if (typeof map !== 'object' || map === null || Array.isArray(map)) continue
-      for (const child of Object.values(map)) visit(child, [...keywords, keyword])
-    }
-    for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
-      const branches = current[keyword]
-      if (Array.isArray(branches)) {
-        for (const child of branches) visit(child, [...keywords, keyword])
-      }
-    }
-    for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
-      visit(current[keyword], [...keywords, keyword])
-    }
-    if (Object.hasOwn(current, 'items')) {
-      const items = current.items
-      if (Array.isArray(items)) {
-        for (const child of items) visit(child, [...keywords, 'prefixItems'])
-      } else {
-        visit(items, [...keywords, 'items'])
-      }
-    }
+    visitMapChildren(current, keywords)
+    visitArrayChildren(current, keywords)
+    visitSingleChildren(current, keywords)
+    visitItems(current, keywords)
     ancestors.delete(value)
   }
 
@@ -446,68 +462,86 @@ function collectAuthoredReferencePaths(schema: unknown): WeakMap<object, string[
   return paths
 }
 
-function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] | undefined {
+interface SchemaPathCursor {
+  readonly segments: string[]
+  readonly keywords: string[]
+  current: unknown
+  index: number
+}
+
+function advanceMapSchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCursor, segment: string): boolean {
+  const map = schema[segment]
+  const member = cursor.segments[cursor.index + 1]
+  if (
+    typeof map !== 'object' || map === null || Array.isArray(map) || member === undefined ||
+    !Object.hasOwn(map, member)
+  ) return false
+  cursor.keywords.push(segment)
+  cursor.current = (map as Record<string, unknown>)[member]
+  cursor.index += 2
+  return true
+}
+
+function advanceArraySchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCursor, segment: string): boolean {
+  const array = schema[segment]
+  const itemIndex = Number(cursor.segments[cursor.index + 1])
+  if (!Array.isArray(array) || !Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= array.length) return false
+  cursor.keywords.push(segment)
+  cursor.current = array[itemIndex]
+  cursor.index += 2
+  return true
+}
+
+function advanceItemsSchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCursor): boolean {
+  const items = schema.items
+  if (Array.isArray(items)) {
+    const itemIndex = Number(cursor.segments[cursor.index + 1])
+    if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= items.length) return false
+    cursor.keywords.push('prefixItems')
+    cursor.current = items[itemIndex]
+    cursor.index += 2
+    return true
+  }
+  if (!('items' in schema)) return false
+  cursor.keywords.push('items')
+  cursor.current = items
+  cursor.index++
+  return true
+}
+
+function advanceSingleSchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCursor, segment: string): boolean {
+  if (!(segment in schema)) return false
+  cursor.keywords.push(segment)
+  cursor.current = schema[segment]
+  cursor.index++
+  return true
+}
+
+function advanceSchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCursor): boolean {
+  const segment = cursor.segments[cursor.index]!
+  if (SCHEMA_MAP_KEYWORDS.has(segment)) return advanceMapSchemaPath(schema, cursor, segment)
+  if (SCHEMA_ARRAY_KEYWORDS.has(segment)) return advanceArraySchemaPath(schema, cursor, segment)
+  if (segment === 'items') return advanceItemsSchemaPath(schema, cursor)
+  if (SCHEMA_SINGLE_KEYWORDS.has(segment)) return advanceSingleSchemaPath(schema, cursor, segment)
+  return false
+}
+
+export function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] | undefined {
   const hashIndex = schemaLocation.indexOf('#')
   if (hashIndex < 0) return undefined
   const fragment = schemaLocation.slice(hashIndex + 1)
   if (!fragment.startsWith('/')) return []
-  const segments = fragment.slice(1).split('/')
-  const keywords: string[] = []
-  let current: unknown = root.schema
-  let index = 0
-  while (index < segments.length) {
-    if (typeof current !== 'object' || current === null || Array.isArray(current)) return undefined
-    const schema = current as Record<string, unknown>
-    const segment = segments[index]!
-    if (SCHEMA_MAP_KEYWORDS.has(segment)) {
-      keywords.push(segment)
-      const map = schema[segment]
-      const member = segments[index + 1]
-      if (
-        typeof map !== 'object' || map === null || Array.isArray(map) || member === undefined ||
-        !Object.hasOwn(map, member)
-      ) return undefined
-      current = (map as Record<string, unknown>)[member]
-      index += 2
-      continue
-    }
-    if (SCHEMA_ARRAY_KEYWORDS.has(segment)) {
-      keywords.push(segment)
-      const array = schema[segment]
-      const itemIndex = Number(segments[index + 1])
-      if (!Array.isArray(array) || !Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= array.length) {
-        return undefined
-      }
-      current = array[itemIndex]
-      index += 2
-      continue
-    }
-    if (segment === 'items') {
-      const items = schema.items
-      if (Array.isArray(items)) {
-        keywords.push('prefixItems')
-        const itemIndex = Number(segments[index + 1])
-        if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= items.length) return undefined
-        current = items[itemIndex]
-        index += 2
-      } else {
-        keywords.push(segment)
-        if (!(segment in schema)) return undefined
-        current = items
-        index += 1
-      }
-      continue
-    }
-    if (SCHEMA_SINGLE_KEYWORDS.has(segment)) {
-      keywords.push(segment)
-      if (!(segment in schema)) return undefined
-      current = schema[segment]
-      index += 1
-      continue
-    }
-    return undefined
+  const cursor: SchemaPathCursor = {
+    segments: fragment.slice(1).split('/'),
+    keywords: [],
+    current: root.schema,
+    index: 0,
   }
-  return keywords
+  while (cursor.index < cursor.segments.length) {
+    if (typeof cursor.current !== 'object' || cursor.current === null || Array.isArray(cursor.current)) return undefined
+    if (!advanceSchemaPath(cursor.current as Record<string, unknown>, cursor)) return undefined
+  }
+  return cursor.keywords
 }
 
 function dynamicAnchorUri(resourceId: string | undefined, anchor: string): string {
