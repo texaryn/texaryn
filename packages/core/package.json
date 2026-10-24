@@ -46,5 +46,8 @@
   "files": ["dist", "CHANGELOG.md"],
   "scripts": {
     "build": "tsc --build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3"
   }
 }
