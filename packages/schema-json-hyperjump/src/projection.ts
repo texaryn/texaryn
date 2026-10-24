@@ -453,7 +453,7 @@ export function buildProjection(
   const nodes = buildEvaluatedNodes(rawSchema, rootUri, byPointer, cache.dialect)
 
   const { branchChecker, recursion } = buildStaticProjection(
-    rawSchema, compiled, data, plugin, cache, limits, options, nodes
+    { rawSchema, compiled, data, plugin, cache, limits, options, nodes }
   )
 
   // After both passes, because either can have written the annotation: pass 1
@@ -533,7 +533,16 @@ function buildEvaluatedNodes(
     const node = ensureNode(nodes, pointer)
     node.active = true
     const resolvedByKeyword = resolveKeywordsByRecord(rawSchema, rootUri, records)
-    applyResolvedNodeValues(rawSchema, rootUri, nodes, pointer, node, records, resolvedByKeyword, dialect)
+    applyResolvedNodeValues({
+      rawSchema,
+      rootUri,
+      nodes,
+      pointer,
+      node,
+      records,
+      resolvedByKeyword,
+      dialect,
+    })
   }
   return nodes
 }
@@ -554,15 +563,18 @@ function resolveKeywordsByRecord(
 }
 
 function applyResolvedNodeValues(
-  rawSchema: unknown,
-  rootUri: string,
-  nodes: Map<string, DraftNode>,
-  pointer: string,
-  node: DraftNode,
-  records: KeywordRecord[],
-  resolvedByKeyword: Map<string, unknown[]>,
-  dialect: ProjectionCache['dialect'],
+  input: {
+    rawSchema: unknown
+    rootUri: string
+    nodes: Map<string, DraftNode>
+    pointer: string
+    node: DraftNode
+    records: KeywordRecord[]
+    resolvedByKeyword: Map<string, unknown[]>
+    dialect: ProjectionCache['dialect']
+  },
 ): void {
+  const { rawSchema, rootUri, nodes, pointer, node, records, resolvedByKeyword, dialect } = input
   applyNodeTypeAndFormat(node, resolvedByKeyword)
   applyNodeConstraints(rawSchema, rootUri, node, records, resolvedByKeyword, dialect)
   applyNodeAnnotations(node, resolvedByKeyword)
@@ -608,25 +620,46 @@ function applyDraft04Bounds(
 ): void {
   const constraints = node.constraints as Record<string, unknown>
   for (const record of records) {
-    if (!draft04Bounds.has(record.keywordName)) continue
-    const keywordPosition = schemaPosition(record.schemaUri, rootUri)
-    const sourcePosition = schemaParentPosition(
-      keywordPosition,
-      Math.max(0, schemaPositionSegments(keywordPosition).length - 1),
-    )
-    const source = schemaAtPosition(rawSchema, sourcePosition)
-    if (source === null || typeof source !== 'object' || Array.isArray(source)) continue
-    const schema = source as Record<string, unknown>
-    for (const [bound, exclusive] of [
-      ['minimum', 'exclusiveMinimum'],
-      ['maximum', 'exclusiveMaximum'],
-    ] as const) {
-      const value = schema[bound]
-      if (typeof value !== 'number') continue
-      const target = schema[exclusive] === true ? exclusive : bound
-      if (constraints[target] === undefined) constraints[target] = value
-    }
+    applyDraft04RecordBounds(rawSchema, rootUri, constraints, record, draft04Bounds)
   }
+}
+
+function applyDraft04RecordBounds(
+  rawSchema: unknown,
+  rootUri: string,
+  constraints: Record<string, unknown>,
+  record: KeywordRecord,
+  draft04Bounds: Set<string>,
+): void {
+  if (!draft04Bounds.has(record.keywordName)) return
+  const keywordPosition = schemaPosition(record.schemaUri, rootUri)
+  const sourcePosition = schemaParentPosition(
+    keywordPosition,
+    Math.max(0, schemaPositionSegments(keywordPosition).length - 1),
+  )
+  const source = schemaAtPosition(rawSchema, sourcePosition)
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) return
+  applyDraft04BoundPair(source as Record<string, unknown>, constraints)
+}
+
+function applyDraft04BoundPair(
+  schema: Record<string, unknown>,
+  constraints: Record<string, unknown>,
+): void {
+  applyDraft04Bound(schema, constraints, 'minimum', 'exclusiveMinimum')
+  applyDraft04Bound(schema, constraints, 'maximum', 'exclusiveMaximum')
+}
+
+function applyDraft04Bound(
+  schema: Record<string, unknown>,
+  constraints: Record<string, unknown>,
+  bound: 'minimum' | 'maximum',
+  exclusive: 'exclusiveMinimum' | 'exclusiveMaximum',
+): void {
+  const value = schema[bound]
+  if (typeof value !== 'number') return
+  const target = schema[exclusive] === true ? exclusive : bound
+  if (constraints[target] === undefined) constraints[target] = value
 }
 
 function applyNodeAnnotations(
@@ -671,15 +704,18 @@ function applyNodeProperties(
 }
 
 function buildStaticProjection(
-  rawSchema: unknown,
-  compiled: CompiledSchema,
-  data: unknown,
-  plugin: ProjectionPlugin,
-  cache: ProjectionCache,
-  limits: ProjectionLimits,
-  options: ProjectionOptions,
-  nodes: Map<string, DraftNode>,
+  input: {
+    rawSchema: unknown
+    compiled: CompiledSchema
+    data: unknown
+    plugin: ProjectionPlugin
+    cache: ProjectionCache
+    limits: ProjectionLimits
+    options: ProjectionOptions
+    nodes: Map<string, DraftNode>
+  },
 ): { branchChecker: BranchChecker; recursion: ReturnType<typeof newRecursionState> } {
+  const { rawSchema, compiled, data, plugin, cache, limits, options, nodes } = input
   const branchChecker = makeBranchChecker(rawSchema, plugin.scopeValidity, compiled, data, cache.dialect)
   const recursion = newRecursionState(
     cache,
