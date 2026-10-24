@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/svelte",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Schema-driven forms and display documents for Svelte 5, with readable stores and default widgets",
   "keywords": [
     "svelte",

@@ -1,5 +1,18 @@
 # @texaryn/react-bootstrap
 
+## 0.8.2
+
+### Patch Changes
+
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- d0813ea: Keeps feedback rows stable when the validation messages change.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+- Updated dependencies [5ad849f]
+- Updated dependencies [d0813ea]
+  - @texaryn/core@1.0.2
+  - @texaryn/react@1.0.2
+
 ## 0.8.1
 
 ### Patch Changes

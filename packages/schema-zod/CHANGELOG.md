@@ -1,5 +1,18 @@
 # @texaryn/schema-zod
 
+## 0.3.2
+
+### Patch Changes
+
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- d0813ea: Keeps deterministic serialization behavior for undefined values.
+- Updated dependencies [d0813ea]
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+- Updated dependencies [5ad849f]
+  - @texaryn/schema-json@1.0.3
+  - @texaryn/core@1.0.2
+
 ## 0.3.1
 
 ### Patch Changes

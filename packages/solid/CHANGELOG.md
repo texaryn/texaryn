@@ -1,5 +1,14 @@
 # @texaryn/solid
 
+## 0.4.2
+
+### Patch Changes
+
+- 5ad849f: Expose the error summary as a named region for assistive technology.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+  - @texaryn/core@1.0.2
+
 ## 0.4.1
 
 ### Patch Changes
