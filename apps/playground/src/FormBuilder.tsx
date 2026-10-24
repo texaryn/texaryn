@@ -17,10 +17,10 @@ const fieldTypes: readonly { value: BuilderFieldType; label: string }[] = [
 export function FormBuilder({
   schemaText,
   onSchemaChange,
-}: {
+}: Readonly<{
   schemaText: string
   onSchemaChange: (schemaText: string) => void
-}) {
+}>) {
   const id = useId()
   const model = useMemo(() => getFormBuilderModel(schemaText), [schemaText])
 

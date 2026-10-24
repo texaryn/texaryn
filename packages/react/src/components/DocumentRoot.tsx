@@ -42,7 +42,7 @@ function useRows(nodeId: DocumentNode['id']): readonly DocumentCollectionRow[] {
   return useStore(store)
 }
 
-function DisplayNodeView({ nodeId }: { nodeId: DocumentNode['id'] }): ReactNode {
+function DisplayNodeView({ nodeId }: Readonly<{ nodeId: DocumentNode['id'] }>): ReactNode {
   const { runtime, document, registry, onActionError } = useDocumentContext()
   const node = document.nodes[nodeId]
   if (!node) return null
@@ -79,12 +79,12 @@ function DisplayNodeView({ nodeId }: { nodeId: DocumentNode['id'] }): ReactNode 
   return null
 }
 
-function DisplayList({ node }: { node: Extract<DocumentNode, { type: 'list' }> }) {
+function DisplayList({ node }: Readonly<{ node: Extract<DocumentNode, { type: 'list' }> }>) {
   const rows = useRows(node.id)
   return <ul>{rows.map((row) => <li key={row.id}>{row.value === null ? '' : String(row.value)}</li>)}</ul>
 }
 
-function DisplayTable({ node }: { node: Extract<DocumentNode, { type: 'table' }> }) {
+function DisplayTable({ node }: Readonly<{ node: Extract<DocumentNode, { type: 'table' }> }>) {
   const rows = useRows(node.id)
   return (
     <table>
@@ -105,7 +105,7 @@ function DisplayTable({ node }: { node: Extract<DocumentNode, { type: 'table' }>
   )
 }
 
-export function DocumentRoot({ runtime, registry, onActionError = console.error }: DocumentRootProps) {
+export function DocumentRoot({ runtime, registry, onActionError = console.error }: Readonly<DocumentRootProps>) {
   const document = useStore(runtime.document)
   const context: DocumentContextValue = { runtime, document, registry, onActionError }
   if (!document.nodes[document.rootId]) return null

@@ -13,7 +13,7 @@ export interface NodeRendererProps {
  * read straight off the document rather than through useField, which would
  * cost a hook subscription for a subtree that never renders.
  */
-export function NodeRenderer({ node, document, registry }: NodeRendererProps) {
+export function NodeRenderer({ node, document, registry }: Readonly<NodeRendererProps>) {
   if (!node.visible) {
     return null
   }

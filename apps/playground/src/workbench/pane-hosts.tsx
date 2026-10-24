@@ -25,7 +25,7 @@ export function usePaneHosts(): PaneHosts {
 // Content that caches geometry, such as CodeMirror, re-measures on this event.
 export const PANE_ATTACH_EVENT = 'pg-pane-attach'
 
-export function PaneSlot({ host, className, style }: { host: HTMLElement; className?: string; style?: CSSProperties }) {
+export function PaneSlot({ host, className, style }: Readonly<{ host: HTMLElement; className?: string; style?: CSSProperties }>) {
   const slot = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
     const element = slot.current

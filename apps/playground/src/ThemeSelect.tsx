@@ -21,10 +21,10 @@ const CARET =
 export function ThemeSelect({
   preference,
   onChange,
-}: {
+}: Readonly<{
   preference: ThemePreference
   onChange: (preference: ThemePreference) => void
-}) {
+}>) {
   return (
     <label className="pg-theme">
       <span className="pg-sr-only">Select theme</span>

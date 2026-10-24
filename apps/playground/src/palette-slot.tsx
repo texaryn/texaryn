@@ -37,7 +37,7 @@ export function useCommandPaletteShortcut(onOpen: () => void): void {
   }, [onOpen])
 }
 
-export function CommandPaletteSlot(props: CommandPaletteSlotProps) {
+export function CommandPaletteSlot(props: Readonly<CommandPaletteSlotProps>) {
   const wasOpen = useRef(props.open)
   useEffect(() => {
     if (wasOpen.current && !props.open) {

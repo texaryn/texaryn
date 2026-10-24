@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function NumberInputImpl({ node }: WidgetProps) {
+function NumberInputImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

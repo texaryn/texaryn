@@ -3,7 +3,7 @@ import type { FieldBinding } from '@texaryn/react'
 // .invalid-feedback is display: none unless it follows an .is-invalid sibling or
 // carries d-block. The lines sit inside the live region, not beside the
 // control, so each one needs d-block.
-export function BootstrapFeedback({ field }: { field: FieldBinding }) {
+export function BootstrapFeedback({ field }: Readonly<{ field: FieldBinding }>) {
   return (
     <>
       {field.description ? (

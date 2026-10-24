@@ -45,12 +45,12 @@ function TreeNode({
   value,
   depth,
   hideUnset,
-}: {
+}: Readonly<{
   name: string
   value: unknown
   depth: number
   hideUnset: boolean
-}) {
+}>) {
   const [isOpen, setIsOpen] = useState(depth === 0)
   const entries = entriesFor(value)
   const visibleEntries = entries?.filter((entry) => !(hideUnset && entry.value === undefined))
@@ -97,7 +97,7 @@ function TreeNode({
   )
 }
 
-export function InspectorTree({ label, value }: { label: string; value: unknown }) {
+export function InspectorTree({ label, value }: Readonly<{ label: string; value: unknown }>) {
   const [hideUnset, setHideUnset] = useState(false)
   const [copyStatus, setCopyStatus] = useState('')
   const rawJson = inspect(value)

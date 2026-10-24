@@ -12,7 +12,7 @@ function focusAfterRender(row: HTMLElement | null, direction: 'up' | 'down'): vo
   else setTimeout(focus, 0)
 }
 
-function BootstrapArrayControlImpl({ node }: WidgetProps) {
+function BootstrapArrayControlImpl({ node }: Readonly<WidgetProps>) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()

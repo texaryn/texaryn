@@ -5,7 +5,7 @@ import type { RendererProps } from '../renderer-types.js'
 
 const registry = createMuiRegistry()
 
-export default function ReactMuiRenderer({ theme }: RendererProps) {
+export default function ReactMuiRenderer({ theme }: Readonly<RendererProps>) {
   return (
     <MuiThemeBoundary theme={theme}>
       <FormRoot registry={registry} />

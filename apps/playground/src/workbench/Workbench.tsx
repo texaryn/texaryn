@@ -33,14 +33,14 @@ export function Workbench({
   resetSignal,
   previewHeader,
   rail,
-}: {
+}: Readonly<{
   hosts: PaneHosts
   layout: LayoutState
   dispatch: (action: LayoutAction) => void
   resetSignal: number
   previewHeader?: ReactNode
   rail?: ReactNode
-}) {
+}>) {
   const view = activeView(layout)
   const examplesRef = usePanelRef()
   const topRef = usePanelRef()

@@ -11,7 +11,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function MuiCheckboxImpl({ node }: WidgetProps) {
+function MuiCheckboxImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   const helperId = `${field.domCheckboxProps.id}-helper`
 

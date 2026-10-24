@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function CheckboxImpl({ node }: WidgetProps) {
+function CheckboxImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

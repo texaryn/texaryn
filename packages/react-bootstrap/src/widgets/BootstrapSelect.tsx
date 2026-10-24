@@ -7,7 +7,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function BootstrapSelectImpl({ node }: WidgetProps) {
+function BootstrapSelectImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   const enumValues = field.node.enumValues ?? []
 

@@ -13,7 +13,7 @@ export interface ErrorSummaryProps {
 }
 
 /** Not a live region: the fields announce their own errors, so the focus move after a failed submit is what speaks the heading. */
-export function ErrorSummary({ focus = true }: ErrorSummaryProps) {
+export function ErrorSummary({ focus = true }: Readonly<ErrorSummaryProps>) {
   const runtime = useFormContext()
   const idPrefix = useFormIdPrefix()
   const messages = useFormMessages()

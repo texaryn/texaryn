@@ -142,7 +142,7 @@ function useAdapter(schema: unknown): AdapterState {
 // the three where there is no form to show. Writing that pair once keeps the
 // renderer selector outside the adapter's conditional, which is where it has
 // to be: choosing a renderer while a schema is still compiling is normal.
-function NotReady({ hosts, toolbar, children }: { hosts: PaneHosts; toolbar: ReactNode; children: ReactNode }) {
+function NotReady({ hosts, toolbar, children }: Readonly<{ hosts: PaneHosts; toolbar: ReactNode; children: ReactNode }>) {
   return (
     <>
       {createPortal(
@@ -182,7 +182,7 @@ function FormWorkspace({
   onActions,
   onDataChange,
   onTabChange,
-}: {
+}: Readonly<{
   hosts: PaneHosts
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
@@ -201,7 +201,7 @@ function FormWorkspace({
   onActions: (actions: WorkspaceActions | null) => void
   onDataChange: (data: unknown) => void
   onTabChange: (tab: Tab) => void
-}) {
+}>) {
   const simulateFailureRef = useRef(false)
   const [simulateFailure, setSimulateFailure] = useState(false)
 

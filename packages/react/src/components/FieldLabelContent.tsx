@@ -19,7 +19,7 @@ export interface FieldLabelContentProps {
  *
  * Shared by the three React widget sets so they cannot drift on it.
  */
-export function FieldLabelContent({ label, required }: FieldLabelContentProps) {
+export function FieldLabelContent({ label, required }: Readonly<FieldLabelContentProps>) {
   const messages = useFormMessages()
   if (!required) return <>{label}</>
   const indicator = messages.requiredIndicator()

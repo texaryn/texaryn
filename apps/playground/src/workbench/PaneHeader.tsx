@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from 'react'
 import type { LayoutAction, PaneId } from './layout.js'
 
-export function PaneHeader({ title, children, actions }: { title: string; children?: ReactNode; actions?: ReactNode }) {
+export function PaneHeader({ title, children, actions }: Readonly<{ title: string; children?: ReactNode; actions?: ReactNode }>) {
   return (
     <header className="pg-pane__header">
       <h2 className="pg-pane__title">{title}</h2>
@@ -19,13 +19,13 @@ export function MaximizeButton({
   maximized,
   dispatch,
   buttonRef,
-}: {
+}: Readonly<{
   pane: PaneId
   label: string
   maximized: boolean
   dispatch: (action: LayoutAction) => void
   buttonRef?: Ref<HTMLButtonElement>
-}) {
+}>) {
   return (
     <button
       ref={buttonRef}

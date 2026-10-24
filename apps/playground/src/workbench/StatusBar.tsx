@@ -13,14 +13,14 @@ export function StatusBar({
   schemaIssues = null,
   cursor = null,
   hint,
-}: {
+}: Readonly<{
   dialect: string
   parseError: string | null
   pending: boolean
   schemaIssues?: number | null
   cursor?: { line: number; column: number } | null
   hint?: ReactNode
-}) {
+}>) {
   return (
     <footer className="pg-status" aria-label="Status">
       <span>{dialect}</span>

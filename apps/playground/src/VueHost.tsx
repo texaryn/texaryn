@@ -25,7 +25,7 @@ export const vueRegistry: RendererRegistry<VueWidgetComponent> = createVueRegist
  * application is created, handed the existing runtime, and unmounted when the
  * renderer changes. The runtime outlives it; only the React shell destroys it.
  */
-export function VueHost({ runtime }: { runtime: FormRuntime }) {
+export function VueHost({ runtime }: Readonly<{ runtime: FormRuntime }>) {
   const mountRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

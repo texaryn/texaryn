@@ -9,7 +9,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function MuiSelectImpl({ node }: WidgetProps) {
+function MuiSelectImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   const enumValues = (node as FieldNode).enumValues ?? []
 

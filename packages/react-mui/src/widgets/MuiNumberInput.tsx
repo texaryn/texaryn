@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function MuiNumberInputImpl({ node }: WidgetProps) {
+function MuiNumberInputImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

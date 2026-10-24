@@ -42,7 +42,7 @@ export default function SchemaEditor({
   onSchemaIssues,
   onCursor,
   onReady,
-}: SchemaEditorProps) {
+}: Readonly<SchemaEditorProps>) {
   const host = useRef<HTMLDivElement | null>(null)
   const view = useRef<EditorView | null>(null)
   const extensions = useRef<Extension[]>([])

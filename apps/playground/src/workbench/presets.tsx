@@ -72,11 +72,11 @@ export function DataPresetSelect({
   presets,
   selected,
   onSelect,
-}: {
+}: Readonly<{
   presets: readonly ExamplePreset[]
   selected: string
   onSelect: (id: string) => void
-}) {
+}>) {
   if (presets.length === 0) return null
   return (
     <label className="pg-preset">

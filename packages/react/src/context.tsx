@@ -23,7 +23,7 @@ export interface FormProviderProps {
  * siblings of FormRoot, ErrorSummary in particular, resolve the same namespace
  * the fields do.
  */
-export function FormProvider({ value, messages, children }: FormProviderProps) {
+export function FormProvider({ value, messages, children }: Readonly<FormProviderProps>) {
   const idPrefix = useGeneratedIdPrefix()
   return (
     <FormContext.Provider value={value}>

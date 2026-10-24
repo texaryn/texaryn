@@ -10,11 +10,11 @@ export function WidthPresets({
   width,
   effectiveWidth,
   onChange,
-}: {
+}: Readonly<{
   width: PreviewWidth
   effectiveWidth: number
   onChange: (width: PreviewWidth) => void
-}) {
+}>) {
   const px = PREVIEW_WIDTHS.find((entry) => entry.id === width)?.px ?? null
   return (
     <div className="pg-width-presets" role="group" aria-label="Preview width">

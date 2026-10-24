@@ -7,7 +7,7 @@ import type { WidgetComponent } from '@texaryn/solid'
 
 export const solidRegistry: RendererRegistry<WidgetComponent> = createDefaultRegistry()
 
-export function SolidHost({ runtime }: { runtime: FormRuntime }) {
+export function SolidHost({ runtime }: Readonly<{ runtime: FormRuntime }>) {
   const mountRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

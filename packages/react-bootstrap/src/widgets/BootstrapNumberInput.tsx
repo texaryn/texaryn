@@ -7,7 +7,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function BootstrapNumberInputImpl({ node }: WidgetProps) {
+function BootstrapNumberInputImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   return (
     <div className="mb-3">
