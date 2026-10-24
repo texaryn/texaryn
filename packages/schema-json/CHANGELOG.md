@@ -1,5 +1,15 @@
 # @texaryn/schema-json
 
+## 1.0.3
+
+### Patch Changes
+
+- d0813ea: Preserves schema resolution behavior while pruning unreachable branches and keeping non-string schema error codes readable.
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+  - @texaryn/core@1.0.2
+
 ## 1.0.2
 
 ### Patch Changes

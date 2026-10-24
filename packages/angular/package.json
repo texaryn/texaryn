@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/angular",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Schema-driven forms and display documents for Angular, with signals, standalone components and default widgets",
   "keywords": [
     "angular",

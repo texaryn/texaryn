@@ -1,5 +1,15 @@
 # @texaryn/vue
 
+## 0.8.2
+
+### Patch Changes
+
+- d0813ea: Keeps accessible labels and focus restoration intact while rendering array controls.
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+  - @texaryn/core@1.0.2
+
 ## 0.8.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @texaryn/core
 
+## 1.0.2
+
+### Patch Changes
+
+- 0b4146e: Refactors document validation without changing its behavior.
+- 5ad849f: Use fallback copy when a validation keyword matches an inherited object property.
+
 ## 1.0.1
 
 ### Patch Changes

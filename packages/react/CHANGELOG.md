@@ -1,5 +1,15 @@
 # @texaryn/react
 
+## 1.0.2
+
+### Patch Changes
+
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- d0813ea: Keeps validation error rows stable when the error list changes.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+  - @texaryn/core@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/schema-zod",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Zod 4 adapter for Texaryn form projection and validation",
   "keywords": [
     "zod",

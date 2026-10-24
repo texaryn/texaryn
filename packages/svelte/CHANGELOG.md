@@ -1,5 +1,14 @@
 # @texaryn/svelte
 
+## 0.4.2
+
+### Patch Changes
+
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+  - @texaryn/core@1.0.2
+
 ## 0.4.1
 
 ### Patch Changes

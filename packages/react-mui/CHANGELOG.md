@@ -1,5 +1,17 @@
 # @texaryn/react-mui
 
+## 0.8.2
+
+### Patch Changes
+
+- 5ad849f: Apply SonarCloud fixes without changing the existing package APIs.
+- Updated dependencies [0b4146e]
+- Updated dependencies [5ad849f]
+- Updated dependencies [5ad849f]
+- Updated dependencies [d0813ea]
+  - @texaryn/core@1.0.2
+  - @texaryn/react@1.0.2
+
 ## 0.8.1
 
 ### Patch Changes
