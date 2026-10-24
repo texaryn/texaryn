@@ -34,6 +34,33 @@ interface LocatedPointerTarget {
   readonly position: string
 }
 
+function pointerChild(current: unknown, segment: string): { readonly value: unknown } | undefined {
+  if (Array.isArray(current)) {
+    const index = Number(segment)
+    if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) return undefined
+    return { value: current[index] }
+  }
+  if (isRecord(current) && Object.hasOwn(current, segment)) return { value: current[segment] }
+  return undefined
+}
+
+function pointerResourceScope(
+  child: unknown,
+  base: string | undefined,
+  dialect: Dialect,
+): { readonly base: string; readonly resourceRoot: Record<string, unknown> } | undefined {
+  if (!isRecord(child) || (isPre2019Dialect(dialect) && typeof child.$ref === 'string')) return undefined
+  const childId = schemaIdentifier(child, dialect)
+  if (typeof childId !== 'string') return undefined
+  try {
+    const resolved = base === undefined ? new URL(childId).href : new URL(childId, base).href
+    if (isPre2019Dialect(dialect) && childId.startsWith('#')) return undefined
+    return { base: withoutFragment(resolved), resourceRoot: child }
+  } catch {
+    return undefined
+  }
+}
+
 function pointerTargetWithBase(
   document: Record<string, unknown>,
   fragment: string,
@@ -63,30 +90,16 @@ function pointerTargetWithBase(
   let position = initialPosition
   for (const raw of pointer.slice(1).split('/')) {
     const segment = raw.replaceAll('~1', '/').replaceAll('~0', '~')
-    let child: unknown
-    if (Array.isArray(current)) {
-      const index = Number(segment)
-      if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) return undefined
-      child = current[index]
-    } else if (isRecord(current) && Object.hasOwn(current, segment)) {
-      child = current[segment]
-    } else {
-      return undefined
-    }
+    const locatedChild = pointerChild(current, segment)
+    if (locatedChild === undefined) return undefined
+    const child = locatedChild.value
 
     position = `${position}/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`
-    const childId = isRecord(child) ? schemaIdentifier(child, dialect) : undefined
-    if (isRecord(child) && !(isPre2019Dialect(dialect) && typeof child.$ref === 'string') && typeof childId === 'string') {
-      try {
-        const resolved = base === undefined ? new URL(childId).href : new URL(childId, base).href
-        if (!(isPre2019Dialect(dialect) && childId.startsWith('#'))) {
-          base = withoutFragment(resolved)
-          resourceRoot = child
-          resourceRootPosition = position
-        }
-      } catch {
-        // An unresolvable identifier leaves the inherited base in place.
-      }
+    const nestedScope = pointerResourceScope(child, base, dialect)
+    if (nestedScope !== undefined) {
+      base = nestedScope.base
+      resourceRoot = nestedScope.resourceRoot
+      resourceRootPosition = position
     }
     current = child
   }
