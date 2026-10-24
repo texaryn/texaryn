@@ -75,9 +75,10 @@ export function mountErrorSummary(
     for (const li of ordered) {
       if (li === anchor) {
         anchor = anchor.nextSibling
+      } else if (anchor) {
+        anchor.before(li)
       } else {
-        if (anchor) anchor.before(li)
-        else list.append(li)
+        list.append(li)
       }
     }
     if (root.parentNode !== container) container.prepend(root)

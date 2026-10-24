@@ -18,6 +18,40 @@ const warmups = 5
 const compilerSamples = 200
 const projectionSamples = 200
 const firstRenderSamples = 20
+const gitHashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
+
+async function readOptionalGitFile(path) {
+  try {
+    return (await readFile(path, 'utf8')).trim()
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
+  }
+}
+
+async function resolveGitDirectories(dotGit) {
+  if (!(await stat(dotGit)).isFile()) return { gitDir: dotGit, commonDir: dotGit }
+
+  const gitDirLine = (await readFile(dotGit, 'utf8')).trim()
+  const gitDirValue = gitDirLine.startsWith('gitdir:') ? gitDirLine.slice('gitdir:'.length).trim() : ''
+  if (!gitDirValue) throw new Error('Could not resolve the repository Git directory.')
+  const gitDir = resolve(repoRoot, gitDirValue)
+  const commonDirValue = await readOptionalGitFile(resolve(gitDir, 'commondir'))
+  return { gitDir, commonDir: commonDirValue ? resolve(gitDir, commonDirValue) : gitDir }
+}
+
+async function resolveGitReference(gitDir, commonDir, reference) {
+  for (const directory of new Set([gitDir, commonDir])) {
+    const hash = await readOptionalGitFile(resolve(directory, reference))
+    if (hash && gitHashPattern.test(hash)) return hash
+  }
+
+  const packedRefs = await readOptionalGitFile(resolve(commonDir, 'packed-refs')) ?? ''
+  const packedRef = packedRefs.split('\n').find((line) => line.endsWith(` ${reference}`))
+  const packedHash = packedRef?.split(' ')[0]
+  if (packedHash && gitHashPattern.test(packedHash)) return packedHash
+  throw new Error(`Could not find the Git hash for ${reference}.`)
+}
 
 function schemaFor(fieldCount, { conditional = false, array = false } = {}) {
   const properties = Object.fromEntries(Array.from({ length: fieldCount }, (_, index) => [
@@ -148,48 +182,14 @@ function summarize(values) {
 
 async function repositoryCommit() {
   const dotGit = resolve(repoRoot, '.git')
-  const dotGitStat = await stat(dotGit)
-  let gitDir = dotGit
-  let commonDir = dotGit
-
-  if (dotGitStat.isFile()) {
-    const gitDirLine = (await readFile(dotGit, 'utf8')).trim()
-    const gitDirValue = gitDirLine.startsWith('gitdir:') ? gitDirLine.slice('gitdir:'.length).trim() : ''
-    if (!gitDirValue) throw new Error('Could not resolve the repository Git directory.')
-    gitDir = resolve(repoRoot, gitDirValue)
-    commonDir = gitDir
-    const commonDirValue = await readFile(resolve(gitDir, 'commondir'), 'utf8').catch((error) => {
-      if (error.code === 'ENOENT') return null
-      throw error
-    })
-    if (commonDirValue) commonDir = resolve(gitDir, commonDirValue.trim())
-  }
+  const { gitDir, commonDir } = await resolveGitDirectories(dotGit)
 
   const head = (await readFile(resolve(gitDir, 'HEAD'), 'utf8')).trim()
-  const hashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
-  if (hashPattern.test(head)) return head
+  if (gitHashPattern.test(head)) return head
 
   const referenceValue = head.startsWith('ref:') ? head.slice('ref:'.length).trim() : ''
-  const reference = referenceValue || undefined
-  if (!reference) throw new Error('Could not resolve the repository HEAD revision.')
-
-  for (const directory of new Set([gitDir, commonDir])) {
-    const hash = await readFile(resolve(directory, reference), 'utf8').then((value) => value.trim()).catch((error) => {
-      if (error.code === 'ENOENT') return null
-      throw error
-    })
-    if (hash && hashPattern.test(hash)) return hash
-  }
-
-  const packedRefs = await readFile(resolve(commonDir, 'packed-refs'), 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return ''
-    throw error
-  })
-  const packedRef = packedRefs.split('\n').find((line) => line.endsWith(` ${reference}`))
-  const packedHash = packedRef?.split(' ')[0]
-  if (packedHash && hashPattern.test(packedHash)) return packedHash
-
-  throw new Error(`Could not find the Git hash for ${reference}.`)
+  if (!referenceValue) throw new Error('Could not resolve the repository HEAD revision.')
+  return resolveGitReference(gitDir, commonDir, referenceValue)
 }
 
 async function sampleAsync(fn, count = firstRenderSamples) {

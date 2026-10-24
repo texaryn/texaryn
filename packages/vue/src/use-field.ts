@@ -38,7 +38,7 @@ export function useField(nodeId: MaybeRefOrGetter<NodeId>): UseFieldReturn {
   // the bundle: a node id that disappeared and came back is a different
   // bundle, and without this the field would hold the discarded one.
   const state = computed(() => {
-    document.value
+    void document.value
     return runtime.getNodeState(toValue(nodeId))
   })
 

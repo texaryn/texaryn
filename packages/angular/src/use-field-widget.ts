@@ -23,9 +23,9 @@ export function displayValue(kind: FieldKind, value: unknown): string | number {
   if (value == null) return ''
   if (typeof value !== 'object') return String(value)
   try {
-    return JSON.stringify(value) ?? Object.prototype.toString.call(value)
+    return JSON.stringify(value) ?? ''
   } catch {
-    return Object.prototype.toString.call(value)
+    return ''
   }
 }
 
