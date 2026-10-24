@@ -128,80 +128,170 @@ function serializeContract(node: ContractNode): string {
   return JSON.stringify({ profiles, children, branchGroups })
 }
 
+interface ValidationContractTraversal {
+  readonly root: ContractNode
+  readonly dialect: Dialect
+  readonly seenOnPath: WeakMap<object, Set<string>>
+}
+
+type AssertionKeyword = (typeof ASSERTION_KEYWORDS)[number]
+
+function includesAssertionKeyword(
+  key: AssertionKeyword,
+  value: Record<string, unknown>,
+  dialect: Dialect,
+): boolean {
+  if (!Object.hasOwn(value, key)) return false
+  if (key === 'format' && !isPre2019Dialect(dialect)) return false
+  if ((key === 'minContains' || key === 'maxContains') && isPre2019Dialect(dialect)) return false
+  if ((key === 'unevaluatedProperties' || key === 'unevaluatedItems') && isPre2019Dialect(dialect)) return false
+  if (key === 'additionalItems' && dialect === '2020-12') return false
+  return key !== 'additionalItems' || Array.isArray(value.items)
+}
+
+function addValidationProfile(
+  value: Record<string, unknown>,
+  dialect: Dialect,
+  node: ContractNode,
+): void {
+  const profile = Object.fromEntries(
+    ASSERTION_KEYWORDS
+      .filter((key) => includesAssertionKeyword(key, value, dialect))
+      .map((key) => [key, value[key]]),
+  )
+  if (Object.keys(profile).length > 0) node.profiles.push(JSON.stringify(profile))
+}
+
+function visitApplicatorSchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  node: ContractNode,
+  traversal: ValidationContractTraversal,
+): void {
+  for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
+    const branches = value[keyword]
+    if (!Array.isArray(branches)) continue
+    node.profiles.push(JSON.stringify({ applicator: keyword, branchCount: branches.length }))
+    branches.forEach((branch, index) =>
+      visitValidationSchema(branch, [...path, { kind: 'applicator', keyword, index }], traversal),
+    )
+  }
+}
+
+function visitConditionalSchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  for (const keyword of ['if', 'then', 'else', 'not'] as const) {
+    visitValidationSchema(value[keyword], [...path, keyword], traversal)
+  }
+}
+
+function visitPropertySchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  for (const keyword of ['properties', 'patternProperties'] as const) {
+    const members = value[keyword]
+    if (!isRecord(members)) continue
+    for (const [key, child] of Object.entries(members)) {
+      visitValidationSchema(child, [...path, keyword, escape(key)], traversal)
+    }
+  }
+}
+
+function visitSingleKeywordSchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  for (const keyword of ['additionalProperties', 'propertyNames', 'contains'] as const) {
+    visitValidationSchema(value[keyword], [...path, keyword], traversal)
+  }
+}
+
+function visitDependencySchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  const { dialect } = traversal
+  if (isPre2019Dialect(dialect)) {
+    visitDependencyMap(value.dependencies, path, 'dependencies', traversal)
+    return
+  }
+  visitValidationSchema(value.unevaluatedProperties, [...path, 'unevaluatedProperties'], traversal)
+  visitValidationSchema(value.unevaluatedItems, [...path, 'unevaluatedItems'], traversal)
+  visitDependencyMap(value.dependentSchemas, path, 'dependentSchemas', traversal)
+  visitDependencyMap(value.dependencies, path, 'dependencies', traversal)
+}
+
+function visitDependencyMap(
+  members: unknown,
+  path: readonly ContractSegment[],
+  keyword: 'dependencies' | 'dependentSchemas',
+  traversal: ValidationContractTraversal,
+): void {
+  if (!isRecord(members)) return
+  for (const [key, child] of Object.entries(members)) {
+    visitValidationSchema(child, [...path, keyword, escape(key)], traversal)
+  }
+}
+
+function visitItemSchemas(
+  value: Record<string, unknown>,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  const { dialect } = traversal
+  const items = value.items
+  if (isRecord(items) || typeof items === 'boolean') {
+    visitValidationSchema(items, [...path, 'items'], traversal)
+  } else if (Array.isArray(items) && dialect !== '2020-12') {
+    items.forEach((child, index) => visitValidationSchema(child, [...path, 'items', String(index)], traversal))
+  }
+  if (dialect === '2020-12' && Array.isArray(value.prefixItems)) {
+    value.prefixItems.forEach((child, index) =>
+      visitValidationSchema(child, [...path, 'prefixItems', String(index)], traversal),
+    )
+  }
+  if (dialect !== '2020-12' && Array.isArray(items)) {
+    visitValidationSchema(value.additionalItems, [...path, 'additionalItems'], traversal)
+  }
+}
+
+function visitValidationSchema(
+  value: unknown,
+  path: readonly ContractSegment[],
+  traversal: ValidationContractTraversal,
+): void {
+  const node = contractNodeAt(traversal.root, path)
+  if (typeof value === 'boolean') {
+    node.profiles.push(JSON.stringify({ schema: value }))
+    return
+  }
+  if (!isRecord(value)) return
+  const paths = traversal.seenOnPath.get(value) ?? new Set<string>()
+  const pathKey = JSON.stringify(path)
+  if (paths.has(pathKey)) return
+  paths.add(pathKey)
+  traversal.seenOnPath.set(value, paths)
+
+  addValidationProfile(value, traversal.dialect, node)
+  visitApplicatorSchemas(value, path, node, traversal)
+  visitConditionalSchemas(value, path, traversal)
+  visitPropertySchemas(value, path, traversal)
+  visitSingleKeywordSchemas(value, path, traversal)
+  visitDependencySchemas(value, path, traversal)
+  visitItemSchemas(value, path, traversal)
+}
+
 function validationContracts(schema: unknown, dialect: Dialect): string {
   const root = createContractNode()
-  const seenOnPath = new WeakMap<object, Set<string>>()
-  const visit = (value: unknown, path: readonly ContractSegment[]): void => {
-    const node = contractNodeAt(root, path)
-    if (typeof value === 'boolean') {
-      node.profiles.push(JSON.stringify({ schema: value }))
-      return
-    }
-    if (!isRecord(value)) return
-    const paths = seenOnPath.get(value) ?? new Set<string>()
-    const pathKey = JSON.stringify(path)
-    if (paths.has(pathKey)) return
-    paths.add(pathKey)
-    seenOnPath.set(value, paths)
-
-    const profile = Object.fromEntries(
-      ASSERTION_KEYWORDS
-        .filter((key) => Object.hasOwn(value, key))
-        .filter((key) => key !== 'format' || isPre2019Dialect(dialect))
-        .filter((key) => (key !== 'minContains' && key !== 'maxContains') || !isPre2019Dialect(dialect))
-        .filter((key) => (key !== 'unevaluatedProperties' && key !== 'unevaluatedItems') || !isPre2019Dialect(dialect))
-        .filter((key) => key !== 'additionalItems' || dialect !== '2020-12')
-        .filter((key) => key !== 'additionalItems' || Array.isArray(value.items))
-        .map((key) => [key, value[key]]),
-    )
-    if (Object.keys(profile).length > 0) node.profiles.push(JSON.stringify(profile))
-
-    for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
-      const branches = value[keyword]
-      if (!Array.isArray(branches)) continue
-      node.profiles.push(JSON.stringify({ applicator: keyword, branchCount: branches.length }))
-      branches.forEach((branch, index) => visit(branch, [...path, { kind: 'applicator', keyword, index }]))
-    }
-    for (const keyword of ['if', 'then', 'else', 'not'] as const) visit(value[keyword], [...path, keyword])
-
-    for (const keyword of ['properties', 'patternProperties'] as const) {
-      const members = value[keyword]
-      if (!isRecord(members)) continue
-      for (const [key, child] of Object.entries(members)) visit(child, [...path, keyword, escape(key)])
-    }
-
-    for (const keyword of ['additionalProperties', 'propertyNames', 'contains'] as const) {
-      visit(value[keyword], [...path, keyword])
-    }
-
-    if (!isPre2019Dialect(dialect)) {
-      visit(value.unevaluatedProperties, [...path, 'unevaluatedProperties'])
-      visit(value.unevaluatedItems, [...path, 'unevaluatedItems'])
-      for (const keyword of ['dependentSchemas', 'dependencies'] as const) {
-        const members = value[keyword]
-        if (isRecord(members)) {
-          for (const [key, child] of Object.entries(members)) visit(child, [...path, keyword, escape(key)])
-        }
-      }
-    } else {
-      const members = value.dependencies
-      if (isRecord(members)) {
-        for (const [key, child] of Object.entries(members)) visit(child, [...path, 'dependencies', escape(key)])
-      }
-    }
-
-    const items = value.items
-    if (isRecord(items) || typeof items === 'boolean') visit(items, [...path, 'items'])
-    else if (Array.isArray(items) && dialect !== '2020-12') {
-      items.forEach((child, index) => visit(child, [...path, 'items', String(index)]))
-    }
-    if (dialect === '2020-12' && Array.isArray(value.prefixItems)) {
-      value.prefixItems.forEach((child, index) => visit(child, [...path, 'prefixItems', String(index)]))
-    }
-    if (dialect !== '2020-12' && Array.isArray(items)) visit(value.additionalItems, [...path, 'additionalItems'])
-  }
-
-  visit(withoutUnreachableBranches(schema, [], dialect), [])
+  const traversal: ValidationContractTraversal = { root, dialect, seenOnPath: new WeakMap() }
+  visitValidationSchema(withoutUnreachableBranches(schema, [], dialect), [], traversal)
   return serializeContract(root)
 }
 
