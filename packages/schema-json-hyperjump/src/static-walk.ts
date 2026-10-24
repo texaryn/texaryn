@@ -138,82 +138,134 @@ function retainedConditionalBranch(position: string, cache: ProjectionCache): bo
   return false
 }
 
+interface LeafWalkState {
+  rootSchema: unknown
+  dialect: Dialect
+  pending: Array<{ schema: unknown; position?: string }>
+  seenPositions: Set<string>
+  seenSchemas: WeakSet<object>
+}
+
 function isLeafSchema(schema: unknown, rootSchema: unknown, position?: string, dialect: Dialect = 'draft-07'): boolean {
-  const seenPositions = new Set<string>()
-  const seenSchemas = new WeakSet<object>()
-  const pending: Array<{ schema: unknown; position?: string }> = []
-  const enqueue = (schema: unknown, position?: string): void => {
-    if (schema !== null && typeof schema === 'object') {
-      if (position !== undefined) {
-        if (seenPositions.has(position)) return
-        seenPositions.add(position)
-      } else {
-        if (seenSchemas.has(schema)) return
-        seenSchemas.add(schema)
-      }
-    }
-    pending.push({ schema, position })
+  const state: LeafWalkState = {
+    rootSchema,
+    dialect,
+    pending: [],
+    seenPositions: new Set(),
+    seenSchemas: new WeakSet(),
   }
-  enqueue(schema, position)
-  while (pending.length > 0) {
-    const current = pending.pop()!
+  enqueueLeafSchema(state, schema, position)
+  while (state.pending.length > 0) {
+    const current = state.pending.pop()!
     if (!isRecord(current.schema)) continue
     const record = current.schema
-    const targets = refTargets(record, rootSchema, current.position, dialect)
-    if (targets.length > 0 && isPre2019Dialect(dialect)) {
-      for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
+    const targets = refTargets(record, state.rootSchema, current.position, state.dialect)
+    if (followLeafReferencesFirst(targets, state)) {
+      enqueueLeafReferences(state, targets)
       continue
     }
-    if (dialect === 'draft-07') {
-      // ADR-007 keeps typeless Draft 7 compositions conservative for budgeting.
-      const type = Array.isArray(record.type)
-        ? record.type.find((value) => VALID_TYPES.has(value as JsonSchemaType))
-        : record.type
-      if (typeof type === 'string') {
-        if (type === 'object') return false
-        continue
-      }
-      if (('enum' in record || 'const' in record) && !('properties' in record)) continue
-      return false
+    if (state.dialect === 'draft-07') {
+      if (!isDraft07Leaf(record)) return false
+      continue
     }
-    const types = Array.isArray(record.type) ? record.type : [record.type]
-    if (types.includes('object') || projectionTypeFamilies(record).has('object')) return false
-    for (const target of targets) enqueue(schemaAtPosition(rootSchema, target), target)
-    for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
-      const branches = record[keyword]
-      if (Array.isArray(branches)) {
-        branches.forEach((branch: unknown, index: number) =>
-          enqueue(
-            branch,
-            current.position === undefined ? undefined : `${current.position}/${keyword}/${index}`,
-          ),
-        )
-      }
-    }
-    if (dialect !== 'draft-04' && isRecord(record.if)) {
-      for (const keyword of ['then', 'else'] as const) {
-        enqueue(record[keyword], current.position === undefined ? undefined : `${current.position}/${keyword}`)
-      }
-    }
-    const dependencyKeywords = isPre2019Dialect(dialect)
-      ? (['dependencies'] as const)
-      : (['dependentSchemas', 'dependencies'] as const)
-    for (const keyword of dependencyKeywords) {
-      const map = record[keyword]
-      if (!isRecord(map)) continue
-      for (const [key, branch] of Object.entries(map)) {
-        if (isRecord(branch)) {
-          enqueue(
-            branch,
-            current.position === undefined
-              ? undefined
-              : `${current.position}/${keyword}/${escapeSegment(key)}`,
-          )
-        }
-      }
-    }
+    if (hasObjectProjectionShape(record)) return false
+    enqueueLeafReferences(state, targets)
+    enqueueLeafApplicators(state, record, current.position)
+    enqueueLeafConditionals(state, record, current.position)
+    enqueueLeafDependencies(state, record, current.position)
   }
   return true
+}
+
+function enqueueLeafSchema(state: LeafWalkState, schema: unknown, position?: string): void {
+  if (schema !== null && typeof schema === 'object') {
+    if (position !== undefined) {
+      if (state.seenPositions.has(position)) return
+      state.seenPositions.add(position)
+    } else {
+      if (state.seenSchemas.has(schema)) return
+      state.seenSchemas.add(schema)
+    }
+  }
+  state.pending.push({ schema, position })
+}
+
+function followLeafReferencesFirst(targets: readonly string[], state: LeafWalkState): boolean {
+  return targets.length > 0 && isPre2019Dialect(state.dialect)
+}
+
+function enqueueLeafReferences(state: LeafWalkState, targets: readonly string[]): void {
+  for (const target of targets) enqueueLeafSchema(state, schemaAtPosition(state.rootSchema, target), target)
+}
+
+function isDraft07Leaf(record: Record<string, unknown>): boolean {
+  // ADR-007 keeps typeless Draft 7 compositions conservative for budgeting.
+  const type = Array.isArray(record.type)
+    ? record.type.find((value) => VALID_TYPES.has(value as JsonSchemaType))
+    : record.type
+  if (typeof type === 'string') return type !== 'object'
+  if (('enum' in record || 'const' in record) && !('properties' in record)) return true
+  return false
+}
+
+function hasObjectProjectionShape(record: Record<string, unknown>): boolean {
+  const types = Array.isArray(record.type) ? record.type : [record.type]
+  return types.includes('object') || projectionTypeFamilies(record).has('object')
+}
+
+function enqueueLeafApplicators(
+  state: LeafWalkState,
+  record: Record<string, unknown>,
+  position: string | undefined,
+): void {
+  for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
+    const branches = record[keyword]
+    if (!Array.isArray(branches)) continue
+    branches.forEach((branch: unknown, index: number) =>
+      enqueueLeafSchema(
+        state,
+        branch,
+        position === undefined ? undefined : `${position}/${keyword}/${index}`,
+      ),
+    )
+  }
+}
+
+function enqueueLeafConditionals(
+  state: LeafWalkState,
+  record: Record<string, unknown>,
+  position: string | undefined,
+): void {
+  if (state.dialect === 'draft-04' || !isRecord(record.if)) return
+  for (const keyword of ['then', 'else'] as const) {
+    enqueueLeafSchema(
+      state,
+      record[keyword],
+      position === undefined ? undefined : `${position}/${keyword}`,
+    )
+  }
+}
+
+function enqueueLeafDependencies(
+  state: LeafWalkState,
+  record: Record<string, unknown>,
+  position: string | undefined,
+): void {
+  const keywords = isPre2019Dialect(state.dialect)
+    ? ['dependencies'] as const
+    : ['dependentSchemas', 'dependencies'] as const
+  for (const keyword of keywords) {
+    const map = record[keyword]
+    if (!isRecord(map)) continue
+    for (const [key, branch] of Object.entries(map)) {
+      if (!isRecord(branch)) continue
+      enqueueLeafSchema(
+        state,
+        branch,
+        position === undefined ? undefined : `${position}/${keyword}/${escapeSegment(key)}`,
+      )
+    }
+  }
 }
 
 export function newRecursionState(
@@ -309,32 +361,74 @@ function closureOf(position: string, rootSchema: unknown, cache: ProjectionCache
   if (stack.has(position)) return []
   stack.add(position)
   const out = new Set<string>()
-  const schema = schemaAtPosition(rootSchema, position)
-  const addAllOf = (record: Record<string, unknown>): void => {
-    if (!Array.isArray(record.allOf)) return
-    record.allOf.forEach((_: unknown, index: number) => {
-      for (const p of closureOf(`${position}/allOf/${index}`, rootSchema, cache, stack)) out.add(p)
-    })
-  }
-  if (isRecord(schema)) {
-    const targets = refTargets(schema, rootSchema, position, cache.dialect)
-    if (targets.length === 0) {
-      out.add(position)
-      addAllOf(schema)
-    } else {
-      if (!isPre2019Dialect(cache.dialect)) {
-        if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
-        addAllOf(schema)
-      }
-      for (const target of targets) {
-        for (const p of closureOf(target, rootSchema, cache, stack)) out.add(p)
-      }
-    }
-  } else if (typeof schema === 'boolean') out.add(position)
+  collectPositionClosure(position, rootSchema, cache, stack, out)
   stack.delete(position)
   const result = [...out]
   cache.closure.set(position, result)
   return result
+}
+
+function collectPositionClosure(
+  position: string,
+  rootSchema: unknown,
+  cache: ProjectionCache,
+  stack: Set<string>,
+  out: Set<string>,
+): void {
+  const schema = schemaAtPosition(rootSchema, position)
+  if (typeof schema === 'boolean') {
+    out.add(position)
+    return
+  }
+  if (!isRecord(schema)) return
+  collectRecordClosure(position, schema, rootSchema, cache, stack, out)
+}
+
+function collectRecordClosure(
+  position: string,
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  cache: ProjectionCache,
+  stack: Set<string>,
+  out: Set<string>,
+): void {
+  const targets = refTargets(schema, rootSchema, position, cache.dialect)
+  if (targets.length === 0) {
+    out.add(position)
+    appendAllOfClosure(position, schema, rootSchema, cache, stack, out)
+    return
+  }
+  if (!isPre2019Dialect(cache.dialect)) {
+    if (Object.keys(schema).some((keyword) => !NON_APPLYING.has(keyword))) out.add(position)
+    appendAllOfClosure(position, schema, rootSchema, cache, stack, out)
+  }
+  appendReferenceClosure(targets, rootSchema, cache, stack, out)
+}
+
+function appendAllOfClosure(
+  position: string,
+  schema: Record<string, unknown>,
+  rootSchema: unknown,
+  cache: ProjectionCache,
+  stack: Set<string>,
+  out: Set<string>,
+): void {
+  if (!Array.isArray(schema.allOf)) return
+  schema.allOf.forEach((_: unknown, index: number) => {
+    for (const child of closureOf(`${position}/allOf/${index}`, rootSchema, cache, stack)) out.add(child)
+  })
+}
+
+function appendReferenceClosure(
+  targets: readonly string[],
+  rootSchema: unknown,
+  cache: ProjectionCache,
+  stack: Set<string>,
+  out: Set<string>,
+): void {
+  for (const target of targets) {
+    for (const position of closureOf(target, rootSchema, cache, stack)) out.add(position)
+  }
 }
 
 export function locationInfo(
@@ -346,64 +440,119 @@ export function locationInfo(
   const memoKey = [...declaring].sort(compareCodeUnits).join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
-  const at = (position: string): unknown => schemaAtPosition(rootSchema, position)
   const identity = new Set<string>()
   for (const position of declaring) for (const p of closureOf(position, rootSchema, cache, new Set())) identity.add(p)
 
-  let cycle = false
-  const expanded: string[] = []
-  const seen = new Set<string>()
-  const visitAll = (position: string, stack: Set<string>): void => {
-    if (stack.has(position)) {
-      cycle = true
-      return
-    }
-    if (seen.has(position)) return
-    seen.add(position)
-    const schema = at(position)
-    if (!isRecord(schema)) return
-    expanded.push(position)
-    stack.add(position)
-    const targets = refTargets(schema, rootSchema, position, cache.dialect)
-    for (const target of targets) visitAll(target, stack)
-    if (targets.length > 0 && isPre2019Dialect(cache.dialect) && isRecord(at(targets[0]!))) {
-      stack.delete(position)
-      return
-    }
-    const inPlaceBranches = cache.dialect === 'draft-04' ? [] : IN_PLACE_BRANCHES
-    for (const keyword of inPlaceBranches) {
-      const trivial =
-        (keyword === 'then' && (!('if' in schema) || schema.if === false)) ||
-        (keyword === 'else' && (!('if' in schema) || schema.if === true))
-      if (isRecord(schema[keyword]) && !trivial) visitAll(`${position}/${keyword}`, stack)
-    }
-    for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
-      const branches = schema[keyword]
-      if (Array.isArray(branches)) branches.forEach((_: unknown, index: number) => visitAll(`${position}/${keyword}/${index}`, stack))
-    }
-    const dependencyKeywords = isPre2019Dialect(cache.dialect)
-      ? (['dependencies'] as const)
-      : (['dependentSchemas', 'dependencies'] as const)
-    for (const keyword of dependencyKeywords) {
-      const map = schema[keyword]
-      if (!isRecord(map)) continue
-      for (const [key, branch] of Object.entries(map)) {
-        if (isRecord(branch)) visitAll(`${position}/${keyword}/${escapeSegment(key)}`, stack)
-      }
-    }
-    stack.delete(position)
-  }
-  for (const position of declaring) visitAll(position, new Set())
+  const traversal: LocationTraversal = { rootSchema, cache, expanded: [], seen: new Set(), cycle: false }
+  for (const position of declaring) visitLocationPosition(position, traversal, new Set())
 
   const info: LocationInfo = {
     key: [...identity].sort(compareCodeUnits).join('\n'),
-    cycle,
+    cycle: traversal.cycle,
     cyclic: [...identity].some((position) => cache.cyclic.has(position)),
-    expanded,
+    expanded: traversal.expanded,
     children: new Map(),
   }
   cache.info.set(memoKey, info)
   return info
+}
+
+interface LocationTraversal {
+  rootSchema: unknown
+  cache: ProjectionCache
+  expanded: string[]
+  seen: Set<string>
+  cycle: boolean
+}
+
+function visitLocationPosition(
+  position: string,
+  traversal: LocationTraversal,
+  stack: Set<string>,
+): void {
+  if (stack.has(position)) {
+    traversal.cycle = true
+    return
+  }
+  if (traversal.seen.has(position)) return
+  traversal.seen.add(position)
+  const schema = schemaAtPosition(traversal.rootSchema, position)
+  if (!isRecord(schema)) return
+  traversal.expanded.push(position)
+  stack.add(position)
+  const targets = refTargets(schema, traversal.rootSchema, position, traversal.cache.dialect)
+  for (const target of targets) visitLocationPosition(target, traversal, stack)
+  if (stopAtLegacyReference(targets, traversal)) {
+    stack.delete(position)
+    return
+  }
+  visitLocationConditionals(position, schema, traversal, stack)
+  visitLocationApplicators(position, schema, traversal, stack)
+  visitLocationDependencies(position, schema, traversal, stack)
+  stack.delete(position)
+}
+
+function stopAtLegacyReference(targets: readonly string[], traversal: LocationTraversal): boolean {
+  return targets.length > 0 &&
+    isPre2019Dialect(traversal.cache.dialect) &&
+    isRecord(schemaAtPosition(traversal.rootSchema, targets[0]!))
+}
+
+function visitLocationConditionals(
+  position: string,
+  schema: Record<string, unknown>,
+  traversal: LocationTraversal,
+  stack: Set<string>,
+): void {
+  const branches = traversal.cache.dialect === 'draft-04' ? [] : IN_PLACE_BRANCHES
+  for (const keyword of branches) {
+    if (isRecord(schema[keyword]) && !isTrivialConditional(schema, keyword)) {
+      visitLocationPosition(`${position}/${keyword}`, traversal, stack)
+    }
+  }
+}
+
+function isTrivialConditional(
+  schema: Record<string, unknown>,
+  keyword: typeof IN_PLACE_BRANCHES[number],
+): boolean {
+  return (keyword === 'then' && (!('if' in schema) || schema.if === false)) ||
+    (keyword === 'else' && (!('if' in schema) || schema.if === true))
+}
+
+function visitLocationApplicators(
+  position: string,
+  schema: Record<string, unknown>,
+  traversal: LocationTraversal,
+  stack: Set<string>,
+): void {
+  for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
+    const branches = schema[keyword]
+    if (!Array.isArray(branches)) continue
+    branches.forEach((_: unknown, index: number) =>
+      visitLocationPosition(`${position}/${keyword}/${index}`, traversal, stack),
+    )
+  }
+}
+
+function visitLocationDependencies(
+  position: string,
+  schema: Record<string, unknown>,
+  traversal: LocationTraversal,
+  stack: Set<string>,
+): void {
+  const keywords = isPre2019Dialect(traversal.cache.dialect)
+    ? ['dependencies'] as const
+    : ['dependentSchemas', 'dependencies'] as const
+  for (const keyword of keywords) {
+    const map = schema[keyword]
+    if (!isRecord(map)) continue
+    for (const [key, branch] of Object.entries(map)) {
+      if (isRecord(branch)) {
+        visitLocationPosition(`${position}/${keyword}/${escapeSegment(key)}`, traversal, stack)
+      }
+    }
+  }
 }
 
 function childDeclaring(info: LocationInfo, key: string, rootSchema: unknown): readonly string[] {
