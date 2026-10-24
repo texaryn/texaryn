@@ -90,15 +90,17 @@ function resolveExplicitType(schema: Record<string, unknown>): JsonSchemaType | 
  * subject and transient; the second is a limitation of this adapter and worth
  * reporting.
  */
+function branchHasRenderableAlternative(branch: SchemaNode): boolean {
+  const resolved = dereference(branch)
+  const schema = resolved.schema as Record<string, unknown> | undefined
+  if (!schema || typeof schema !== 'object') return false
+  if (resolveExplicitType(schema)) return true
+  return inferAllOfProjectionShape(resolved, schema).kind === 'resolved'
+}
+
 function compositionHasRenderableAlternative(node: SchemaNode): boolean {
   const branches = [...(node.oneOf ?? []), ...(node.anyOf ?? [])]
-  return branches.some((branch) => {
-    const resolved = dereference(branch)
-    const schema = resolved.schema as Record<string, unknown> | undefined
-    if (!schema || typeof schema !== 'object') return false
-    if (resolveExplicitType(schema)) return true
-    return inferAllOfProjectionShape(resolved, schema).kind === 'resolved'
-  })
+  return branches.some(branchHasRenderableAlternative)
 }
 
 function extractConstraints(schema: Record<string, unknown>, dialect: ProjectionCache['dialect']): FieldConstraints {

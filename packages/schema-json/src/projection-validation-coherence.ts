@@ -103,7 +103,8 @@ function contractNodeAt(root: ContractNode, path: readonly ContractSegment[]): C
 }
 
 function serializeContract(node: ContractNode): string {
-  const profiles = [...node.profiles].sort(compareCodeUnits)
+  const profiles = [...node.profiles]
+  profiles.sort(compareCodeUnits)
   const children: Array<readonly [string, string]> = []
   const applicators = new Map<string, string[]>()
 
@@ -119,8 +120,9 @@ function serializeContract(node: ContractNode): string {
   }
 
   children.sort(([left], [right]) => left.localeCompare(right))
+  for (const branches of applicators.values()) branches.sort(compareCodeUnits)
   const branchGroups = [...applicators]
-    .map(([keyword, branches]) => [keyword, branches.sort(compareCodeUnits)] as const)
+    .map(([keyword, branches]) => [keyword, branches] as const)
     .sort(([left], [right]) => left.localeCompare(right))
 
   return JSON.stringify({ profiles, children, branchGroups })

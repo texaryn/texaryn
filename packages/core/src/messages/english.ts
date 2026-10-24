@@ -10,11 +10,8 @@ function limitFor(error: ValidationError): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
-function validationMessage(error: ValidationError): string {
-  const limit = limitFor(error)
-  switch (error.keyword) {
-    case 'required':
-      return 'This field is required.'
+function limitValidationMessage(keyword: string, limit: number | undefined): string | undefined {
+  switch (keyword) {
     case 'minLength':
       return limit === undefined ? 'This value is too short.' : `Enter at least ${limit} characters.`
     case 'maxLength':
@@ -35,12 +32,27 @@ function validationMessage(error: ValidationError): string {
       return limit === undefined ? 'Add more fields.' : `Provide at least ${limit} fields.`
     case 'maxProperties':
       return limit === undefined ? 'Remove some fields.' : `Provide no more than ${limit} fields.`
+    default:
+      return undefined
+  }
+}
+
+function formatValidationMessage(format: unknown): string {
+  if (format === 'email') return 'Enter a valid email address.'
+  if (format === 'uri' || format === 'url') return 'Enter a valid URL.'
+  if (format === 'date') return 'Enter a valid date.'
+  if (format === 'date-time') return 'Enter a valid date and time.'
+  return 'Enter a value in the required format.'
+}
+
+function validationMessage(error: ValidationError): string {
+  const limitedMessage = limitValidationMessage(error.keyword, limitFor(error))
+  if (limitedMessage !== undefined) return limitedMessage
+  switch (error.keyword) {
+    case 'required':
+      return 'This field is required.'
     case 'format':
-      if (error.params.format === 'email') return 'Enter a valid email address.'
-      if (error.params.format === 'uri' || error.params.format === 'url') return 'Enter a valid URL.'
-      if (error.params.format === 'date') return 'Enter a valid date.'
-      if (error.params.format === 'date-time') return 'Enter a valid date and time.'
-      return 'Enter a value in the required format.'
+      return formatValidationMessage(error.params.format)
     case 'pattern':
       return 'Enter a value in the required format.'
     case 'type':

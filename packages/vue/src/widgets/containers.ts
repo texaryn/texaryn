@@ -182,8 +182,9 @@ export const ArrayControl = defineComponent({
           }
           event.preventDefault()
           event.stopPropagation()
+          const currentTarget = event.currentTarget as HTMLElement
           if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-          ;(event.currentTarget as HTMLElement).dataset.dropTarget = ''
+          currentTarget.dataset.dropTarget = ''
         },
         onDragleave(event: DragEvent) {
           if (event.dataTransfer && Array.from(event.dataTransfer.types).includes('application/x-texaryn-array-item')) {

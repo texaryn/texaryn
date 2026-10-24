@@ -258,7 +258,7 @@ function FormWorkspace({
       />
     )
   } else {
-    rendererContent = <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
+    rendererContent = <output className="pg-empty">Loading {rendererLabel}…</output>
   }
   let submitLabel = 'Submit'
   if (form.submission.status === 'validating') submitLabel = 'Validating...'
@@ -999,11 +999,12 @@ export function App() {
       {createPortal(examplesContent, hosts.examples)}
       {createPortal(schemaContent, hosts.schema)}
 
-      {notReadyState ? (
+      {notReadyState && (
         <NotReady hosts={hosts} toolbar={toolbar}>
           <p className={notReadyState.className}>{notReadyState.message}</p>
         </NotReady>
-      ) : (
+      )}
+      {adapterState.status === 'ready' && !notReadyState && (
         <FormWorkspace
           hosts={hosts}
           key={`${adapterState.id}:${exampleRevision}:${resetRevision}`}

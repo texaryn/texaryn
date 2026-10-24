@@ -17,26 +17,31 @@ function readName(doc: string, node: SyntaxNode): string | null {
   }
 }
 
+function objectChildValue(doc: string, node: SyntaxNode, segment: string): SyntaxNode | null {
+  for (let property = node.firstChild; property; property = property.nextSibling) {
+    if (property.name !== 'Property') continue
+    const name = property.getChild('PropertyName')
+    const value = property.lastChild
+    if (name && value && value !== name && readName(doc, name) === segment) return value
+  }
+  return null
+}
+
+function arrayChildValue(node: SyntaxNode, segment: string): SyntaxNode | null {
+  if (!/^(0|[1-9]\d*)$/.test(segment)) return null
+  const index = Number(segment)
+  let seen = 0
+  for (let item = node.firstChild; item; item = item.nextSibling) {
+    if (item.name === '[' || item.name === ']' || item.name === ',' || item.type.isError) continue
+    if (seen === index) return item
+    seen += 1
+  }
+  return null
+}
+
 function childValue(doc: string, node: SyntaxNode, segment: string): SyntaxNode | null {
-  if (node.name === 'Object') {
-    for (let property = node.firstChild; property; property = property.nextSibling) {
-      if (property.name !== 'Property') continue
-      const name = property.getChild('PropertyName')
-      const value = property.lastChild
-      if (name && value && value !== name && readName(doc, name) === segment) return value
-    }
-    return null
-  }
-  if (node.name === 'Array') {
-    if (!/^(0|[1-9]\d*)$/.test(segment)) return null
-    const index = Number(segment)
-    let seen = 0
-    for (let item = node.firstChild; item; item = item.nextSibling) {
-      if (item.name === '[' || item.name === ']' || item.name === ',' || item.type.isError) continue
-      if (seen === index) return item
-      seen += 1
-    }
-  }
+  if (node.name === 'Object') return objectChildValue(doc, node, segment)
+  if (node.name === 'Array') return arrayChildValue(node, segment)
   return null
 }
 

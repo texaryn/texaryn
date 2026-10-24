@@ -388,7 +388,10 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
           component.push(member)
         } while (member !== frame.node)
         const selfLoop = out.some((edge) => edge.to === frame.node)
-        if (component.length > 1 || selfLoop) components.push(component.sort(compareCodeUnits))
+        if (component.length > 1 || selfLoop) {
+          component.sort(compareCodeUnits)
+          components.push(component)
+        }
       }
     }
   }

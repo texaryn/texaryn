@@ -79,6 +79,47 @@ type Position =
   | { kind: 'typeValue' }
   | null
 
+type PositionChild = { kind: 'child'; node: SyntaxNode; role: Role }
+type PositionResult = Exclude<Position, null> | PositionChild
+
+function objectPosition(
+  doc: string,
+  node: SyntaxNode,
+  pos: number,
+  role: Role,
+  before: string | undefined,
+): PositionResult | null {
+  for (let property = node.firstChild; property; property = property.nextSibling) {
+    if (property.type.isError || property.name !== 'Property' || !containsCursor(property, pos)) continue
+    const key = keyOf(doc, property)
+    const colon = property.getChild(':')
+    if (key === null || !colon || colon.to > pos) return null
+    for (let value = colon.nextSibling; value; value = value.nextSibling) {
+      if (!isValueNode(value) || !containsCursor(value, pos)) continue
+      const childRole = role === 'schema' ? memberRole(key, value) : elementRole(role, value)
+      return { kind: 'child', node: value, role: childRole }
+    }
+    if (role === 'schema' && before === ':' && Object.hasOwn(VALUE_LISTS, key)) return { kind: 'value', key }
+    return null
+  }
+  if (role === 'schema' && (before === '{' || before === ',')) return { kind: 'keyword' }
+  return null
+}
+
+function arrayPosition(
+  node: SyntaxNode,
+  pos: number,
+  role: Role,
+  before: string | undefined,
+): PositionResult | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.type.isError || !isValueNode(child) || !containsCursor(child, pos)) continue
+    return { kind: 'child', node: child, role: elementRole(role, child) }
+  }
+  if (role === 'typeList' && (before === '[' || before === ',')) return { kind: 'typeValue' }
+  return null
+}
+
 function positionAt(context: CompletionContext, pos: number): Position {
   const doc = context.state.doc.toString()
   const before = doc.slice(0, pos).trimEnd().at(-1)
@@ -87,34 +128,14 @@ function positionAt(context: CompletionContext, pos: number): Position {
   let role: Role = 'schema'
 
   for (;;) {
-    let inner: SyntaxNode | null = null
-    let innerRole: Role = 'data'
-
-    for (let child: SyntaxNode | null = node.firstChild; child && !inner; child = child.nextSibling) {
-      if (child.type.isError) continue
-      if (node.name === 'Object' && child.name === 'Property' && containsCursor(child, pos)) {
-        const key = keyOf(doc, child)
-        const colon: SyntaxNode | null = child.getChild(':')
-        if (key === null || !colon || colon.to > pos) return null
-        for (let value: SyntaxNode | null = colon.nextSibling; value && !inner; value = value.nextSibling) {
-          if (isValueNode(value) && containsCursor(value, pos)) {
-            inner = value
-            innerRole = role === 'schema' ? memberRole(key, value) : elementRole(role, value)
-          }
-        }
-        if (!inner) return role === 'schema' && before === ':' && Object.hasOwn(VALUE_LISTS, key) ? { kind: 'value', key } : null
-      } else if (node.name === 'Array' && isValueNode(child) && containsCursor(child, pos)) {
-        inner = child
-        innerRole = elementRole(role, child)
-      }
-    }
-
-    if (!inner) {
-      if (node.name === 'Object') return role === 'schema' && (before === '{' || before === ',') ? { kind: 'keyword' } : null
-      return role === 'typeList' && (before === '[' || before === ',') ? { kind: 'typeValue' } : null
-    }
-    node = inner
-    role = innerRole
+    let result: PositionResult | null
+    if (node.name === 'Object') result = objectPosition(doc, node, pos, role, before)
+    else if (node.name === 'Array') result = arrayPosition(node, pos, role, before)
+    else return null
+    if (!result) return null
+    if (result.kind !== 'child') return result
+    node = result.node
+    role = result.role
   }
 }
 

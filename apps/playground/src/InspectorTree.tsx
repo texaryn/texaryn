@@ -54,7 +54,7 @@ function TreeNode({
   const [isOpen, setIsOpen] = useState(depth === 0)
   const entries = entriesFor(value)
   const visibleEntries = entries?.filter((entry) => !(hideUnset && entry.value === undefined))
-  let valueKind = typeof value
+  let valueKind: string = typeof value
   if (value === undefined) valueKind = 'undefined'
   else if (value === null) valueKind = 'null'
 
