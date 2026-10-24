@@ -61,7 +61,7 @@
     "jsdom": "^25.0.0",
     "svelte": "^5.57.2",
     "svelte-check": "^4.7.6",
-    "typescript": "~5.8.0",
+    "typescript": "^6.0.3",
     "vite": "^7.3.7"
   },
   "scripts": {
