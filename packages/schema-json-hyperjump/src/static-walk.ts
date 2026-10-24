@@ -1278,7 +1278,7 @@ function prepareStaticWalkNode(
   referenceHasNoShape: boolean,
   inactiveConditionalRetained: boolean,
 ): StaticWalkNodeState {
-  const { active, provisional, pointer, schemaPointer, rootSchema, recursion, declaring } = frame
+  const { active, provisional, pointer, rootSchema, recursion, declaring } = frame
   // An inactive branch must not write metadata into a node the active branch created.
   const existed = frame.nodes.has(pointer)
   const node = ensureNode(frame.nodes, pointer)
@@ -1381,97 +1381,134 @@ function walkPreparedStaticNode(
 
 }
 
+interface PropertyWalkContext {
+  readonly frame: StaticWalkFrame
+  readonly schema: Record<string, unknown>
+  readonly nodeState: StaticWalkNodeState
+  readonly nextPath: PathCursor
+}
+
+interface EnterPropertyChildOptions {
+  readonly context: PropertyWalkContext
+  readonly decision: Decision | 'defer'
+  readonly childSchema: unknown
+  readonly childData: unknown
+  readonly childPointer: string
+  readonly childSchemaPointer: string
+  readonly childActive: boolean
+  readonly childPath: readonly number[]
+  readonly declaring: readonly string[]
+}
+
 function walkPropertyChildren(
   frame: StaticWalkFrame,
   schema: Record<string, unknown>,
   nodeState: StaticWalkNodeState,
   nextPath: PathCursor,
 ): void {
-  const {
-    active,
-    provisional,
-    pointer,
-    schemaPointer,
-    rootSchema,
-    lineage,
-    recursion,
-  } = frame
-  const { properties, location, required, applicableRequired } = nodeState
+  const { properties, location } = nodeState
   const propertyKeys = new Set(Object.keys(properties))
-  for (const key of additionalPropertyKeys(schema, frame.data, requiredAtLocation(location, rootSchema))) {
+  for (const key of additionalPropertyKeys(schema, frame.data, requiredAtLocation(location, frame.rootSchema))) {
     propertyKeys.add(key)
   }
-  for (const key of propertyKeys) {
-    const declared = Object.hasOwn(properties, key)
-    const sub = declared ? properties[key] : schema.additionalProperties
-    const keyPresent = isRecord(frame.data) && Object.hasOwn(frame.data, key)
-    const childActive = active && (declared || keyPresent || applicableRequired.has(key))
-    const escaped = escapeSegment(key)
-    const childData = isRecord(frame.data) ? frame.data[key] : undefined
-    const childPointer = `${pointer}/${escaped}`
-    const childSchemaPointer = declared
-      ? `${schemaPointer}/properties/${escaped}`
-      : `${schemaPointer}/additionalProperties`
-    const memberDeclaring = childDeclaring(location, key, rootSchema)
-    const decision = decideMember({
-      state: recursion,
-      parentPointer: pointer,
-      childPointer,
-      childData,
-      declaring: memberDeclaring,
-      rootSchema,
-      parentLineage: lineage,
-      phase: 'enqueue',
-    })
-    if (decision !== 'defer' && decision.kind === 'skip') continue
-    // Required demand follows the branch that applies, or the provisional branch shown to the user.
-    addChild(
-      frame.nodes,
-      pointer,
-      key,
-      active && applicableRequired.has(key),
-      escaped,
-      active,
-      provisional && required.has(key),
-    )
-    const childPath = nextPath()
-    const enter = (settled: Decision): void => {
-      if (settled.kind === 'skip') return
-      staticWalk({
-        ...frame,
-        schema: sub,
-        data: childData,
-        pointer: childPointer,
-        schemaPointer: childSchemaPointer,
-        active: childActive,
-        visited: decision === 'defer' ? new Set() : frame.visited,
-        declaring: memberDeclaring,
-        lineage: settled.lineage,
-        path: childPath,
-        conditional: false,
-      })
-    }
-    if (decision === 'defer') {
-      recursion.queue[lineage!.depth] ??= []
-      recursion.queue[lineage!.depth].push({
-        path: childPath,
-        enter: () => {
-          const settled = decideMember({
-            state: recursion,
-            parentPointer: pointer,
-            childPointer,
-            childData,
-            declaring: memberDeclaring,
-            rootSchema,
-            parentLineage: lineage,
-            phase: 'dequeue',
-            leaf: isLeafSchema(sub, rootSchema, memberDeclaring[0], recursion.cache.dialect),
-          })
-          if (settled !== 'defer') enter(settled)
-        },
-      })
-    } else enter(decision)
+  const context = { frame, schema, nodeState, nextPath }
+  for (const key of propertyKeys) walkPropertyChild(key, context)
+}
+
+function walkPropertyChild(key: string, context: PropertyWalkContext): void {
+  const { frame, schema, nodeState, nextPath } = context
+  const { active, provisional, pointer, schemaPointer, rootSchema, lineage, recursion } = frame
+  const { properties, location, required, applicableRequired } = nodeState
+  const declared = Object.hasOwn(properties, key)
+  const childSchema = declared ? properties[key] : schema.additionalProperties
+  const keyPresent = isRecord(frame.data) && Object.hasOwn(frame.data, key)
+  const childActive = active && (declared || keyPresent || applicableRequired.has(key))
+  const escaped = escapeSegment(key)
+  const childData = isRecord(frame.data) ? frame.data[key] : undefined
+  const childPointer = `${pointer}/${escaped}`
+  const childSchemaPointer = declared
+    ? `${schemaPointer}/properties/${escaped}`
+    : `${schemaPointer}/additionalProperties`
+  const declaring = childDeclaring(location, key, rootSchema)
+  const decision = decideMember({
+    state: recursion,
+    parentPointer: pointer,
+    childPointer,
+    childData,
+    declaring,
+    rootSchema,
+    parentLineage: lineage,
+    phase: 'enqueue',
+  })
+  if (decision !== 'defer' && decision.kind === 'skip') return
+  // Required demand follows the branch that applies, or the provisional branch shown to the user.
+  addChild(
+    frame.nodes,
+    pointer,
+    key,
+    active && applicableRequired.has(key),
+    escaped,
+    active,
+    provisional && required.has(key),
+  )
+  const options: EnterPropertyChildOptions = {
+    context,
+    decision,
+    childSchema,
+    childData,
+    childPointer,
+    childSchemaPointer,
+    childActive,
+    childPath: nextPath(),
+    declaring,
   }
+  if (decision === 'defer') queueDeferredPropertyChild(options)
+  else enterPropertyChild(options, decision)
+}
+
+function enterPropertyChild(options: EnterPropertyChildOptions, settled: Decision): void {
+  if (settled.kind === 'skip') return
+  const { frame } = options.context
+  staticWalk({
+    ...frame,
+    schema: options.childSchema,
+    data: options.childData,
+    pointer: options.childPointer,
+    schemaPointer: options.childSchemaPointer,
+    active: options.childActive,
+    visited: options.decision === 'defer' ? new Set() : frame.visited,
+    declaring: options.declaring,
+    lineage: settled.lineage,
+    path: options.childPath,
+    conditional: false,
+  })
+}
+
+function queueDeferredPropertyChild(options: EnterPropertyChildOptions): void {
+  const { frame } = options.context
+  const { lineage, recursion } = frame
+  recursion.queue[lineage!.depth] ??= []
+  recursion.queue[lineage!.depth].push({
+    path: options.childPath,
+    enter: () => settleDeferredPropertyChild(options),
+  })
+}
+
+function settleDeferredPropertyChild(options: EnterPropertyChildOptions): void {
+  const { frame } = options.context
+  const { pointer, rootSchema, lineage, recursion } = frame
+  const settled = decideMember({
+    state: recursion,
+    parentPointer: pointer,
+    childPointer: options.childPointer,
+    childData: options.childData,
+    declaring: options.declaring,
+    rootSchema,
+    parentLineage: lineage,
+    phase: 'dequeue',
+    leaf: isLeafSchema(options.childSchema, rootSchema, options.declaring[0], recursion.cache.dialect),
+  })
+  if (settled !== 'defer') enterPropertyChild(options, settled)
 }
 
 function walkAllOfBranches(
