@@ -63,7 +63,8 @@ function queryFor(media: string): MediaQueryStub {
     removeListener: (listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
     dispatchEvent: () => true,
     notify() {
-      for (const listener of [...listeners]) {
+      const listenersAtDispatch = new Set(listeners)
+      for (const listener of listenersAtDispatch) {
         listener({ matches: stub.matches, media } as MediaQueryListEvent)
       }
     },

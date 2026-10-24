@@ -125,10 +125,8 @@ function extractConstraints(schema: Record<string, unknown>, dialect: Projection
     constraints.exclusiveMaximum = schema.exclusiveMaximum
   }
   if (typeof schema.multipleOf === 'number') constraints.multipleOf = schema.multipleOf
-  if (schema.pattern !== undefined) {
-    constraints.pattern =
-      schema.pattern instanceof RegExp ? schema.pattern.source : String(schema.pattern)
-  }
+  if (schema.pattern instanceof RegExp) constraints.pattern = schema.pattern.source
+  else if (typeof schema.pattern === 'string') constraints.pattern = schema.pattern
   if (typeof schema.minItems === 'number') constraints.minItems = schema.minItems
   if (typeof schema.maxItems === 'number') constraints.maxItems = schema.maxItems
   if (typeof schema.uniqueItems === 'boolean') constraints.uniqueItems = schema.uniqueItems

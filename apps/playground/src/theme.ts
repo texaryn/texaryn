@@ -31,7 +31,7 @@ function readPreference(): ThemePreference {
 }
 
 export function useTheme(): ThemeState {
-  const [preference, setPreferenceState] = useState<ThemePreference>(readPreference)
+  const [preference, setPreference] = useState<ThemePreference>(readPreference)
   const [prefersDark, setPrefersDark] = useState(
     () => window.matchMedia(DARK_QUERY).matches,
   )
@@ -58,7 +58,7 @@ export function useTheme(): ThemeState {
   }, [resolved])
 
   const updatePreference = useCallback((next: ThemePreference) => {
-    setPreferenceState(next)
+    setPreference(next)
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next)
     } catch {
