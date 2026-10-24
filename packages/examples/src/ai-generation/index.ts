@@ -485,7 +485,7 @@ function checkActions(document: Record<string, unknown>, actions: Readonly<Recor
   const nodes = document.nodes as Record<string, Record<string, unknown>>
   for (const node of Object.values(nodes)) {
     if (node.type !== 'action') continue
-    if (!Object.prototype.hasOwnProperty.call(actions, node.actionType as string)) {
+    if (!Object.hasOwn(actions, node.actionType as string)) {
       throw new OutputRejectedError([`Display action "${String(node.actionType)}" is not registered by the host.`])
     }
   }

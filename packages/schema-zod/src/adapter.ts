@@ -4,6 +4,12 @@ import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { validationParameters } from './validation-parameters.js'
 import type { ZodAdapterConfig, ZodSchemaAdapter } from './types.js'
 
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
 const privateIssueParams = new WeakMap<ValidationError, Record<string, unknown>>()
 
 export async function createZodAdapter(
@@ -135,7 +141,7 @@ function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): str
     if (prototype !== Object.prototype && prototype !== null) return undefined
     const record = value as Record<string, unknown>
     const entries = Object.keys(record)
-      .sort()
+      .sort(compareCodeUnits)
       .map((key) => [key, stableSerialize(record[key], ancestors)] as const)
     if (entries.some(([, item]) => item === undefined)) return undefined
     return JSON.stringify(['object', prototype === null ? 'null-prototype' : 'plain', entries])

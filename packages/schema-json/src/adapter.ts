@@ -300,7 +300,7 @@ function enableLocalDynamicReferenceScopes(
         const outermost = reductionDepth === 0
         const inheritedLength = activeValidationScope.length
         if (outermost) activeValidationScope.push(...(options.path ?? []))
-        if (activeValidationScope[activeValidationScope.length - 1]?.node !== node) {
+        if (activeValidationScope.at(-1)?.node !== node) {
           activeValidationScope.push({ pointer: options.pointer ?? node.evaluationPath, node })
         }
         reductionDepth += 1
@@ -465,7 +465,7 @@ function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] |
       const member = segments[index + 1]
       if (
         typeof map !== 'object' || map === null || Array.isArray(map) || member === undefined ||
-        !Object.prototype.hasOwnProperty.call(map, member)
+        !Object.hasOwn(map, member)
       ) return undefined
       current = (map as Record<string, unknown>)[member]
       index += 2

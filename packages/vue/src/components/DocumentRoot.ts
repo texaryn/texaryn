@@ -4,10 +4,10 @@ import type {
   DocumentCollectionRow,
   DocumentNode,
   DocumentRuntime,
+  NodeId,
   RendererRegistry,
   UIDocumentV2,
 } from '@texaryn/core'
-import type { NodeId } from '@texaryn/core'
 import { useStore } from '../use-store.js'
 
 export type DocumentWidgetComponent = Component

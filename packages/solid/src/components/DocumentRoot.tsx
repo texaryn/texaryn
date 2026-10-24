@@ -8,11 +8,11 @@ import type {
   DocumentNode,
   DocumentRuntime,
   ListNode,
+  NodeId,
   RendererRegistry,
   TableNode,
   UIDocumentV2,
 } from '@texaryn/core'
-import type { NodeId } from '@texaryn/core'
 import { useStore } from '../store.js'
 
 export type DocumentWidgetComponent = Component<{ node: DocumentNode; runtime: DocumentRuntime }>

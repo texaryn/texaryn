@@ -20,7 +20,7 @@ export function parsePointer(pointer: JsonPointer): string[] {
  * written into, so the guard below refused it.
  */
 function ownMember(current: unknown, key: string): unknown {
-  return Object.prototype.hasOwnProperty.call(current as object, key)
+  return Object.hasOwn(current as object, key)
     ? (current as Record<string, unknown>)[key]
     : undefined
 }

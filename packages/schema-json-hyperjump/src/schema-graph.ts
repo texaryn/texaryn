@@ -1,4 +1,5 @@
 import { isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 
 type Edge = { readonly to: string; readonly via: string; readonly inPlace: boolean }
 
@@ -360,7 +361,7 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
     stack.push(start)
     onStack.add(start)
     while (frames.length > 0) {
-      const frame = frames[frames.length - 1]!
+      const frame = frames.at(-1)!
       const out = (graph.edges.get(frame.node) ?? []).filter(follow)
       if (frame.next < out.length) {
         const to = out[frame.next++]!.to
@@ -376,7 +377,7 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
         continue
       }
       frames.pop()
-      const parent = frames[frames.length - 1]
+      const parent = frames.at(-1)
       if (parent) low.set(parent.node, Math.min(low.get(parent.node)!, low.get(frame.node)!))
       if (low.get(frame.node) === indexOf.get(frame.node)) {
         const component: string[] = []
@@ -387,7 +388,7 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
           component.push(member)
         } while (member !== frame.node)
         const selfLoop = out.some((edge) => edge.to === frame.node)
-        if (component.length > 1 || selfLoop) components.push(component.sort())
+        if (component.length > 1 || selfLoop) components.push(component.sort(compareCodeUnits))
       }
     }
   }

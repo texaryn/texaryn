@@ -34,6 +34,12 @@ const KEYWORD_FAMILIES = {
 
 export type KeywordFamily = keyof typeof KEYWORD_FAMILIES
 
+const KEYWORD_FAMILY_ORDER = Object.keys(KEYWORD_FAMILIES) as KeywordFamily[]
+
+function compareKeywordFamilies(left: KeywordFamily, right: KeywordFamily): number {
+  return KEYWORD_FAMILY_ORDER.indexOf(left) - KEYWORD_FAMILY_ORDER.indexOf(right)
+}
+
 export type ProjectionShape =
   | { kind: 'resolved'; type: JsonSchemaType }
   | { kind: 'ambiguous'; families: KeywordFamily[] }
@@ -50,7 +56,7 @@ export function projectionTypeFamilies(schema: Record<string, unknown>): Set<Key
 }
 
 export function shapeOfFamilies(families: ReadonlySet<KeywordFamily>): ProjectionShape {
-  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort() }
+  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort(compareKeywordFamilies) }
 
   if (families.size === 1) {
     const [family] = families

@@ -2,6 +2,7 @@ import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-uti
 import { deepEqual, liveBranch, selectProvisionalBranch } from './static-walk.js'
 import type { BranchChecker } from './static-walk.js'
 import type { Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 
 /** One `default` declaration, and the schema position that makes it. */
 interface DefaultDeclaration {
@@ -194,7 +195,7 @@ export function collectDefaultConflicts(
   const conflicts = new Map<string, readonly string[]>()
   if (sourcesOut) {
     for (const [pointer, list] of declarations) {
-      sourcesOut.set(pointer, [...new Set(list.map((declaration) => declaration.source))].sort())
+      sourcesOut.set(pointer, [...new Set(list.map((declaration) => declaration.source))].sort(compareCodeUnits))
     }
   }
   for (const [pointer, list] of declarations) {

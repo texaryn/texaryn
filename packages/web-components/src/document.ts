@@ -1,11 +1,11 @@
 import type {
   DocumentNode,
+  DocumentCollectionRow,
   DocumentRuntime,
   ListNode,
   RendererRegistry,
   TableNode,
 } from '@texaryn/core'
-import type { DocumentCollectionRow } from '@texaryn/core'
 
 export interface DocumentDomWidget {
   element: HTMLElement

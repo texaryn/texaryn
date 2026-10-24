@@ -14,6 +14,7 @@ import type {
   DocumentActionHandler,
   DocumentCollectionRow,
   DocumentRuntime,
+  DocumentRuntimeLimits,
   DocumentRuntimeOptions,
 } from './types.js'
 import type { JsonPointer, JsonScalar, JsonValue, NodeId, StableItemId } from '../types.js'
@@ -25,7 +26,6 @@ import {
   resolveDocumentRuntimeLimits,
 } from './document-limits.js'
 import type { JsonTraversalBudget } from './document-limits.js'
-import type { DocumentRuntimeLimits } from './types.js'
 import { registerDocumentRuntimeControl } from './document-runtime-control.js'
 import type { DocumentRuntimeControl, InternalSnapshotCommit } from './document-runtime-control.js'
 
@@ -95,7 +95,7 @@ function cloneJsonUnchecked(value: unknown, path: string, active: Set<object>): 
       }
       const result: JsonValue[] = []
       for (let index = 0; index < value.length; index += 1) {
-        if (!Object.prototype.hasOwnProperty.call(value, index)) {
+        if (!Object.hasOwn(value, index)) {
           throw new TypeError(`${path}[${index}] is missing`)
         }
         const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
@@ -399,7 +399,7 @@ function assertActionArgumentValidators(
   actions: ReadonlyMap<string, DocumentActionRegistration>,
 ): void {
   for (const node of Object.values(document.nodes)) {
-    if (node.type !== 'action' || !Object.prototype.hasOwnProperty.call(node, 'actionArgs')) continue
+    if (node.type !== 'action' || !Object.hasOwn(node, 'actionArgs')) continue
     const action = actions.get(node.actionType)
     if (action && !action.validateArgs) {
       throw new TypeError(`Action ${node.actionType} has arguments but no validateArgs registration`)
@@ -587,7 +587,7 @@ export function createDocumentRuntime(
       if (!node || node.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
       const action = actions.get(node.actionType)
       if (!action) throw new Error(`No host action is registered for ${node.actionType}`)
-      const hasArgs = Object.prototype.hasOwnProperty.call(node, 'actionArgs')
+      const hasArgs = Object.hasOwn(node, 'actionArgs')
       let args: JsonValue | undefined
       if (action.validateArgs) {
         const validatedArgs = action.validateArgs(hasArgs ? node.actionArgs : undefined)

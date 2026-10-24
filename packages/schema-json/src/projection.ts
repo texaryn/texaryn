@@ -1,5 +1,6 @@
 import { mergeNode, isSchemaNode, type SchemaNode, type ValidationPath } from '@texaryn/json-schema-library'
 import { isPre2019Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 import type {
   SchemaProjection,
   NodeProjection,
@@ -813,7 +814,7 @@ function eachApplicable(
     const dependent = resolved.dependentSchemas as Record<string, SchemaNode> | undefined
     if (dependent && typeof data === 'object' && data !== null && !Array.isArray(data)) {
       for (const [dependency, subschema] of Object.entries(dependent)) {
-        if (Object.prototype.hasOwnProperty.call(data, dependency)) visit(subschema, currentScope)
+        if (Object.hasOwn(data, dependency)) visit(subschema, currentScope)
       }
     }
   }
@@ -853,7 +854,7 @@ function enterDynamicScope(
     }
     current = resolved
   }
-  if (path[path.length - 1]?.node !== current) path.push({ pointer: '#', node: current })
+  if (path.at(-1)?.node !== current) path.push({ pointer: '#', node: current })
   return { node: current, path, dynamicReference }
 }
 
@@ -1279,7 +1280,7 @@ function selectProvisionalBranch(
 
   const resolvedBranches = branches.map(dereference)
   const discriminators = [...discriminatorKeys(resolvedBranches)].filter((key) =>
-    Object.prototype.hasOwnProperty.call(dataRecord, key),
+    Object.hasOwn(dataRecord, key),
   )
   if (discriminators.length === 0) return undefined
 
@@ -1343,7 +1344,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
     return (
       left.length === right.length &&
       left.every(
-        (key) => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]),
+        (key) => Object.hasOwn(b, key) && deepEqual(a[key], b[key]),
       )
     )
   }
@@ -1378,7 +1379,7 @@ function computeRequiredSet(
 
   if (resolved.dependentRequired && dataRecord) {
     for (const [trigger, extra] of Object.entries(resolved.dependentRequired)) {
-      if (Object.prototype.hasOwnProperty.call(dataRecord, trigger)) {
+      if (Object.hasOwn(dataRecord, trigger)) {
         for (const key of extra) required.add(key)
       }
     }
@@ -1442,8 +1443,8 @@ function schemaRequiresReduction(schema: unknown, visiting = new WeakSet<object>
 
   const record = schema as Record<string, unknown>
   const direct =
-    REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(record, field)) ||
-    Object.prototype.hasOwnProperty.call(record, 'oneOfProperty') ||
+    REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.hasOwn(record, field)) ||
+    Object.hasOwn(record, 'oneOfProperty') ||
     Array.isArray(record.type)
   const children: unknown[] = []
   for (const keyword of SCHEMA_MAP_KEYWORDS) {
@@ -1791,7 +1792,7 @@ function walk(
   )
   const defaultSources =
     !conflictedDefault && applicableDeclarations.length > 0 && info.cyclic
-      ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort()
+      ? [...new Set(applicableDeclarations.map((declaration) => declaration.source))].sort(compareCodeUnits)
       : undefined
   const defaultOverride = {
     present: applicableDeclarations.length > 0,
@@ -2064,7 +2065,7 @@ function walk(
         })
         if (!result.error && isSchemaNode(result.node)) {
           scopedChildNode = result.node
-          if (nextScope[nextScope.length - 1]?.node !== scopedChildNode) {
+          if (nextScope.at(-1)?.node !== scopedChildNode) {
             nextScope.push({ pointer: `#${childPointer}`, node: scopedChildNode })
           }
           childScope = nextScope

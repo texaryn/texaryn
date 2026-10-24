@@ -25,7 +25,7 @@ function readings(node: unknown, parts: readonly string[], start: number, prefix
   if (node === null || typeof node !== 'object') return
   for (let end = start + 1; end <= parts.length; end += 1) {
     const key = parts.slice(start, end).join('/')
-    if (Object.prototype.hasOwnProperty.call(node, key)) {
+    if (Object.hasOwn(node, key)) {
       readings((node as Record<string, unknown>)[key], parts, end, [...prefix, key], search)
     }
   }

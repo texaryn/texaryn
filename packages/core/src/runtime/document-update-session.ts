@@ -42,7 +42,7 @@ function assertExactKeys(value: Record<string, unknown>, required: readonly stri
     if (!allowed.has(key)) throw new TypeError(`${path}.${key} is not supported`)
   }
   for (const key of required) {
-    if (!Object.prototype.hasOwnProperty.call(value, key)) throw new TypeError(`${path}.${key} is required`)
+    if (!Object.hasOwn(value, key)) throw new TypeError(`${path}.${key} is required`)
   }
 }
 
@@ -83,7 +83,7 @@ function readChild(parent: Record<string, unknown> | unknown[], key: string, pat
     const index = canonicalArrayIndex(key, parent.length, false, path)
     return parent[index]
   }
-  if (!Object.prototype.hasOwnProperty.call(parent, key)) throw new TypeError(`${path} does not exist`)
+  if (!Object.hasOwn(parent, key)) throw new TypeError(`${path} does not exist`)
   return parent[key]
 }
 
@@ -94,7 +94,7 @@ function locateParent(root: unknown, tokens: readonly string[], path: string): P
     current = readChild(current, tokens[index]!, path)
   }
   if (!Array.isArray(current) && !isRecord(current)) throw new TypeError(`${path} has a missing intermediate parent`)
-  return { parent: current, key: tokens[tokens.length - 1]! }
+  return { parent: current, key: tokens.at(-1)! }
 }
 
 function writeObjectMember(parent: Record<string, unknown>, key: string, value: unknown): void {
@@ -126,7 +126,7 @@ function applyPatchOperation(candidate: JsonValue, operation: PatchOperation, op
     return
   }
 
-  const exists = Object.prototype.hasOwnProperty.call(parent, key)
+  const exists = Object.hasOwn(parent, key)
   if (operation.op !== 'add' && !exists) throw new TypeError(`patch[${operationIndex}].path target does not exist`)
   if (operation.op === 'remove') delete parent[key]
   else writeObjectMember(parent, key, operation.value)
@@ -276,7 +276,7 @@ export function createDocumentUpdateSession(
     const allowed = new Set(['protocol', 'kind', 'revision', 'patch', 'data'])
     for (const key of keys) if (!allowed.has(key)) throw new TypeError(`message.${key} is not supported`)
     for (const key of ['protocol', 'kind', 'revision']) {
-      if (!Object.prototype.hasOwnProperty.call(message, key)) throw new TypeError(`message.${key} is required`)
+      if (!Object.hasOwn(message, key)) throw new TypeError(`message.${key} is required`)
     }
     if (!state) throw new Error('the first document message must be a snapshot')
     if (revision !== state.revision + 1 || !Number.isSafeInteger(revision)) {
@@ -287,8 +287,8 @@ export function createDocumentUpdateSession(
       throw new Error('runtime changed outside this session; a higher revision snapshot is required')
     }
 
-    const hasPatch = Object.prototype.hasOwnProperty.call(message, 'patch')
-    const hasData = Object.prototype.hasOwnProperty.call(message, 'data')
+    const hasPatch = Object.hasOwn(message, 'patch')
+    const hasData = Object.hasOwn(message, 'data')
     if (!hasPatch && !hasData) throw new TypeError('update must contain patch, data, or both')
     let patch: readonly unknown[] = []
     if (hasPatch) {

@@ -24,10 +24,16 @@ import { themeBootScript } from '../theme.config.mjs'
 // separates "we kept their component" from "we kept their storage".
 const STARLIGHT_KEY = /(?<![\w-])starlight-theme(?![\w-])/
 
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
 export function findHtmlFiles(root) {
   const found = []
   const walk = (directory) => {
-    for (const entry of readdirSync(directory).sort()) {
+    for (const entry of readdirSync(directory).sort(compareCodeUnits)) {
       const full = join(directory, entry)
       if (statSync(full).isDirectory()) walk(full)
       else if (entry.endsWith('.html')) found.push(full)

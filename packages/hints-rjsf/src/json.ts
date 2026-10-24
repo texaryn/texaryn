@@ -21,7 +21,7 @@ export function isJsonArray(value: unknown): value is readonly JsonValue[] {
 }
 
 export function member(object: JsonObject, key: string): JsonValue | undefined {
-  return Object.prototype.hasOwnProperty.call(object, key) ? object[key] : undefined
+  return Object.hasOwn(object, key) ? object[key] : undefined
 }
 
 export function define(object: JsonObject, key: string, value: JsonValue): void {

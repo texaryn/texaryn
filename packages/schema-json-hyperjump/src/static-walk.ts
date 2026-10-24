@@ -11,6 +11,7 @@ import type {
   ProjectionOptions,
   ProjectionDiagnostic,
 } from '@texaryn/core'
+import { compareCodeUnits } from './string-order.js'
 import { isPre2019Dialect, type Dialect } from './dialect.js'
 import {
   projectionTypeFamilies,
@@ -344,7 +345,7 @@ export function locationInfo(
   state: RecursionState,
 ): LocationInfo {
   const cache = state.cache
-  const memoKey = [...declaring].sort().join('\n')
+  const memoKey = [...declaring].sort(compareCodeUnits).join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
   const at = (position: string): unknown => schemaAtPosition(rootSchema, position)
@@ -397,7 +398,7 @@ export function locationInfo(
   for (const position of declaring) visitAll(position, new Set())
 
   const info: LocationInfo = {
-    key: [...identity].sort().join('\n'),
+    key: [...identity].sort(compareCodeUnits).join('\n'),
     cycle,
     cyclic: [...identity].some((position) => cache.cyclic.has(position)),
     expanded,
@@ -1396,7 +1397,7 @@ export function selectProvisionalBranch(
 
   const resolved = branches.map((branch) => resolveBranch(branch, rootSchema))
   const discriminators = discriminatorKeys(resolved, rootSchema).filter((key) =>
-    Object.prototype.hasOwnProperty.call(data, key),
+    Object.hasOwn(data, key),
   )
   if (discriminators.length === 0) return undefined
 
@@ -1547,7 +1548,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     return (
       left.length === right.length &&
       left.every(
-        (key) => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]),
+        (key) => Object.hasOwn(b, key) && deepEqual(a[key], b[key]),
       )
     )
   }

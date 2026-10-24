@@ -7,6 +7,7 @@
 // It is labelled as exactly that rather than implying a hidden snapshot.
 import { useRef } from 'react'
 import type { KeyboardEvent } from 'react'
+import { compareObjectKeys } from './compare-object-keys.js'
 import type {
   FormRuntime,
   SchemaEvaluationPort,
@@ -148,7 +149,7 @@ function ValidationPane({ runtime }: { runtime: FormRuntime }) {
 
 function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
   const projection = port.project(data)
-  const pointers = [...projection.nodes.keys()].map(String).sort()
+  const pointers = [...projection.nodes.keys()].map(String).sort(compareObjectKeys)
 
   return (
     <>

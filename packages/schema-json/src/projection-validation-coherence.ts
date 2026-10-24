@@ -1,6 +1,7 @@
 import { isSchemaNode, type SchemaNode } from '@texaryn/json-schema-library'
 import { isPre2019Dialect, type Dialect } from './dialect.js'
 import { withoutUnreachableBranches } from './normalize.js'
+import { compareCodeUnits } from './string-order.js'
 
 type CompiledRoot = SchemaNode & { readonly context?: { readonly refs?: Record<string, unknown> } }
 
@@ -102,7 +103,7 @@ function contractNodeAt(root: ContractNode, path: readonly ContractSegment[]): C
 }
 
 function serializeContract(node: ContractNode): string {
-  const profiles = [...node.profiles].sort()
+  const profiles = [...node.profiles].sort(compareCodeUnits)
   const children: Array<readonly [string, string]> = []
   const applicators = new Map<string, string[]>()
 
@@ -119,7 +120,7 @@ function serializeContract(node: ContractNode): string {
 
   children.sort(([left], [right]) => left.localeCompare(right))
   const branchGroups = [...applicators]
-    .map(([keyword, branches]) => [keyword, branches.sort()] as const)
+    .map(([keyword, branches]) => [keyword, branches.sort(compareCodeUnits)] as const)
     .sort(([left], [right]) => left.localeCompare(right))
 
   return JSON.stringify({ profiles, children, branchGroups })

@@ -6,6 +6,12 @@ import {
   setAtPointer,
 } from '@texaryn/core'
 import type { FormMutation, FormRuntime, JsonPointer, JsonScalar, JsonValue, Store } from '@texaryn/core'
+
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
 import * as Y from 'yjs'
 
 const DEFAULT_DOCUMENT_KEY = 'texaryn-form-v1'
@@ -163,7 +169,7 @@ function assertOverrideBudget(overrides: Map<string, JsonScalar>): void {
 function canonicalJson(value: JsonValue): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (isRecord(value)) {
-    return `{${Object.keys(value).sort().map((key) =>
+    return `{${Object.keys(value).sort(compareCodeUnits).map((key) =>
       `${JSON.stringify(key)}:${canonicalJson(value[key]!)}`,
     ).join(',')}}`
   }
@@ -176,7 +182,7 @@ function readManifest(value: unknown): SessionManifest {
       manifest.schemaVersion.length === 0 || !Object.hasOwn(manifest, 'baseline')) {
     throw new Error('The shared document manifest is malformed or uses an unsupported protocol.')
   }
-  const keys = Object.keys(manifest).sort()
+  const keys = Object.keys(manifest).sort(compareCodeUnits)
   if (keys.join(',') !== 'baseline,protocol,schemaVersion') {
     throw new Error('The shared document manifest contains unsupported fields.')
   }

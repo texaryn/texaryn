@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, forwardRef, input } from '@angular/core'
-import type { DocumentNode, DocumentRuntime, RendererRegistry, UIDocumentV2 } from '@texaryn/core'
+import type { DocumentNode, DocumentRuntime, NodeId, RendererRegistry, UIDocumentV2 } from '@texaryn/core'
 import type { Signal, Type } from '@angular/core'
-import type { NodeId } from '@texaryn/core'
 import { useDynamicStore } from '../store.js'
 import { DOCUMENT_CONTEXT } from '../document-context.js'
 import type { AngularDocumentWidget } from '../widget.js'

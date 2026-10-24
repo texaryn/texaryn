@@ -326,7 +326,7 @@ function isAbsent(
     current = (current as Record<string, unknown>)[segment]
   }
   if (!isContainer(current)) return true
-  return !Object.prototype.hasOwnProperty.call(current, segments[segments.length - 1]!)
+  return !Object.hasOwn(current, segments.at(-1)!)
 }
 
 /**

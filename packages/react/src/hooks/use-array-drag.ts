@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { HTMLAttributes, RefObject } from 'react'
-import type { ContainerNode, NodeId, StableItemId } from '@texaryn/core'
-import type { FormRuntime } from '@texaryn/core'
+import type { ContainerNode, FormRuntime, NodeId, StableItemId } from '@texaryn/core'
 import { useFormContext } from '../context.js'
 
 const arrayDragType = 'application/x-texaryn-array-item'

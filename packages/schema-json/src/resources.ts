@@ -1,6 +1,7 @@
 import type { MaybePromise } from '@texaryn/core'
 import { detectDialect, identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
 import { DEFINITION_KEYS, LIST, MAP, SINGLE } from './schema-keywords.js'
+import { compareCodeUnits } from './string-order.js'
 
 /** Resolves one absolute resource URI without its fragment. The adapter never fetches it itself. */
 export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown | undefined>
@@ -461,8 +462,8 @@ function structurallyEqual(left: unknown, right: unknown, seen = new WeakMap<obj
   if (compared.has(right)) return true
   compared.add(right)
   seen.set(left, compared)
-  const leftKeys = Object.keys(left).sort()
-  const rightKeys = Object.keys(right).sort()
+  const leftKeys = Object.keys(left).sort(compareCodeUnits)
+  const rightKeys = Object.keys(right).sort(compareCodeUnits)
   return leftKeys.length === rightKeys.length && leftKeys.every((key, index) =>
     key === rightKeys[index] && structurallyEqual(left[key], right[key], seen))
 }

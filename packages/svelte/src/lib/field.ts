@@ -1,10 +1,15 @@
 import { derived, get } from 'svelte/store'
 import type { Readable } from 'svelte/store'
-import type { FieldNode, NodeId, Store, ValidationError } from '@texaryn/core'
-import type { FormMessages } from '@texaryn/core'
+import type { FieldNode, FormMessages, NodeId, Store, ValidationError } from '@texaryn/core'
 import type { SvelteFormBinding } from './form.js'
 import type { FieldAria } from './field-props.js'
 import { fieldAria, fieldLabel, makeId } from './field-props.js'
+
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
 
 export type FieldKind = 'enum' | 'boolean' | 'number' | 'string'
 
@@ -154,8 +159,8 @@ export function sameEnumValue(left: unknown, right: unknown): boolean {
     return left.length === right.length && left.every((entry, index) => sameEnumValue(entry, right[index]))
   }
   if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false
-  const leftKeys = Object.keys(left as object).sort()
-  const rightKeys = Object.keys(right as object).sort()
+  const leftKeys = Object.keys(left as object).sort(compareCodeUnits)
+  const rightKeys = Object.keys(right as object).sort(compareCodeUnits)
   return leftKeys.length === rightKeys.length && leftKeys.every((key, index) =>
     key === rightKeys[index] && sameEnumValue(
       (left as Record<string, unknown>)[key],

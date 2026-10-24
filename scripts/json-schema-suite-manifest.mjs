@@ -12,6 +12,12 @@ import { fileURLToPath } from 'node:url'
 const suiteRoot = fileURLToPath(new URL('../tests/conformance/json-schema-test-suite/', import.meta.url))
 const extraFiles = ['LICENSE']
 
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
 function jsonFiles(dir) {
   const out = []
   for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
@@ -32,7 +38,7 @@ const files = [
     relative(suiteRoot, path).split('\\').join('/'),
   ),
   ...extraFiles,
-].sort()
+].sort(compareCodeUnits)
 
 const manifest = {}
 for (const file of files) {
