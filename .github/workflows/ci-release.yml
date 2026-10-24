@@ -23,12 +23,6 @@ jobs:
       - run: pnpm build
       - name: Verify docs
         run: pnpm docs:check
-      - name: Upload generated API documentation for diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: generated-api-docs
-          path: docs/api
       - name: Verify packages
         run: pnpm verify:packages
       - name: Verify stable packages in an isolated npm consumer

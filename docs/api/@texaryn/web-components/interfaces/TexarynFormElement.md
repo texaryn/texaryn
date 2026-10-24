@@ -1001,7 +1001,7 @@ Returns the first child.
 
 #### Inherited from
 
-`HTMLElement.firstChild`
+`TexarynFormElement`.[`firstChild`](#firstchild)
 
 ***
 
@@ -1015,7 +1015,7 @@ Returns the first child that is an element, and null otherwise.
 
 #### Inherited from
 
-`HTMLElement.firstElementChild`
+`TexarynFormElement`.[`firstElementChild`](#firstelementchild)
 
 ***
 
@@ -1147,7 +1147,7 @@ Returns the last child.
 
 #### Inherited from
 
-`HTMLElement.lastChild`
+`TexarynFormElement`.[`lastChild`](#lastchild)
 
 ***
 
@@ -1161,7 +1161,7 @@ Returns the last child that is an element, and null otherwise.
 
 #### Inherited from
 
-`HTMLElement.lastElementChild`
+`TexarynFormElement`.[`lastElementChild`](#lastelementchild)
 
 ***
 
@@ -1197,7 +1197,7 @@ Returns the namespace.
 
 #### Inherited from
 
-`HTMLElement.namespaceURI`
+`TexarynFormElement`.[`namespaceURI`](#namespaceuri)
 
 ***
 
@@ -1225,7 +1225,7 @@ Returns the next sibling.
 
 #### Inherited from
 
-`HTMLElement.nextSibling`
+`TexarynFormElement`.[`nextSibling`](#nextsibling)
 
 ***
 
@@ -1265,7 +1265,7 @@ Returns the type of node.
 
 #### Inherited from
 
-`HTMLElement.nodeValue`
+`TexarynFormElement`.[`nodeValue`](#nodevalue)
 
 ***
 
@@ -1323,7 +1323,7 @@ Returns the type of node.
 
 #### Inherited from
 
-`HTMLElement.offsetParent`
+`TexarynFormElement`.[`offsetParent`](#offsetparent)
 
 ***
 
@@ -2985,7 +2985,7 @@ Returns the parent element.
 
 #### Inherited from
 
-`HTMLElement.parentElement`
+`TexarynFormElement`.[`parentElement`](#parentelement)
 
 ***
 
@@ -2999,7 +2999,7 @@ Returns the parent.
 
 #### Inherited from
 
-`HTMLElement.parentNode`
+`TexarynFormElement`.[`parentNode`](#parentnode)
 
 ***
 
@@ -3011,7 +3011,7 @@ Returns the parent.
 
 #### Inherited from
 
-`HTMLElement.popover`
+`TexarynFormElement`.[`popover`](#popover)
 
 ***
 
@@ -3033,7 +3033,7 @@ Returns the namespace prefix.
 
 #### Inherited from
 
-`HTMLElement.prefix`
+`TexarynFormElement`.[`prefix`](#prefix)
 
 ***
 
@@ -3061,7 +3061,7 @@ Returns the previous sibling.
 
 #### Inherited from
 
-`HTMLElement.previousSibling`
+`TexarynFormElement`.[`previousSibling`](#previoussibling)
 
 ***
 
@@ -3159,7 +3159,7 @@ Returns element's shadow root, if any, and if shadow root's mode is "open", and 
 
 #### Inherited from
 
-`HTMLElement.shadowRoot`
+`TexarynFormElement`.[`shadowRoot`](#shadowroot)
 
 ***
 
@@ -3235,7 +3235,7 @@ node is a Text node.
 
 #### Inherited from
 
-`HTMLElement.textContent`
+`TexarynFormElement`.[`textContent`](#textcontent)
 
 ***
 

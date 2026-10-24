@@ -82,8 +82,8 @@ export function captureConsole(): { errors: () => string[]; warnings: () => stri
   })
 
   return {
-    errors: () => error.mock.calls.map((call) => String(call[0])),
-    warnings: () => warn.mock.calls.map((call) => String(call[0])),
+    errors: () => error.mock.calls.map((call: unknown[]) => String(call[0])),
+    warnings: () => warn.mock.calls.map((call: unknown[]) => String(call[0])),
   }
 }
 
