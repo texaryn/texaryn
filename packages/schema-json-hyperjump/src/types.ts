@@ -1,12 +1,12 @@
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import type { Dialect } from './dialect.js'
-import type { SchemaResourceOptions, SchemaResourceResolver } from './resources.js'
+import type { SchemaResourceOptions } from './resources.js'
 
 export interface HyperjumpAdapterConfig extends SchemaResourceOptions {
   defaultDialect?: Dialect
 }
 
-export type { SchemaResourceResolver }
+export type { SchemaResourceResolver } from './resources.js'
 
 export interface HyperjumpAdapter extends SchemaEvaluationPort {
   // No additional public methods beyond the port contract.

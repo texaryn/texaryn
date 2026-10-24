@@ -241,7 +241,7 @@ describe.each([
     expect(rows).toEqual([expected])
     // Not `toEqual`, which cannot tell a hole or an `undefined` element from a
     // `null` one: `[undefined]` and `[null]` compare equal.
-    expect(rows[0] === undefined).toBe(false)
+    expect(rows[0]).toBeDefined()
   })
 
   it('fills a scalar row with the item default', async () => {
@@ -442,7 +442,7 @@ describe.each([
     const report = runtime.initialization.getSnapshot()
     if (report?.outcome !== 'initialized') throw new Error('expected an initialized report')
     expect(report.conflicts.map((conflict) => conflict.location)).toEqual([location])
-    expect(report.conflicts[0]!.sources.length).toBe(2)
+    expect(report.conflicts[0]!.sources).toHaveLength(2)
   })
 
   /**

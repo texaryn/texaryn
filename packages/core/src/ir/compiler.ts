@@ -213,7 +213,7 @@ function compileNode(
     const carried = ctx.identityMap.arrayIdentities.get(key)
     let itemStableIds: StableItemId[]
 
-    if (carried !== undefined && carried.length === arrayItems.length) {
+    if (carried?.length === arrayItems.length) {
       itemStableIds = [...carried]
     } else {
       // No identity yet for this array, or a count the handler did not

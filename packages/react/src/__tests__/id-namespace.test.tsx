@@ -106,7 +106,7 @@ describe('id namespace', () => {
 
     const firstIds = idsIn(screen.getByTestId('a') as HTMLElement)
     const secondIds = idsIn(screen.getByTestId('b') as HTMLElement)
-    expect(firstIds.length).toBe(secondIds.length)
+    expect(firstIds).toHaveLength(secondIds.length)
     expect(firstIds.filter((id) => secondIds.includes(id))).toEqual([])
   })
 
@@ -221,7 +221,7 @@ describe('id namespace', () => {
     const runtime = createFormRuntime(port, { initialData: { rows: ['a', 'b'] } })
     const { container } = render(<Form runtime={runtime} />)
     await waitFor(() => {
-      expect(container.querySelectorAll('input').length).toBe(2)
+      expect(container.querySelectorAll('input')).toHaveLength(2)
     })
 
     const root = runtime.document.getSnapshot()

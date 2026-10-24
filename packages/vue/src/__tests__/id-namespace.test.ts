@@ -109,7 +109,7 @@ describe('id namespace', () => {
 
     const firstIds = idsIn(wrapper.element.querySelector('[data-testid=a]')!)
     const secondIds = idsIn(wrapper.element.querySelector('[data-testid=b]')!)
-    expect(firstIds.length).toBe(secondIds.length)
+    expect(firstIds).toHaveLength(secondIds.length)
     expect(firstIds.filter((id) => secondIds.includes(id))).toEqual([])
     wrapper.unmount()
   })

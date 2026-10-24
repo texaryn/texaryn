@@ -486,7 +486,8 @@ body {
   font-family: var(--tx-font-mono);
   font-size: 0.85rem;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   margin: 0;
 }
 
@@ -882,7 +883,8 @@ body {
   font-size: 0.7rem;
   color: var(--tx-text-muted);
   font-family: var(--tx-font-mono);
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   margin: 0 0 0.5rem;
 }
 

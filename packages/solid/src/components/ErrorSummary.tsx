@@ -26,7 +26,7 @@ export function ErrorSummary(props: { focus?: boolean }) {
   const details = (entry: VisibleError) => context.messages().errorSummaryDetail({ messages: visibleErrorMessages(entry, context.messages()) })
   return (
     <Show when={errors().length > 0}>
-      <div ref={container} role="group" tabIndex={-1} aria-labelledby={headingId()}>
+      <section ref={container} tabIndex={-1} aria-labelledby={headingId()}>
         <h2 id={headingId()}>{context.messages().errorSummaryHeading({ count: errors().length })}</h2>
         <ul>
           <For each={errors()}>{(entry) => (
@@ -36,7 +36,7 @@ export function ErrorSummary(props: { focus?: boolean }) {
             </li>
           )}</For>
         </ul>
-      </div>
+      </section>
     </Show>
   )
 }

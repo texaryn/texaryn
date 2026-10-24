@@ -45,7 +45,7 @@ export function parsePackageInputs(...rawInputs) {
 export function sourceCommitFromVerifiedEntry(entry) {
   const { name, version } = entry ?? {}
   if (typeof name !== 'string' || typeof version !== 'string') {
-    throw new Error('Verified npm entry is missing its package name or version')
+    throw new TypeError('Verified npm entry is missing its package name or version')
   }
 
   const expectedSubject = `pkg:npm/${name.replace(/^@/, '%40')}@${version}`
@@ -65,7 +65,7 @@ export function sourceCommitFromVerifiedEntry(entry) {
   }
 
   if (!statement.subject?.some(({ name: subject }) => subject === expectedSubject)) {
-    throw new Error(`Provenance subject does not match ${name}@${version}`)
+    throw new TypeError(`Provenance subject does not match ${name}@${version}`)
   }
 
   const predicate = statement.predicate

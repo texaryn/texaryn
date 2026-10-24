@@ -50,7 +50,7 @@ describe('example browser', () => {
       .getAllByRole('heading')
       .map((heading) => heading.textContent)
 
-    expect(headings.length).toBe(categories.size)
+    expect(headings).toHaveLength(categories.size)
   })
 
   it('matches search against title, description and capability id', () => {

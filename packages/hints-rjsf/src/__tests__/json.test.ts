@@ -101,7 +101,7 @@ describe('toJson', () => {
   it('stops past a million values and reports it once', () => {
     const { value, outside } = copy(new Array(1_000_001).fill(0))
     expect(outside).toEqual([{ path: '/999999', key: '999999', reason: 'larger than 1000000 values' }])
-    expect((value as unknown[]).length).toBe(999_999)
+    expect(value as unknown[]).toHaveLength(999_999)
     expect(copy(new Array(999_999).fill(0)).outside).toEqual([])
   })
 

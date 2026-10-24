@@ -152,7 +152,7 @@ describe('useFieldArray', () => {
     )!.id
     const wrapper = createProviderWrapper(runtime)
     const { result } = renderHook(() => useFieldArray(arrayId), { wrapper })
-    expect(result.current.items.length).toBe(2)
+    expect(result.current.items).toHaveLength(2)
     runtime.destroy()
   })
 })

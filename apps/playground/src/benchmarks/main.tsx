@@ -377,6 +377,8 @@ async function start(): Promise<void> {
   window.__texarynBenchReady = true
 }
 
-void start().catch((error: unknown) => {
+try {
+  await start()
+} catch (error: unknown) {
   window.__texarynBenchError = error instanceof Error ? error.stack ?? error.message : String(error)
-})
+}

@@ -153,9 +153,10 @@ async function repositoryCommit() {
   let commonDir = dotGit
 
   if (dotGitStat.isFile()) {
-    const gitDirMatch = (await readFile(dotGit, 'utf8')).trim().match(/^gitdir:\s*(.+)$/)
-    if (!gitDirMatch) throw new Error('Could not resolve the repository Git directory.')
-    gitDir = resolve(repoRoot, gitDirMatch[1])
+    const gitDirLine = (await readFile(dotGit, 'utf8')).trim()
+    const gitDirValue = gitDirLine.startsWith('gitdir:') ? gitDirLine.slice('gitdir:'.length).trim() : ''
+    if (!gitDirValue) throw new Error('Could not resolve the repository Git directory.')
+    gitDir = resolve(repoRoot, gitDirValue)
     commonDir = gitDir
     const commonDirValue = await readFile(resolve(gitDir, 'commondir'), 'utf8').catch((error) => {
       if (error.code === 'ENOENT') return null
@@ -168,7 +169,8 @@ async function repositoryCommit() {
   const hashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
   if (hashPattern.test(head)) return head
 
-  const reference = head.match(/^ref:\s*(\S+)$/)?.[1]
+  const referenceValue = head.startsWith('ref:') ? head.slice('ref:'.length).trim() : ''
+  const reference = referenceValue || undefined
   if (!reference) throw new Error('Could not resolve the repository HEAD revision.')
 
   for (const directory of new Set([gitDir, commonDir])) {
@@ -868,7 +870,9 @@ async function main() {
   process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
 }
 
-main().catch((error) => {
+try {
+  await main()
+} catch (error) {
   process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`)
   process.exitCode = 1
-})
+}

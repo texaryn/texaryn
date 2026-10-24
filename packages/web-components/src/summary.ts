@@ -76,7 +76,7 @@ export function mountErrorSummary(
       if (li === anchor) {
         anchor = anchor.nextSibling
       } else {
-        list.insertBefore(li, anchor)
+    anchor.before(li)
       }
     }
     if (root.parentNode !== container) container.prepend(root)

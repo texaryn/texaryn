@@ -64,6 +64,109 @@ function addStringLength(
 
 type VisitEntry = { value: unknown; path: string; depth: number } | { exit: object }
 
+type ValueVisitEntry = { value: unknown; path: string; depth: number }
+
+function countVisitedValue(
+  entry: ValueVisitEntry,
+  limits: DocumentRuntimeLimits,
+  totals: { values: number; stringLength: number },
+  work?: JsonTraversalBudget,
+): void {
+  totals.values += 1
+  if (totals.values > limits.maxJsonValues) throw new TypeError(`${entry.path} exceeds the maximum JSON value count`)
+  if (work) {
+    work.visitedValues += 1
+    if (work.visitedValues > work.maxVisitedValues) {
+      throw new TypeError('patch candidate traversal exceeds the per-message work limit')
+    }
+  }
+  if (entry.depth > limits.maxJsonDepth) throw new TypeError(`${entry.path} exceeds the maximum JSON depth`)
+}
+
+function isJsonArrayIndex(key: PropertyKey, length: number): boolean {
+  if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key)) return false
+  const index = Number(key)
+  return Number.isSafeInteger(index) && index < length
+}
+
+function assertJsonArrayProperties(value: unknown[], path: string): void {
+  const keys = Reflect.ownKeys(value)
+  if (keys.length === value.length + 1 && keys.every((key) => key === 'length' || isJsonArrayIndex(key, value.length))) {
+    return
+  }
+  throw new TypeError(`${path} contains a non-JSON array property`)
+}
+
+function pushArrayChildren(
+  entry: ValueVisitEntry,
+  value: unknown[],
+  limits: DocumentRuntimeLimits,
+  stack: VisitEntry[],
+): void {
+  if (value.length > limits.maxArrayItems) throw new TypeError(`${entry.path} exceeds the maximum array item count`)
+  assertJsonArrayProperties(value, entry.path)
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+      throw new TypeError(`${entry.path}[${index}] must be a JSON property`)
+    }
+    stack.push({ value: descriptor.value, path: `${entry.path}[${index}]`, depth: entry.depth + 1 })
+  }
+}
+
+function pushObjectChildren(
+  entry: ValueVisitEntry,
+  value: object,
+  limits: DocumentRuntimeLimits,
+  totals: { values: number; stringLength: number },
+  stack: VisitEntry[],
+): void {
+  if (!isPlainObject(value)) throw new TypeError(`${entry.path} must be a plain JSON object`)
+  const keys = Reflect.ownKeys(value)
+  if (keys.length > limits.maxJsonValues - totals.values) {
+    throw new TypeError(`${entry.path} exceeds the maximum JSON value count`)
+  }
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index]
+    if (typeof key !== 'string') throw new TypeError(`${entry.path} must not contain symbol properties`)
+    addStringLength(key.length, `${entry.path} property name`, limits, totals)
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+      throw new TypeError(`${entry.path}.${key} must be a JSON property`)
+    }
+    stack.push({ value: descriptor.value, path: `${entry.path}.${key}`, depth: entry.depth + 1 })
+  }
+}
+
+function visitJsonValue(
+  entry: ValueVisitEntry,
+  limits: DocumentRuntimeLimits,
+  totals: { values: number; stringLength: number },
+  active: Set<object>,
+  stack: VisitEntry[],
+): void {
+  const value = entry.value
+  if (value === null || typeof value === 'boolean') return
+  if (typeof value === 'string') {
+    addStringLength(value.length, entry.path, limits, totals)
+    return
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new TypeError(`${entry.path} must contain a finite number`)
+    return
+  }
+  if (typeof value !== 'object') throw new TypeError(`${entry.path} is not a JSON value`)
+  if (active.has(value)) throw new TypeError(`${entry.path} contains a cycle`)
+
+  active.add(value)
+  stack.push({ exit: value })
+  if (Array.isArray(value)) {
+    pushArrayChildren(entry, value, limits, stack)
+    return
+  }
+  pushObjectChildren(entry, value, limits, totals, stack)
+}
+
 export function preflightJson(
   input: unknown,
   path: string,
@@ -92,67 +195,8 @@ export function preflightJsonRoots(
       continue
     }
 
-    totals.values += 1
-    if (totals.values > limits.maxJsonValues) throw new TypeError(`${entry.path} exceeds the maximum JSON value count`)
-    if (work) {
-      work.visitedValues += 1
-      if (work.visitedValues > work.maxVisitedValues) {
-        throw new TypeError('patch candidate traversal exceeds the per-message work limit')
-      }
-    }
-    if (entry.depth > limits.maxJsonDepth) throw new TypeError(`${entry.path} exceeds the maximum JSON depth`)
-
-    const value = entry.value
-    if (value === null || typeof value === 'boolean') continue
-    if (typeof value === 'string') {
-      addStringLength(value.length, entry.path, limits, totals)
-      continue
-    }
-    if (typeof value === 'number') {
-      if (!Number.isFinite(value)) throw new TypeError(`${entry.path} must contain a finite number`)
-      continue
-    }
-    if (typeof value !== 'object') throw new TypeError(`${entry.path} is not a JSON value`)
-    if (active.has(value)) throw new TypeError(`${entry.path} contains a cycle`)
-
-    active.add(value)
-    stack.push({ exit: value })
-    if (Array.isArray(value)) {
-      if (value.length > limits.maxArrayItems) throw new TypeError(`${entry.path} exceeds the maximum array item count`)
-      const keys = Reflect.ownKeys(value)
-      if (keys.length !== value.length + 1 || keys.some((key) => {
-        if (key === 'length') return false
-        if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key)) return true
-        const index = Number(key)
-        return !Number.isSafeInteger(index) || index >= value.length
-      })) {
-        throw new TypeError(`${entry.path} contains a non-JSON array property`)
-      }
-      for (let index = value.length - 1; index >= 0; index -= 1) {
-        const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
-        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
-          throw new TypeError(`${entry.path}[${index}] must be a JSON property`)
-        }
-        stack.push({ value: descriptor.value, path: `${entry.path}[${index}]`, depth: entry.depth + 1 })
-      }
-      continue
-    }
-
-    if (!isPlainObject(value)) throw new TypeError(`${entry.path} must be a plain JSON object`)
-    const keys = Reflect.ownKeys(value)
-    if (keys.length > limits.maxJsonValues - totals.values) {
-      throw new TypeError(`${entry.path} exceeds the maximum JSON value count`)
-    }
-    for (let index = keys.length - 1; index >= 0; index -= 1) {
-      const key = keys[index]
-      if (typeof key !== 'string') throw new TypeError(`${entry.path} must not contain symbol properties`)
-      addStringLength(key.length, `${entry.path} property name`, limits, totals)
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
-        throw new TypeError(`${entry.path}.${key} must be a JSON property`)
-      }
-      stack.push({ value: descriptor.value, path: `${entry.path}.${key}`, depth: entry.depth + 1 })
-    }
+    countVisitedValue(entry, limits, totals, work)
+    visitJsonValue(entry, limits, totals, active, stack)
   }
 }
 
