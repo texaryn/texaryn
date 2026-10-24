@@ -1,5 +1,6 @@
 import { derived, get } from 'svelte/store'
 import type { Readable } from 'svelte/store'
+import { formatFieldDisplayValue } from '@texaryn/core'
 import type { FieldNode, FormMessages, NodeId, Store, ValidationError } from '@texaryn/core'
 import type { SvelteFormBinding } from './form.js'
 import type { FieldAria } from './field-props.js'
@@ -150,13 +151,7 @@ export function fieldKind(node: FieldNode | undefined): FieldKind {
 export function displayValue(kind: FieldKind, value: unknown): string | number {
   if (kind === 'number' && typeof value === 'number') return value
   if (kind === 'string' && typeof value === 'string') return value
-  if (value == null) return ''
-  if (typeof value !== 'object') return String(value)
-  try {
-    return JSON.stringify(value) ?? ''
-  } catch {
-    return '[unserializable value]'
-  }
+  return formatFieldDisplayValue(value)
 }
 
 export function sameEnumValue(left: unknown, right: unknown): boolean {

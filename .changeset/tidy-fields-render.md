@@ -1,4 +1,5 @@
 ---
+"@texaryn/core": minor
 "@texaryn/react": patch
 "@texaryn/svelte": patch
 "@texaryn/vue": patch

@@ -38,6 +38,7 @@ describe('Svelte field helpers', () => {
     expect(displayValue('number', '12')).toBe('12')
     expect(displayValue('string', 'Ada')).toBe('Ada')
     expect(displayValue('boolean', false)).toBe('false')
+    expect(displayValue('string', { name: 'Ada' })).toBe('{"name":"Ada"}')
     expect(displayValue('string', undefined)).toBe('')
     expect(displayValue('string', null)).toBe('')
   })

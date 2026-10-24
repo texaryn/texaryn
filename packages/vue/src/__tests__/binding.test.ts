@@ -4,6 +4,13 @@ import { mount } from '@vue/test-utils'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { mountExample, example, settle } from './harness.js'
 import { provideFormRuntime, useField, useForm, FormRoot, createDefaultRegistry } from '../index.js'
+import { displayValue } from '../use-field-widget.js'
+
+describe('field display values', () => {
+  it('renders mismatched object values as JSON text', () => {
+    expect(displayValue('string', { name: 'Ada' })).toBe('{"name":"Ada"}')
+  })
+})
 
 function labelled(wrapper: ReturnType<typeof mount>, text: string): HTMLInputElement | undefined {
   const label = wrapper.findAll('label').find((l) => l.text() === text)

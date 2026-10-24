@@ -36,6 +36,11 @@ afterEach(() => {
 })
 
 describe('default widgets', () => {
+  it('renders mismatched object values as JSON text', async () => {
+    await mount({ type: 'object', properties: { field: { type: 'string' } } }, { field: { name: 'Ada' } })
+    expect(control<HTMLInputElement>('/field').value).toBe('{"name":"Ada"}')
+  })
+
   it('number coerces typed text and clears to undefined', async () => {
     const rt = await mount(kindsSchema, { age: 3 })
     const age = control<HTMLInputElement>('/age')

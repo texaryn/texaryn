@@ -1,4 +1,5 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue'
+import { formatFieldDisplayValue } from '@texaryn/core'
 import type { FieldNode, FormMessages, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
 import { useFormMessages } from './context.js'
@@ -21,13 +22,7 @@ export function fieldKind(node: FieldNode): FieldKind {
 export function displayValue(kind: FieldKind, value: unknown): string | number {
   if (kind === 'number' && typeof value === 'number') return value
   if (kind === 'string' && typeof value === 'string') return value
-  if (value == null) return ''
-  if (typeof value !== 'object') return String(value)
-  try {
-    return JSON.stringify(value) ?? ''
-  } catch {
-    return '[unserializable value]'
-  }
+  return formatFieldDisplayValue(value)
 }
 
 export function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {
