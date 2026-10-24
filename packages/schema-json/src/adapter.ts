@@ -407,7 +407,41 @@ function collectAuthoredReferencePaths(schema: unknown): WeakMap<object, string[
   const paths = new WeakMap<object, string[][]>()
   const ancestors = new Set<object>()
 
-  const visit = (value: unknown, keywords: string[]): void => {
+  function visitMapChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_MAP_KEYWORDS) {
+      const map = current[keyword]
+      if (typeof map !== 'object' || map === null || Array.isArray(map)) continue
+      for (const child of Object.values(map)) visit(child, [...keywords, keyword])
+    }
+  }
+
+  function visitArrayChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+      const branches = current[keyword]
+      if (Array.isArray(branches)) {
+        for (const child of branches) visit(child, [...keywords, keyword])
+      }
+    }
+  }
+
+  function visitSingleChildren(current: Record<string, unknown>, keywords: string[]): void {
+    for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
+      visit(current[keyword], [...keywords, keyword])
+    }
+  }
+
+  function visitItems(current: Record<string, unknown>, keywords: string[]): void {
+    if (Object.hasOwn(current, 'items')) {
+      const items = current.items
+      if (Array.isArray(items)) {
+        for (const child of items) visit(child, [...keywords, 'prefixItems'])
+      } else {
+        visit(items, [...keywords, 'items'])
+      }
+    }
+  }
+
+  function visit(value: unknown, keywords: string[]): void {
     if (typeof value !== 'object' || value === null || Array.isArray(value) || ancestors.has(value)) return
     ancestors.add(value)
     const current = value as Record<string, unknown>
@@ -417,28 +451,10 @@ function collectAuthoredReferencePaths(schema: unknown): WeakMap<object, string[
       paths.set(value, found)
     }
 
-    for (const keyword of SCHEMA_MAP_KEYWORDS) {
-      const map = current[keyword]
-      if (typeof map !== 'object' || map === null || Array.isArray(map)) continue
-      for (const child of Object.values(map)) visit(child, [...keywords, keyword])
-    }
-    for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
-      const branches = current[keyword]
-      if (Array.isArray(branches)) {
-        for (const child of branches) visit(child, [...keywords, keyword])
-      }
-    }
-    for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
-      visit(current[keyword], [...keywords, keyword])
-    }
-    if (Object.hasOwn(current, 'items')) {
-      const items = current.items
-      if (Array.isArray(items)) {
-        for (const child of items) visit(child, [...keywords, 'prefixItems'])
-      } else {
-        visit(items, [...keywords, 'items'])
-      }
-    }
+    visitMapChildren(current, keywords)
+    visitArrayChildren(current, keywords)
+    visitSingleChildren(current, keywords)
+    visitItems(current, keywords)
     ancestors.delete(value)
   }
 
