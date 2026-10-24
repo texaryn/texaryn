@@ -1,5 +1,20 @@
 # @texaryn/schema-zod
 
+## 0.3.4
+
+### Patch Changes
+
+- 289de6c: Simplifies Zod issue keyword mapping.
+- Updated dependencies [b5304fa]
+- Updated dependencies [aa8f47d]
+- Updated dependencies [aa8f47d]
+- Updated dependencies [aa8f47d]
+- Updated dependencies [55aefac]
+- Updated dependencies [6aa8002]
+- Updated dependencies [97ce30b]
+  - @texaryn/schema-json@1.0.6
+  - @texaryn/core@1.1.1
+
 ## 0.3.3
 
 ### Patch Changes
