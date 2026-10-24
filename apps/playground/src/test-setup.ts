@@ -104,9 +104,9 @@ Object.defineProperty(window, 'matchMedia', {
 
 if (!('ResizeObserver' in window)) {
   class ResizeObserverStub {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
+    observe(): void {} // NOSONAR The test stub does not observe layout.
+    unobserve(): void {} // NOSONAR The test stub has no observed targets.
+    disconnect(): void {} // NOSONAR The test stub has no observed targets.
   }
   Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
   Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, value: ResizeObserverStub })
