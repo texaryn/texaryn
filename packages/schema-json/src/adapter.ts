@@ -638,7 +638,7 @@ function toKeyword(code: string): string {
 }
 
 function mapValidationError(error: JsonError, resolve: PointerResolver): ValidationError {
-  const code = typeof error.code === 'string' ? error.code : String(error.code)
+  const code = typeof error.code === 'string' ? error.code : 'schema-error'
   const keyword = toKeyword(code)
   const data = (error.data ?? {}) as Record<string, unknown>
   const basePointer = typeof data.pointer === 'string' ? data.pointer : '#'

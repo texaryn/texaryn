@@ -56,9 +56,10 @@ export function resolveUnescapedPath(document: unknown, path: string): string {
 export function toSchemaIssue(document: unknown, error: JsonError): SchemaIssue {
   const data = (error.data ?? {}) as { pointer?: unknown; message?: unknown }
   const location = typeof data.pointer === 'string' ? data.pointer.replace(/^#/, '') : ''
+  const code = typeof error.code === 'string' ? error.code : 'schema-error'
   return {
     pointer: resolveUnescapedPath(document, location) as JsonPointer,
-    code: String(error.code),
+    code,
     message: typeof data.message === 'string' ? data.message : error.message,
   }
 }
