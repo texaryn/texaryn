@@ -87,21 +87,38 @@ interface ResourceIndex {
   readonly baseAt: Map<string, string>
 }
 
-function childSchemas(schema: Record<string, unknown>, position: string, dialect: Dialect, lexical: boolean) {
-  const found: { position: string; via: string; inPlace: boolean }[] = []
-  const addMap = (keyword: string, inPlace: boolean): void => {
-    const map = schema[keyword]
-    if (!isRecord(map)) return
-    for (const [key, value] of Object.entries(map)) {
-      if (isRecord(value) || typeof value === 'boolean') {
-        found.push({ position: `${position}/${keyword}/${escape(key)}`, via: `${keyword}/${key}`, inPlace })
-      }
+type LocatedChildSchema = { position: string; via: string; inPlace: boolean }
+
+function addMapChildren(
+  found: LocatedChildSchema[],
+  schema: Record<string, unknown>,
+  position: string,
+  keyword: string,
+  inPlace: boolean,
+): void {
+  const map = schema[keyword]
+  if (!isRecord(map)) return
+  for (const [key, value] of Object.entries(map)) {
+    if (isRecord(value) || typeof value === 'boolean') {
+      found.push({ position: `${position}/${keyword}/${escape(key)}`, via: `${keyword}/${key}`, inPlace })
     }
   }
-  if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
-    if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
-    return found
+}
+
+function addListChildren(
+  found: LocatedChildSchema[],
+  schema: Record<string, unknown>,
+  position: string,
+  keyword: string,
+  inPlace: boolean,
+): void {
+  const list = schema[keyword]
+  if (Array.isArray(list)) {
+    list.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace }))
   }
+}
+
+function addInPlaceChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect, lexical: boolean): void {
   if (isRecord(schema.not)) found.push({ position: `${position}/not`, via: 'not', inPlace: true })
   if (dialect !== 'draft-04') {
     const hasIf = 'if' in schema
@@ -109,13 +126,13 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
     if (isRecord(schema.then) && (lexical || (hasIf && schema.if !== false))) found.push({ position: `${position}/then`, via: 'then', inPlace: true })
     if (isRecord(schema.else) && (lexical || (hasIf && schema.if !== true))) found.push({ position: `${position}/else`, via: 'else', inPlace: true })
   }
-  for (const keyword of IN_PLACE_LIST) {
-    const list = schema[keyword]
-    if (Array.isArray(list)) list.forEach((_, index) => found.push({ position: `${position}/${keyword}/${index}`, via: `${keyword}/${index}`, inPlace: true }))
-  }
+  for (const keyword of IN_PLACE_LIST) addListChildren(found, schema, position, keyword, true)
   // json-schema-library keeps evaluating 'dependencies' in later drafts for backward compatibility.
-  addMap('dependencies', true)
-  if (!isPre2019Dialect(dialect)) addMap('dependentSchemas', true)
+  addMapChildren(found, schema, position, 'dependencies', true)
+  if (!isPre2019Dialect(dialect)) addMapChildren(found, schema, position, 'dependentSchemas', true)
+}
+
+function addInstanceChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
   for (const keyword of INSTANCE_SINGLE) {
     if (dialect === 'draft-04' && keyword !== 'additionalProperties') continue
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
@@ -128,7 +145,7 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
       if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
     }
   }
-  for (const keyword of INSTANCE_MAP) addMap(keyword, false)
+  for (const keyword of INSTANCE_MAP) addMapChildren(found, schema, position, keyword, false)
   const items = schema.items
   if (isRecord(items)) found.push({ position: `${position}/items`, via: 'items', inPlace: false })
   else if (Array.isArray(items) && dialect !== '2020-12') {
@@ -137,7 +154,21 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
   if (dialect === '2020-12' && Array.isArray(schema.prefixItems)) {
     schema.prefixItems.forEach((_, index) => found.push({ position: `${position}/prefixItems/${index}`, via: `prefixItems/${index}`, inPlace: false }))
   }
-  if (lexical) for (const key of INDEX_ORDER[dialect]) addMap(key, false)
+}
+
+function addLexicalChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
+  for (const keyword of INDEX_ORDER[dialect]) addMapChildren(found, schema, position, keyword, false)
+}
+
+function childSchemas(schema: Record<string, unknown>, position: string, dialect: Dialect, lexical: boolean): LocatedChildSchema[] {
+  const found: LocatedChildSchema[] = []
+  if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
+    if (lexical) addLexicalChildren(found, schema, position, dialect)
+    return found
+  }
+  addInPlaceChildren(found, schema, position, dialect, lexical)
+  addInstanceChildren(found, schema, position, dialect)
+  if (lexical) addLexicalChildren(found, schema, position, dialect)
   return found
 }
 
