@@ -46,7 +46,7 @@ The `@texaryn/solid` renderer merged in
 [PR #213](https://github.com/texaryn/texaryn/pull/213). It adds SolidJS
 bindings, a default component registry, package and site documentation,
 playground integration, and cross-framework state sharing coverage. Its checks
-passed against `main`, including 98.46% Codecov patch coverage. Version 0.2.0
+passed against `main`, including 98.46% patch coverage. Version 0.2.0
 is published on npm.
 
 The long term JSON Schema engine decision is
@@ -2016,12 +2016,12 @@ Targeted diffing stays deferred until supported application workloads show
 repeated structural operations above the interaction target.
 
 The Svelte 5 renderer merged in PR #212 after passing build, typecheck, package
-verification, site build, and 97.86% Codecov patch coverage. ChatGPT review
+verification, site build, and 97.86% patch coverage. ChatGPT review
 found a runtime replacement edge case in `FormRoot`; binding and teardown now
 follow the active form, with regression coverage. Follow-up review found no
 remaining actionable issues. The SolidJS renderer in PR #213 passed build,
 typecheck, package verification, full test suite, and site build against `main`,
-with 98.46% Codecov patch coverage. ChatGPT review findings about read-only
+with 98.46% patch coverage. ChatGPT review findings about read-only
 control state and object enum comparison were fixed, and follow-up review found
 no remaining actionable issues.
 
