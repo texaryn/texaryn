@@ -89,9 +89,7 @@ function fieldKind(node: FieldNode): FieldKind {
 }
 
 function displayValue(kind: FieldKind, value: unknown): string | number {
-  if (kind === 'number' && typeof value === 'number') return value
-  if (kind === 'string' && typeof value === 'string') return value
-  return formatFieldDisplayValue(value)
+  return formatFieldDisplayValue(value, kind)
 }
 
 function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {

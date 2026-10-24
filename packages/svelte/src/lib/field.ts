@@ -149,9 +149,7 @@ export function fieldKind(node: FieldNode | undefined): FieldKind {
 }
 
 export function displayValue(kind: FieldKind, value: unknown): string | number {
-  if (kind === 'number' && typeof value === 'number') return value
-  if (kind === 'string' && typeof value === 'string') return value
-  return formatFieldDisplayValue(value)
+  return formatFieldDisplayValue(value, kind)
 }
 
 export function sameEnumValue(left: unknown, right: unknown): boolean {

@@ -14,6 +14,13 @@ describe('formatFieldDisplayValue', () => {
     expect(formatFieldDisplayValue(callable)).toBe(callable.toString())
   })
 
+  it('preserves matching input kinds and formats mismatches as text', () => {
+    expect(formatFieldDisplayValue(12, 'number')).toBe(12)
+    expect(formatFieldDisplayValue('text', 'string')).toBe('text')
+    expect(formatFieldDisplayValue(12, 'string')).toBe('12')
+    expect(formatFieldDisplayValue('12', 'number')).toBe('12')
+  })
+
   it('serializes object and array values as JSON', () => {
     expect(formatFieldDisplayValue({ name: 'Ada' })).toBe('{"name":"Ada"}')
     expect(formatFieldDisplayValue([1, 'two'])).toBe('[1,"two"]')

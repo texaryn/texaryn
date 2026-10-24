@@ -6,16 +6,38 @@
 
 # Function: formatFieldDisplayValue()
 
+## Call Signature
+
 > **formatFieldDisplayValue**(`value`): `string`
 
-Formats field values for text controls, using JSON for objects and a stable serialization fallback.
+Formats field values for text controls, preserving matching string and number input values.
 
-## Parameters
+### Parameters
 
-### value
+#### value
 
 `unknown`
 
-## Returns
+### Returns
 
 `string`
+
+## Call Signature
+
+> **formatFieldDisplayValue**(`value`, `kind`): `string` \| `number`
+
+Formats field values for text controls, preserving matching string and number input values.
+
+### Parameters
+
+#### value
+
+`unknown`
+
+#### kind
+
+`string`
+
+### Returns
+
+`string` \| `number`

@@ -1,5 +1,9 @@
-/** Formats field values for text controls, using JSON for objects and a stable serialization fallback. */
-export function formatFieldDisplayValue(value: unknown): string {
+/** Formats field values for text controls, preserving matching string and number input values. */
+export function formatFieldDisplayValue(value: unknown): string
+export function formatFieldDisplayValue(value: unknown, kind: string): string | number
+export function formatFieldDisplayValue(value: unknown, kind?: string): string | number {
+  if (kind === 'number' && typeof value === 'number') return value
+  if (kind === 'string' && typeof value === 'string') return value
   if (value == null) return ''
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
