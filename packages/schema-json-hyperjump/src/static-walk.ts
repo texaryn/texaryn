@@ -780,48 +780,84 @@ export function finalizeNodes(
   cycles: ReadonlySet<string>,
 ): { projected: Map<JsonPointer, NodeProjection>; diagnostics: ProjectionDiagnostic[] } {
   const omitted = new Map<string, boolean>()
-  const reachable = (pointer: string): boolean =>
-    pointer === '' || (!isOmitted(parentOf(pointer)) && isContainerType(nodes.get(parentOf(pointer))?.type))
-  const isOmitted = (pointer: string): boolean => {
-    let result = omitted.get(pointer)
-    if (result === undefined) {
-      result = nodes.get(pointer)?.type === undefined || !reachable(pointer)
-      omitted.set(pointer, result)
-    }
-    return result
-  }
   const projected = new Map<JsonPointer, NodeProjection>()
   const diagnostics: ProjectionDiagnostic[] = []
   for (const [pointer, node] of nodes) {
-    if (isOmitted(pointer)) {
-      const shape = node.families && shapeOfFamilies(node.families)
-      const unselectedComposition = node.composed && node.families?.size === 0
-      if (reachable(pointer) && shape && shape.kind !== 'resolved' && !cycles.has(pointer) && !unselectedComposition) {
-        diagnostics.push(shapeDiagnostic(pointer as JsonPointer, shape, node.enumValues !== undefined))
-      }
-      continue
-    }
-    projected.set(pointer as JsonPointer, {
-      type: node.type!,
-      format: node.format,
-      constraints: node.constraints,
-      children: node.type === 'object' ? node.children : undefined,
-      enumValues: node.enumValues,
-      active: node.active,
-      // Belt and braces: `provisional` is only ever set on the branch that runs
-      // when `active` is false, so no walk can reach here with both, and
-      // dropping the guard changes no observable behaviour.
-      provisional: node.active ? undefined : node.provisional,
-      annotations: node.annotations,
-      ...(node.boundaries && node.boundaries.length > 0 ? { boundaries: node.boundaries } : {}),
-      ...(node.boundaryTargets && node.boundaryTargets.length > 0
-        ? { boundaryTargets: node.boundaryTargets }
-        : {}),
-      ...(node.recursiveExpansion ? { recursiveExpansion: true as const } : {}),
-      ...(node.defaultSources !== undefined ? { defaultSources: node.defaultSources } : {}),
-    })
+    appendFinalizedNode(pointer, node, nodes, cycles, omitted, projected, diagnostics)
   }
   return { projected, diagnostics }
+}
+
+function appendFinalizedNode(
+  pointer: string,
+  node: DraftNode,
+  nodes: Map<string, DraftNode>,
+  cycles: ReadonlySet<string>,
+  omitted: Map<string, boolean>,
+  projected: Map<JsonPointer, NodeProjection>,
+  diagnostics: ProjectionDiagnostic[],
+): void {
+  if (isNodeOmitted(pointer, nodes, omitted)) {
+    appendOmittedNodeDiagnostic(pointer, node, nodes, cycles, omitted, diagnostics)
+    return
+  }
+  projected.set(pointer as JsonPointer, projectNode(node))
+}
+
+function isNodeReachable(
+  pointer: string,
+  nodes: Map<string, DraftNode>,
+  omitted: Map<string, boolean>,
+): boolean {
+  const parent = parentOf(pointer)
+  return pointer === '' || (!isNodeOmitted(parent, nodes, omitted) && isContainerType(nodes.get(parent)?.type))
+}
+
+function isNodeOmitted(
+  pointer: string,
+  nodes: Map<string, DraftNode>,
+  omitted: Map<string, boolean>,
+): boolean {
+  const cached = omitted.get(pointer)
+  if (cached !== undefined) return cached
+  const result = nodes.get(pointer)?.type === undefined || !isNodeReachable(pointer, nodes, omitted)
+  omitted.set(pointer, result)
+  return result
+}
+
+function appendOmittedNodeDiagnostic(
+  pointer: string,
+  node: DraftNode,
+  nodes: Map<string, DraftNode>,
+  cycles: ReadonlySet<string>,
+  omitted: Map<string, boolean>,
+  diagnostics: ProjectionDiagnostic[],
+): void {
+  const shape = node.families && shapeOfFamilies(node.families)
+  const unselectedComposition = node.composed && node.families?.size === 0
+  if (!isNodeReachable(pointer, nodes, omitted) || !shape || shape.kind === 'resolved') return
+  if (cycles.has(pointer) || unselectedComposition) return
+  diagnostics.push(shapeDiagnostic(pointer as JsonPointer, shape, node.enumValues !== undefined))
+}
+
+function projectNode(node: DraftNode): NodeProjection {
+  return {
+    type: node.type!,
+    format: node.format,
+    constraints: node.constraints,
+    children: node.type === 'object' ? node.children : undefined,
+    enumValues: node.enumValues,
+    active: node.active,
+    // A node cannot be active and provisional at the same time.
+    provisional: node.active ? undefined : node.provisional,
+    annotations: node.annotations,
+    ...(node.boundaries && node.boundaries.length > 0 ? { boundaries: node.boundaries } : {}),
+    ...(node.boundaryTargets && node.boundaryTargets.length > 0
+      ? { boundaryTargets: node.boundaryTargets }
+      : {}),
+    ...(node.recursiveExpansion ? { recursiveExpansion: true as const } : {}),
+    ...(node.defaultSources !== undefined ? { defaultSources: node.defaultSources } : {}),
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -869,44 +905,85 @@ function applicableRequiredAtLocation(
 ): Set<string> {
   const keys = new Set<string>()
   for (const position of info.expanded) {
-    const segments = schemaPositionSegments(position)
-    let applicable = true
-    for (let index = 0; index < segments.length; index += 1) {
-      const segment = segments[index]!
-      const previous = segments[index - 1]
-      const parentSchemaPointer = (end: number): string => schemaParentPosition(position, end)
-      if (segment === 'if') {
-        applicable = false
-        break
-      }
-      if (
-        (segment === 'then' || segment === 'else') &&
-        !isBranchActive(parentSchemaPointer(index), instancePointer, `/${segment}`)
-      ) {
-        applicable = false
-        break
-      }
-      if (previous === 'oneOf' || previous === 'anyOf') {
-        const parent = parentSchemaPointer(index - 1)
-        if (!isBranchActive(parent, instancePointer, `/${previous}/${segment}`)) {
-          applicable = false
-          break
-        }
-      }
-      if (previous === 'dependentSchemas' || previous === 'dependencies') {
-        const dependency = segment.replaceAll('~1', '/').replaceAll('~0', '~')
-        if (!isRecord(data) || !Object.hasOwn(data, dependency)) {
-          applicable = false
-          break
-        }
-      }
-    }
-    if (!applicable) continue
-    const schema = schemaAtPosition(rootSchema, position)
-    if (!isRecord(schema) || !Array.isArray(schema.required)) continue
-    for (const key of schema.required) if (typeof key === 'string') keys.add(key)
+    if (!isRequiredPositionApplicable(position, data, instancePointer, isBranchActive)) continue
+    addRequiredKeysAtPosition(position, rootSchema, keys)
   }
   return keys
+}
+
+function isRequiredPositionApplicable(
+  position: string,
+  data: unknown,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): boolean {
+  const segments = schemaPositionSegments(position)
+  for (let index = 0; index < segments.length; index += 1) {
+    if (!isRequiredPathSegmentApplicable(position, segments, index, data, instancePointer, isBranchActive)) {
+      return false
+    }
+  }
+  return true
+}
+
+function isRequiredPathSegmentApplicable(
+  position: string,
+  segments: readonly string[],
+  index: number,
+  data: unknown,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): boolean {
+  const segment = segments[index]!
+  const previous = segments[index - 1]
+  if (segment === 'if') return false
+  if (!isConditionalPathSegmentActive(position, segment, index, instancePointer, isBranchActive)) return false
+  if (!isComposedPathSegmentActive(position, previous, segment, index, instancePointer, isBranchActive)) return false
+  return isDependencyPathSegmentActive(previous, segment, data)
+}
+
+function isConditionalPathSegmentActive(
+  position: string,
+  segment: string,
+  index: number,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): boolean {
+  if (segment !== 'then' && segment !== 'else') return true
+  return isBranchActive(schemaParentPosition(position, index), instancePointer, `/${segment}`)
+}
+
+function isComposedPathSegmentActive(
+  position: string,
+  previous: string | undefined,
+  segment: string,
+  index: number,
+  instancePointer: string,
+  isBranchActive: BranchChecker,
+): boolean {
+  if (previous !== 'oneOf' && previous !== 'anyOf') return true
+  const parent = schemaParentPosition(position, index - 1)
+  return isBranchActive(parent, instancePointer, `/${previous}/${segment}`)
+}
+
+function isDependencyPathSegmentActive(
+  previous: string | undefined,
+  segment: string,
+  data: unknown,
+): boolean {
+  if (previous !== 'dependentSchemas' && previous !== 'dependencies') return true
+  const dependency = segment.replaceAll('~1', '/').replaceAll('~0', '~')
+  return isRecord(data) && Object.hasOwn(data, dependency)
+}
+
+function addRequiredKeysAtPosition(
+  position: string,
+  rootSchema: unknown,
+  keys: Set<string>,
+): void {
+  const schema = schemaAtPosition(rootSchema, position)
+  if (!isRecord(schema) || !Array.isArray(schema.required)) return
+  for (const key of schema.required) if (typeof key === 'string') keys.add(key)
 }
 
 /**
@@ -948,40 +1025,81 @@ function applyStaticStructure(
   dialect: Dialect,
 ): void {
   const type = resolveType(schema)
-  if (type !== undefined && node.type === undefined) {
-    if (exposed) node.type = type
-    else {
-      node.inactiveTypes ??= new Set()
-      node.inactiveTypes.add(type)
-    }
+  applyStaticType(node, type, exposed)
+  applyStaticTypeFamilies(node, schema, type, conditional, referenceHasNoShape)
+  applyStaticFormat(node, schema)
+  applyStaticConstraints(node, schema, dialect)
+  applyStaticEnumValues(node, schema)
+}
+
+function applyStaticType(node: DraftNode, type: JsonSchemaType | undefined, exposed: boolean): void {
+  if (type === undefined || node.type !== undefined) return
+  if (exposed) {
+    node.type = type
+    return
   }
-  if (node.type === undefined && type === undefined && !conditional && !referenceHasNoShape) {
-    const families = (node.families ??= new Set())
-    for (const family of projectionTypeFamilies(schema)) families.add(family)
-  }
+  node.inactiveTypes ??= new Set()
+  node.inactiveTypes.add(type)
+}
+
+function applyStaticTypeFamilies(
+  node: DraftNode,
+  schema: Record<string, unknown>,
+  type: JsonSchemaType | undefined,
+  conditional: boolean,
+  referenceHasNoShape: boolean,
+): void {
+  if (node.type !== undefined || type !== undefined || conditional || referenceHasNoShape) return
+  const families = (node.families ??= new Set())
+  for (const family of projectionTypeFamilies(schema)) families.add(family)
+}
+
+function applyStaticFormat(node: DraftNode, schema: Record<string, unknown>): void {
   if (typeof schema.format === 'string' && node.format === undefined) node.format = schema.format
-  const draft04 = dialect === 'draft-04'
-  for (const key of CONSTRAINT_KEYS) {
-    const value = schema[key]
-    if (
-      draft04 &&
-      ((key === 'minimum' && schema.exclusiveMinimum === true) || (key === 'maximum' && schema.exclusiveMaximum === true))
-    ) continue
-    if (draft04 && (key === 'exclusiveMinimum' || key === 'exclusiveMaximum')) {
-      const bound = key === 'exclusiveMinimum' ? schema.minimum : schema.maximum
-      if (
-        value === true &&
-        typeof bound === 'number' &&
-        (node.constraints as Record<string, unknown>)[key] === undefined
-      ) {
-        ;(node.constraints as Record<string, unknown>)[key] = bound
-      }
-      continue
-    }
-    if (value !== undefined && (node.constraints as Record<string, unknown>)[key] === undefined) {
-      ;(node.constraints as Record<string, unknown>)[key] = value
-    }
+}
+
+function applyStaticConstraints(node: DraftNode, schema: Record<string, unknown>, dialect: Dialect): void {
+  for (const key of CONSTRAINT_KEYS) applyStaticConstraint(node, schema, key, dialect)
+}
+
+function applyStaticConstraint(
+  node: DraftNode,
+  schema: Record<string, unknown>,
+  key: typeof CONSTRAINT_KEYS[number],
+  dialect: Dialect,
+): void {
+  const constraints = node.constraints as Record<string, unknown>
+  const value = schema[key]
+  if (dialect === 'draft-04' && shouldSkipDraft04Bound(key, schema)) return
+  if (dialect === 'draft-04' && isDraft04ExclusiveKey(key)) {
+    applyDraft04ExclusiveConstraint(constraints, schema, key, value)
+    return
   }
+  if (value !== undefined && constraints[key] === undefined) constraints[key] = value
+}
+
+function shouldSkipDraft04Bound(key: string, schema: Record<string, unknown>): boolean {
+  return (key === 'minimum' && schema.exclusiveMinimum === true) ||
+    (key === 'maximum' && schema.exclusiveMaximum === true)
+}
+
+function isDraft04ExclusiveKey(key: string): key is 'exclusiveMinimum' | 'exclusiveMaximum' {
+  return key === 'exclusiveMinimum' || key === 'exclusiveMaximum'
+}
+
+function applyDraft04ExclusiveConstraint(
+  constraints: Record<string, unknown>,
+  schema: Record<string, unknown>,
+  key: 'exclusiveMinimum' | 'exclusiveMaximum',
+  value: unknown,
+): void {
+  const bound = key === 'exclusiveMinimum' ? schema.minimum : schema.maximum
+  if (value === true && typeof bound === 'number' && constraints[key] === undefined) {
+    constraints[key] = bound
+  }
+}
+
+function applyStaticEnumValues(node: DraftNode, schema: Record<string, unknown>): void {
   if (Array.isArray(schema.enum) && !node.enumValues) {
     node.enumValues = schema.enum.map((value) => ({ value }))
   }
