@@ -487,7 +487,22 @@ export function buildProjection(
   )
   const rootInfo = locationInfo(['#'], rawSchema, recursion)
   if (rootInfo.cycle) recursion.cycles.add('')
-  else staticWalk(rawSchema, data, '', '#', true, false, branchChecker, nodes, new Set(), rawSchema, recursion, ['#'], undefined, [])
+  else staticWalk({
+    schema: rawSchema,
+    data,
+    pointer: '',
+    schemaPointer: '#',
+    active: true,
+    provisional: false,
+    isBranchActive: branchChecker,
+    nodes,
+    visited: new Set(),
+    rootSchema: rawSchema,
+    recursion,
+    declaring: ['#'],
+    lineage: undefined,
+    path: [],
+  })
   for (const level of recursion.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
   resolveShapes(nodes)
   for (const pointer of recursion.flagged) {
