@@ -455,56 +455,106 @@ export function markPositions(graph: SchemaGraph, document: unknown, remotes: re
   return { document: documents.local, remotes: copies, at: (position) => at(documents, position) }
 }
 
+interface StronglyConnectedFrame {
+  readonly node: string
+  next: number
+}
+
+interface StronglyConnectedState {
+  readonly indexOf: Map<string, number>
+  readonly low: Map<string, number>
+  readonly onStack: Set<string>
+  readonly stack: string[]
+  readonly components: string[][]
+  counter: number
+}
+
 function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean): string[][] {
-  const indexOf = new Map<string, number>()
-  const low = new Map<string, number>()
-  const onStack = new Set<string>()
-  const stack: string[] = []
-  const components: string[][] = []
-  let counter = 0
-  const connect = (start: string): void => {
-    const frames: { node: string; next: number }[] = [{ node: start, next: 0 }]
-    indexOf.set(start, counter)
-    low.set(start, counter++)
-    stack.push(start)
-    onStack.add(start)
-    while (frames.length > 0) {
-      const frame = frames.at(-1)!
-      const out = (graph.edges.get(frame.node) ?? []).filter(follow)
-      if (frame.next < out.length) {
-        const to = out[frame.next++]!.to
-        if (!indexOf.has(to)) {
-          indexOf.set(to, counter)
-          low.set(to, counter++)
-          stack.push(to)
-          onStack.add(to)
-          frames.push({ node: to, next: 0 })
-        } else if (onStack.has(to)) {
-          low.set(frame.node, Math.min(low.get(frame.node)!, indexOf.get(to)!))
-        }
-        continue
-      }
-      frames.pop()
-      const parent = frames.at(-1)
-      if (parent) low.set(parent.node, Math.min(low.get(parent.node)!, low.get(frame.node)!))
-      if (low.get(frame.node) === indexOf.get(frame.node)) {
-        const component: string[] = []
-        let member: string
-        do {
-          member = stack.pop()!
-          onStack.delete(member)
-          component.push(member)
-        } while (member !== frame.node)
-        const selfLoop = out.some((edge) => edge.to === frame.node)
-        if (component.length > 1 || selfLoop) {
-          component.sort(compareCodeUnits)
-          components.push(component)
-        }
-      }
-    }
+  const state: StronglyConnectedState = {
+    indexOf: new Map(),
+    low: new Map(),
+    onStack: new Set(),
+    stack: [],
+    components: [],
+    counter: 0,
   }
-  for (const node of graph.reachable) if (!indexOf.has(node)) connect(node)
-  return components
+  for (const node of graph.reachable) {
+    if (!state.indexOf.has(node)) connectStronglyConnected(node, graph, follow, state)
+  }
+  return state.components
+}
+
+function connectStronglyConnected(
+  start: string,
+  graph: SchemaGraph,
+  follow: (edge: Edge) => boolean,
+  state: StronglyConnectedState,
+): void {
+  const frames: StronglyConnectedFrame[] = [{ node: start, next: 0 }]
+  enterStronglyConnectedNode(start, state)
+  while (frames.length > 0) {
+    const frame = frames.at(-1)!
+    const outgoing = (graph.edges.get(frame.node) ?? []).filter(follow)
+    if (advanceStronglyConnectedFrame(frame, outgoing, frames, state)) continue
+    completeStronglyConnectedFrame(frame, outgoing, frames, state)
+  }
+}
+
+function enterStronglyConnectedNode(node: string, state: StronglyConnectedState): void {
+  state.indexOf.set(node, state.counter)
+  state.low.set(node, state.counter++)
+  state.stack.push(node)
+  state.onStack.add(node)
+}
+
+function advanceStronglyConnectedFrame(
+  frame: StronglyConnectedFrame,
+  outgoing: readonly Edge[],
+  frames: StronglyConnectedFrame[],
+  state: StronglyConnectedState,
+): boolean {
+  if (frame.next >= outgoing.length) return false
+  const to = outgoing[frame.next++]!.to
+  if (!state.indexOf.has(to)) {
+    enterStronglyConnectedNode(to, state)
+    frames.push({ node: to, next: 0 })
+  } else if (state.onStack.has(to)) {
+    state.low.set(frame.node, Math.min(state.low.get(frame.node)!, state.indexOf.get(to)!))
+  }
+  return true
+}
+
+function completeStronglyConnectedFrame(
+  frame: StronglyConnectedFrame,
+  outgoing: readonly Edge[],
+  frames: StronglyConnectedFrame[],
+  state: StronglyConnectedState,
+): void {
+  frames.pop()
+  const parent = frames.at(-1)
+  if (parent) {
+    state.low.set(parent.node, Math.min(state.low.get(parent.node)!, state.low.get(frame.node)!))
+  }
+  if (state.low.get(frame.node) !== state.indexOf.get(frame.node)) return
+  collectStronglyConnectedComponent(frame.node, outgoing, state)
+}
+
+function collectStronglyConnectedComponent(
+  root: string,
+  outgoing: readonly Edge[],
+  state: StronglyConnectedState,
+): void {
+  const component: string[] = []
+  let member: string
+  do {
+    member = state.stack.pop()!
+    state.onStack.delete(member)
+    component.push(member)
+  } while (member !== root)
+  const selfLoop = outgoing.some((edge) => edge.to === root)
+  if (component.length <= 1 && !selfLoop) return
+  component.sort(compareCodeUnits)
+  state.components.push(component)
 }
 
 function describeCycle(graph: SchemaGraph, component: readonly string[]): string {
