@@ -673,83 +673,155 @@ function referencesIn({
 }
 
 export function referencedPointerTargets(documents: readonly unknown[], dialect: Dialect): Map<string, ReadonlySet<string>> {
-  const targets = new Map<string, Set<string>>()
-  const resourcePositions = new Map<string, { document: string; position: string; schema: unknown }>()
-  const documentScanners = new Map<string, (schema: unknown, base: string | undefined, position: string) => void>()
-  const knownResources = new Set<string>()
-
-  for (const document of documents) {
-    const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
-    const documentBase = resourceBase(identifier, undefined, dialect)
-    const documentKey = documentBase ?? ''
-    if (documentBase !== undefined) {
-      resourcePositions.set(documentBase, { document: documentKey, position: '#', schema: document })
-    }
-
-    const seen = new WeakMap<object, Set<string | undefined>>()
-    const visit = (schema: unknown, parentBase: string | undefined, position: string): void => {
-      if (typeof schema !== 'object' || schema === null || seenAtBase(seen, schema, parentBase)) return
-      if (Array.isArray(schema)) {
-        schema.forEach((child, index) => visit(child, parentBase, `${position}/${index}`))
-        return
-      }
-      const record = schema as Record<string, unknown>
-      const context = resourcePositionContext(record, parentBase, dialect)
-      recordResourcePosition(schema, position, context, documentBase, documentKey, resourcePositions)
-      visitResourceChildren(record, position, context.base, dialect, visit)
-    }
-    visit(document, documentBase, '#')
-    documentScanners.set(documentKey, visit)
+  const state: ReferencedPointerScanState = {
+    dialect,
+    targets: new Map(),
+    resourcePositions: new Map(),
+    documentScanners: new Map(),
+    knownResources: new Set(),
+    pendingReferences: [],
+    scannedTargets: new Set(),
   }
+  for (const document of documents) indexReferencedDocument(document, state)
+  collectDocumentReferences(documents, state)
+  scanReferencedPointerTargets(state)
+  return state.targets
+}
 
-  const pendingReferences: LocatedReference[] = []
-  for (const document of documents) {
-    const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
-    const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, dialect) : undefined
-    pendingReferences.push(...referencesIn({ document, initialBase: base, dialect, knownResources }))
+interface ReferencedPointerScanState {
+  readonly dialect: Dialect
+  readonly targets: Map<string, Set<string>>
+  readonly resourcePositions: Map<string, { document: string; position: string; schema: unknown }>
+  readonly documentScanners: Map<string, (schema: unknown, base: string | undefined, position: string) => void>
+  readonly knownResources: Set<string>
+  readonly pendingReferences: LocatedReference[]
+  readonly scannedTargets: Set<string>
+}
+
+interface ReferencedDocumentIndex {
+  readonly dialect: Dialect
+  readonly documentBase: string | undefined
+  readonly documentKey: string
+  readonly resourcePositions: ReferencedPointerScanState['resourcePositions']
+  readonly seen: WeakMap<object, Set<string | undefined>>
+}
+
+function indexReferencedDocument(document: unknown, state: ReferencedPointerScanState): void {
+  const identifier = isRecord(document) ? schemaIdentifier(document, state.dialect) : undefined
+  const documentBase = resourceBase(identifier, undefined, state.dialect)
+  const documentKey = documentBase ?? ''
+  if (documentBase !== undefined) {
+    state.resourcePositions.set(documentBase, { document: documentKey, position: '#', schema: document })
   }
+  const index: ReferencedDocumentIndex = {
+    dialect: state.dialect,
+    documentBase,
+    documentKey,
+    resourcePositions: state.resourcePositions,
+    seen: new WeakMap(),
+  }
+  const scan = (schema: unknown, base: string | undefined, position: string): void => {
+    visitIndexedResource(schema, base, position, index)
+  }
+  scan(document, documentBase, '#')
+  state.documentScanners.set(documentKey, scan)
+}
 
-  const scannedTargets = new Set<string>()
-  for (const { base: referenceBase, reference } of pendingReferences) {
-    const resolved = absoluteUri(reference, referenceBase)
-    if (resolved === undefined) continue
-    const hash = resolved.indexOf('#')
-    if (hash === -1) continue
-    const fragment = resolved.slice(hash + 1)
-    const decodedFragment = decodeUriFragment(fragment)
-    if (!decodedFragment.startsWith('/')) continue
-    const resourceBase = withoutFragment(resolved)
-    const resource = resourcePositions.get(resourceBase)
-    if (resource === undefined) continue
-    const pointer = resource.position === '#' ? `#${decodedFragment}` : `${resource.position}${decodedFragment}`
-    const pointers = targets.get(resource.document) ?? new Set<string>()
-    pointers.add(pointer)
-    targets.set(resource.document, pointers)
+function visitIndexedResource(
+  schema: unknown,
+  parentBase: string | undefined,
+  position: string,
+  index: ReferencedDocumentIndex,
+): void {
+  if (typeof schema !== 'object' || schema === null || seenAtBase(index.seen, schema, parentBase)) return
+  if (Array.isArray(schema)) {
+    schema.forEach((child, childIndex) => visitIndexedResource(child, parentBase, `${position}/${childIndex}`, index))
+    return
+  }
+  const record = schema as Record<string, unknown>
+  const context = resourcePositionContext(record, parentBase, index.dialect)
+  recordResourcePosition(schema, position, context, index.documentBase, index.documentKey, index.resourcePositions)
+  visitResourceChildren(record, position, context.base, index.dialect, (child, base, childPosition) =>
+    visitIndexedResource(child, base, childPosition, index),
+  )
+}
 
-    const targetKey = `${resource.document}\n${pointer}`
-    if (scannedTargets.has(targetKey)) continue
-    scannedTargets.add(targetKey)
-    const located = pointerTargetWithContext(
-      resource.schema,
-      fragment,
-      resourceBase,
-      resource.position,
-      dialect,
-      knownResources,
-    )
-    if (located === undefined) continue
-    documentScanners.get(resource.document)?.(located.schema, located.parentBase, located.position)
-    pendingReferences.push(...referencesIn({
-      document: located.schema,
-      initialBase: located.parentBase,
-      dialect,
-      knownResources,
-      initialPosition: located.position,
-      initialResourceRoot: located.resourceRoot,
-      initialResourceRootPosition: located.resourceRootPosition,
+function collectDocumentReferences(
+  documents: readonly unknown[],
+  state: ReferencedPointerScanState,
+): void {
+  for (const document of documents) {
+    const identifier = isRecord(document) ? schemaIdentifier(document, state.dialect) : undefined
+    const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, state.dialect) : undefined
+    state.pendingReferences.push(...referencesIn({
+      document,
+      initialBase: base,
+      dialect: state.dialect,
+      knownResources: state.knownResources,
     }))
   }
-  return targets
+}
+
+function scanReferencedPointerTargets(state: ReferencedPointerScanState): void {
+  for (let index = 0; index < state.pendingReferences.length; index += 1) {
+    scanReferencedPointerTarget(state.pendingReferences[index]!, state)
+  }
+}
+
+function scanReferencedPointerTarget(
+  reference: LocatedReference,
+  state: ReferencedPointerScanState,
+): void {
+  const resolved = absoluteUri(reference.reference, reference.base)
+  if (resolved === undefined) return
+  const fragment = pointerFragment(resolved)
+  if (fragment === undefined) return
+  const base = withoutFragment(resolved)
+  const resource = state.resourcePositions.get(base)
+  if (resource === undefined) return
+  const pointer = resource.position === '#' ? `#${decodeUriFragment(fragment)}` : `${resource.position}${decodeUriFragment(fragment)}`
+  const pointers = state.targets.get(resource.document) ?? new Set<string>()
+  pointers.add(pointer)
+  state.targets.set(resource.document, pointers)
+
+  const targetKey = `${resource.document}\n${pointer}`
+  if (state.scannedTargets.has(targetKey)) return
+  state.scannedTargets.add(targetKey)
+  appendPointerTargetReferences(resource, base, fragment, state)
+}
+
+function pointerFragment(resolved: string): string | undefined {
+  const hash = resolved.indexOf('#')
+  if (hash === -1) return undefined
+  const fragment = resolved.slice(hash + 1)
+  return decodeUriFragment(fragment).startsWith('/') ? fragment : undefined
+}
+
+function appendPointerTargetReferences(
+  resource: { document: string; position: string; schema: unknown },
+  base: string,
+  fragment: string,
+  state: ReferencedPointerScanState,
+): void {
+  const located = pointerTargetWithContext(
+    resource.schema,
+    fragment,
+    base,
+    resource.position,
+    state.dialect,
+    state.knownResources,
+  )
+  if (located === undefined) return
+  state.documentScanners.get(resource.document)?.(located.schema, located.parentBase, located.position)
+  state.pendingReferences.push(...referencesIn({
+    document: located.schema,
+    initialBase: located.parentBase,
+    dialect: state.dialect,
+    knownResources: state.knownResources,
+    initialPosition: located.position,
+    initialResourceRoot: located.resourceRoot,
+    initialResourceRootPosition: located.resourceRootPosition,
+  }))
 }
 
 function declaredResourceIds(
@@ -900,66 +972,197 @@ function structurallyEqual(left: unknown, right: unknown, seen = new WeakMap<obj
 }
 
 function legacyAnchorTargets(source: unknown, retrievalUri: string, dialect: Dialect): Map<string, { base: string; pointer: string }> {
-  const targets = new Map<string, { base: string; pointer: string }>()
-  const seen = new WeakMap<object, Set<string>>()
-  const visit = (schema: unknown, parentBase: string, position: string, resourceBase: string, resourcePosition: string): void => {
-    if (!isRecord(schema)) return
-    const contexts = seen.get(schema) ?? new Set<string>()
-    const context = `${parentBase}\u0000${resourcePosition}`
-    if (contexts.has(context)) return
-    contexts.add(context)
-    seen.set(schema, contexts)
-
-    const identifier = schemaIdentifier(schema, dialect)
-    const ignoresSiblings = typeof schema.$ref === 'string'
-    let base = parentBase
-    let anchorBase = resourceBase
-    let anchorPosition = resourcePosition
-    if (!ignoresSiblings && typeof identifier === 'string') {
-      const resolved = absoluteUri(identifier, parentBase)
-      const hashIndex = resolved?.indexOf('#') ?? -1
-      const fragment = hashIndex === -1 ? undefined : resolved!.slice(hashIndex + 1)
-      const namedAbsoluteFragment =
-        resolved !== undefined &&
-        !identifier.startsWith('#') &&
-        fragment !== undefined &&
-        fragment !== '' &&
-        !fragment.startsWith('/')
-      if (resolved !== undefined && (identifier.startsWith('#') || namedAbsoluteFragment)) {
-        const pointer = position.startsWith(resourcePosition) ? position.slice(resourcePosition.length) : position.slice(1)
-        targets.set(resolved, { base: resourceBase, pointer })
-      } else if (resolved !== undefined) {
-        base = withoutFragment(resolved)
-        anchorBase = base
-        anchorPosition = position
-      }
-    }
-
-    const visitChild = (child: unknown, childPosition: string): void => {
-      if (isRecord(child) || typeof child === 'boolean') visit(child, base, childPosition, anchorBase, anchorPosition)
-    }
-    if (ignoresSiblings) {
-      for (const keyword of DEFINITION_KEYS[dialect]) {
-        const map = schema[keyword]
-        if (isRecord(map)) {
-          for (const [key, child] of Object.entries(map)) visitChild(child, `${position}/${keyword}/${escape(key)}`)
-        }
-      }
-      return
-    }
-    for (const keyword of SINGLE[dialect]) visitChild(schema[keyword], `${position}/${keyword}`)
-    for (const keyword of LIST[dialect]) {
-      const list = schema[keyword]
-      if (Array.isArray(list)) list.forEach((child, index) => visitChild(child, `${position}/${keyword}/${index}`))
-    }
-    for (const keyword of MAP[dialect]) {
-      const map = schema[keyword]
-      if (isRecord(map)) for (const [key, child] of Object.entries(map)) visitChild(child, `${position}/${keyword}/${escape(key)}`)
-    }
-    if (Array.isArray(schema.items)) schema.items.forEach((child, index) => visitChild(child, `${position}/items/${index}`))
+  const state: LegacyAnchorScanState = {
+    dialect,
+    targets: new Map(),
+    seen: new WeakMap(),
   }
-  visit(source, retrievalUri, '#', retrievalUri, '#')
-  return targets
+  visitLegacyAnchorNode(source, retrievalUri, '#', retrievalUri, '#', state)
+  return state.targets
+}
+
+interface LegacyAnchorScanState {
+  readonly dialect: Dialect
+  readonly targets: Map<string, { base: string; pointer: string }>
+  readonly seen: WeakMap<object, Set<string>>
+}
+
+interface LegacyAnchorNodeContext {
+  readonly base: string
+  readonly anchorBase: string
+  readonly anchorPosition: string
+  readonly ignoresSiblings: boolean
+}
+
+function visitLegacyAnchorNode(
+  schema: unknown,
+  parentBase: string,
+  position: string,
+  resourceBase: string,
+  resourcePosition: string,
+  state: LegacyAnchorScanState,
+): void {
+  if (!isRecord(schema) || hasVisitedLegacyAnchorContext(schema, parentBase, resourcePosition, state)) return
+  const context = legacyAnchorNodeContext(schema, parentBase, position, resourceBase, resourcePosition, state)
+  if (context.ignoresSiblings) {
+    visitLegacyAnchorDefinitions(schema, position, context, state)
+    return
+  }
+  visitLegacyAnchorChildren(schema, position, context, state)
+}
+
+function hasVisitedLegacyAnchorContext(
+  schema: Record<string, unknown>,
+  parentBase: string,
+  resourcePosition: string,
+  state: LegacyAnchorScanState,
+): boolean {
+  const contexts = state.seen.get(schema) ?? new Set<string>()
+  const key = `${parentBase}\u0000${resourcePosition}`
+  if (contexts.has(key)) return true
+  contexts.add(key)
+  state.seen.set(schema, contexts)
+  return false
+}
+
+function legacyAnchorNodeContext(
+  schema: Record<string, unknown>,
+  parentBase: string,
+  position: string,
+  resourceBase: string,
+  resourcePosition: string,
+  state: LegacyAnchorScanState,
+): LegacyAnchorNodeContext {
+  const identifier = schemaIdentifier(schema, state.dialect)
+  const ignoresSiblings = typeof schema.$ref === 'string'
+  if (ignoresSiblings || typeof identifier !== 'string') {
+    return { base: parentBase, anchorBase: resourceBase, anchorPosition: resourcePosition, ignoresSiblings }
+  }
+  const resolved = absoluteUri(identifier, parentBase)
+  if (resolved === undefined) {
+    return { base: parentBase, anchorBase: resourceBase, anchorPosition: resourcePosition, ignoresSiblings }
+  }
+  if (isLegacyNamedAnchor(identifier, resolved)) {
+    const pointer = position.startsWith(resourcePosition) ? position.slice(resourcePosition.length) : position.slice(1)
+    state.targets.set(resolved, { base: resourceBase, pointer })
+    return { base: parentBase, anchorBase: resourceBase, anchorPosition: resourcePosition, ignoresSiblings }
+  }
+  const base = withoutFragment(resolved)
+  return { base, anchorBase: base, anchorPosition: position, ignoresSiblings }
+}
+
+function isLegacyNamedAnchor(identifier: string, resolved: string): boolean {
+  const hash = resolved.indexOf('#')
+  const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+  const namedAbsoluteFragment =
+    !identifier.startsWith('#') &&
+    fragment !== undefined &&
+    fragment !== '' &&
+    !fragment.startsWith('/')
+  return identifier.startsWith('#') || namedAbsoluteFragment
+}
+
+function visitLegacyAnchorDefinitions(
+  schema: Record<string, unknown>,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  for (const keyword of DEFINITION_KEYS[state.dialect]) {
+    const map = schema[keyword]
+    if (isRecord(map)) visitLegacyAnchorMap(map, position, keyword, context, state)
+  }
+}
+
+function visitLegacyAnchorChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  visitLegacyAnchorSingleSchemas(schema, position, context, state)
+  visitLegacyAnchorListSchemas(schema, position, context, state)
+  visitLegacyAnchorMaps(schema, position, context, state)
+  if (Array.isArray(schema.items)) {
+    schema.items.forEach((child, index) => visitLegacyAnchorChild(child, `${position}/items/${index}`, context, state))
+  }
+}
+
+function visitLegacyAnchorSingleSchemas(
+  schema: Record<string, unknown>,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  for (const keyword of SINGLE[state.dialect]) {
+    visitLegacyAnchorChild(schema[keyword], `${position}/${keyword}`, context, state)
+  }
+}
+
+function visitLegacyAnchorListSchemas(
+  schema: Record<string, unknown>,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  for (const keyword of LIST[state.dialect]) {
+    const list = schema[keyword]
+    if (Array.isArray(list)) {
+      list.forEach((child, index) => visitLegacyAnchorChild(child, `${position}/${keyword}/${index}`, context, state))
+    }
+  }
+}
+
+function visitLegacyAnchorMaps(
+  schema: Record<string, unknown>,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  for (const keyword of MAP[state.dialect]) {
+    const map = schema[keyword]
+    if (isRecord(map)) visitLegacyAnchorMap(map, position, keyword, context, state)
+  }
+}
+
+function visitLegacyAnchorMap(
+  map: Record<string, unknown>,
+  position: string,
+  keyword: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  for (const [key, child] of Object.entries(map)) {
+    visitLegacyAnchorChild(child, `${position}/${keyword}/${escape(key)}`, context, state)
+  }
+}
+
+function visitLegacyAnchorChild(
+  child: unknown,
+  position: string,
+  context: LegacyAnchorNodeContext,
+  state: LegacyAnchorScanState,
+): void {
+  if (isRecord(child) || typeof child === 'boolean') {
+    visitLegacyAnchorNode(child, context.base, position, context.anchorBase, context.anchorPosition, state)
+  }
+}
+
+interface RemoteSchemaContext {
+  readonly dialect: Dialect
+  readonly retrievalUri: string
+  readonly canonicalBase: string
+  readonly rootIdentifier: string
+  readonly idKeyword: string
+  readonly referenceKeywordSet: Set<string>
+  readonly legacyAnchors: Map<string, { base: string; pointer: string }>
+  readonly memo: WeakMap<object, Map<string | undefined, unknown>>
+}
+
+interface RemoteSchemaNodeState {
+  readonly base: string | undefined
+  readonly resolvedId: string | undefined
+  readonly ignoresSiblings: boolean
 }
 
 function remoteSchema(
@@ -972,92 +1175,198 @@ function remoteSchema(
   const sourceDocument = typeof source === 'boolean'
     ? { allOf: [source] }
     : source as Record<string, unknown>
-  const referenceKeywordSet = new Set(referenceKeywords(dialect))
-  const legacyAnchors = isPre2019Dialect(dialect) ? legacyAnchorTargets(source, retrievalUri, dialect) : new Map()
-  const memo = new WeakMap<object, Map<string | undefined, unknown>>()
-
-  const visit = (value: unknown, parentBase: string | undefined, position: string, root = false): unknown => {
-    if (!isRecord(value)) {
-      if (Array.isArray(value)) return value.map((child, index) => visit(child, parentBase, `${position}/${index}`))
-      return cloneValue(value)
-    }
-    const keyBase = parentBase
-    const cached = memo.get(value)?.get(keyBase)
-    if (cached !== undefined) return cached
-    const idKeyword = identifierKeyword(dialect)
-    const originalId = value[idKeyword]
-    const ignoresSiblings = isPre2019Dialect(dialect) && typeof value.$ref === 'string'
-    let base = parentBase
-    let resolvedId: string | undefined
-    if (root) {
-      base = canonicalBase
-      resolvedId = rootIdentifier
-    } else if (!ignoresSiblings && typeof originalId === 'string') {
-      resolvedId = absoluteUri(originalId, parentBase)
-      if (resolvedId === undefined) {
-        throw new SchemaResourceResolutionError(`Cannot resolve $id "${originalId}" at "${position}" in the resource retrieved from "${retrievalUri}".`, retrievalUri, position)
-      }
-      base = isPre2019Dialect(dialect) && originalId.startsWith('#') ? parentBase : withoutFragment(resolvedId)
-    }
-    if (resolvedId !== undefined && withoutFragment(resolvedId).startsWith('file:')) {
-      throw new SchemaResourceResolutionError(`File schema resources are not supported: "${withoutFragment(resolvedId)}" at "${position}".`, withoutFragment(resolvedId), position)
-    }
-    const output: Record<string, unknown> = {}
-    const values = memo.get(value) ?? new Map<string | undefined, unknown>()
-    values.set(keyBase, output)
-    memo.set(value, values)
-
-    for (const [keyword, child] of Object.entries(value)) {
-      if (keyword === idKeyword && resolvedId !== undefined) {
-        const normalizedId = isPre2019Dialect(dialect) && typeof originalId === 'string' && originalId.startsWith('#')
-          ? originalId
-          : resolvedId
-        Object.defineProperty(output, keyword, { value: normalizedId, enumerable: true, configurable: true, writable: true })
-      } else if (referenceKeywordSet.has(keyword) && typeof child === 'string') {
-        const resolved = absoluteUri(child, base)
-        if (resolved === undefined) {
-          throw new SchemaResourceResolutionError(`Cannot resolve schema reference "${child}" at "${position}/${keyword}" in the resource retrieved from "${retrievalUri}".`, retrievalUri, `${position}/${keyword}`)
-        }
-        const anchor = legacyAnchors.get(resolved)
-        const normalizedReference = anchor === undefined ? resolved : `${anchor.base}#${anchor.pointer}`
-        Object.defineProperty(output, keyword, { value: normalizedReference, enumerable: true, configurable: true, writable: true })
-      } else if (ignoresSiblings && DEFINITION_KEYS[dialect].includes(keyword) && isRecord(child)) {
-        Object.defineProperty(output, keyword, { value: Object.fromEntries(Object.entries(child).map(([name, member]) => [
-          name,
-          isRecord(member) || typeof member === 'boolean' ? visit(member, base, `${position}/${keyword}/${escape(name)}`) : cloneValue(member),
-        ])), enumerable: true, configurable: true, writable: true })
-      } else if (ignoresSiblings) {
-        Object.defineProperty(output, keyword, { value: cloneValue(child), enumerable: true, configurable: true, writable: true })
-      } else if (SINGLE[dialect].has(keyword) && (isRecord(child) || typeof child === 'boolean')) {
-        Object.defineProperty(output, keyword, { value: visit(child, base, `${position}/${keyword}`), enumerable: true, configurable: true, writable: true })
-      } else if (LIST[dialect].has(keyword) && Array.isArray(child)) {
-        Object.defineProperty(output, keyword, { value: child.map((member, index) => visit(member, base, `${position}/${keyword}/${index}`)), enumerable: true, configurable: true, writable: true })
-      } else if (MAP[dialect].has(keyword) && isRecord(child)) {
-        Object.defineProperty(output, keyword, { value: Object.fromEntries(Object.entries(child).map(([name, member]) => {
-          let normalizedMember: unknown
-          if (Array.isArray(member) && keyword === 'dependencies') normalizedMember = cloneValue(member)
-          else if (isRecord(member) || typeof member === 'boolean') {
-            normalizedMember = visit(member, base, `${position}/${keyword}/${escape(name)}`)
-          } else normalizedMember = cloneValue(member)
-          return [name, normalizedMember]
-        })), enumerable: true, configurable: true, writable: true })
-      } else if (keyword === 'items' && dialect !== '2020-12' && Array.isArray(child)) {
-        Object.defineProperty(output, keyword, { value: child.map((member, index) => visit(member, base, `${position}/items/${index}`)), enumerable: true, configurable: true, writable: true })
-      } else {
-        Object.defineProperty(output, keyword, { value: cloneValue(child), enumerable: true, configurable: true, writable: true })
-      }
-    }
-    if (root) {
-      output.$id = rootIdentifier
-      if (dialect === 'draft-04') output.id = rootIdentifier
-      if (!Object.hasOwn(output, '$schema')) {
-        output.$schema = metaSchemaUri(dialect)
-      }
-    }
-    return output
+  const context: RemoteSchemaContext = {
+    dialect,
+    retrievalUri,
+    canonicalBase,
+    rootIdentifier,
+    idKeyword: identifierKeyword(dialect),
+    referenceKeywordSet: new Set(referenceKeywords(dialect)),
+    legacyAnchors: isPre2019Dialect(dialect) ? legacyAnchorTargets(source, retrievalUri, dialect) : new Map(),
+    memo: new WeakMap(),
   }
+  return normalizeRemoteSchemaValue(sourceDocument, retrievalUri, '#', true, context)
+}
 
-  return visit(sourceDocument, retrievalUri, '#', true)
+function normalizeRemoteSchemaValue(
+  value: unknown,
+  parentBase: string | undefined,
+  position: string,
+  root: boolean,
+  context: RemoteSchemaContext,
+): unknown {
+  if (!isRecord(value)) {
+    if (Array.isArray(value)) {
+      return value.map((child, index) => normalizeRemoteSchemaValue(child, parentBase, `${position}/${index}`, false, context))
+    }
+    return cloneValue(value)
+  }
+  const cached = context.memo.get(value)?.get(parentBase)
+  if (cached !== undefined) return cached
+  const node = remoteSchemaNodeState(value, parentBase, position, root, context)
+  const output: Record<string, unknown> = {}
+  rememberRemoteSchemaNode(value, parentBase, output, context)
+  for (const [keyword, child] of Object.entries(value)) {
+    const normalized = normalizeRemoteSchemaProperty(value, keyword, child, position, node, context)
+    defineRemoteSchemaProperty(output, keyword, normalized)
+  }
+  if (root) addRemoteSchemaRootMetadata(output, context)
+  return output
+}
+
+function remoteSchemaNodeState(
+  value: Record<string, unknown>,
+  parentBase: string | undefined,
+  position: string,
+  root: boolean,
+  context: RemoteSchemaContext,
+): RemoteSchemaNodeState {
+  const originalId = value[context.idKeyword]
+  const ignoresSiblings = isPre2019Dialect(context.dialect) && typeof value.$ref === 'string'
+  let base = parentBase
+  let resolvedId: string | undefined
+  if (root) {
+    base = context.canonicalBase
+    resolvedId = context.rootIdentifier
+  } else if (!ignoresSiblings && typeof originalId === 'string') {
+    resolvedId = absoluteUri(originalId, parentBase)
+    if (resolvedId === undefined) {
+      throw new SchemaResourceResolutionError(`Cannot resolve $id "${originalId}" at "${position}" in the resource retrieved from "${context.retrievalUri}".`, context.retrievalUri, position)
+    }
+    base = isPre2019Dialect(context.dialect) && originalId.startsWith('#') ? parentBase : withoutFragment(resolvedId)
+  }
+  rejectFileRemoteSchemaId(resolvedId, position)
+  return { base, resolvedId, ignoresSiblings }
+}
+
+function rejectFileRemoteSchemaId(resolvedId: string | undefined, position: string): void {
+  if (resolvedId === undefined || !withoutFragment(resolvedId).startsWith('file:')) return
+  const fileUri = withoutFragment(resolvedId)
+  throw new SchemaResourceResolutionError(`File schema resources are not supported: "${fileUri}" at "${position}".`, fileUri, position)
+}
+
+function rememberRemoteSchemaNode(
+  value: object,
+  parentBase: string | undefined,
+  output: Record<string, unknown>,
+  context: RemoteSchemaContext,
+): void {
+  const values = context.memo.get(value) ?? new Map<string | undefined, unknown>()
+  values.set(parentBase, output)
+  context.memo.set(value, values)
+}
+
+function normalizeRemoteSchemaProperty(
+  source: Record<string, unknown>,
+  keyword: string,
+  child: unknown,
+  position: string,
+  node: RemoteSchemaNodeState,
+  context: RemoteSchemaContext,
+): unknown {
+  if (keyword === context.idKeyword && node.resolvedId !== undefined) {
+    return normalizedRemoteSchemaId(source[context.idKeyword], node.resolvedId, context.dialect)
+  }
+  if (context.referenceKeywordSet.has(keyword) && typeof child === 'string') {
+    return normalizeRemoteSchemaReference(child, keyword, position, node.base, context)
+  }
+  if (node.ignoresSiblings) return normalizeLegacyRemoteSchemaProperty(child, keyword, position, node.base, context)
+  if (SINGLE[context.dialect].has(keyword) && (isRecord(child) || typeof child === 'boolean')) {
+    return normalizeRemoteSchemaValue(child, node.base, `${position}/${keyword}`, false, context)
+  }
+  if (LIST[context.dialect].has(keyword) && Array.isArray(child)) {
+    return normalizeRemoteSchemaList(child, node.base, `${position}/${keyword}`, context)
+  }
+  if (MAP[context.dialect].has(keyword) && isRecord(child)) {
+    return normalizeRemoteSchemaMap(child, keyword, node.base, `${position}/${keyword}`, context)
+  }
+  if (keyword === 'items' && context.dialect !== '2020-12' && Array.isArray(child)) {
+    return normalizeRemoteSchemaList(child, node.base, `${position}/items`, context)
+  }
+  return cloneValue(child)
+}
+
+function normalizedRemoteSchemaId(originalId: unknown, resolvedId: string, dialect: Dialect): string {
+  if (isPre2019Dialect(dialect) && typeof originalId === 'string' && originalId.startsWith('#')) return originalId
+  return resolvedId
+}
+
+function normalizeRemoteSchemaReference(
+  reference: string,
+  keyword: string,
+  position: string,
+  base: string | undefined,
+  context: RemoteSchemaContext,
+): string {
+  const resolved = absoluteUri(reference, base)
+  if (resolved === undefined) {
+    throw new SchemaResourceResolutionError(`Cannot resolve schema reference "${reference}" at "${position}/${keyword}" in the resource retrieved from "${context.retrievalUri}".`, context.retrievalUri, `${position}/${keyword}`)
+  }
+  const anchor = context.legacyAnchors.get(resolved)
+  return anchor === undefined ? resolved : `${anchor.base}#${anchor.pointer}`
+}
+
+function normalizeLegacyRemoteSchemaProperty(
+  child: unknown,
+  keyword: string,
+  position: string,
+  base: string | undefined,
+  context: RemoteSchemaContext,
+): unknown {
+  if (!DEFINITION_KEYS[context.dialect].includes(keyword) || !isRecord(child)) return cloneValue(child)
+  return Object.fromEntries(Object.entries(child).map(([name, member]) => [
+    name,
+    isRecord(member) || typeof member === 'boolean'
+      ? normalizeRemoteSchemaValue(member, base, `${position}/${keyword}/${escape(name)}`, false, context)
+      : cloneValue(member),
+  ]))
+}
+
+function normalizeRemoteSchemaList(
+  children: unknown[],
+  base: string | undefined,
+  position: string,
+  context: RemoteSchemaContext,
+): unknown[] {
+  return children.map((child, index) => normalizeRemoteSchemaValue(child, base, `${position}/${index}`, false, context))
+}
+
+function normalizeRemoteSchemaMap(
+  children: Record<string, unknown>,
+  keyword: string,
+  base: string | undefined,
+  position: string,
+  context: RemoteSchemaContext,
+): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(children).map(([name, member]) => [
+    name,
+    normalizeRemoteSchemaMapMember(member, keyword, name, position, base, context),
+  ]))
+}
+
+function normalizeRemoteSchemaMapMember(
+  member: unknown,
+  keyword: string,
+  name: string,
+  position: string,
+  base: string | undefined,
+  context: RemoteSchemaContext,
+): unknown {
+  if (Array.isArray(member) && keyword === 'dependencies') return cloneValue(member)
+  if (isRecord(member) || typeof member === 'boolean') {
+    return normalizeRemoteSchemaValue(member, base, `${position}/${escape(name)}`, false, context)
+  }
+  return cloneValue(member)
+}
+
+function defineRemoteSchemaProperty(target: Record<string, unknown>, keyword: string, value: unknown): void {
+  Object.defineProperty(target, keyword, { value, enumerable: true, configurable: true, writable: true })
+}
+
+function addRemoteSchemaRootMetadata(output: Record<string, unknown>, context: RemoteSchemaContext): void {
+  output.$id = context.rootIdentifier
+  if (context.dialect === 'draft-04') output.id = context.rootIdentifier
+  if (!Object.hasOwn(output, '$schema')) output.$schema = metaSchemaUri(context.dialect)
 }
 
 function canonicalRemote(uri: string, schema: unknown, dialect: Dialect): NormalizedResource {
@@ -1116,110 +1425,237 @@ export async function loadExternalResources(
   if (!Number.isInteger(maximum) || maximum < 1) {
     throw new RangeError('maxExternalResources must be a positive integer.')
   }
+  const state = createExternalResourceState(schema, dialect, resolver, maximum, rootId, known, resourceSchemas)
+  await scanExternalResourceQueue(state)
+  return [...state.documents.values()]
+}
 
-  const resources = new Map<string, unknown>()
-  const resourceBases = new Map<string, string>()
-  const documents = new Map<string, unknown>()
-  const scanned = new Set<string>()
-  const queue: { document: unknown; base: string | undefined; pointerTarget?: string; resourceIdentity?: string }[] = [{ document: schema, base: rootId }]
-  const loading = new Map<string, Promise<NormalizedResource>>()
+type ExternalResourceResolver = NonNullable<SchemaResourceOptions['resolveResource']>
 
-  const load = (uri: string, position: string): Promise<NormalizedResource> => {
-    const existing = loading.get(uri)
-    if (existing) return existing
-    if (loading.size >= maximum) {
-      throw new SchemaResourceResolutionError(`The external schema resource limit of ${maximum} was exceeded at "${position}".`, uri, position)
-    }
-    const promise = Promise.resolve(resolver(uri)).then((resolved) => {
-      if (resolved === undefined) {
-        throw new SchemaResourceResolutionError(`No schema resource was returned for "${uri}" referenced at "${position}".`, uri, position)
-      }
-      return canonicalRemote(uri, resolved, dialect)
-    })
-    loading.set(uri, promise)
-    return promise
+interface ExternalResourceQueueItem {
+  readonly document: unknown
+  readonly base: string | undefined
+  readonly pointerTarget?: string
+  readonly resourceIdentity?: string
+}
+
+interface ExternalResourceState {
+  readonly dialect: Dialect
+  readonly resolver: ExternalResourceResolver
+  readonly maximum: number
+  readonly known: Set<string>
+  readonly resourceSchemas: Map<string, { schema: unknown; parentBase: string | undefined }>
+  readonly resources: Map<string, unknown>
+  readonly resourceBases: Map<string, string>
+  readonly documents: Map<string, unknown>
+  readonly scanned: Set<string>
+  readonly queue: ExternalResourceQueueItem[]
+  readonly loading: Map<string, Promise<NormalizedResource>>
+}
+
+interface ExternalReferenceTarget {
+  readonly uri: string
+  readonly pointerTarget?: string
+}
+
+function createExternalResourceState(
+  schema: unknown,
+  dialect: Dialect,
+  resolver: ExternalResourceResolver,
+  maximum: number,
+  rootId: string | undefined,
+  known: Set<string>,
+  resourceSchemas: Map<string, { schema: unknown; parentBase: string | undefined }>,
+): ExternalResourceState {
+  return {
+    dialect,
+    resolver,
+    maximum,
+    known,
+    resourceSchemas,
+    resources: new Map(),
+    resourceBases: new Map(),
+    documents: new Map(),
+    scanned: new Set(),
+    queue: [{ document: schema, base: rootId }],
+    loading: new Map(),
   }
+}
 
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    const key = JSON.stringify([
-      current.resourceIdentity ?? current.base ?? `anonymous:${scanned.size}`,
-      current.pointerTarget ?? '',
-    ])
-    if (scanned.has(key)) continue
-    scanned.add(key)
+async function scanExternalResourceQueue(state: ExternalResourceState): Promise<void> {
+  while (state.queue.length > 0) {
+    const current = state.queue.shift()!
+    if (markExternalResourceScan(current, state)) continue
     const references = referencesIn({
       document: current.document,
       initialBase: current.base,
-      dialect,
-      knownResources: known,
+      dialect: state.dialect,
+      knownResources: state.known,
       initialPosition: '#',
       initialResourceRoot: current.document,
       initialResourceRootPosition: '#',
       entryPointerFragments: current.pointerTarget === undefined ? [] : [current.pointerTarget],
     })
-    // Loading mutates shared graph state, so references resolve in traversal order.
-    for (const { base, reference, position } of references) {
-      if (reference.startsWith('#')) {
-        continue
-      }
-      const resolved = absoluteUri(reference, base)
-      if (resolved === undefined) {
-        throw new SchemaResourceResolutionError(`Cannot resolve relative schema reference "${reference}" at "${position}" without an absolute base URI.`, undefined, position)
-      }
-      const uri = withoutFragment(resolved)
-      if (uri.startsWith('file:')) {
-        throw new SchemaResourceResolutionError(`File schema resources are not supported: "${uri}" at "${position}".`, uri, position)
-      }
-      if (!uri || isMetaSchema(uri)) continue
-      const hash = resolved.indexOf('#')
-      const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
-      const pointerTarget = fragment !== undefined && decodeUriFragment(fragment).startsWith('/') ? fragment : undefined
-      if (resources.has(uri)) {
-        if (pointerTarget !== undefined) {
-          queue.push({ document: resources.get(uri), base: resourceBases.get(uri) ?? uri, pointerTarget, resourceIdentity: uri })
-        }
-        continue
-      }
-      if (known.has(uri)) {
-        const resourceContext = resourceSchemas.get(uri)
-        const document = resources.get(uri) ?? documents.get(uri) ?? resourceContext?.schema
-        if (pointerTarget !== undefined && document !== undefined) {
-          queue.push({ document, base: resourceContext?.parentBase ?? uri, pointerTarget, resourceIdentity: uri })
-        }
-        continue
-      }
-      const loaded = await load(uri, position) // NOSONAR
-      const remoteDialect = detectDialect(loaded.primary, { defaultDialect: dialect })
-      if (remoteDialect !== dialect) {
-        throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)
-      }
-      resources.set(uri, loaded.primary)
-      resourceBases.set(uri, loaded.canonicalBase)
-      known.add(uri)
-      const nested = declaredResourceIds(loaded.primary, loaded.canonicalBase, dialect, resourceSchemas)
-      for (const id of nested) known.add(id)
-      const uniqueDocuments = [loaded.primary, ...loaded.aliases]
-      for (const document of uniqueDocuments) {
-        const id = isRecord(document) && typeof document.$id === 'string' ? document.$id : undefined
-        if (id === undefined) throw new SchemaResourceResolutionError(`A normalized resource for "${uri}" has no $id.`, uri, position)
-        const previous = documents.get(id)
-        if (previous !== undefined && !structurallyEqual(previous, document)) {
-          throw new SchemaResourceResolutionError(`Two retrieved resources declare conflicting schemas for "$id ${id}".`, uri, position)
-        }
-        documents.set(id, document)
-        known.add(withoutFragment(id))
-        const base = withoutFragment(id)
-        if (!resourceSchemas.has(base)) resourceSchemas.set(base, { schema: document, parentBase: base })
-      }
-      queue.push({
-        document: loaded.primary,
-        base: loaded.canonicalBase,
-        resourceIdentity: uri,
-        ...(pointerTarget === undefined ? {} : { pointerTarget }),
-      })
-    }
+    // Resource loading changes the graph, so references resolve in traversal order.
+    for (const reference of references) await processExternalReference(reference, state)
   }
+}
 
-  return [...documents.values()]
+function markExternalResourceScan(current: ExternalResourceQueueItem, state: ExternalResourceState): boolean {
+  const key = JSON.stringify([
+    current.resourceIdentity ?? current.base ?? `anonymous:${state.scanned.size}`,
+    current.pointerTarget ?? '',
+  ])
+  if (state.scanned.has(key)) return true
+  state.scanned.add(key)
+  return false
+}
+
+async function processExternalReference(reference: LocatedReference, state: ExternalResourceState): Promise<void> {
+  if (reference.reference.startsWith('#')) return
+  const target = resolveExternalReferenceTarget(reference, state)
+  if (target === undefined) return
+  if (queueKnownExternalResource(target, state)) return
+  await loadReferencedExternalResource(target, reference.position, state)
+}
+
+function resolveExternalReferenceTarget(
+  reference: LocatedReference,
+  state: ExternalResourceState,
+): ExternalReferenceTarget | undefined {
+  const resolved = absoluteUri(reference.reference, reference.base)
+  if (resolved === undefined) {
+    throw new SchemaResourceResolutionError(`Cannot resolve relative schema reference "${reference.reference}" at "${reference.position}" without an absolute base URI.`, undefined, reference.position)
+  }
+  const uri = withoutFragment(resolved)
+  rejectFileExternalResource(uri, reference.position)
+  if (!uri || isMetaSchema(uri)) return undefined
+  const hash = resolved.indexOf('#')
+  const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+  const pointerTarget = fragment !== undefined && decodeUriFragment(fragment).startsWith('/') ? fragment : undefined
+  return pointerTarget === undefined ? { uri } : { uri, pointerTarget }
+}
+
+function rejectFileExternalResource(uri: string, position: string): void {
+  if (!uri.startsWith('file:')) return
+  throw new SchemaResourceResolutionError(`File schema resources are not supported: "${uri}" at "${position}".`, uri, position)
+}
+
+function queueKnownExternalResource(target: ExternalReferenceTarget, state: ExternalResourceState): boolean {
+  if (state.resources.has(target.uri)) {
+    queueResourcePointerTarget(
+      state.resources.get(target.uri),
+      state.resourceBases.get(target.uri) ?? target.uri,
+      target.uri,
+      target.pointerTarget,
+      state,
+    )
+    return true
+  }
+  if (!state.known.has(target.uri)) return false
+  const resourceContext = state.resourceSchemas.get(target.uri)
+  const document = state.resources.get(target.uri) ?? state.documents.get(target.uri) ?? resourceContext?.schema
+  queueResourcePointerTarget(
+    document,
+    resourceContext?.parentBase ?? target.uri,
+    target.uri,
+    target.pointerTarget,
+    state,
+  )
+  return true
+}
+
+function queueResourcePointerTarget(
+  document: unknown,
+  base: string,
+  resourceIdentity: string,
+  pointerTarget: string | undefined,
+  state: ExternalResourceState,
+): void {
+  if (pointerTarget === undefined || document === undefined) return
+  state.queue.push({ document, base, pointerTarget, resourceIdentity })
+}
+
+async function loadReferencedExternalResource(
+  target: ExternalReferenceTarget,
+  position: string,
+  state: ExternalResourceState,
+): Promise<void> {
+  const loaded = await loadNormalizedExternalResource(target.uri, position, state) // NOSONAR
+  validateLoadedExternalDialect(loaded.primary, target.uri, position, state.dialect)
+  registerLoadedExternalResource(target.uri, position, loaded, state)
+  state.queue.push({
+    document: loaded.primary,
+    base: loaded.canonicalBase,
+    resourceIdentity: target.uri,
+    ...(target.pointerTarget === undefined ? {} : { pointerTarget: target.pointerTarget }),
+  })
+}
+
+function loadNormalizedExternalResource(
+  uri: string,
+  position: string,
+  state: ExternalResourceState,
+): Promise<NormalizedResource> {
+  const existing = state.loading.get(uri)
+  if (existing) return existing
+  if (state.loading.size >= state.maximum) {
+    throw new SchemaResourceResolutionError(`The external schema resource limit of ${state.maximum} was exceeded at "${position}".`, uri, position)
+  }
+  const promise = Promise.resolve(state.resolver(uri)).then((resolved) => {
+    if (resolved === undefined) {
+      throw new SchemaResourceResolutionError(`No schema resource was returned for "${uri}" referenced at "${position}".`, uri, position)
+    }
+    return canonicalRemote(uri, resolved, state.dialect)
+  })
+  state.loading.set(uri, promise)
+  return promise
+}
+
+function validateLoadedExternalDialect(
+  schema: unknown,
+  uri: string,
+  position: string,
+  dialect: Dialect,
+): void {
+  const remoteDialect = detectDialect(schema, { defaultDialect: dialect })
+  if (remoteDialect !== dialect) {
+    throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)
+  }
+}
+
+function registerLoadedExternalResource(
+  uri: string,
+  position: string,
+  loaded: NormalizedResource,
+  state: ExternalResourceState,
+): void {
+  state.resources.set(uri, loaded.primary)
+  state.resourceBases.set(uri, loaded.canonicalBase)
+  state.known.add(uri)
+  const nested = declaredResourceIds(loaded.primary, loaded.canonicalBase, state.dialect, state.resourceSchemas)
+  for (const id of nested) state.known.add(id)
+  for (const document of [loaded.primary, ...loaded.aliases]) {
+    registerNormalizedExternalDocument(document, uri, position, state)
+  }
+}
+
+function registerNormalizedExternalDocument(
+  document: unknown,
+  uri: string,
+  position: string,
+  state: ExternalResourceState,
+): void {
+  const id = isRecord(document) && typeof document.$id === 'string' ? document.$id : undefined
+  if (id === undefined) {
+    throw new SchemaResourceResolutionError(`A normalized resource for "${uri}" has no $id.`, uri, position)
+  }
+  const previous = state.documents.get(id)
+  if (previous !== undefined && !structurallyEqual(previous, document)) {
+    throw new SchemaResourceResolutionError(`Two retrieved resources declare conflicting schemas for "$id ${id}".`, uri, position)
+  }
+  state.documents.set(id, document)
+  state.known.add(withoutFragment(id))
+  const base = withoutFragment(id)
+  if (!state.resourceSchemas.has(base)) state.resourceSchemas.set(base, { schema: document, parentBase: base })
 }
