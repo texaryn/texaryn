@@ -135,8 +135,9 @@ export function collectDefaultConflicts(
   }
 
   function visitAnyOfBranches(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
-    if (!Array.isArray(schema.anyOf)) return
-    ;(schema.anyOf as unknown[]).forEach((branch, index) => {
+    const branches = schema.anyOf
+    if (!Array.isArray(branches)) return
+    branches.forEach((branch, index) => {
       if (!isBranchActive!(schemaPointer, pointer, `/anyOf/${index}`)) return
       visit(branch, current, pointer, `${schemaPointer}/anyOf/${index}`, visited)
     })

@@ -178,6 +178,169 @@ interface LocalReference {
   readonly resourceRootPosition: string
 }
 
+interface LocalReferenceTarget {
+  readonly schema: unknown
+  readonly base: string | undefined
+  readonly position: string
+  readonly resourceRoot: unknown
+  readonly resourceRootPosition: string
+}
+
+type SchemaNodeVisitor = (schema: unknown, parentBase: string | undefined, position: string) => void
+
+function visitTupleSchemaItems(
+  record: Record<string, unknown>,
+  position: string,
+  base: string | undefined,
+  dialect: Dialect,
+  visit: SchemaNodeVisitor,
+): void {
+  if (dialect === '2020-12' || !Array.isArray(record.items)) return
+  record.items.forEach((child, index) => visit(child, base, `${position}/items/${index}`))
+}
+
+interface ResourcePositionContext {
+  readonly base: string | undefined
+  readonly startsResource: boolean
+}
+
+function resourcePositionContext(
+  record: Record<string, unknown>,
+  parentBase: string | undefined,
+  dialect: Dialect,
+): ResourcePositionContext {
+  const identifier = schemaIdentifier(record, dialect)
+  const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
+  const base = ignoresSiblings ? parentBase : resourceBase(identifier, parentBase, dialect)
+  const startsResource = !ignoresSiblings && typeof identifier === 'string' && !(isPre2019Dialect(dialect) && identifier.startsWith('#'))
+  return { base, startsResource }
+}
+
+function recordResourcePosition(
+  schema: unknown,
+  position: string,
+  context: ResourcePositionContext,
+  documentBase: string | undefined,
+  documentKey: string,
+  resourcePositions: Map<string, { document: string; position: string; schema: unknown }>,
+): void {
+  if (!context.startsResource || context.base === undefined) return
+  if (context.base === documentBase && position !== '#' && resourcePositions.has(context.base)) return
+  resourcePositions.set(context.base, { document: documentKey, position, schema })
+}
+
+function visitResourceChildren(
+  record: Record<string, unknown>,
+  position: string,
+  base: string | undefined,
+  dialect: Dialect,
+  visit: SchemaNodeVisitor,
+): void {
+  if (visitLegacyResourceDefinitions(record, position, base, dialect, visit)) return
+  for (const keyword of SINGLE[dialect]) visit(record[keyword], base, `${position}/${keyword}`)
+  for (const keyword of LIST[dialect]) {
+    const children = record[keyword]
+    if (Array.isArray(children)) children.forEach((child, index) => visit(child, base, `${position}/${keyword}/${index}`))
+  }
+  for (const keyword of MAP[dialect]) {
+    const children = record[keyword]
+    if (!isRecord(children)) continue
+    for (const [key, child] of Object.entries(children)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
+  }
+  visitTupleSchemaItems(record, position, base, dialect, visit)
+}
+
+function visitLegacyResourceDefinitions(
+  record: Record<string, unknown>,
+  position: string,
+  base: string | undefined,
+  dialect: Dialect,
+  visit: SchemaNodeVisitor,
+): boolean {
+  if (!isPre2019Dialect(dialect) || typeof record.$ref !== 'string') return false
+  for (const keyword of DEFINITION_KEYS[dialect]) {
+    const children = record[keyword]
+    if (!isRecord(children)) continue
+    for (const [key, child] of Object.entries(children)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
+  }
+  return true
+}
+
+interface PendingLocalReferenceOptions {
+  readonly localReferences: readonly LocalReference[]
+  readonly visitedLocalReferences: Set<number>
+  readonly anchorTargets: Map<string, { schema: unknown; base: string | undefined; position: string }>
+  readonly contextsByPosition: Map<string, { base: string | undefined; resourceRoot: unknown; resourceRootPosition: string }>
+  readonly dialect: Dialect
+  readonly knownResources: Set<string> | undefined
+  readonly visit: (schema: unknown, parentBase: string | undefined, position: string, resourceRoot: unknown, resourceRootPosition: string) => void
+}
+
+function localReferenceTarget(
+  local: LocalReference,
+  options: Pick<PendingLocalReferenceOptions, 'anchorTargets' | 'dialect' | 'knownResources'>,
+): LocalReferenceTarget | undefined {
+  const hash = local.uri.indexOf('#')
+  const fragment = hash === -1 ? '' : local.uri.slice(hash + 1)
+  if (fragment !== '' && !fragment.startsWith('/')) {
+    const anchor = options.anchorTargets.get(local.uri)
+    if (anchor === undefined) return undefined
+    return {
+      schema: anchor.schema,
+      base: anchor.base ?? local.base,
+      position: anchor.position,
+      resourceRoot: local.resourceRoot,
+      resourceRootPosition: local.resourceRootPosition,
+    }
+  }
+
+  const located = pointerTargetWithContext(
+    local.resourceRoot,
+    fragment,
+    local.base,
+    local.resourceRootPosition,
+    options.dialect,
+    options.knownResources,
+  )
+  return {
+    schema: located?.schema,
+    base: fragment === '' ? local.base : located?.parentBase ?? local.base,
+    position: located?.position ?? local.resourceRootPosition,
+    resourceRoot: located?.resourceRoot ?? local.resourceRoot,
+    resourceRootPosition: located?.resourceRootPosition ?? local.resourceRootPosition,
+  }
+}
+
+function visitPendingLocalReference(index: number, options: PendingLocalReferenceOptions): boolean {
+  if (options.visitedLocalReferences.has(index)) return false
+  const local = options.localReferences[index]!
+  const target = localReferenceTarget(local, options)
+  if (target === undefined) {
+    options.visitedLocalReferences.delete(index)
+    return false
+  }
+  options.visitedLocalReferences.add(index)
+  if (isRecord(target.schema) || typeof target.schema === 'boolean') {
+    if (!options.contextsByPosition.has(target.position)) {
+      options.visit(target.schema, target.base, target.position, target.resourceRoot, target.resourceRootPosition)
+    }
+  }
+  return true
+}
+
+function scanPendingLocalReferences(options: PendingLocalReferenceOptions): boolean {
+  let progressed = false
+  for (let index = 0; index < options.localReferences.length; index += 1) {
+    if (visitPendingLocalReference(index, options)) progressed = true
+  }
+  return progressed
+}
+
+function visitPendingLocalReferences(options: PendingLocalReferenceOptions): void {
+  let progressed = true
+  while (progressed) progressed = scanPendingLocalReferences(options)
+}
+
 const escape = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1')
 
 interface LocatedPointerTarget {
@@ -416,7 +579,9 @@ function referencesIn({
     visitSingleSchemas(record, position, context)
     visitListSchemas(record, position, context)
     visitMapSchemas(record, position, context)
-    visitTupleItems(record, position, context)
+    visitTupleSchemaItems(record, position, context.base, dialect, (child, base, childPosition) => {
+      visit(child, base, childPosition, context.currentRoot, context.currentRootPosition)
+    })
   }
 
   function visitLegacyDefinitions(
@@ -479,16 +644,6 @@ function referencesIn({
     }
   }
 
-  function visitTupleItems(
-    record: Record<string, unknown>,
-    position: string,
-    context: ReturnType<typeof recordSchemaContext>,
-  ): void {
-    if (dialect !== '2020-12' && Array.isArray(record.items)) {
-      record.items.forEach((child, index) => visit(child, context.base, `${position}/items/${index}`, context.currentRoot, context.currentRootPosition))
-    }
-  }
-
   visit(document, initialBase, initialPosition, initialResourceRoot, initialResourceRootPosition)
   for (const fragment of entryPointerFragments) {
     const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
@@ -505,54 +660,15 @@ function referencesIn({
       visit(located.schema, located.parentBase, located.position, located.resourceRoot, located.resourceRootPosition)
     }
   }
-  let progressed = true
-  while (progressed) {
-    progressed = false
-    for (let index = 0; index < localReferences.length; index += 1) {
-      if (visitedLocalReferences.has(index)) continue
-      const local = localReferences[index]!
-      const hash = local.uri.indexOf('#')
-      const fragment = hash === -1 ? '' : local.uri.slice(hash + 1)
-      let target: unknown
-      let targetBase: string | undefined
-      let targetPosition: string
-      let targetResourceRoot = local.resourceRoot
-      let targetResourceRootPosition = local.resourceRootPosition
-      if (fragment === '' || fragment.startsWith('/')) {
-        const located = pointerTargetWithContext(
-          local.resourceRoot,
-          fragment,
-          local.base,
-          local.resourceRootPosition,
-          dialect,
-          knownResources,
-        )
-        target = located?.schema
-        targetBase = located?.parentBase ?? local.base
-        targetPosition = located?.position ?? local.resourceRootPosition
-        targetResourceRoot = located?.resourceRoot ?? local.resourceRoot
-        targetResourceRootPosition = located?.resourceRootPosition ?? local.resourceRootPosition
-        if (fragment === '') targetBase = local.base
-      } else {
-        const anchor = anchorTargets.get(local.uri)
-        if (anchor === undefined) {
-          visitedLocalReferences.delete(index)
-          continue
-        }
-        target = anchor.schema
-        targetBase = anchor.base ?? local.base
-        targetPosition = anchor.position
-      }
-      visitedLocalReferences.add(index)
-      progressed = true
-      if (isRecord(target) || typeof target === 'boolean') {
-        const knownContext = contextsByPosition.get(targetPosition)
-        if (knownContext === undefined) {
-          visit(target, targetBase, targetPosition, targetResourceRoot, targetResourceRootPosition)
-        }
-      }
-    }
-  }
+  visitPendingLocalReferences({
+    localReferences,
+    visitedLocalReferences,
+    anchorTargets,
+    contextsByPosition,
+    dialect,
+    knownResources,
+    visit,
+  })
   return [...references.values()]
 }
 
@@ -578,70 +694,9 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
         return
       }
       const record = schema as Record<string, unknown>
-      const context = resourceScanContext(record, parentBase)
-      recordResourcePosition(schema, position, context)
-      if (visitLegacyResourceDefinitions(record, position, context.base)) return
-      visitSingleResourceSchemas(record, position, context.base)
-      visitListResourceSchemas(record, position, context.base)
-      visitMapResourceSchemas(record, position, context.base)
-      visitTupleResourceItems(record, position, context.base)
-    }
-
-    const resourceScanContext = (record: Record<string, unknown>, parentBase: string | undefined) => {
-      const identifier = schemaIdentifier(record, dialect)
-      const ignoresSiblings = isPre2019Dialect(dialect) && typeof record.$ref === 'string'
-      const base = ignoresSiblings ? parentBase : resourceBase(identifier, parentBase, dialect)
-      const startsResource = !ignoresSiblings && typeof identifier === 'string' && !(isPre2019Dialect(dialect) && identifier.startsWith('#'))
-      return { base, startsResource }
-    }
-
-    const recordResourcePosition = (
-      schema: unknown,
-      position: string,
-      context: ReturnType<typeof resourceScanContext>,
-    ): void => {
-      if (context.startsResource && context.base !== undefined && (context.base !== documentBase || position === '#' || !resourcePositions.has(context.base))) {
-        resourcePositions.set(context.base, { document: documentKey, position, schema })
-      }
-    }
-
-    function visitLegacyResourceDefinitions(
-      record: Record<string, unknown>,
-      position: string,
-      base: string | undefined,
-    ): boolean {
-      if (!isPre2019Dialect(dialect) || typeof record.$ref !== 'string') return false
-      for (const keyword of DEFINITION_KEYS[dialect]) {
-        const map = record[keyword]
-        if (!isRecord(map)) continue
-        for (const [key, child] of Object.entries(map)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
-      }
-      return true
-    }
-
-    function visitSingleResourceSchemas(record: Record<string, unknown>, position: string, base: string | undefined): void {
-      for (const keyword of SINGLE[dialect]) visit(record[keyword], base, `${position}/${keyword}`)
-    }
-
-    function visitListResourceSchemas(record: Record<string, unknown>, position: string, base: string | undefined): void {
-      for (const keyword of LIST[dialect]) {
-        const list = record[keyword]
-        if (Array.isArray(list)) list.forEach((child, index) => visit(child, base, `${position}/${keyword}/${index}`))
-      }
-    }
-
-    function visitMapResourceSchemas(record: Record<string, unknown>, position: string, base: string | undefined): void {
-      for (const keyword of MAP[dialect]) {
-        const map = record[keyword]
-        if (!isRecord(map)) continue
-        for (const [key, child] of Object.entries(map)) visit(child, base, `${position}/${keyword}/${escape(key)}`)
-      }
-    }
-
-    function visitTupleResourceItems(record: Record<string, unknown>, position: string, base: string | undefined): void {
-      if (dialect !== '2020-12' && Array.isArray(record.items)) {
-        record.items.forEach((child, index) => visit(child, base, `${position}/items/${index}`))
-      }
+      const context = resourcePositionContext(record, parentBase, dialect)
+      recordResourcePosition(schema, position, context, documentBase, documentKey, resourcePositions)
+      visitResourceChildren(record, position, context.base, dialect, visit)
     }
     visit(document, documentBase, '#')
     documentScanners.set(documentKey, visit)
@@ -721,7 +776,7 @@ function declaredResourceIds(
     visitSingleSchemas(record, position, context.base)
     visitListSchemas(record, position, context.base)
     visitMapSchemas(record, position, context.base)
-    visitTupleItems(record, position, context.base)
+    visitTupleSchemaItems(record, position, context.base, dialect, visit)
   }
 
   const declaredResourceContext = (record: Record<string, unknown>, parentBase: string | undefined) => {
@@ -794,11 +849,6 @@ function declaredResourceIds(
     }
   }
 
-  function visitTupleItems(record: Record<string, unknown>, position: string, base: string | undefined): void {
-    if (dialect !== '2020-12' && Array.isArray(record.items)) {
-      record.items.forEach((child, index) => visit(child, base, `${position}/items/${index}`))
-    }
-  }
   visit(document, initialBase, '#')
   return ids
 }
