@@ -210,7 +210,7 @@ function repeatsPresentAncestor(
   return properAncestors(segments).some((ancestor) => {
     if (isAbsent(data, ancestor.segments, provisional)) return false
     const earlier = view.defaultSources?.get(ancestor.location)
-    return earlier !== undefined && earlier.some((source) => sources.includes(source))
+    return earlier?.some((source) => sources.includes(source)) ?? false
   })
 }
 
@@ -369,7 +369,7 @@ function refuse(
  * because it is writing what a user typed rather than manufacturing a default.
  */
 function couldBeArrayIndex(segment: string): boolean {
-  return /^(0|[1-9][0-9]*)$/.test(segment)
+  return /^(0|[1-9]\d*)$/.test(segment)
 }
 
 function hasConflictedAbsentAncestor(

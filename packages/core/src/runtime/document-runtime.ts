@@ -1,6 +1,6 @@
 import { batch } from '../state/signal.js'
 import { createStore } from '../state/store.js'
-import type { Store, WritableStore } from '../state/store.js'
+import type { WritableStore } from '../state/store.js'
 import { getAtPointer, parsePointer } from '../json-pointer.js'
 import type {
   DocumentNode,
@@ -73,6 +73,51 @@ export function cloneJson(
   return cloneJsonUnchecked(value, path, new Set())
 }
 
+function cloneJsonArray(value: unknown[], path: string, active: Set<object>): JsonValue[] {
+  const keys = Reflect.ownKeys(value)
+  if (keys.some((key) => {
+    if (key === 'length') return false
+    if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key)) return true
+    const index = Number(key)
+    return !Number.isSafeInteger(index) || index >= value.length
+  })) {
+    throw new TypeError(`${path} contains a non-JSON array property`)
+  }
+
+  const result: JsonValue[] = []
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.hasOwn(value, index)) {
+      throw new TypeError(`${path}[${index}] is missing`)
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+      throw new TypeError(`${path}[${index}] must be a JSON property`)
+    }
+    result.push(cloneJsonUnchecked(descriptor.value, `${path}[${index}]`, active))
+  }
+  return result
+}
+
+function cloneJsonObject(value: object, path: string, active: Set<object>): Record<string, JsonValue> {
+  if (
+    !isRecord(value) ||
+    Reflect.ownKeys(value).some((key) => typeof key !== 'string') ||
+    Reflect.ownKeys(value).length !== Object.keys(value).length
+  ) {
+    throw new TypeError(`${path} must be a plain JSON object`)
+  }
+  const record = value as Record<string, unknown>
+  const result: Record<string, JsonValue> = Object.create(null) as Record<string, JsonValue>
+  for (const key of Object.keys(record)) {
+    const descriptor = Object.getOwnPropertyDescriptor(record, key)
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+      throw new TypeError(`${path}.${key} must be a JSON property`)
+    }
+    result[key] = cloneJsonUnchecked(descriptor.value, `${path}.${key}`, active)
+  }
+  return result
+}
+
 function cloneJsonUnchecked(value: unknown, path: string, active: Set<object>): JsonValue {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {
@@ -83,45 +128,9 @@ function cloneJsonUnchecked(value: unknown, path: string, active: Set<object>): 
   if (active.has(value)) throw new TypeError(`${path} contains a cycle`)
   active.add(value)
   try {
-    if (Array.isArray(value)) {
-      const keys = Reflect.ownKeys(value)
-      if (keys.some((key) => {
-        if (key === 'length') return false
-        if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key)) return true
-        const index = Number(key)
-        return !Number.isSafeInteger(index) || index >= value.length
-      })) {
-        throw new TypeError(`${path} contains a non-JSON array property`)
-      }
-      const result: JsonValue[] = []
-      for (let index = 0; index < value.length; index += 1) {
-        if (!Object.hasOwn(value, index)) {
-          throw new TypeError(`${path}[${index}] is missing`)
-        }
-        const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
-        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
-          throw new TypeError(`${path}[${index}] must be a JSON property`)
-        }
-        result.push(cloneJsonUnchecked(descriptor.value, `${path}[${index}]`, active))
-      }
-      return result
-    }
-    if (
-      !isRecord(value) ||
-      Reflect.ownKeys(value).some((key) => typeof key !== 'string') ||
-      Reflect.ownKeys(value).length !== Object.keys(value).length
-    ) {
-      throw new TypeError(`${path} must be a plain JSON object`)
-    }
-    const result: Record<string, JsonValue> = Object.create(null) as Record<string, JsonValue>
-    for (const key of Object.keys(value)) {
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
-        throw new TypeError(`${path}.${key} must be a JSON property`)
-      }
-      result[key] = cloneJsonUnchecked(descriptor.value, `${path}.${key}`, active)
-    }
-    return result
+    return Array.isArray(value)
+      ? cloneJsonArray(value, path, active)
+      : cloneJsonObject(value, path, active)
   } finally {
     active.delete(value)
   }
@@ -176,6 +185,171 @@ function validateAnnotations(value: unknown, path: string): asserts value is Rec
   if (value.examples !== undefined && !Array.isArray(value.examples)) fail(`${path}.examples`, 'must be an array')
 }
 
+function validateContainerNode(node: Record<string, unknown>, path: string): DocumentNode {
+  assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'containerType', 'children'], path)
+  if (node.containerType !== 'group' && node.containerType !== 'layout') {
+    fail(`${path}.containerType`, 'must be group or layout')
+  }
+  if (!Array.isArray(node.children) || node.children.some((child) => typeof child !== 'string' || child.length === 0)) {
+    fail(`${path}.children`, 'must be an array of node IDs')
+  }
+  if (node.containerType === 'group') {
+    const annotations = node.annotations as Record<string, unknown>
+    const title = annotations.title
+    if (typeof title !== 'string' || title.trim().length === 0) {
+      fail(`${path}.annotations.title`, 'must provide the accessible group name')
+    }
+  }
+  return node as unknown as DocumentNode
+}
+
+function validateTextNode(node: Record<string, unknown>, path: string): DocumentNode {
+  assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'content', 'textRole'], path)
+  if (typeof node.content !== 'string') fail(`${path}.content`, 'must be a string')
+  if (node.textRole !== 'heading' && node.textRole !== 'paragraph' && node.textRole !== 'help') {
+    fail(`${path}.textRole`, 'is not supported by display documents')
+  }
+  return node as unknown as DocumentNode
+}
+
+function validateActionNode(node: Record<string, unknown>, path: string): DocumentNode {
+  assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'actionType', 'label', 'actionArgs', 'buttonRole'], path)
+  requiredString(node, 'actionType', path)
+  requiredString(node, 'label', path)
+  if (node.buttonRole !== 'button') fail(`${path}.buttonRole`, 'must be button')
+  return node as unknown as DocumentNode
+}
+
+function validateCollectionNode(
+  node: Record<string, unknown>,
+  path: string,
+  collectionIds: Set<string>,
+): DocumentNode {
+  assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'collectionId', 'dataPointer', 'valuePointer', 'rowKeyPointer'], path)
+  const collectionId = requiredString(node, 'collectionId', path)
+  if (collectionIds.has(collectionId)) fail(`${path}.collectionId`, 'must be unique in the document')
+  collectionIds.add(collectionId)
+  assertPointer(node.dataPointer, `${path}.dataPointer`)
+  assertPointer(node.valuePointer, `${path}.valuePointer`)
+  if (node.rowKeyPointer !== undefined) assertPointer(node.rowKeyPointer, `${path}.rowKeyPointer`)
+  return node as unknown as DocumentNode
+}
+
+function validateTableNode(
+  node: Record<string, unknown>,
+  path: string,
+  collectionIds: Set<string>,
+): DocumentNode {
+  assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'collectionId', 'dataPointer', 'rowKeyPointer', 'columns'], path)
+  const collectionId = requiredString(node, 'collectionId', path)
+  if (collectionIds.has(collectionId)) fail(`${path}.collectionId`, 'must be unique in the document')
+  collectionIds.add(collectionId)
+  assertPointer(node.dataPointer, `${path}.dataPointer`)
+  if (node.rowKeyPointer !== undefined) assertPointer(node.rowKeyPointer, `${path}.rowKeyPointer`)
+  if (!Array.isArray(node.columns)) fail(`${path}.columns`, 'must be an array')
+  const columnIds = new Set<string>()
+  for (const [index, columnValue] of node.columns.entries()) {
+    const columnPath = `${path}.columns[${index}]`
+    if (!isRecord(columnValue)) fail(columnPath, 'must be an object')
+    assertKeys(columnValue, ['id', 'label', 'valuePointer'], columnPath)
+    const columnId = requiredString(columnValue, 'id', columnPath)
+    if (columnIds.has(columnId)) fail(`${columnPath}.id`, 'must be unique within its table')
+    columnIds.add(columnId)
+    if (typeof columnValue.label !== 'string') fail(`${columnPath}.label`, 'must be a string')
+    assertPointer(columnValue.valuePointer, `${columnPath}.valuePointer`)
+  }
+  return node as unknown as DocumentNode
+}
+
+function validateDocumentNode(
+  mapKey: string,
+  candidate: unknown,
+  collectionIds: Set<string>,
+): DocumentNode {
+  const path = `document.nodes.${mapKey}`
+  if (!isRecord(candidate)) fail(path, 'must be an object')
+  const node = candidate
+  if (requiredString(node, 'id', path) !== mapKey) fail(`${path}.id`, 'must match its map key')
+  const type = requiredString(node, 'type', path)
+  const parentIdValue = node.parentId
+  if (parentIdValue !== null && (typeof parentIdValue !== 'string' || parentIdValue.length === 0)) {
+    fail(`${path}.parentId`, 'must be null or a node ID')
+  }
+  validateAnnotations(node.annotations, `${path}.annotations`)
+
+  switch (type) {
+    case 'container': return validateContainerNode(node, path)
+    case 'text': return validateTextNode(node, path)
+    case 'action': return validateActionNode(node, path)
+    case 'list': return validateCollectionNode(node, path, collectionIds)
+    case 'table': return validateTableNode(node, path, collectionIds)
+    default: fail(`${path}.type`, `has unsupported node kind ${type}`)
+  }
+}
+
+function recordChildOwner(
+  parentId: NodeId,
+  childId: NodeId,
+  nodes: ReadonlyMap<NodeId, DocumentNode>,
+  seenChildren: Set<NodeId>,
+  childOwners: Map<NodeId, NodeId>,
+): void {
+  if (seenChildren.has(childId)) fail(`document.nodes.${parentId}.children`, 'contains a duplicate child')
+  seenChildren.add(childId)
+  const childNode = nodes.get(childId)
+  if (!childNode) fail(`document.nodes.${parentId}.children`, `references missing node ${childId}`)
+  if (childNode.parentId !== parentId) fail(`document.nodes.${childId}.parentId`, 'does not agree with its parent children list')
+  if (childOwners.has(childId)) fail(`document.nodes.${childId}`, 'has more than one parent')
+  childOwners.set(childId, parentId)
+}
+
+function assertChildOwnership(nodes: ReadonlyMap<NodeId, DocumentNode>): Map<NodeId, NodeId> {
+  const childOwners = new Map<NodeId, NodeId>()
+  for (const [parentId, node] of nodes) {
+    if (node.type !== 'container') continue
+    const seenChildren = new Set<NodeId>()
+    for (const child of node.children) {
+      recordChildOwner(parentId, child as NodeId, nodes, seenChildren, childOwners)
+    }
+  }
+  return childOwners
+}
+
+function assertDocumentReachable(
+  rootId: NodeId,
+  nodes: ReadonlyMap<NodeId, DocumentNode>,
+  childOwners: ReadonlyMap<NodeId, NodeId>,
+): void {
+  const reachable = new Set<NodeId>()
+  const pending = [rootId]
+  while (pending.length > 0) {
+    const nodeId = pending.pop()!
+    if (reachable.has(nodeId)) continue
+    reachable.add(nodeId)
+    const node = nodes.get(nodeId)
+    if (node?.type === 'container') {
+      for (const childId of node.children) pending.push(childId)
+    }
+  }
+  if (reachable.size !== nodes.size) fail('document.nodes', 'contains unreachable nodes')
+  for (const [nodeId] of nodes) {
+    if (nodeId !== rootId && !childOwners.has(nodeId)) fail(`document.nodes.${nodeId}`, 'has no parent')
+  }
+}
+
+function assertDocumentTree(
+  rootId: NodeId,
+  nodes: ReadonlyMap<NodeId, DocumentNode>,
+  limits: DocumentRuntimeLimits,
+): void {
+  const root = nodes.get(rootId)
+  if (!root) fail('document.rootId', 'does not name a node')
+  if (root.parentId !== null) fail(`document.nodes.${rootId}.parentId`, 'must be null for the root')
+  const childOwners = assertChildOwnership(nodes)
+  assertDocumentTreeDepth(rootId, nodes, limits)
+  assertDocumentReachable(rootId, nodes, childOwners)
+}
+
 function validateDocument(value: unknown, limits: DocumentRuntimeLimits): UIDocumentV2 {
   const snapshot = cloneJson(value, 'document', limits)
   if (!isRecord(snapshot)) fail('document', 'must be an object')
@@ -189,129 +363,10 @@ function validateDocument(value: unknown, limits: DocumentRuntimeLimits): UIDocu
   const collectionIds = new Set<string>()
 
   for (const [mapKey, candidate] of Object.entries(inputNodes)) {
-    const path = `document.nodes.${mapKey}`
-    if (!isRecord(candidate)) fail(path, 'must be an object')
-    const node = candidate
-    if (requiredString(node, 'id', path) !== mapKey) fail(`${path}.id`, 'must match its map key')
-    const type = requiredString(node, 'type', path)
-    const parentIdValue = node.parentId
-    if (parentIdValue !== null && (typeof parentIdValue !== 'string' || parentIdValue.length === 0)) {
-      fail(`${path}.parentId`, 'must be null or a node ID')
-    }
-    validateAnnotations(node.annotations, `${path}.annotations`)
-
-    if (type === 'container') {
-      assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'containerType', 'children'], path)
-      if (node.containerType !== 'group' && node.containerType !== 'layout') {
-        fail(`${path}.containerType`, 'must be group or layout')
-      }
-      if (!Array.isArray(node.children) || node.children.some((child) => typeof child !== 'string' || child.length === 0)) {
-        fail(`${path}.children`, 'must be an array of node IDs')
-      }
-      if (node.containerType === 'group') {
-        const title = node.annotations.title
-        if (typeof title !== 'string' || title.trim().length === 0) {
-          fail(`${path}.annotations.title`, 'must provide the accessible group name')
-        }
-      }
-      nodes.set(mapKey as NodeId, node as unknown as DocumentNode)
-      continue
-    }
-
-    if (type === 'text') {
-      assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'content', 'textRole'], path)
-      if (typeof node.content !== 'string') fail(`${path}.content`, 'must be a string')
-      if (node.textRole !== 'heading' && node.textRole !== 'paragraph' && node.textRole !== 'help') {
-        fail(`${path}.textRole`, 'is not supported by display documents')
-      }
-      nodes.set(mapKey as NodeId, node as unknown as DocumentNode)
-      continue
-    }
-
-    if (type === 'action') {
-      assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'actionType', 'label', 'actionArgs', 'buttonRole'], path)
-      requiredString(node, 'actionType', path)
-      requiredString(node, 'label', path)
-      if (node.buttonRole !== 'button') fail(`${path}.buttonRole`, 'must be button')
-      nodes.set(mapKey as NodeId, node as unknown as DocumentNode)
-      continue
-    }
-
-    if (type === 'list') {
-      assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'collectionId', 'dataPointer', 'valuePointer', 'rowKeyPointer'], path)
-      const collectionId = requiredString(node, 'collectionId', path)
-      if (collectionIds.has(collectionId)) fail(`${path}.collectionId`, 'must be unique in the document')
-      collectionIds.add(collectionId)
-      assertPointer(node.dataPointer, `${path}.dataPointer`)
-      assertPointer(node.valuePointer, `${path}.valuePointer`)
-      if (node.rowKeyPointer !== undefined) assertPointer(node.rowKeyPointer, `${path}.rowKeyPointer`)
-      nodes.set(mapKey as NodeId, node as unknown as DocumentNode)
-      continue
-    }
-
-    if (type === 'table') {
-      assertKeys(node, ['id', 'type', 'parentId', 'annotations', 'collectionId', 'dataPointer', 'rowKeyPointer', 'columns'], path)
-      const collectionId = requiredString(node, 'collectionId', path)
-      if (collectionIds.has(collectionId)) fail(`${path}.collectionId`, 'must be unique in the document')
-      collectionIds.add(collectionId)
-      assertPointer(node.dataPointer, `${path}.dataPointer`)
-      if (node.rowKeyPointer !== undefined) assertPointer(node.rowKeyPointer, `${path}.rowKeyPointer`)
-      if (!Array.isArray(node.columns)) fail(`${path}.columns`, 'must be an array')
-      const columnIds = new Set<string>()
-      for (const [index, columnValue] of node.columns.entries()) {
-        const columnPath = `${path}.columns[${index}]`
-        if (!isRecord(columnValue)) fail(columnPath, 'must be an object')
-        assertKeys(columnValue, ['id', 'label', 'valuePointer'], columnPath)
-        const columnId = requiredString(columnValue, 'id', columnPath)
-        if (columnIds.has(columnId)) fail(`${columnPath}.id`, 'must be unique within its table')
-        columnIds.add(columnId)
-        if (typeof columnValue.label !== 'string') fail(`${columnPath}.label`, 'must be a string')
-        assertPointer(columnValue.valuePointer, `${columnPath}.valuePointer`)
-      }
-      nodes.set(mapKey as NodeId, node as unknown as DocumentNode)
-      continue
-    }
-
-    fail(`${path}.type`, `has unsupported node kind ${type}`)
+    nodes.set(mapKey as NodeId, validateDocumentNode(mapKey, candidate, collectionIds))
   }
 
-  const root = nodes.get(rootId)
-  if (!root) fail('document.rootId', 'does not name a node')
-  if (root.parentId !== null) fail(`document.nodes.${rootId}.parentId`, 'must be null for the root')
-
-  const childOwners = new Map<NodeId, NodeId>()
-  for (const [parentId, node] of nodes) {
-    if (node.type !== 'container') continue
-    const seenChildren = new Set<NodeId>()
-    for (const child of node.children) {
-      const childId = child as NodeId
-      if (seenChildren.has(childId)) fail(`document.nodes.${parentId}.children`, 'contains a duplicate child')
-      seenChildren.add(childId)
-      const childNode = nodes.get(childId)
-      if (!childNode) fail(`document.nodes.${parentId}.children`, `references missing node ${childId}`)
-      if (childNode.parentId !== parentId) fail(`document.nodes.${childId}.parentId`, 'does not agree with its parent children list')
-      if (childOwners.has(childId)) fail(`document.nodes.${childId}`, 'has more than one parent')
-      childOwners.set(childId, parentId)
-    }
-  }
-
-  assertDocumentTreeDepth(rootId, nodes, limits)
-  const reachable = new Set<NodeId>()
-  const pending = [rootId]
-  while (pending.length > 0) {
-    const nodeId = pending.pop()!
-    if (reachable.has(nodeId)) continue
-    reachable.add(nodeId)
-    const node = nodes.get(nodeId)
-    if (node?.type === 'container') {
-      for (const childId of node.children) pending.push(childId)
-    }
-  }
-  if (reachable.size !== nodes.size) fail('document.nodes', 'contains unreachable nodes')
-  for (const [nodeId, node] of nodes) {
-    if (nodeId !== rootId && !childOwners.has(nodeId)) fail(`document.nodes.${nodeId}`, 'has no parent')
-  }
-
+  assertDocumentTree(rootId, nodes, limits)
   return deepFreeze(snapshot) as unknown as UIDocumentV2
 }
 
@@ -328,60 +383,81 @@ function keyToken(value: unknown, path: string): string {
   fail(path, 'must resolve to a string or finite number')
 }
 
+function validateCollectionSize(
+  node: CollectionNode,
+  rowCount: number,
+  limits: DocumentRuntimeLimits,
+  totals: { rows: number; cells: number },
+): void {
+  if (rowCount > limits.maxRowsPerCollection) {
+    fail(`collection ${node.collectionId}`, `exceeds the maximum row count of ${limits.maxRowsPerCollection}`)
+  }
+  totals.rows += rowCount
+  if (totals.rows > limits.maxCollectionRows) {
+    fail('collections', `exceed the maximum total row count of ${limits.maxCollectionRows}`)
+  }
+  if (node.type === 'table') {
+    totals.cells += rowCount * node.columns.length
+    if (totals.cells > limits.maxTableCells) {
+      fail('collections', `exceed the maximum table cell count of ${limits.maxTableCells}`)
+    }
+  }
+}
+
+function prepareCollectionRows(node: CollectionNode, source: unknown[]): PreparedRow[] {
+  const rows: PreparedRow[] = []
+  for (const [index, item] of source.entries()) {
+    const path = `collection ${node.collectionId}[${index}]`
+    if (node.type === 'table' && !isRecord(item)) fail(path, 'must be an object for a table row')
+    const key = node.rowKeyPointer === undefined
+      ? undefined
+      : keyToken(getAtPointer(item, node.rowKeyPointer), `${path} row key`)
+    const value = node.type === 'list'
+      ? assertScalar(getAtPointer(item, node.valuePointer), `${path} list value`)
+      : null
+    const cells = node.type === 'table'
+      ? node.columns.map((column) => assertScalar(getAtPointer(item, column.valuePointer), `${path} column ${column.id}`))
+      : []
+    rows.push({ value, cells, key })
+  }
+  return rows
+}
+
+function assertUniqueCollectionRowKeys(node: CollectionNode, rows: readonly PreparedRow[]): void {
+  if (node.rowKeyPointer === undefined) return
+  const keys = new Set<string>()
+  for (const row of rows) {
+    if (row.key === undefined) fail(`collection ${node.collectionId}`, 'row key is missing')
+    if (keys.has(row.key)) fail(`collection ${node.collectionId}`, `contains duplicate row key ${row.key}`)
+    keys.add(row.key)
+  }
+}
+
+function prepareCollection(
+  node: CollectionNode,
+  data: JsonValue,
+  limits: DocumentRuntimeLimits,
+  totals: { rows: number; cells: number },
+): PreparedCollection {
+  const source = getAtPointer(data, node.dataPointer)
+  if (source === undefined) return { node, rows: [] }
+  if (!Array.isArray(source)) fail(`collection ${node.collectionId}`, 'source must be an array when present')
+  validateCollectionSize(node, source.length, limits, totals)
+  const rows = prepareCollectionRows(node, source)
+  assertUniqueCollectionRowKeys(node, rows)
+  return { node, rows }
+}
+
 function prepareCollections(
   document: UIDocumentV2,
   data: JsonValue,
   limits: DocumentRuntimeLimits,
 ): PreparedCollection[] {
   const result: PreparedCollection[] = []
-  let totalRows = 0
-  let totalCells = 0
+  const totals = { rows: 0, cells: 0 }
   for (const candidate of Object.values(document.nodes)) {
     if (candidate.type !== 'list' && candidate.type !== 'table') continue
-    const node = candidate
-    const source = getAtPointer(data, node.dataPointer)
-    if (source === undefined) {
-      result.push({ node, rows: [] })
-      continue
-    }
-    if (!Array.isArray(source)) fail(`collection ${node.collectionId}`, 'source must be an array when present')
-    if (source.length > limits.maxRowsPerCollection) {
-      fail(`collection ${node.collectionId}`, `exceeds the maximum row count of ${limits.maxRowsPerCollection}`)
-    }
-    totalRows += source.length
-    if (totalRows > limits.maxCollectionRows) {
-      fail('collections', `exceed the maximum total row count of ${limits.maxCollectionRows}`)
-    }
-    if (node.type === 'table') {
-      totalCells += source.length * node.columns.length
-      if (totalCells > limits.maxTableCells) {
-        fail('collections', `exceed the maximum table cell count of ${limits.maxTableCells}`)
-      }
-    }
-    const rows: PreparedRow[] = []
-    for (const [index, item] of source.entries()) {
-      const path = `collection ${node.collectionId}[${index}]`
-      if (node.type === 'table' && !isRecord(item)) fail(path, 'must be an object for a table row')
-      const key = node.rowKeyPointer === undefined
-        ? undefined
-        : keyToken(getAtPointer(item, node.rowKeyPointer), `${path} row key`)
-      const value = node.type === 'list'
-        ? assertScalar(getAtPointer(item, node.valuePointer), `${path} list value`)
-        : null
-      const cells = node.type === 'table'
-        ? node.columns.map((column) => assertScalar(getAtPointer(item, column.valuePointer), `${path} column ${column.id}`))
-        : []
-      rows.push({ value, cells, key })
-    }
-    if (node.rowKeyPointer !== undefined) {
-      const keys = new Set<string>()
-      for (const row of rows) {
-        if (row.key === undefined) fail(`collection ${node.collectionId}`, 'row key is missing')
-        if (keys.has(row.key)) fail(`collection ${node.collectionId}`, `contains duplicate row key ${row.key}`)
-        keys.add(row.key)
-      }
-    }
-    result.push({ node, rows })
+    result.push(prepareCollection(candidate, data, limits, totals))
   }
   return result
 }
@@ -442,12 +518,11 @@ export function createDocumentRuntime(
 
     for (const { node, rows } of prepared) {
       const previousIdentity = previous.get(node.collectionId)
-      const compatible = previousIdentity !== undefined &&
-        previousIdentity.dataPointer === node.dataPointer &&
-        previousIdentity.rowKeyPointer === node.rowKeyPointer
+      const compatible = previousIdentity?.dataPointer === node.dataPointer &&
+        previousIdentity?.rowKeyPointer === node.rowKeyPointer
       const keyed = node.rowKeyPointer !== undefined
-      const previousKeys = compatible && keyed ? previousIdentity.idsByKey : undefined
-      const previousRows = compatible && !keyed && preserveUnkeyed ? previousIdentity.rowIds : undefined
+      const previousKeys = compatible && keyed ? previousIdentity?.idsByKey : undefined
+      const previousRows = compatible && !keyed && preserveUnkeyed ? previousIdentity?.rowIds : undefined
       const idsByKey = keyed ? new Map<string, StableItemId>() : undefined
       const ids: StableItemId[] = []
       const output: DocumentCollectionRow[] = []
@@ -584,7 +659,7 @@ export function createDocumentRuntime(
     async invokeAction(nodeId) {
       assertActive()
       const node = document.nodes[nodeId as string]
-      if (!node || node.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
+      if (node?.type !== 'action') throw new Error(`Node ${nodeId} is not a display action`)
       const action = actions.get(node.actionType)
       if (!action) throw new Error(`No host action is registered for ${node.actionType}`)
       const hasArgs = Object.hasOwn(node, 'actionArgs')

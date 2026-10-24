@@ -150,7 +150,7 @@ function arrayIndexFor(
   pointer: JsonPointer,
 ): number {
   if (key === '-') return array.length
-  if (!/^(0|[1-9][0-9]*)$/.test(key)) {
+  if (!/^(0|[1-9]\d*)$/.test(key)) {
     throw new Error(
       `Cannot write to "${pointer}": ${locationOf(segments, depth)} is an array and "${key}" ` +
         `is not an array index, so it addresses no element`,

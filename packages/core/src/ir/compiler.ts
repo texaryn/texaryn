@@ -22,9 +22,22 @@ import { getAtPointer } from '../json-pointer.js'
 
 interface CompileContext {
   nodes: Record<string, UINode>
+  projection: SchemaProjection
+  data: unknown
+  hints: UIHints | undefined
   identityMap: IdentityMap
   nodeCounter: number
   visited: Set<IdentityKey>
+}
+
+interface CompileNodeOptions {
+  pointer: JsonPointer
+  proj: NodeProjection
+  parentId: NodeId | null
+  order: number
+  required: boolean | undefined
+  segments: readonly IdentitySegment[]
+  inheritedReadOnly: boolean
 }
 
 function nextId(ctx: CompileContext): NodeId {
@@ -62,20 +75,24 @@ export function compile(
     throw new Error('Schema projection missing root node')
   }
 
-  const ctx: CompileContext = { nodes, identityMap, nodeCounter: 0, visited: new Set() }
-  const rootId = compileNode(
-    '' as JsonPointer,
-    rootProjection,
-    null,
-    0,
+  const ctx: CompileContext = {
+    nodes,
     projection,
     data,
     hints,
-    ctx,
-    undefined,
-    [],
-    false,
-  )
+    identityMap,
+    nodeCounter: 0,
+    visited: new Set(),
+  }
+  const rootId = compileNode({
+    pointer: '' as JsonPointer,
+    proj: rootProjection,
+    parentId: null,
+    order: 0,
+    required: undefined,
+    segments: [],
+    inheritedReadOnly: false,
+  }, ctx)
 
   return {
     document: { version: 1, rootId, nodes },
@@ -109,26 +126,12 @@ function isExposed(proj: NodeProjection): boolean {
   return proj.active || proj.provisional === true
 }
 
-function compileNode(
-  pointer: JsonPointer,
-  proj: NodeProjection,
-  parentId: NodeId | null,
-  order: number,
-  projection: SchemaProjection,
-  data: unknown,
-  hints: UIHints | undefined,
-  ctx: CompileContext,
-  required: boolean | undefined,
-  segments: readonly IdentitySegment[],
-  inheritedReadOnly: boolean,
-): NodeId {
-  const { nodes } = ctx
+function compileNode(options: CompileNodeOptions, ctx: CompileContext): NodeId {
+  const { pointer, proj, parentId, order, required, inheritedReadOnly } = options
   const id = nextId(ctx)
   // Editing a descendant changes the ancestor's value, so a read-only object
   // or array makes everything beneath it read-only too.
   const readOnly = inheritedReadOnly || proj.annotations.readOnly === true
-
-  const fieldHints = hints?.[pointer]
   const annotations: NodeAnnotations = {
     title: proj.annotations.title,
     description: proj.annotations.description,
@@ -140,149 +143,11 @@ function compileNode(
   }
 
   if (proj.type === 'object') {
-    const children: NodeId[] = []
-    if (proj.children) {
-      // Presentation order among siblings, and nothing more. An explicit
-      // `order` hint wins; a field without one keeps its schema position, so
-      // ordering a single field does not displace everything after it. Equal
-      // values keep schema order, which makes the result deterministic rather
-      // than dependent on sort stability. Array items are excluded: their
-      // order is their data order.
-      const ordered = proj.children
-        .map((child, schemaIndex) => ({ child, schemaIndex }))
-        .sort((a, b) => {
-          const aOrder = siblingOrder(hints, a.child.pointer, a.schemaIndex)
-          const bOrder = siblingOrder(hints, b.child.pointer, b.schemaIndex)
-          return aOrder - bOrder || a.schemaIndex - b.schemaIndex
-        })
-
-      for (let i = 0; i < ordered.length; i++) {
-        const child: ChildProjection = ordered[i].child
-        const childProj = projection.nodes.get(child.pointer)
-        if (childProj) {
-          const childId = compileNode(
-            child.pointer,
-            childProj,
-            id,
-            i,
-            projection,
-            data,
-            hints,
-            ctx,
-            child.required || child.provisionalRequired === true,
-            [...segments, { kind: 'property', name: child.key }],
-            readOnly,
-          )
-          children.push(childId)
-        }
-      }
-    }
-
-    const node: ContainerNode = {
-      id,
-      type: 'container',
-      containerType: 'object',
-      parentId,
-      dataPointer: pointer,
-      order,
-      visible: isExposed(proj),
-      ...(proj.boundaries ? { boundaries: proj.boundaries } : {}),
-      ...(proj.boundaryTargets ? { boundaryTargets: proj.boundaryTargets } : {}),
-      disabled: false,
-      readOnly,
-      annotations,
-      children,
-    }
-    nodes[id] = node
+    compileObjectNode(options, ctx, id, readOnly, annotations)
   } else if (proj.type === 'array') {
-    const children: NodeId[] = []
-    const items = getAtPointer(data, pointer)
-    const arrayItems = Array.isArray(items) ? items : []
-
-    // Adopt the identity the handler already maintains for this array. It
-    // reconciles on data changes and updates the map directly for insert,
-    // remove and move, so regenerating here would discard that work and hand
-    // renderers positional ids: removing the first of two rows would move the
-    // survivor from item_1 to item_0, detaching whatever state a renderer had
-    // keyed to it.
-    //
-    // Identity map API is pure: register/insert return new maps, so we always
-    // reassign ctx.identityMap rather than mutate in place.
-    const key = identityKey(segments)
-    ctx.visited.add(key)
-    const carried = ctx.identityMap.arrayIdentities.get(key)
-    let itemStableIds: StableItemId[]
-
-    if (carried?.length === arrayItems.length) {
-      itemStableIds = [...carried]
-    } else {
-      // No identity yet for this array, or a count the handler did not
-      // produce. Minting positional ids is right for a first compile and is
-      // the only safe fallback otherwise: reconciling here would be a second
-      // identity system competing with the handler's.
-      ctx.identityMap = registerArray(ctx.identityMap, key)
-      itemStableIds = []
-      for (let i = 0; i < arrayItems.length; i++) {
-        const result = insertItem(ctx.identityMap, key, i)
-        ctx.identityMap = result.map
-        itemStableIds.push(result.itemId)
-      }
-    }
-
-    for (let i = 0; i < arrayItems.length; i++) {
-      const itemPointer = `${pointer}/${i}` as JsonPointer
-      const itemProj = projection.nodes.get(itemPointer)
-      if (itemProj) {
-        const childId = compileNode(
-          itemPointer,
-          itemProj,
-          id,
-          i,
-          projection,
-          data,
-          hints,
-          ctx,
-          false,
-          [...segments, { kind: 'item', id: itemStableIds[i] }],
-          readOnly,
-        )
-        children.push(childId)
-      }
-    }
-
-    const arrayHints = hints?.[pointer] as ArrayHints | undefined
-    const arrayMeta: ArrayMeta = {
-      itemIds: itemStableIds,
-      identityKey: key,
-      itemKey: arrayHints?.itemKey,
-      itemTitle: proj.itemAnnotations?.title,
-      minItems: proj.constraints.minItems,
-      maxItems: proj.constraints.maxItems,
-      canAdd:
-        !readOnly &&
-        (proj.constraints.maxItems == null || arrayItems.length < proj.constraints.maxItems),
-      canRemove:
-        !readOnly &&
-        (proj.constraints.minItems == null || arrayItems.length > proj.constraints.minItems),
-      canReorder: !readOnly && (arrayHints?.canReorder ?? false),
-    }
-
-    const node: ContainerNode = {
-      id,
-      type: 'container',
-      containerType: 'array',
-      parentId,
-      dataPointer: pointer,
-      order,
-      visible: isExposed(proj),
-      disabled: false,
-      readOnly,
-      annotations,
-      children,
-      arrayMeta,
-    }
-    nodes[id] = node
+    compileArrayNode(options, ctx, id, readOnly, annotations)
   } else {
+    const fieldHints = ctx.hints?.[pointer]
     const fieldType: FieldType = proj.type === 'null' ? 'string' : proj.type
     const node: FieldNode = {
       id,
@@ -302,8 +167,161 @@ function compileNode(
       placeholder: fieldHints?.placeholder,
       helpText: fieldHints?.helpText,
     }
-    nodes[id] = node
+    ctx.nodes[id] = node
   }
 
   return id
+}
+
+function compileObjectNode(
+  options: CompileNodeOptions,
+  ctx: CompileContext,
+  id: NodeId,
+  readOnly: boolean,
+  annotations: NodeAnnotations,
+): void {
+  const { pointer, proj, parentId, order } = options
+  const children: NodeId[] = []
+  if (proj.children) {
+    // Presentation order among siblings, and nothing more. An explicit
+    // `order` hint wins; a field without one keeps its schema position, so
+    // ordering a single field does not displace everything after it. Equal
+    // values keep schema order, which makes the result deterministic rather
+    // than dependent on sort stability. Array items are excluded: their
+    // order is their data order.
+    const ordered = proj.children
+      .map((child, schemaIndex) => ({ child, schemaIndex }))
+      .sort((a, b) => {
+        const aOrder = siblingOrder(ctx.hints, a.child.pointer, a.schemaIndex)
+        const bOrder = siblingOrder(ctx.hints, b.child.pointer, b.schemaIndex)
+        return aOrder - bOrder || a.schemaIndex - b.schemaIndex
+      })
+
+    for (let i = 0; i < ordered.length; i++) {
+      const child: ChildProjection = ordered[i].child
+      const childProj = ctx.projection.nodes.get(child.pointer)
+      if (childProj) {
+        const childId = compileNode({
+          pointer: child.pointer,
+          proj: childProj,
+          parentId: id,
+          order: i,
+          required: child.required || child.provisionalRequired === true,
+          segments: [...options.segments, { kind: 'property', name: child.key }],
+          inheritedReadOnly: readOnly,
+        }, ctx)
+        children.push(childId)
+      }
+    }
+  }
+
+  const node: ContainerNode = {
+    id,
+    type: 'container',
+    containerType: 'object',
+    parentId,
+    dataPointer: pointer,
+    order,
+    visible: isExposed(proj),
+    ...(proj.boundaries ? { boundaries: proj.boundaries } : {}),
+    ...(proj.boundaryTargets ? { boundaryTargets: proj.boundaryTargets } : {}),
+    disabled: false,
+    readOnly,
+    annotations,
+    children,
+  }
+  ctx.nodes[id] = node
+}
+
+function compileArrayNode(
+  options: CompileNodeOptions,
+  ctx: CompileContext,
+  id: NodeId,
+  readOnly: boolean,
+  annotations: NodeAnnotations,
+): void {
+  const { pointer, proj, parentId, order } = options
+  const children: NodeId[] = []
+  const items = getAtPointer(ctx.data, pointer)
+  const arrayItems = Array.isArray(items) ? items : []
+
+  // Adopt the identity the handler already maintains for this array. It
+  // reconciles on data changes and updates the map directly for insert,
+  // remove and move, so regenerating here would discard that work and hand
+  // renderers positional ids: removing the first of two rows would move the
+  // survivor from item_1 to item_0, detaching whatever state a renderer had
+  // keyed to it.
+  //
+  // Identity map API is pure: register/insert return new maps, so we always
+  // reassign ctx.identityMap rather than mutate in place.
+  const key = identityKey(options.segments)
+  ctx.visited.add(key)
+  const carried = ctx.identityMap.arrayIdentities.get(key)
+  let itemStableIds: StableItemId[]
+
+  if (carried?.length === arrayItems.length) {
+    itemStableIds = [...carried]
+  } else {
+    // No identity yet for this array, or a count the handler did not
+    // produce. Minting positional ids is right for a first compile and is
+    // the only safe fallback otherwise: reconciling here would be a second
+    // identity system competing with the handler's.
+    ctx.identityMap = registerArray(ctx.identityMap, key)
+    itemStableIds = []
+    for (let i = 0; i < arrayItems.length; i++) {
+      const result = insertItem(ctx.identityMap, key, i)
+      ctx.identityMap = result.map
+      itemStableIds.push(result.itemId)
+    }
+  }
+
+  for (let i = 0; i < arrayItems.length; i++) {
+    const itemPointer = `${pointer}/${i}` as JsonPointer
+    const itemProj = ctx.projection.nodes.get(itemPointer)
+    if (itemProj) {
+      const childId = compileNode({
+        pointer: itemPointer,
+        proj: itemProj,
+        parentId: id,
+        order: i,
+        required: false,
+        segments: [...options.segments, { kind: 'item', id: itemStableIds[i] }],
+        inheritedReadOnly: readOnly,
+      }, ctx)
+      children.push(childId)
+    }
+  }
+
+  const arrayHints = ctx.hints?.[pointer] as ArrayHints | undefined
+  const arrayMeta: ArrayMeta = {
+    itemIds: itemStableIds,
+    identityKey: key,
+    itemKey: arrayHints?.itemKey,
+    itemTitle: proj.itemAnnotations?.title,
+    minItems: proj.constraints.minItems,
+    maxItems: proj.constraints.maxItems,
+    canAdd:
+      !readOnly &&
+      (proj.constraints.maxItems == null || arrayItems.length < proj.constraints.maxItems),
+    canRemove:
+      !readOnly &&
+      (proj.constraints.minItems == null || arrayItems.length > proj.constraints.minItems),
+    canReorder: !readOnly && (arrayHints?.canReorder ?? false),
+  }
+
+  const node: ContainerNode = {
+    id,
+    type: 'container',
+    containerType: 'array',
+    parentId,
+    dataPointer: pointer,
+    order,
+    visible: isExposed(proj),
+    disabled: false,
+    readOnly,
+    annotations,
+    children,
+    arrayMeta,
+  }
+  ctx.nodes[id] = node
 }
