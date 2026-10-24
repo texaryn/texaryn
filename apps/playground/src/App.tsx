@@ -399,6 +399,120 @@ function schemaFromText(text: string | undefined, fallback: unknown): unknown {
   }
 }
 
+function buildShareUrl(
+  selectedId: string | null,
+  renderer: RendererKey,
+  schemaText: string,
+  customSchemaToken: string | null | undefined,
+): string {
+  const customSelected = selectedId === CUSTOM_KEY
+  return new URL(formatLocation(
+    {
+      exampleId: customSelected ? null : selectedId,
+      renderer,
+      ...(customSelected && customSchemaToken !== null ? { schemaText } : {}),
+    },
+    BASE_URL,
+  ), window.location.origin).href
+}
+
+function getExampleOrUndefined(id: string | null): TexarynExample | undefined {
+  return id === null ? undefined : getExample(id)
+}
+
+function getAvailablePresets(
+  baseExample: TexarynExample | undefined,
+  appliedSchemaKey: string,
+): readonly ExamplePreset[] {
+  return baseExample && appliedSchemaKey === stableJson(baseExample.schema)
+    ? baseExample.presets ?? NO_PRESETS
+    : NO_PRESETS
+}
+
+function getSelectedEntry(
+  selectedId: string | null,
+  selectedExample: TexarynExample | undefined,
+  activeHints: TexarynExample['hints'],
+) {
+  return selectedId === CUSTOM_KEY
+    ? { initialData: customEntry.initialData, hints: activeHints }
+    : selectedExample ?? customEntry
+}
+
+function getInitialData(
+  preserveCurrentData: boolean,
+  latestData: unknown,
+  entry: ReturnType<typeof getSelectedEntry>,
+): unknown {
+  return preserveCurrentData ? latestData : entry.initialData
+}
+
+function adapterMatchesSchema(adapterState: AdapterState, schemaKey: string): boolean {
+  return adapterState.status === 'ready' && adapterState.schemaKey === schemaKey
+}
+
+function adapterHasError(adapterState: AdapterState): boolean {
+  return adapterState.status === 'ready' && Boolean(adapterState.error)
+}
+
+function shouldApplySchema(
+  parseError: string | null,
+  applyFailed: boolean,
+  draftHasChanges: boolean,
+  adapterState: AdapterState,
+  adapterMatchesDraft: boolean,
+): boolean {
+  return !parseError && !applyFailed &&
+    (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
+}
+
+function getPreviewNotice(
+  parseError: string | null,
+  applyFailed: boolean,
+  applying: boolean,
+  adapterState: AdapterState,
+): string | null {
+  if (parseError) return 'Invalid JSON. This preview shows the last valid schema.'
+  if (applyFailed) {
+    const adapterError = adapterState.status === 'ready' ? adapterState.error : ''
+    return 'The schema could not be applied. This preview shows the last valid schema. ' + adapterError
+  }
+  if (applying) {
+    return 'Applying schema changes. The preview shows the last valid schema until they are ready.'
+  }
+  return null
+}
+
+function getSchemaProblemLabel(schemaIssues: number | null): string {
+  return schemaIssues === 1 ? '1 problem' : String(schemaIssues) + ' problems'
+}
+
+function getCustomSchemaWarning(
+  selectedId: string | null,
+  customSchemaToken: string | null | undefined,
+): string | null {
+  return selectedId === CUSTOM_KEY && customSchemaToken === null
+    ? 'Custom schemas over 12 KB cannot be shared in a URL.'
+    : null
+}
+
+function getNotReadyState(
+  adapterState: AdapterState,
+  selectedId: string | null,
+  adapterMatchesDraft: boolean,
+): { className: string; message: string } | null {
+  if (adapterState.status === 'loading') {
+    return { className: 'pg-empty', message: 'Loading…' }
+  }
+  if (adapterState.status === 'error') {
+    return { className: 'pg-error', message: adapterState.message }
+  }
+  if (selectedId !== CUSTOM_KEY && !adapterMatchesDraft) {
+    return { className: 'pg-empty', message: 'Loading the selected example…' }
+  }
+  return null
+}
+
 export function App() {
   const initial = parseLocation(
     window.location.pathname,
@@ -541,16 +655,7 @@ export function App() {
   }, [draftHasChanges, parseError, parsedDraft.schema])
 
   const customSchemaToken = selectedId === CUSTOM_KEY ? encodeSharedSchema(schemaText) : undefined
-  const shareUrl = new URL(formatLocation(
-    {
-      exampleId: selectedId === CUSTOM_KEY ? null : selectedId,
-      renderer: rendererKey,
-      ...(selectedId === CUSTOM_KEY && customSchemaToken !== null
-        ? { schemaText }
-        : {}),
-    },
-    BASE_URL,
-  ), window.location.origin).href
+  const shareUrl = buildShareUrl(selectedId, rendererKey, schemaText, customSchemaToken)
 
   // The URL carries custom schema text, but deliberately omits form data.
   useEffect(() => {
@@ -670,27 +775,17 @@ export function App() {
   }, [shareUrl])
 
   const adapterState = useAdapter(appliedSchema)
-  const selectedExample = selectedId === null ? undefined : getExample(selectedId)
-  const baseExample = baseExampleId === null ? undefined : getExample(baseExampleId)
-  const presets = baseExample && appliedSchemaKey === stableJson(baseExample.schema)
-    ? baseExample.presets ?? NO_PRESETS
-    : NO_PRESETS
-  const entry = selectedId === CUSTOM_KEY
-    ? { initialData: customEntry.initialData, hints: activeHints }
-    : selectedExample ?? customEntry
-  const initialData = preserveCurrentData.current ? latestData.current : entry.initialData
-  const adapterMatchesDraft =
-    adapterState.status === 'ready' && adapterState.schemaKey === appliedSchemaKey
-  const applyFailed = adapterState.status === 'ready' && Boolean(adapterState.error)
-  const applying =
-    !parseError && !applyFailed && (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
-  let previewNotice: string | null = null
-  if (parseError) previewNotice = 'Invalid JSON. This preview shows the last valid schema.'
-  else if (applyFailed) {
-    previewNotice = `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
-  } else if (applying) {
-    previewNotice = 'Applying schema changes. The preview shows the last valid schema until they are ready.'
-  }
+  const selectedExample = getExampleOrUndefined(selectedId)
+  const baseExample = getExampleOrUndefined(baseExampleId)
+  const presets = getAvailablePresets(baseExample, appliedSchemaKey)
+  const entry = getSelectedEntry(selectedId, selectedExample, activeHints)
+  const initialData = getInitialData(preserveCurrentData.current, latestData.current, entry)
+  const adapterMatchesDraft = adapterMatchesSchema(adapterState, appliedSchemaKey)
+  const applyFailed = adapterHasError(adapterState)
+  const applying = shouldApplySchema(
+    parseError, applyFailed, draftHasChanges, adapterState, adapterMatchesDraft
+  )
+  const previewNotice = getPreviewNotice(parseError, applyFailed, applying, adapterState)
 
   const paletteCommands = useMemo(() => {
     const actions: CommandActions = {
@@ -813,17 +908,15 @@ export function App() {
                 editorActions.openProblems()
               }}
             >
-              {schemaIssues === 1 ? '1 problem' : `${schemaIssues} problems`}
+              {getSchemaProblemLabel(schemaIssues)}
             </button>
           )}
           <button
             className="pg-button pg-button--quiet"
             type="button"
             onClick={handleCopyShareLink}
-            disabled={selectedId === CUSTOM_KEY && customSchemaToken === null}
-            title={selectedId === CUSTOM_KEY && customSchemaToken === null
-              ? 'Custom schemas over 12 KB cannot be shared in a URL.'
-              : undefined}
+            disabled={getCustomSchemaWarning(selectedId, customSchemaToken) !== null}
+            title={getCustomSchemaWarning(selectedId, customSchemaToken) ?? undefined}
           >
             Copy link
           </button>
@@ -888,13 +981,7 @@ export function App() {
     </>
   )
 
-  let notReadyState: { className: string; message: string } | null = null
-  if (adapterState.status === 'loading') notReadyState = { className: 'pg-empty', message: 'Loading…' }
-  else if (adapterState.status === 'error') {
-    notReadyState = { className: 'pg-error', message: adapterState.message }
-  } else if (selectedId !== CUSTOM_KEY && !adapterMatchesDraft) {
-    notReadyState = { className: 'pg-empty', message: 'Loading the selected example…' }
-  }
+  const notReadyState = getNotReadyState(adapterState, selectedId, adapterMatchesDraft)
 
   return (
     <div className="pg-app">
