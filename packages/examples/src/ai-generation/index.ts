@@ -57,6 +57,7 @@ const maxSchemaArrayItems = 256
 const maxSchemaObjectProperties = 256
 const maxSchemaStringLength = 16_384
 const maxTotalSchemaStringLength = 65_536
+const jsonTokenDelimiters = ',:[]{}'
 
 function bounded(value: string): string {
   const normalized = value.replace(/[\r\n\t]+/g, ' ').trim()
@@ -81,6 +82,25 @@ function outputRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function skipJsonString(text: string, start: number): number {
+  let index = start + 1
+  while (index < text.length) {
+    if (text[index] === '\\') {
+      index += 2
+      continue
+    }
+    if (text[index] === '"') return index + 1
+    index += 1
+  }
+  return text.length
+}
+
+function skipJsonAtom(text: string, start: number): number {
+  let index = start + 1
+  while (index < text.length && !/\s/.test(text[index]!) && !jsonTokenDelimiters.includes(text[index]!)) index += 1
+  return index
+}
+
 function preflightJsonText(text: string): void {
   if (text.length > maxOutputCharacters) {
     throw new OutputRejectedError([`Model output must be no longer than ${maxOutputCharacters} characters.`])
@@ -88,30 +108,29 @@ function preflightJsonText(text: string): void {
 
   let depth = 0
   let values = 0
-  for (let index = 0; index < text.length; index += 1) {
+  let index = 0
+  while (index < text.length) {
     const character = text[index]!
-    if (/\s/.test(character) || character === ',' || character === ':') continue
+    if (/\s/.test(character) || character === ',' || character === ':') {
+      index += 1
+      continue
+    }
     if (character === '"') {
       values += 1
-      index += 1
-      for (; index < text.length; index += 1) {
-        if (text[index] === '\\') {
-          index += 1
-          continue
-        }
-        if (text[index] === '"') break
-      }
+      index = skipJsonString(text, index)
     } else if (character === '{' || character === '[') {
       values += 1
       depth += 1
       if (depth > maxJsonDepth) {
         throw new OutputRejectedError([`Model output exceeds the JSON depth limit of ${maxJsonDepth}.`])
       }
+      index += 1
     } else if (character === '}' || character === ']') {
       depth = Math.max(0, depth - 1)
+      index += 1
     } else {
       values += 1
-      while (index + 1 < text.length && !/[\s,:[\]{}]/.test(text[index + 1]!)) index += 1
+      index = skipJsonAtom(text, index)
     }
 
     if (values > maxJsonValues) {
@@ -144,11 +163,70 @@ function validateParsedJson(root: unknown): void {
   }
 }
 
+interface SchemaResourceBudget {
+  values: number
+  totalStringLength: number
+}
+
+function checkSchemaResourceBudget(budget: SchemaResourceBudget, depth: number): void {
+  budget.values += 1
+  if (budget.values > maxSchemaValues) {
+    throw new OutputRejectedError([`A form schema or resolved resource exceeds ${maxSchemaValues} JSON values.`])
+  }
+  if (depth > maxSchemaDepth) {
+    throw new OutputRejectedError([`A form schema or resolved resource exceeds JSON depth ${maxSchemaDepth}.`])
+  }
+}
+
+function checkSchemaResourceString(value: string, budget: SchemaResourceBudget): void {
+  budget.totalStringLength += value.length
+  if (value.length > maxSchemaStringLength || budget.totalStringLength > maxTotalSchemaStringLength) {
+    throw new OutputRejectedError(['A form schema or resolved resource exceeds its string size limits.'])
+  }
+}
+
+function checkSchemaResourceKey(key: string, budget: SchemaResourceBudget): void {
+  budget.values += 1
+  if (budget.values > maxSchemaValues) {
+    throw new OutputRejectedError([`A form schema or resolved resource exceeds ${maxSchemaValues} JSON values.`])
+  }
+  budget.totalStringLength += key.length
+  if (key.length > 1_024 || budget.totalStringLength > maxTotalSchemaStringLength) {
+    throw new OutputRejectedError(['A form schema or resolved resource exceeds its string size limits.'])
+  }
+}
+
+function queueSchemaArrayValues(
+  value: unknown[],
+  depth: number,
+  pending: Array<{ value: unknown; depth: number }>,
+): void {
+  if (value.length > maxSchemaArrayItems) {
+    throw new OutputRejectedError([`A form schema array exceeds ${maxSchemaArrayItems} items.`])
+  }
+  for (const member of value) pending.push({ value: member, depth: depth + 1 })
+}
+
+function queueSchemaObjectValues(
+  value: Record<string, unknown>,
+  depth: number,
+  pending: Array<{ value: unknown; depth: number }>,
+  budget: SchemaResourceBudget,
+): void {
+  const entries = Object.entries(value)
+  if (entries.length > maxSchemaObjectProperties) {
+    throw new OutputRejectedError([`A form schema object exceeds ${maxSchemaObjectProperties} properties.`])
+  }
+  for (const [key, member] of entries) {
+    checkSchemaResourceKey(key, budget)
+    pending.push({ value: member, depth: depth + 1 })
+  }
+}
+
 function preflightSchemaResources(root: unknown): void {
   const pending: Array<{ value: unknown; depth: number }> = [{ value: root, depth: 0 }]
   const seen = new Set<object>()
-  let values = 0
-  let totalStringLength = 0
+  const budget: SchemaResourceBudget = { values: 0, totalStringLength: 0 }
   while (pending.length > 0) {
     const current = pending.pop()!
     if (typeof current.value === 'object' && current.value !== null) {
@@ -157,41 +235,15 @@ function preflightSchemaResources(root: unknown): void {
       }
       seen.add(current.value)
     }
-    values += 1
-    if (values > maxSchemaValues) {
-      throw new OutputRejectedError([`A form schema or resolved resource exceeds ${maxSchemaValues} JSON values.`])
-    }
-    if (current.depth > maxSchemaDepth) {
-      throw new OutputRejectedError([`A form schema or resolved resource exceeds JSON depth ${maxSchemaDepth}.`])
-    }
+    checkSchemaResourceBudget(budget, current.depth)
     if (typeof current.value === 'string') {
-      totalStringLength += current.value.length
-      if (current.value.length > maxSchemaStringLength || totalStringLength > maxTotalSchemaStringLength) {
-        throw new OutputRejectedError(['A form schema or resolved resource exceeds its string size limits.'])
-      }
+      checkSchemaResourceString(current.value, budget)
     } else if (typeof current.value === 'number' && !Number.isFinite(current.value)) {
       throw new OutputRejectedError(['A form schema or resolved resource contains a non-finite number.'])
     } else if (Array.isArray(current.value)) {
-      if (current.value.length > maxSchemaArrayItems) {
-        throw new OutputRejectedError([`A form schema array exceeds ${maxSchemaArrayItems} items.`])
-      }
-      for (const value of current.value) pending.push({ value, depth: current.depth + 1 })
+      queueSchemaArrayValues(current.value, current.depth, pending)
     } else if (isRecord(current.value)) {
-      const entries = Object.entries(current.value)
-      if (entries.length > maxSchemaObjectProperties) {
-        throw new OutputRejectedError([`A form schema object exceeds ${maxSchemaObjectProperties} properties.`])
-      }
-      for (const [key, value] of entries) {
-        values += 1
-        if (values > maxSchemaValues) {
-          throw new OutputRejectedError([`A form schema or resolved resource exceeds ${maxSchemaValues} JSON values.`])
-        }
-        totalStringLength += key.length
-        if (key.length > 1_024 || totalStringLength > maxTotalSchemaStringLength) {
-          throw new OutputRejectedError(['A form schema or resolved resource exceeds its string size limits.'])
-        }
-        pending.push({ value, depth: current.depth + 1 })
-      }
+      queueSchemaObjectValues(current.value, current.depth, pending, budget)
     }
   }
 }
@@ -207,36 +259,41 @@ const schemaListKeywords = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const
 
 function childSchemaEntries(schema: Record<string, unknown>): Array<{ path: readonly string[]; schema: unknown }> {
   const children: Array<{ path: readonly string[]; schema: unknown }> = []
-  for (const keyword of singleSchemaKeywords) {
-    const candidate = schema[keyword]
-    if (isRecord(candidate) || typeof candidate === 'boolean') children.push({ path: [keyword], schema: candidate })
-    if (Array.isArray(candidate)) {
-      candidate.forEach((member, index) => children.push({ path: [keyword, String(index)], schema: member }))
-    }
-  }
-  for (const keyword of schemaMapKeywords) {
-    const candidate = schema[keyword]
-    if (isRecord(candidate)) {
-      for (const [name, member] of Object.entries(candidate)) {
-        if (isRecord(member) || typeof member === 'boolean') children.push({ path: [keyword, name], schema: member })
-      }
-    }
-  }
-  for (const keyword of schemaListKeywords) {
-    const candidate = schema[keyword]
-    if (Array.isArray(candidate)) {
-      candidate.forEach((member, index) => children.push({ path: [keyword, String(index)], schema: member }))
-    }
-  }
-  const dependencies = schema.dependencies
-  if (isRecord(dependencies)) {
-    for (const [name, dependency] of Object.entries(dependencies)) {
-      if (isRecord(dependency) || typeof dependency === 'boolean') {
-        children.push({ path: ['dependencies', name], schema: dependency })
-      }
-    }
-  }
+  for (const keyword of singleSchemaKeywords) appendSingleSchemaChildren(children, keyword, schema[keyword])
+  for (const keyword of schemaMapKeywords) appendSchemaMapChildren(children, keyword, schema[keyword])
+  for (const keyword of schemaListKeywords) appendIndexedSchemaChildren(children, keyword, schema[keyword])
+  appendSchemaMapChildren(children, 'dependencies', schema.dependencies)
   return children
+}
+
+function appendSingleSchemaChildren(
+  children: Array<{ path: readonly string[]; schema: unknown }>,
+  keyword: string,
+  candidate: unknown,
+): void {
+  if (isRecord(candidate) || typeof candidate === 'boolean') children.push({ path: [keyword], schema: candidate })
+  appendIndexedSchemaChildren(children, keyword, candidate)
+}
+
+function appendIndexedSchemaChildren(
+  children: Array<{ path: readonly string[]; schema: unknown }>,
+  keyword: string,
+  candidate: unknown,
+): void {
+  if (Array.isArray(candidate)) {
+    candidate.forEach((member, index) => children.push({ path: [keyword, String(index)], schema: member }))
+  }
+}
+
+function appendSchemaMapChildren(
+  children: Array<{ path: readonly string[]; schema: unknown }>,
+  keyword: string,
+  candidate: unknown,
+): void {
+  if (!isRecord(candidate)) return
+  for (const [name, member] of Object.entries(candidate)) {
+    if (isRecord(member) || typeof member === 'boolean') children.push({ path: [keyword, name], schema: member })
+  }
 }
 
 function normalizedResources(resources: ReadonlyMap<string, unknown> | undefined): Map<string, unknown> {
@@ -339,99 +396,142 @@ function schemaLocationKey(document: SchemaDocument, path: readonly string[]): s
   return `${document.key}\u0000${JSON.stringify(path)}`
 }
 
+function schemaDocuments(
+  root: unknown,
+  resources: ReadonlyMap<string, unknown>,
+  rootDocument: SchemaDocument,
+): Map<string, SchemaDocument> {
+  const documents = new Map<string, SchemaDocument>()
+  addRootSchemaDocument(documents, root, rootDocument)
+  for (const [uri, schema] of resources) {
+    if (documents.has(uri)) throw new OutputRejectedError([`Host schema resource URI "${uri}" conflicts with the generated form $id.`])
+    documents.set(uri, { key: uri, root: schema })
+  }
+  return documents
+}
+
+function addRootSchemaDocument(
+  documents: Map<string, SchemaDocument>,
+  root: unknown,
+  rootDocument: SchemaDocument,
+): void {
+  const rootId = isRecord(root) && typeof root.$id === 'string' ? root.$id : undefined
+  if (rootId === undefined) return
+  let parsed: URL
+  try {
+    parsed = new URL(rootId)
+  } catch {
+    throw new OutputRejectedError(['A generated form $id must be an absolute HTTP or HTTPS URI.'])
+  }
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.hash !== '') {
+    throw new OutputRejectedError(['A generated form $id must be an absolute HTTP or HTTPS URI without a fragment.'])
+  }
+  documents.set(parsed.href, rootDocument)
+  documents.set(parsed.href.split('#', 1)[0]!, rootDocument)
+}
+
+function assertSupportedSchemaKeywords(candidate: Record<string, unknown>, path: readonly string[]): void {
+  if (path.length > 0 && Object.hasOwn(candidate, '$id')) {
+    throw new OutputRejectedError(['Nested $id resource boundaries are outside the version 1 form generation subset.'])
+  }
+  for (const keyword of ['$anchor', '$dynamicAnchor', '$recursiveAnchor'] as const) {
+    if (Object.hasOwn(candidate, keyword)) {
+      throw new OutputRejectedError([`${keyword} is outside the version 1 form generation subset.`])
+    }
+  }
+  if (Object.hasOwn(candidate, 'oneOf') || Object.hasOwn(candidate, 'anyOf')) {
+    throw new OutputRejectedError(['Generated form schemas cannot use oneOf or anyOf in version 1.'])
+  }
+  for (const keyword of ['$dynamicRef', '$recursiveRef'] as const) {
+    if (Object.hasOwn(candidate, keyword)) {
+      throw new OutputRejectedError([`${keyword} is outside the version 1 form generation subset.`])
+    }
+  }
+}
+
+function resolveFormReference(
+  reference: string,
+  document: SchemaDocument,
+  documents: ReadonlyMap<string, SchemaDocument>,
+): { document: SchemaDocument; fragment: string } {
+  if (reference.startsWith('#')) return { document, fragment: reference.slice(1) }
+  let uri: URL
+  try {
+    uri = new URL(reference)
+  } catch {
+    throw new OutputRejectedError(['External form references must use an absolute HTTP or HTTPS URI.'])
+  }
+  if ((uri.protocol !== 'http:' && uri.protocol !== 'https:') || uri.username !== '' || uri.password !== '') {
+    throw new OutputRejectedError(['External form references must use an absolute HTTP or HTTPS URI.'])
+  }
+  const resourceUri = uri.href.split('#', 1)[0]!
+  const resolved = documents.get(resourceUri)
+  if (resolved === undefined) {
+    throw new OutputRejectedError([`External schema reference "${resourceUri}" is not in the host resource map.`])
+  }
+  return { document: resolved, fragment: uri.hash.slice(1) }
+}
+
+async function queueFormReferenceTarget(
+  reference: string,
+  document: SchemaDocument,
+  documents: ReadonlyMap<string, SchemaDocument>,
+  validatedTargets: Set<string>,
+  pending: Array<{ document: SchemaDocument; path: readonly string[]; schema: unknown }>,
+  dialect: SchemaDialect,
+): Promise<void> {
+  const resolved = resolveFormReference(reference, document, documents)
+  const tokens = pointerTokens(resolved.fragment)
+  const target = pointerTarget(resolved.document.root, tokens)
+  const targetPosition = schemaLocationKey(resolved.document, tokens)
+  if (!validatedTargets.has(targetPosition)) {
+    await validateSchemaDocument(target, dialect)
+    validatedTargets.add(targetPosition)
+  }
+  pending.push({ document: resolved.document, path: tokens, schema: target })
+}
+
 async function checkFormSchemaKeywords(
   root: unknown,
   resources: ReadonlyMap<string, unknown>,
   dialect: SchemaDialect,
 ): Promise<void> {
   const rootDocument: SchemaDocument = { key: '<root>', root }
-  const documents = new Map<string, SchemaDocument>()
+  const documents = schemaDocuments(root, resources, rootDocument)
   const validatedReferenceTargets = new Set<string>()
-  const rootId = isRecord(root) && typeof root.$id === 'string' ? root.$id : undefined
-  if (rootId !== undefined) {
-    let parsed: URL
-    try {
-      parsed = new URL(rootId)
-    } catch {
-      throw new OutputRejectedError(['A generated form $id must be an absolute HTTP or HTTPS URI.'])
-    }
-    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.hash !== '') {
-      throw new OutputRejectedError(['A generated form $id must be an absolute HTTP or HTTPS URI without a fragment.'])
-    }
-    documents.set(parsed.href, rootDocument)
-    documents.set(parsed.href.split('#', 1)[0]!, rootDocument)
-  }
-  for (const [uri, schema] of resources) {
-    if (documents.has(uri)) throw new OutputRejectedError([`Host schema resource URI "${uri}" conflicts with the generated form $id.`])
-    const document = { key: uri, root: schema }
-    documents.set(uri, document)
-  }
 
   const pending: Array<{ document: SchemaDocument; path: readonly string[]; schema: unknown }> = [
     { document: rootDocument, path: [], schema: root },
   ]
   const visited = new Set<string>()
-  while (pending.length > 0) {
-    const { document, path, schema: candidate } = pending.pop()!
-    const position = schemaLocationKey(document, path)
-    if (visited.has(position)) continue
-    visited.add(position)
-    if (typeof candidate === 'boolean') continue
-    if (!isRecord(candidate)) throw new OutputRejectedError(['A reachable form schema must be an object or boolean schema.'])
-    if (path.length > 0 && Object.hasOwn(candidate, '$id')) {
-      throw new OutputRejectedError(['Nested $id resource boundaries are outside the version 1 form generation subset.'])
-    }
-    for (const keyword of ['$anchor', '$dynamicAnchor', '$recursiveAnchor'] as const) {
-      if (Object.hasOwn(candidate, keyword)) {
-        throw new OutputRejectedError([`${keyword} is outside the version 1 form generation subset.`])
-      }
-    }
-    if (Object.hasOwn(candidate, 'oneOf') || Object.hasOwn(candidate, 'anyOf')) {
-      throw new OutputRejectedError(['Generated form schemas cannot use oneOf or anyOf in version 1.'])
-    }
-    for (const keyword of ['$dynamicRef', '$recursiveRef'] as const) {
-      if (Object.hasOwn(candidate, keyword)) {
-        throw new OutputRejectedError([`${keyword} is outside the version 1 form generation subset.`])
-      }
-    }
-    const reference = candidate.$ref
-    if (typeof reference === 'string') {
-      let targetDocument = document
-      let fragment: string
-      if (reference.startsWith('#')) {
-        fragment = reference.slice(1)
-      } else {
-        let uri: URL
-        try {
-          uri = new URL(reference)
-        } catch {
-          throw new OutputRejectedError(['External form references must use an absolute HTTP or HTTPS URI.'])
-        }
-        if ((uri.protocol !== 'http:' && uri.protocol !== 'https:') || uri.username !== '' || uri.password !== '') {
-          throw new OutputRejectedError(['External form references must use an absolute HTTP or HTTPS URI.'])
-        }
-        const resourceUri = uri.href.split('#', 1)[0]!
-        const resolved = documents.get(resourceUri)
-        if (resolved === undefined) {
-          throw new OutputRejectedError([`External schema reference "${resourceUri}" is not in the host resource map.`])
-        }
-        targetDocument = resolved
-        fragment = uri.hash.slice(1)
-      }
-      const tokens = pointerTokens(fragment)
-      const target = pointerTarget(targetDocument.root, tokens)
-      const targetPosition = schemaLocationKey(targetDocument, tokens)
-      if (!validatedReferenceTargets.has(targetPosition)) {
-        // Validate each reference as traversal discovers it for stable errors.
-        await validateSchemaDocument(target, dialect) // NOSONAR
-        validatedReferenceTargets.add(targetPosition)
-      }
-      pending.push({ document: targetDocument, path: tokens, schema: target })
-    }
+  function enqueueChildren(document: SchemaDocument, path: readonly string[], candidate: Record<string, unknown>): void {
     for (const child of childSchemaEntries(candidate)) {
       pending.push({ document, path: [...path, ...child.path], schema: child.schema })
     }
   }
+
+  function processPending(): Promise<void> {
+    while (pending.length > 0) {
+      const { document, path, schema: candidate } = pending.pop()!
+      const position = schemaLocationKey(document, path)
+      if (visited.has(position)) continue
+      visited.add(position)
+      if (typeof candidate === 'boolean') continue
+      if (!isRecord(candidate)) throw new OutputRejectedError(['A reachable form schema must be an object or boolean schema.'])
+      assertSupportedSchemaKeywords(candidate, path)
+      if (typeof candidate.$ref === 'string') {
+        return queueFormReferenceTarget(candidate.$ref, document, documents, validatedReferenceTargets, pending, dialect)
+          .then(() => {
+            enqueueChildren(document, path, candidate)
+            return processPending()
+          })
+      }
+      enqueueChildren(document, path, candidate)
+    }
+    return Promise.resolve()
+  }
+
+  return processPending()
 }
 
 async function validateSchemaDocument(root: unknown, dialect: SchemaDialect): Promise<void> {
@@ -498,6 +598,16 @@ async function acceptOutput(
   contract: Awaited<ReturnType<typeof createJsonSchemaAdapter>>,
   options: GenerationExampleOptions,
 ): Promise<AcceptedRuntime> {
+  const output = await parseAndValidateOutput(text, contract, options)
+  if (options.kind === 'form') return acceptFormOutput(output, options)
+  return acceptDisplayOutput(output, options)
+}
+
+async function parseAndValidateOutput(
+  text: string,
+  contract: Awaited<ReturnType<typeof createJsonSchemaAdapter>>,
+  options: GenerationExampleOptions,
+): Promise<Record<string, unknown>> {
   if (typeof text !== 'string') throw new OutputRejectedError(['Model output must be text.'])
   preflightJsonText(text)
 
@@ -515,42 +625,56 @@ async function acceptOutput(
   if (output.kind !== options.kind) {
     throw new OutputRejectedError([`Expected a ${options.kind} output, received ${String(output.kind)}.`])
   }
+  return output
+}
 
-  if (options.kind === 'form') {
-    checkWidgets(output.hints, options.allowedWidgets ?? [])
-    const resources = await checkFormSchemaPolicy(output.schema, options.resources)
-    let adapter: Awaited<ReturnType<typeof createJsonSchemaAdapter>>
-    try {
-      const resolveResource = resources.size === 0 ? undefined : (uri: string) => {
-        return resources.get(new URL(uri).href.split('#', 1)[0]!)
-      }
-      adapter = await createJsonSchemaAdapter(output.schema, {
-        ...(resolveResource === undefined ? {} : { resolveResource }),
-        maxExternalResources: 8,
-      })
-    } catch (error) {
-      throw new OutputRejectedError([bounded(error instanceof Error ? error.message : 'The form schema could not be compiled.')])
-    }
-
-    const diagnostics = adapter.project({}).diagnostics ?? []
-    if (diagnostics.length > 0) {
-      throw new OutputRejectedError(diagnostics.slice(0, maxFeedbackItems).map((diagnostic) =>
-        bounded(`${diagnostic.pointer || '/'} ${diagnostic.code}: ${diagnostic.message}`),
-      ))
-    }
-
-    try {
-      const runtime = createFormRuntime(adapter, { hints: output.hints as UIHints | undefined })
-      if (!Object.values(runtime.document.getSnapshot().nodes).some((node) => node.type === 'field')) {
-        runtime.destroy()
-        throw new OutputRejectedError(['The generated form has no projected fields.'])
-      }
-      return { kind: 'form', runtime }
-    } catch (error) {
-      throw new OutputRejectedError([bounded(error instanceof Error ? error.message : 'The form runtime rejected the output.')])
-    }
+async function acceptFormOutput(
+  output: Record<string, unknown>,
+  options: GenerationExampleOptions,
+): Promise<AcceptedRuntime> {
+  checkWidgets(output.hints, options.allowedWidgets ?? [])
+  const resources = await checkFormSchemaPolicy(output.schema, options.resources)
+  const adapter = await createFormAdapter(output.schema, resources)
+  const diagnostics = adapter.project({}).diagnostics ?? []
+  if (diagnostics.length > 0) {
+    throw new OutputRejectedError(diagnostics.slice(0, maxFeedbackItems).map((diagnostic) =>
+      bounded(`${diagnostic.pointer || '/'} ${diagnostic.code}: ${diagnostic.message}`),
+    ))
   }
 
+  try {
+    const runtime = createFormRuntime(adapter, { hints: output.hints as UIHints | undefined })
+    if (!Object.values(runtime.document.getSnapshot().nodes).some((node) => node.type === 'field')) {
+      runtime.destroy()
+      throw new OutputRejectedError(['The generated form has no projected fields.'])
+    }
+    return { kind: 'form', runtime }
+  } catch (error) {
+    throw new OutputRejectedError([bounded(error instanceof Error ? error.message : 'The form runtime rejected the output.')])
+  }
+}
+
+async function createFormAdapter(
+  schema: unknown,
+  resources: ReadonlyMap<string, unknown>,
+): Promise<Awaited<ReturnType<typeof createJsonSchemaAdapter>>> {
+  try {
+    const resolveResource = resources.size === 0 ? undefined : (uri: string) => {
+      return resources.get(new URL(uri).href.split('#', 1)[0]!)
+    }
+    return await createJsonSchemaAdapter(schema, {
+      ...(resolveResource === undefined ? {} : { resolveResource }),
+      maxExternalResources: 8,
+    })
+  } catch (error) {
+    throw new OutputRejectedError([bounded(error instanceof Error ? error.message : 'The form schema could not be compiled.')])
+  }
+}
+
+function acceptDisplayOutput(
+  output: Record<string, unknown>,
+  options: GenerationExampleOptions,
+): AcceptedRuntime {
   const document = output.document as Record<string, unknown>
   const actions = options.actions ?? {}
   checkActions(document, actions)
