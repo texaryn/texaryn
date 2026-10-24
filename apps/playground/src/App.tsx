@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ComponentType, FormEvent, ReactNode } from 'react'
+import type { ComponentType, ReactNode, SyntheticEvent } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
@@ -241,7 +241,7 @@ function FormWorkspace({
     bootstrapFormRef.current = element
   }, [])
   const submit = () => form.runtime.dispatch({ type: 'Submit' })
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
     submit()
   }

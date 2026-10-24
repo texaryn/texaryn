@@ -2,6 +2,6 @@ import { rendererDomAccessibilityContract } from '../../../../tests/renderer-con
 import { vueAdapter } from '../../../../tests/renderer-conformance/adapters/vue-adapter.js'
 import { createDefaultRegistry } from '../widgets/default-registry.js'
 
-rendererDomAccessibilityContract({
+rendererDomAccessibilityContract({ // NOSONAR The shared harness registers this file's tests.
   adapter: vueAdapter('vue', createDefaultRegistry),
 })

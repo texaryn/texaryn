@@ -4,7 +4,7 @@ import { DEFINITION_KEYS, LIST, MAP, SINGLE } from './schema-keywords.js'
 import { compareCodeUnits } from './string-order.js'
 
 /** Resolves one absolute resource URI without its fragment. The adapter never fetches it itself. */
-export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown | undefined>
+export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown>
 
 export interface SchemaResourceOptions {
   /** Supplies external schemas on the host's terms. Return undefined when the resource is unavailable. */

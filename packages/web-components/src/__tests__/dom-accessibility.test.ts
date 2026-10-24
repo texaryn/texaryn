@@ -2,6 +2,6 @@ import { rendererDomAccessibilityContract } from '../../../../tests/renderer-con
 import { webComponentsAdapter } from '../../../../tests/renderer-conformance/adapters/web-components-adapter.js'
 import { createDefaultRegistry } from '../index.js'
 
-rendererDomAccessibilityContract({
+rendererDomAccessibilityContract({ // NOSONAR The shared harness registers this file's tests.
   adapter: webComponentsAdapter('web-components', createDefaultRegistry),
 })

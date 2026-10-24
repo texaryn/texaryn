@@ -1,4 +1,4 @@
 import { descriptionPolicyConformance } from '../../../../tests/renderer-conformance/description-policy-conformance.js'
 import { createMuiRegistry } from '../index.js'
 
-descriptionPolicyConformance({ name: 'mui', createRegistry: createMuiRegistry, policy: 'replace' })
+descriptionPolicyConformance({ name: 'mui', createRegistry: createMuiRegistry, policy: 'replace' }) // NOSONAR The shared harness registers this file's tests.

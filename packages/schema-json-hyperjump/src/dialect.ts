@@ -1,6 +1,6 @@
 export type Dialect = 'draft-04' | 'draft-07' | '2019-09' | '2020-12'
 
-export function isPre2019Dialect(dialect: Dialect | string): boolean {
+export function isPre2019Dialect(dialect: string): boolean {
   return dialect === 'draft-04' || dialect === 'draft-07'
 }
 

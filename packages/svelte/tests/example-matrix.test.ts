@@ -7,7 +7,7 @@ import type { WidgetComponent } from '../src/lib/widget.js'
 import { adapterFor } from '../../../tests/example-conformance/matrix-shared.js'
 import { svelteExampleRendererMatrix } from '../../../tests/example-conformance/svelte-renderer-matrix.js'
 
-svelteExampleRendererMatrix({
+svelteExampleRendererMatrix({ // NOSONAR The shared harness registers this file's tests.
   name: 'svelte',
   createRegistry: createDefaultRegistry,
   async renderExample(example: TexarynExample, registry: RendererRegistry<WidgetComponent>) {
