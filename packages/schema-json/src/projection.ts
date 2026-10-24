@@ -357,14 +357,7 @@ function visitReferenceDefaultSites(
     if (visited.has(position)) continue
     visited.add(position)
 
-    const authored = authoredSchema(current, cache)
-    if (
-      authored !== null &&
-      typeof authored === 'object' &&
-      'default' in authored
-    ) {
-      visitor(current)
-    }
+    if (hasAuthoredDefault(current, cache)) visitor(current)
 
     for (const keyword of referenceKeywords(current)) {
       if (dynamicReferenceProjection && (keyword === '$dynamicRef' || keyword === '$recursiveRef')) continue
@@ -372,6 +365,11 @@ function visitReferenceDefaultSites(
       if (target) pending.push(target)
     }
   }
+}
+
+function hasAuthoredDefault(node: SchemaNode, cache: ProjectionCache): boolean {
+  const authored = authoredSchema(node, cache)
+  return authored !== null && typeof authored === 'object' && 'default' in authored
 }
 
 function traversalKey(node: SchemaNode): string {
