@@ -933,6 +933,7 @@ export async function loadExternalResources(
       '#',
       current.pointerTarget === undefined ? [] : [current.pointerTarget],
     )
+    // Loading mutates shared graph state, so references resolve in traversal order.
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
         continue
@@ -963,7 +964,7 @@ export async function loadExternalResources(
         }
         continue
       }
-      const loaded = await load(uri, position)
+      const loaded = await load(uri, position) // NOSONAR
       const remoteDialect = detectDialect(loaded.primary, { defaultDialect: dialect })
       if (remoteDialect !== dialect) {
         throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)

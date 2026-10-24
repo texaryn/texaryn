@@ -422,7 +422,8 @@ async function checkFormSchemaKeywords(
       const target = pointerTarget(targetDocument.root, tokens)
       const targetPosition = schemaLocationKey(targetDocument, tokens)
       if (!validatedReferenceTargets.has(targetPosition)) {
-        await validateSchemaDocument(target, dialect)
+        // Validate each reference as traversal discovers it for stable errors.
+        await validateSchemaDocument(target, dialect) // NOSONAR
         validatedReferenceTargets.add(targetPosition)
       }
       pending.push({ document: targetDocument, path: tokens, schema: target })
@@ -458,6 +459,7 @@ async function checkFormSchemaPolicy(root: unknown, suppliedResources: ReadonlyM
   const resources = normalizedResources(suppliedResources)
   for (const resource of resources.values()) preflightSchemaResources(resource)
   await validateSchemaDocument(root, dialect)
+  // Preserve resource order so the first invalid resource has stable diagnostics.
   for (const resource of resources.values()) {
     if (isRecord(resource) && typeof resource.$schema === 'string') {
       const resourceDialect = schemaDialects.get(resource.$schema)
@@ -465,7 +467,7 @@ async function checkFormSchemaPolicy(root: unknown, suppliedResources: ReadonlyM
         throw new OutputRejectedError(['Host schema resources must use the same supported dialect as the generated form.'])
       }
     }
-    await validateSchemaDocument(resource, dialect)
+    await validateSchemaDocument(resource, dialect) // NOSONAR
   }
   await checkFormSchemaKeywords(root, resources, dialect)
   return resources

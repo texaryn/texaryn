@@ -713,6 +713,7 @@ export async function loadExternalResources(
     if (scanned.has(key)) continue
     scanned.add(key)
     const references = referencesIn(current.document, current.base, dialect, known)
+    // Loading mutates shared graph state, so references resolve in traversal order.
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
         continue
@@ -726,7 +727,7 @@ export async function loadExternalResources(
         throw new SchemaResourceResolutionError(`File schema resources are not supported: "${uri}" at "${position}".`, uri, position)
       }
       if (!uri || isMetaSchema(uri) || known.has(uri) || resources.has(uri)) continue
-      const loaded = await load(uri, position)
+      const loaded = await load(uri, position) // NOSONAR
       const remoteDialect = detectDialect(loaded.primary, { defaultDialect: dialect })
       if (remoteDialect !== dialect) {
         throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)
