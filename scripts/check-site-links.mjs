@@ -75,35 +75,26 @@ export function targetCandidates(path, { base, fromDir }) {
   return [rest, `${rest}.html`, posix.join(rest, 'index.html')]
 }
 
-export function checkSite({ pages, exists, base, playground }) {
-  const prefix = base.endsWith('/') ? base : `${base}/`
-  const mount = playground
-  const broken = []
-  const playgroundLinks = []
+function inspectLink(page, href, context) {
+  const { base, fromDir, mount, exists, broken, playgroundLinks } = context
+  const link = classify(href)
+  if (link.kind !== 'internal') return
 
-  for (const page of pages) {
-    const fromDir = posix.dirname(page.path)
-    for (const href of extractHrefs(page.html)) {
-      const link = classify(href)
-      if (link.kind !== 'internal') continue
-
-      const candidates = targetCandidates(link.path, { base, fromDir })
-      if (candidates === null) {
-        broken.push({ page: page.path, href, reason: `outside the site base ${prefix}` })
-        continue
-      }
-      if (!candidates.some((candidate) => exists(candidate))) {
-        broken.push({ page: page.path, href, reason: 'no file in the artifact' })
-        continue
-      }
-      if (link.path === mount.slice(0, -1) || link.path.startsWith(mount)) {
-        playgroundLinks.push({ page: page.path, path: link.path })
-      }
-    }
+  const candidates = targetCandidates(link.path, { base, fromDir })
+  if (candidates === null) {
+    broken.push({ page: page.path, href, reason: `outside the site base ${context.prefix}` })
+    return
   }
+  if (!candidates.some((candidate) => exists(candidate))) {
+    broken.push({ page: page.path, href, reason: 'no file in the artifact' })
+    return
+  }
+  if (link.path === mount.slice(0, -1) || link.path.startsWith(mount)) {
+    playgroundLinks.push({ page: page.path, path: link.path })
+  }
+}
 
-  // A link that resolves proves nothing when no page carries one, which is
-  // how a landing page with no route to the playground passed as correct.
+function playgroundProblems(pages, playgroundLinks, prefix, mount) {
   const problems = []
   if (pages.length === 0) problems.push('no HTML pages found in the artifact')
 
@@ -125,7 +116,33 @@ export function checkSite({ pages, exists, base, playground }) {
     problems.push('no page links to a specific playground example')
   }
 
-  return { broken, problems, pageCount: pages.length, playgroundLinks: fromDocs.length }
+  return { problems, playgroundLinkCount: fromDocs.length }
+}
+
+export function checkSite({ pages, exists, base, playground }) {
+  const prefix = base.endsWith('/') ? base : `${base}/`
+  const broken = []
+  const playgroundLinks = []
+
+  for (const page of pages) {
+    const context = {
+      base,
+      prefix,
+      fromDir: posix.dirname(page.path),
+      mount: playground,
+      exists,
+      broken,
+      playgroundLinks,
+    }
+    for (const href of extractHrefs(page.html)) {
+      inspectLink(page, href, context)
+    }
+  }
+
+  // A link that resolves proves nothing when no page carries one, which is
+  // how a landing page with no route to the playground passed as correct.
+  const { problems, playgroundLinkCount } = playgroundProblems(pages, playgroundLinks, prefix, playground)
+  return { broken, problems, pageCount: pages.length, playgroundLinks: playgroundLinkCount }
 }
 
 function htmlPages(dir) {

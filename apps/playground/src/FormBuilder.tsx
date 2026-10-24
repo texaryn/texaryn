@@ -56,6 +56,7 @@ export function FormBuilder({
               <legend>{field.name}</legend>
               <label className="pg-builder__control" htmlFor={labelId}>
                 Label
+                {' '}
                 <input
                   id={labelId}
                   className="pg-builder__input"
@@ -65,6 +66,7 @@ export function FormBuilder({
               </label>
               <label className="pg-builder__control" htmlFor={typeId}>
                 Type
+                {' '}
                 <select
                   id={typeId}
                   className="pg-select"
@@ -81,6 +83,7 @@ export function FormBuilder({
                   checked={field.required}
                   onChange={(event) => onSchemaChange(updateBuilderField(schemaText, field.name, { required: event.target.checked }))}
                 />
+                {' '}
                 Required
               </label>
               <button

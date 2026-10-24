@@ -529,8 +529,8 @@ function resolveSelectedBranch(
   original: SchemaNode,
   reduced: SchemaNode,
   data: unknown,
-  scope: ValidationPath = [],
   branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
+  scope: ValidationPath = [],
 ): SchemaNode {
   const reducedSchema = reduced.schema as Record<string, unknown>
   if (reducedSchema && typeof reducedSchema === 'object') {
@@ -1300,7 +1300,7 @@ function discriminatorKeys(branches: readonly SchemaNode[]): Set<string> {
     ),
   )
   for (const branch of branches.slice(1)) {
-    for (const key of [...shared]) {
+    for (const key of shared) {
       if (!isDiscriminator(branch, key)) shared.delete(key)
     }
   }
@@ -1649,7 +1649,7 @@ function walk(
     composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
     if (branchNode) {
-      resolved = resolveSelectedBranch(original, branchNode, data, scope, ctx.branchApplicability)
+      resolved = resolveSelectedBranch(original, branchNode, data, ctx.branchApplicability, scope)
       schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
@@ -1852,8 +1852,8 @@ function walk(
         original,
         reducedNode,
         dataRecord ?? {},
-        scope,
         ctx.branchApplicability,
+        scope,
       )
     }
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
@@ -2155,8 +2155,10 @@ function walk(
         )
       // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
       const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
-      if (counted) (ctx.queue[selfLineage.depth] ??= []).push({ path: [...path, index], enter })
-      else enter()
+      if (counted) {
+        ctx.queue[selfLineage.depth] ??= []
+        ctx.queue[selfLineage.depth].push({ path: [...path, index], enter })
+      } else enter()
     }
     return
   }

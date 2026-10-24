@@ -124,6 +124,7 @@ export function InspectorTree({ label, value }: Readonly<{ label: string; value:
             checked={hideUnset}
             onChange={(event) => setHideUnset(event.target.checked)}
           />
+          {' '}
           Hide unset values
         </label>
         <button className="pg-tree-view__copy" type="button" onClick={copyRawJson}>

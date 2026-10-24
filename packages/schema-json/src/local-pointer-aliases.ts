@@ -294,10 +294,10 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   walk(document, '#', rootScope, true)
 
   for (let cursor = 0; cursor < pending.length; cursor += 1) {
-    const { schema, position, scope } = pending[cursor]!
+    const { schema, scope } = pending[cursor]!
     if (typeof schema.$ref !== 'string') continue
     const fragment = referenceFragment(schema.$ref, scope.base)
-    if (fragment === undefined || !fragment.startsWith('/')) continue
+    if (!fragment?.startsWith('/')) continue
     const targetPosition = pointerPosition(scope.position, fragment)
     const localAlias = scope.aliases.get(targetPosition)
     if (localAlias !== undefined) {

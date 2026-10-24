@@ -8,7 +8,6 @@ import type {
   EnumOption,
   ProjectionBoundary,
   ProjectionBoundaryTarget,
-  ProjectionOptions,
   ProjectionDiagnostic,
 } from '@texaryn/core'
 import { compareCodeUnits } from './string-order.js'
@@ -774,7 +773,10 @@ function applyStaticStructure(
   const type = resolveType(schema)
   if (type !== undefined && node.type === undefined) {
     if (exposed) node.type = type
-    else (node.inactiveTypes ??= new Set()).add(type)
+    else {
+      node.inactiveTypes ??= new Set()
+      node.inactiveTypes.add(type)
+    }
   }
   if (node.type === undefined && type === undefined && !conditional && !referenceHasNoShape) {
     const families = (node.families ??= new Set())
@@ -985,7 +987,10 @@ export function staticWalk(
     }
   } else if (node.type === undefined) {
     const type = resolveType(schema)
-    if (type !== undefined) (node.inactiveTypes ??= new Set()).add(type)
+    if (type !== undefined) {
+      node.inactiveTypes ??= new Set()
+      node.inactiveTypes.add(type)
+    }
   }
   if (active) {
     node.active = true
@@ -1069,7 +1074,8 @@ export function staticWalk(
       )
     }
     if (decision === 'defer') {
-      ;(recursion.queue[lineage!.depth] ??= []).push({
+      recursion.queue[lineage!.depth] ??= []
+      recursion.queue[lineage!.depth].push({
         path: childPath,
         enter: () => {
           const settled = decideMember(recursion, pointer, childPointer, childData, memberDeclaring, rootSchema, lineage, 'dequeue', isLeafSchema(sub, rootSchema, memberDeclaring[0], recursion.cache.dialect))

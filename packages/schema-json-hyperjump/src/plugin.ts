@@ -41,7 +41,7 @@ export class ProjectionPlugin implements EvaluationPlugin<ProjectionContext> {
   readonly id = 'https://texaryn.dev/plugins/projection'
   readonly records: KeywordRecord[] = []
   readonly scopeValidity = new Map<string, boolean>()
-  private stack: KeywordRecord[][] = []
+  private readonly stack: KeywordRecord[][] = []
 
   constructor(private readonly rootUri: string) {}
 

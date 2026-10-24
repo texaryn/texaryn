@@ -22,7 +22,7 @@ export function segmentsOf(pointer: string): string[] | undefined {
 }
 
 export function isCanonicalIndex(segment: string): boolean {
-  return /^(0|[1-9][0-9]*)$/.test(segment)
+  return /^(0|[1-9]\d*)$/.test(segment)
 }
 
 export function isWithin(pointer: string, ancestor: string): boolean {

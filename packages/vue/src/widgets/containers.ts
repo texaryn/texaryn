@@ -222,6 +222,70 @@ export const ArrayControl = defineComponent({
       }
     }
 
+    function renderMoveButton(direction: 'up' | 'down', index: number, itemTitle?: string) {
+      if (
+        !array.canReorder.value ||
+        (direction === 'up' && index === 0) ||
+        (direction === 'down' && index >= array.items.value.length - 1)
+      ) return null
+      const move = direction === 'up'
+        ? messages.value.moveItemUp({ position: index + 1, itemTitle, containerTitle: arrayTitle.value })
+        : messages.value.moveItemDown({ position: index + 1, itemTitle, containerTitle: arrayTitle.value })
+      const adjacentDirection = direction === 'up' ? 'down' : 'up'
+
+      return h(
+        'button',
+        {
+          type: 'button',
+          'aria-label': move.accessibleName,
+          'data-reorder-direction': direction,
+          onClick: (event: MouseEvent) => {
+            const wasFocused = globalThis.document.activeElement === event.currentTarget
+            const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
+            array.move(index, direction === 'up' ? index - 1 : index + 1)
+            const reachedBoundary = direction === 'up'
+              ? index === 1
+              : index === array.items.value.length - 2
+            if (wasFocused && reachedBoundary) {
+              void nextTick(() => row?.querySelector<HTMLButtonElement>(`:scope > [data-reorder-direction="${adjacentDirection}"]`)?.focus())
+            }
+          },
+        },
+        move.label,
+      )
+    }
+
+    function renderRemoveButton(index: number, itemTitle?: string) {
+      if (!array.canRemove.value) return null
+      // The visible word stays short; the distinguishing name goes in aria-label,
+      // which contains it so speech input still works.
+      const remove = messages.value.removeItem({
+        position: index + 1,
+        itemTitle,
+        containerTitle: arrayTitle.value,
+      })
+      return h(
+        'button',
+        { type: 'button', 'aria-label': remove.accessibleName, onClick: () => array.remove(index) },
+        remove.label,
+      )
+    }
+
+    function renderAddButton() {
+      if (!array.canAdd.value) return null
+      // The item template's title, not the first row's: a row may
+      // not exist yet, which is when naming this matters most.
+      const add = messages.value.addItem({
+        itemTemplateTitle: itemTemplateTitle.value,
+        containerTitle: arrayTitle.value,
+      })
+      return h(
+        'button',
+        { type: 'button', 'aria-label': add.accessibleName, onClick: () => array.add() },
+        add.label,
+      )
+    }
+
     return () =>
       h('div', { ref: rootRef, 'data-array-container': '' }, [
         ...array.items.value.map((item, index) => {
@@ -229,100 +293,21 @@ export const ArrayControl = defineComponent({
           const itemTitle = child?.annotations.title
           return h(
             'div',
-            // Keyed by the stable item id, never the positional node id. That
-            // is what makes a move preserve the row's component instance and
-            // its DOM, and it is also what hands the surviving instance a
-            // different node than the one it mounted with.
-            { key: item.id, ...rowProps(item.id) },
+            // The stable item id keeps the row component and DOM mounted when its node moves.
+            {
+              key: item.id,
+              ...rowProps(item.id),
+            },
             [
               canDrag.value ? h('span', handleProps(item.id), '⠿') : null,
               child ? h(NodeRenderer, { node: child }) : null,
-              array.canReorder.value && index > 0
-                ? (() => {
-                    const up = messages.value.moveItemUp({
-                      position: index + 1,
-                      itemTitle,
-                      containerTitle: arrayTitle.value,
-                    })
-                    return h(
-                      'button',
-                      {
-                        type: 'button',
-                        'aria-label': up.accessibleName,
-                        'data-reorder-direction': 'up',
-                        onClick: (event: MouseEvent) => {
-                          const wasFocused = globalThis.document.activeElement === event.currentTarget
-                          const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
-                          array.move(index, index - 1)
-                          if (wasFocused && index === 1) {
-                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="down"]')?.focus())
-                          }
-                        },
-                      },
-                      up.label,
-                    )
-                  })()
-                : null,
-              array.canReorder.value && index < array.items.value.length - 1
-                ? (() => {
-                    const down = messages.value.moveItemDown({
-                      position: index + 1,
-                      itemTitle,
-                      containerTitle: arrayTitle.value,
-                    })
-                    return h(
-                      'button',
-                      {
-                        type: 'button',
-                        'aria-label': down.accessibleName,
-                        'data-reorder-direction': 'down',
-                        onClick: (event: MouseEvent) => {
-                          const wasFocused = globalThis.document.activeElement === event.currentTarget
-                          const row = (event.currentTarget as HTMLButtonElement).closest<HTMLElement>('[data-array-row]')
-                          array.move(index, index + 1)
-                          if (wasFocused && index === array.items.value.length - 2) {
-                            void nextTick(() => row?.querySelector<HTMLButtonElement>(':scope > [data-reorder-direction="up"]')?.focus())
-                          }
-                        },
-                      },
-                      down.label,
-                    )
-                  })()
-                : null,
-              // The visible word stays short; the distinguishing name goes in
-              // aria-label, which contains it so speech input still works.
-              array.canRemove.value
-                ? (() => {
-                    const remove = messages.value.removeItem({
-                      position: index + 1,
-                      itemTitle,
-                      containerTitle: arrayTitle.value,
-                    })
-                    return h(
-                      'button',
-                      { type: 'button', 'aria-label': remove.accessibleName, onClick: () => array.remove(index) },
-                      remove.label,
-                    )
-                  })()
-                : null,
+              renderMoveButton('up', index, itemTitle),
+              renderMoveButton('down', index, itemTitle),
+              renderRemoveButton(index, itemTitle),
             ],
           )
         }),
-        array.canAdd.value
-          ? (() => {
-              // The item template's title, not the first row's: a row may
-              // not exist yet, which is when naming this matters most.
-              const add = messages.value.addItem({
-                itemTemplateTitle: itemTemplateTitle.value,
-                containerTitle: arrayTitle.value,
-              })
-              return h(
-                'button',
-                { type: 'button', 'aria-label': add.accessibleName, onClick: () => array.add() },
-                add.label,
-              )
-            })()
-          : null,
+        renderAddButton(),
       ])
   },
 })

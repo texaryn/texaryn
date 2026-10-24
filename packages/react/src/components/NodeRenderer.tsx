@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { UIDocument, UINode, RendererRegistry } from '@texaryn/core'
 import { RendererContext, type WidgetComponent } from './renderer-context.js'
 
@@ -14,6 +15,7 @@ export interface NodeRendererProps {
  * cost a hook subscription for a subtree that never renders.
  */
 export function NodeRenderer({ node, document, registry }: Readonly<NodeRendererProps>) {
+  const context = useMemo(() => ({ document, registry }), [document, registry])
   if (!node.visible) {
     return null
   }
@@ -24,7 +26,7 @@ export function NodeRenderer({ node, document, registry }: Readonly<NodeRenderer
   }
 
   return (
-    <RendererContext.Provider value={{ document, registry }}>
+    <RendererContext.Provider value={context}>
       <Widget node={node} />
     </RendererContext.Provider>
   )

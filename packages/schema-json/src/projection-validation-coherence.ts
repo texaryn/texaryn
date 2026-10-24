@@ -228,7 +228,9 @@ export function assertProjectionValidationCoherence(validation: SchemaNode, proj
     const validationTarget = resolveTarget(validationSite)
     const projectionTarget = resolveTarget(projectionSite)
     // Normalization may change a declaration in place; this guard targets scope collisions between declarations.
-    if (validationTarget && projectionTarget && validationTarget.schemaLocation === projectionTarget.schemaLocation) continue
+    const validationLocation = validationTarget?.schemaLocation
+    const projectionLocation = projectionTarget?.schemaLocation
+    if (validationLocation !== undefined && validationLocation === projectionLocation) continue
     if (validationTarget && projectionTarget && sameValidationContracts(validationTarget.schema, projectionTarget.schema, dialect)) continue
     if (!validationTarget && !projectionTarget) continue
 

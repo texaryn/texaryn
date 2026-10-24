@@ -33,7 +33,7 @@ export function PaneSlot({ host, className, style }: Readonly<{ host: HTMLElemen
     element.appendChild(host)
     host.dispatchEvent(new Event(PANE_ATTACH_EVENT))
     return () => {
-      if (host.parentNode === element) element.removeChild(host)
+      if (host.parentNode === element) host.remove()
     }
   }, [host])
   return <div ref={slot} className={className ?? 'pg-pane-slot'} style={style} />
