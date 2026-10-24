@@ -6,7 +6,6 @@ settings:
 
 overrides:
   mermaid@11>katex: ^0.18.2
-  brace-expansion@^2.0.0: 2.1.7
   brace-expansion@^5.0.0: 5.0.12
   devalue: 5.9.3
   fast-copy: 4.1.0
@@ -16,7 +15,7 @@ overrides:
   shell-quote: 1.11.0
   smol-toml: 1.9.0
   source-map-js: 1.2.2
-  undici: 8.10.2
+  undici: 8.12.2
   vite@^8.0.0: 8.2.4
 
 importers:
@@ -5274,8 +5273,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@8.10.2:
-    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
+  undici@8.12.2:
+    resolution: {integrity: sha512-XtuDWVdqTLr3NAxm2ly9/hU6kUsJOgGh1RASzMBbsw6aWCOaQzHdW+QQDfdERjfJ2V5vL5pRPa4RetO9UfivDg==}
     engines: {node: '>=22.19.0'}
 
   unicode-emoji-modifier-base@1.0.0:
@@ -10663,7 +10662,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@8.10.2: {}
+  undici@8.12.2: {}
 
   unicode-emoji-modifier-base@1.0.0: {}
 
@@ -10681,7 +10680,7 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
       ohash: 2.0.12
-      undici: 8.10.2
+      undici: 8.12.2
 
   unist-util-find-after@5.0.0:
     dependencies:
