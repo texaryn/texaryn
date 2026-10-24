@@ -57,6 +57,7 @@ const maxSchemaArrayItems = 256
 const maxSchemaObjectProperties = 256
 const maxSchemaStringLength = 16_384
 const maxTotalSchemaStringLength = 65_536
+const jsonTokenDelimiter = /[\s,:\[\]{}]/
 
 function bounded(value: string): string {
   const normalized = value.replace(/[\r\n\t]+/g, ' ').trim()
@@ -81,6 +82,25 @@ function outputRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function skipJsonString(text: string, start: number): number {
+  let index = start + 1
+  while (index < text.length) {
+    if (text[index] === '\\') {
+      index += 2
+      continue
+    }
+    if (text[index] === '"') return index + 1
+    index += 1
+  }
+  return text.length
+}
+
+function skipJsonAtom(text: string, start: number): number {
+  let index = start + 1
+  while (index < text.length && !jsonTokenDelimiter.test(text[index]!)) index += 1
+  return index
+}
+
 function preflightJsonText(text: string): void {
   if (text.length > maxOutputCharacters) {
     throw new OutputRejectedError([`Model output must be no longer than ${maxOutputCharacters} characters.`])
@@ -88,30 +108,29 @@ function preflightJsonText(text: string): void {
 
   let depth = 0
   let values = 0
-  for (let index = 0; index < text.length; index += 1) {
+  let index = 0
+  while (index < text.length) {
     const character = text[index]!
-    if (/\s/.test(character) || character === ',' || character === ':') continue
+    if (/\s/.test(character) || character === ',' || character === ':') {
+      index += 1
+      continue
+    }
     if (character === '"') {
       values += 1
-      index += 1
-      for (; index < text.length; index += 1) {
-        if (text[index] === '\\') {
-          index += 1
-          continue
-        }
-        if (text[index] === '"') break
-      }
+      index = skipJsonString(text, index)
     } else if (character === '{' || character === '[') {
       values += 1
       depth += 1
       if (depth > maxJsonDepth) {
         throw new OutputRejectedError([`Model output exceeds the JSON depth limit of ${maxJsonDepth}.`])
       }
+      index += 1
     } else if (character === '}' || character === ']') {
       depth = Math.max(0, depth - 1)
+      index += 1
     } else {
       values += 1
-      while (index + 1 < text.length && !/[\s,:[\]{}]/.test(text[index + 1]!)) index += 1
+      index = skipJsonAtom(text, index)
     }
 
     if (values > maxJsonValues) {
