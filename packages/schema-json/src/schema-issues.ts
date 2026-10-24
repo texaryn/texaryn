@@ -5,7 +5,7 @@ import type { SchemaIssue } from './types.js'
 const MAX_READINGS = 32
 
 function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 interface Search {
@@ -25,7 +25,7 @@ function readings(node: unknown, parts: readonly string[], start: number, prefix
   if (node === null || typeof node !== 'object') return
   for (let end = start + 1; end <= parts.length; end += 1) {
     const key = parts.slice(start, end).join('/')
-    if (Object.prototype.hasOwnProperty.call(node, key)) {
+    if (Object.hasOwn(node, key)) {
       readings((node as Record<string, unknown>)[key], parts, end, [...prefix, key], search)
     }
   }
@@ -47,7 +47,9 @@ export function resolveUnescapedPath(document: unknown, path: string): string {
   readings(document, parts, 0, [], search)
   if (search.truncated) return ''
   const { found } = search
-  const segments = found.length === 0 ? parts : found.length === 1 ? found[0]! : sharedPrefix(found)
+  let segments = parts
+  if (found.length === 1) segments = found[0]!
+  else if (found.length > 1) segments = sharedPrefix(found)
   return segments.map((segment) => `/${escapeSegment(segment)}`).join('')
 }
 

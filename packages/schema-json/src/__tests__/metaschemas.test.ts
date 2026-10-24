@@ -24,10 +24,10 @@ describe('metaschema documents', () => {
   })
 
   it('carries the closure each dialect needs', async () => {
-    expect((await loadMetaschemas(['draft-04'])).length).toBe(1)
-    expect((await loadMetaschemas(['draft-07'])).length).toBe(1)
-    expect((await loadMetaschemas(['2019-09'])).length).toBe(7)
-    expect((await loadMetaschemas(['2020-12'])).length).toBe(8)
+    expect(await loadMetaschemas(['draft-04'])).toHaveLength(1)
+    expect(await loadMetaschemas(['draft-07'])).toHaveLength(1)
+    expect(await loadMetaschemas(['2019-09'])).toHaveLength(7)
+    expect(await loadMetaschemas(['2020-12'])).toHaveLength(8)
   })
 
   it('gives every caller its own copy, because the validator mutates them', async () => {

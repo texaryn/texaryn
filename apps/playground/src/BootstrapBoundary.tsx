@@ -7,10 +7,10 @@ import type { ResolvedTheme } from './theme.js'
 export function BootstrapBoundary({
   theme,
   children,
-}: {
+}: Readonly<{
   theme: ResolvedTheme
   children: ReactNode
-}) {
+}>) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [mountNode, setMountNode] = useState<HTMLDivElement | null>(null)
 

@@ -7,10 +7,10 @@ import type { FormRuntime, NodeState, UINode, ValidationError } from '@texaryn/c
  * bundle rather than trusting the id.
  */
 export class FieldState {
-  #runtime: FormRuntime
+  readonly #runtime: FormRuntime
   #bundle: NodeState | undefined
   #unsubscribe: Array<() => void> = []
-  #onChange: () => void
+  readonly #onChange: () => void
 
   constructor(runtime: FormRuntime, node: UINode, onChange: () => void) {
     this.#runtime = runtime

@@ -18,6 +18,41 @@ const warmups = 5
 const compilerSamples = 200
 const projectionSamples = 200
 const firstRenderSamples = 20
+const gitHashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
+
+// Benchmark operations remain serial so one sample cannot affect another.
+async function readOptionalGitFile(path) {
+  try {
+    return (await readFile(path, 'utf8')).trim()
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
+  }
+}
+
+async function resolveGitDirectories(dotGit) {
+  if (!(await stat(dotGit)).isFile()) return { gitDir: dotGit, commonDir: dotGit }
+
+  const gitDirLine = (await readFile(dotGit, 'utf8')).trim()
+  const gitDirValue = gitDirLine.startsWith('gitdir:') ? gitDirLine.slice('gitdir:'.length).trim() : ''
+  if (!gitDirValue) throw new Error('Could not resolve the repository Git directory.')
+  const gitDir = resolve(repoRoot, gitDirValue)
+  const commonDirValue = await readOptionalGitFile(resolve(gitDir, 'commondir'))
+  return { gitDir, commonDir: commonDirValue ? resolve(gitDir, commonDirValue) : gitDir }
+}
+
+async function resolveGitReference(gitDir, commonDir, reference) {
+  for (const directory of new Set([gitDir, commonDir])) {
+    const hash = await readOptionalGitFile(resolve(directory, reference))
+    if (hash && gitHashPattern.test(hash)) return hash
+  }
+
+  const packedRefs = await readOptionalGitFile(resolve(commonDir, 'packed-refs')) ?? ''
+  const packedRef = packedRefs.split('\n').find((line) => line.endsWith(` ${reference}`))
+  const packedHash = packedRef?.split(' ')[0]
+  if (packedHash && gitHashPattern.test(packedHash)) return packedHash
+  throw new Error(`Could not find the Git hash for ${reference}.`)
+}
 
 function schemaFor(fieldCount, { conditional = false, array = false } = {}) {
   const properties = Object.fromEntries(Array.from({ length: fieldCount }, (_, index) => [
@@ -148,54 +183,22 @@ function summarize(values) {
 
 async function repositoryCommit() {
   const dotGit = resolve(repoRoot, '.git')
-  const dotGitStat = await stat(dotGit)
-  let gitDir = dotGit
-  let commonDir = dotGit
-
-  if (dotGitStat.isFile()) {
-    const gitDirMatch = (await readFile(dotGit, 'utf8')).trim().match(/^gitdir:\s*(.+)$/)
-    if (!gitDirMatch) throw new Error('Could not resolve the repository Git directory.')
-    gitDir = resolve(repoRoot, gitDirMatch[1])
-    commonDir = gitDir
-    const commonDirValue = await readFile(resolve(gitDir, 'commondir'), 'utf8').catch((error) => {
-      if (error.code === 'ENOENT') return null
-      throw error
-    })
-    if (commonDirValue) commonDir = resolve(gitDir, commonDirValue.trim())
-  }
+  const { gitDir, commonDir } = await resolveGitDirectories(dotGit)
 
   const head = (await readFile(resolve(gitDir, 'HEAD'), 'utf8')).trim()
-  const hashPattern = /^[\da-f]{40}(?:[\da-f]{24})?$/i
-  if (hashPattern.test(head)) return head
+  if (gitHashPattern.test(head)) return head
 
-  const reference = head.match(/^ref:\s*(\S+)$/)?.[1]
-  if (!reference) throw new Error('Could not resolve the repository HEAD revision.')
-
-  for (const directory of new Set([gitDir, commonDir])) {
-    const hash = await readFile(resolve(directory, reference), 'utf8').then((value) => value.trim()).catch((error) => {
-      if (error.code === 'ENOENT') return null
-      throw error
-    })
-    if (hash && hashPattern.test(hash)) return hash
-  }
-
-  const packedRefs = await readFile(resolve(commonDir, 'packed-refs'), 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return ''
-    throw error
-  })
-  const packedRef = packedRefs.split('\n').find((line) => line.endsWith(` ${reference}`))
-  const packedHash = packedRef?.split(' ')[0]
-  if (packedHash && hashPattern.test(packedHash)) return packedHash
-
-  throw new Error(`Could not find the Git hash for ${reference}.`)
+  const referenceValue = head.startsWith('ref:') ? head.slice('ref:'.length).trim() : ''
+  if (!referenceValue) throw new Error('Could not resolve the repository HEAD revision.')
+  return resolveGitReference(gitDir, commonDir, referenceValue)
 }
 
 async function sampleAsync(fn, count = firstRenderSamples) {
-  for (let index = 0; index < warmups; index++) await fn()
+  for (let index = 0; index < warmups; index++) await fn() // NOSONAR
   const values = []
   for (let index = 0; index < count; index++) {
     const start = performance.now()
-    await fn()
+    await fn() // NOSONAR
     values.push(performance.now() - start)
   }
   return summarize(values)
@@ -251,7 +254,7 @@ function sampleDispatch(runtime, command, { before, after, count = 60 } = {}) {
 async function compileBenchmarks() {
   const results = {}
   for (const fieldCount of [10, 50, 200]) {
-    const port = await createJsonSchemaAdapter(schemaFor(fieldCount))
+    const port = await createJsonSchemaAdapter(schemaFor(fieldCount)) // NOSONAR
     const data = dataFor(fieldCount)
     const projection = port.project(data)
     const baseline = compile(projection, data).document
@@ -410,7 +413,7 @@ async function firstRenderBenchmarks() {
   for (const fieldCount of [10, 50, 200]) {
     const schema = schemaFor(fieldCount)
     const data = dataFor(fieldCount)
-    results[fieldCount] = await sampleAsync(async () => {
+    results[fieldCount] = await sampleAsync(async () => { // NOSONAR
       const port = await createJsonSchemaAdapter(structuredClone(schema))
       const runtime = createFormRuntime(port, { initialData: structuredClone(data) })
       const tree = React.createElement(
@@ -436,13 +439,13 @@ async function validationBenchmark() {
 
   for (let index = 0; index < 100; index++) {
     const result = port.validate(data)
-    if (isAsync) await result
+    if (isAsync) await result // NOSONAR
   }
 
   const iterations = 2000
   const start = performance.now()
   if (isAsync) {
-    for (let index = 0; index < iterations; index++) await port.validate(data)
+    for (let index = 0; index < iterations; index++) await port.validate(data) // NOSONAR
   } else {
     for (let index = 0; index < iterations; index++) port.validate(data)
   }
@@ -457,7 +460,7 @@ async function validationBenchmark() {
 async function arrayBenchmarks() {
   const results = {}
   for (const size of [10, 100, 1000]) {
-    const port = await createJsonSchemaAdapter(schemaFor(0, { array: true }))
+    const port = await createJsonSchemaAdapter(schemaFor(0, { array: true })) // NOSONAR
     const runtime = createFormRuntime(port, { initialData: dataFor(0, { arraySize: size }) })
     const document = runtime.document.getSnapshot()
     const array = Object.values(document.nodes).find((node) =>
@@ -569,26 +572,26 @@ async function measureRendererMounts(page, renderer, warmupMounts, measuredMount
   const samples = []
 
   for (let cycle = 0; cycle < warmupMounts; cycle++) {
-    await mountRenderer(page, renderer)
-    await unmountRenderer(page)
+    await mountRenderer(page, renderer) // NOSONAR
+    await unmountRenderer(page) // NOSONAR
   }
 
   for (let sample = 0; sample < measuredMounts; sample++) {
     const elapsed = includePreparation
-      ? await page.evaluate(async (name) => {
+      ? await page.evaluate(async (name) => { // NOSONAR
           const startedAt = performance.now()
           await window.__texarynBench.prepare(name)
           await window.__texarynBench.mount()
           return performance.now() - startedAt
         }, renderer)
-      : await page.evaluate(async (name) => {
+      : await page.evaluate(async (name) => { // NOSONAR
           await window.__texarynBench.prepare(name)
           const startedAt = performance.now()
           await window.__texarynBench.mount()
           return performance.now() - startedAt
         }, renderer)
     samples.push(elapsed)
-    await unmountRenderer(page)
+    await unmountRenderer(page) // NOSONAR
   }
 
   return samples
@@ -599,21 +602,21 @@ async function measureRendererTransitions(page, renderer, warmupCycles, transiti
   const checkbox = page.locator('#root input[type="checkbox"]').first()
 
   for (let cycle = 0; cycle < warmupCycles; cycle++) {
-    await checkbox.check()
-    await waitForConditionalState(page, true)
-    await checkbox.uncheck()
-    await waitForConditionalState(page, false)
+    await checkbox.check() // NOSONAR
+    await waitForConditionalState(page, true) // NOSONAR
+    await checkbox.uncheck() // NOSONAR
+    await waitForConditionalState(page, false) // NOSONAR
   }
 
   await page.evaluate(() => window.__texarynBench.startInputMeasurement())
   let completed = 0
   for (let index = 0; index < transitionCount / 2; index++) {
-    await checkbox.check()
+    await checkbox.check() // NOSONAR
     completed++
-    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
-    await checkbox.uncheck()
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed) // NOSONAR
+    await checkbox.uncheck() // NOSONAR
     completed++
-    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed)
+    await page.waitForFunction((count) => window.__texarynInputCompleted >= count, completed) // NOSONAR
   }
 
   const input = await page.evaluate(() => ({
@@ -698,7 +701,7 @@ async function rendererComparison(browser, origin, renderers, suite) {
     rendererOrders.push(order)
 
     for (const renderer of order) {
-      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration, suite)
+      const measurement = await runRendererTrial(browser, origin, renderer, trial + 1, configuration, suite) // NOSONAR
       mountSamples[renderer].push(...measurement.mountSamples)
       activationSamples[renderer].push(...measurement.activations)
       removalSamples[renderer].push(...measurement.removals)
@@ -778,10 +781,10 @@ async function browserBenchmarks() {
 
     const memory = {}
     for (const fieldCount of [10, 50, 200]) {
-      const { page } = await openBenchmarkPage(browser, origin, fieldCount)
-      const cdp = await page.context().newCDPSession(page)
-      await cdp.send('HeapProfiler.enable')
-      await cdp.send('Performance.enable')
+      const { page } = await openBenchmarkPage(browser, origin, fieldCount) // NOSONAR
+      const cdp = await page.context().newCDPSession(page) // NOSONAR
+      await cdp.send('HeapProfiler.enable') // NOSONAR
+      await cdp.send('Performance.enable') // NOSONAR
       const heapBytes = async () => {
         await cdp.send('HeapProfiler.collectGarbage')
         const { metrics } = await cdp.send('Performance.getMetrics')
@@ -791,28 +794,28 @@ async function browserBenchmarks() {
       }
 
       for (let cycle = 0; cycle < 10; cycle++) {
-        await mountRenderer(page, 'react')
-        await unmountRenderer(page)
+        await mountRenderer(page, 'react') // NOSONAR
+        await unmountRenderer(page) // NOSONAR
       }
-      const baselineBytes = await heapBytes()
-      const nodeCount = await mountRenderer(page, 'react')
-      const mountedBytes = await heapBytes()
-      await unmountRenderer(page)
-      const afterUnmountBytes = await heapBytes()
+      const baselineBytes = await heapBytes() // NOSONAR
+      const nodeCount = await mountRenderer(page, 'react') // NOSONAR
+      const mountedBytes = await heapBytes() // NOSONAR
+      await unmountRenderer(page) // NOSONAR
+      const afterUnmountBytes = await heapBytes() // NOSONAR
 
       for (let cycle = 0; cycle < 50; cycle++) {
-        await mountRenderer(page, 'react')
-        await unmountRenderer(page)
+        await mountRenderer(page, 'react') // NOSONAR
+        await unmountRenderer(page) // NOSONAR
       }
-      const afterCyclesBytes = await heapBytes()
+      const afterCyclesBytes = await heapBytes() // NOSONAR
       memory[fieldCount] = {
         nodeCount,
         mountedDeltaBytes: mountedBytes - baselineBytes,
         afterUnmountDeltaBytes: afterUnmountBytes - baselineBytes,
         afterFiftyCyclesDeltaBytes: afterCyclesBytes - baselineBytes,
       }
-      await cdp.detach()
-      await page.close()
+      await cdp.detach() // NOSONAR
+      await page.close() // NOSONAR
     }
 
     return {
@@ -868,7 +871,9 @@ async function main() {
   process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
 }
 
-main().catch((error) => {
+try {
+  await main()
+} catch (error) {
   process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`)
   process.exitCode = 1
-})
+}

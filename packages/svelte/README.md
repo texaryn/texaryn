@@ -1,5 +1,7 @@
 # @texaryn/svelte
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Svelte 5 bindings and a default renderer for Texaryn. The package connects
 Svelte stores and components to the shared Texaryn runtime. Schema projection,
 validation, and form commands remain in `@texaryn/core` and the selected schema

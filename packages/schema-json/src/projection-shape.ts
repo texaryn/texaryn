@@ -1,4 +1,5 @@
 import type { JsonPointer, JsonSchemaType, ProjectionDiagnostic } from '@texaryn/core'
+import { compareCodeUnits } from './string-order.js'
 
 // Every family takes part in detecting a conflict, but only `object` and `array` are ever inferred:
 // a wrong scalar guess selects the wrong widget. `format` is absent because it describes string contents.
@@ -50,7 +51,7 @@ export function projectionTypeFamilies(schema: Record<string, unknown>): Set<Key
 }
 
 export function shapeOfFamilies(families: ReadonlySet<KeywordFamily>): ProjectionShape {
-  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort() }
+  if (families.size > 1) return { kind: 'ambiguous', families: [...families].sort(compareCodeUnits) }
 
   if (families.size === 1) {
     const [family] = families

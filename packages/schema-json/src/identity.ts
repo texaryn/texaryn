@@ -1,6 +1,7 @@
 import { isSchemaNode, settings, type SchemaNode } from '@texaryn/json-schema-library'
 import { isPre2019Dialect, type Dialect } from './dialect.js'
 import { POSITION, escape } from './schema-graph.js'
+import { compareCodeUnits } from './string-order.js'
 
 export interface LocationInfo {
   readonly key: string
@@ -107,11 +108,10 @@ function keyIn(map: object, entries: () => Iterable<readonly [string, unknown]>,
 }
 
 function memberKey(parent: SchemaNode, keyword: string, node: SchemaNode): string | undefined {
-  const map =
-    keyword === 'properties' ? parent.properties
-    : keyword === '$defs' || keyword === 'definitions' ? parent.$defs
-    : keyword === 'dependencies' || keyword === 'dependentSchemas' ? parent.dependentSchemas
-    : undefined
+  let map: Record<string, SchemaNode | boolean> | undefined
+  if (keyword === 'properties') map = parent.properties
+  else if (keyword === '$defs' || keyword === 'definitions') map = parent.$defs
+  else if (keyword === 'dependencies' || keyword === 'dependentSchemas') map = parent.dependentSchemas
   if (map) return keyIn(map, () => Object.entries(map), node)
   const patterns = parent.patternProperties
   if (keyword === 'patternProperties' && patterns) {
@@ -125,7 +125,7 @@ const STRIPPED_MAPS = new Set(['$defs', 'definitions', 'dependencies', 'dependen
 function strippedMemberKey(parent: SchemaNode, keyword: string, node: SchemaNode, suffix: string): string | undefined {
   if (!STRIPPED_MAPS.has(keyword) || !node.evaluationPath.startsWith(`${parent.evaluationPath}/${keyword}/`)) return undefined
   const spelled = suffix.slice(keyword.length + 2)
-  return keyword === 'definitions' ? decodeURIComponent(spelled).replace(/~1/g, '/').replace(/~0/g, '~') : spelled
+  return keyword === 'definitions' ? decodeURIComponent(spelled).replaceAll('~1', '/').replaceAll('~0', '~') : spelled
 }
 
 export function positionOf(node: SchemaNode): string {
@@ -276,7 +276,7 @@ export function extendDeclaring(
 
 export function locationInfo(declaring: readonly SchemaNode[], cache: ProjectionCache): LocationInfo {
   const members = deadMembers.get(declaring)
-  const memoKey = declaring.map((node) => `${positionOf(node)}${members?.has(node) ? '|dead' : ''}`).sort().join('\n')
+  const memoKey = declaring.map((node) => `${positionOf(node)}${members?.has(node) ? '|dead' : ''}`).sort(compareCodeUnits).join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
 
@@ -336,7 +336,7 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   for (const node of declaring) visitAll(node, new Set())
 
   const info: LocationInfo = {
-    key: [...identity].sort().join('\n'),
+    key: [...identity].sort(compareCodeUnits).join('\n'),
     cycle,
     cyclic: [...identity].some((position) => cache.cyclic.has(position)),
     expanded,

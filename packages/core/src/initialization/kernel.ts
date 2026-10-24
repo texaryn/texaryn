@@ -326,7 +326,7 @@ function isAbsent(
     current = (current as Record<string, unknown>)[segment]
   }
   if (!isContainer(current)) return true
-  return !Object.prototype.hasOwnProperty.call(current, segments[segments.length - 1]!)
+  return !Object.hasOwn(current as object, segments.at(-1)!)
 }
 
 /**
@@ -415,7 +415,7 @@ function properAncestors(
  */
 function encodePointer(segments: readonly string[]): Location {
   return segments
-    .map((segment) => `/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+    .map((segment) => `/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`)
     .join('') as Location
 }
 

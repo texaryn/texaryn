@@ -14,7 +14,7 @@ Not a live region: the fields announce their own errors, so the focus move after
 
 ### \_\_namedParameters
 
-[`ErrorSummaryProps`](../interfaces/ErrorSummaryProps.md)
+`Readonly`\<[`ErrorSummaryProps`](../interfaces/ErrorSummaryProps.md)\>
 
 ## Returns
 

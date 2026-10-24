@@ -1,4 +1,5 @@
 import { isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 
 type Edge = { readonly to: string; readonly via: string; readonly inPlace: boolean }
 
@@ -29,7 +30,7 @@ const REFERENCES: Record<Dialect, readonly string[]> = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-export const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
+export const escape = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1')
 
 interface Documents {
   readonly local: unknown
@@ -56,7 +57,7 @@ function at(documents: Documents, position: string): unknown {
   let current = prefix === '' ? documents.local : documents.remote.get(prefix)
   if (pointer === '#') return current
   for (const raw of pointer.slice(2).split('/')) {
-    const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
+    const segment = raw.replaceAll('~1', '/').replaceAll('~0', '~')
     if (Array.isArray(current)) current = current[Number(segment)]
     else if (isRecord(current) && Object.hasOwn(current, segment)) current = current[segment]
     else return undefined
@@ -360,7 +361,7 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
     stack.push(start)
     onStack.add(start)
     while (frames.length > 0) {
-      const frame = frames[frames.length - 1]!
+      const frame = frames.at(-1)!
       const out = (graph.edges.get(frame.node) ?? []).filter(follow)
       if (frame.next < out.length) {
         const to = out[frame.next++]!.to
@@ -376,7 +377,7 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
         continue
       }
       frames.pop()
-      const parent = frames[frames.length - 1]
+      const parent = frames.at(-1)
       if (parent) low.set(parent.node, Math.min(low.get(parent.node)!, low.get(frame.node)!))
       if (low.get(frame.node) === indexOf.get(frame.node)) {
         const component: string[] = []
@@ -387,7 +388,10 @@ function stronglyConnected(graph: SchemaGraph, follow: (edge: Edge) => boolean):
           component.push(member)
         } while (member !== frame.node)
         const selfLoop = out.some((edge) => edge.to === frame.node)
-        if (component.length > 1 || selfLoop) components.push(component.sort())
+        if (component.length > 1 || selfLoop) {
+          component.sort(compareCodeUnits)
+          components.push(component)
+        }
       }
     }
   }

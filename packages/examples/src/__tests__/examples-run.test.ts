@@ -51,8 +51,8 @@ describe.each(examples.map((example) => [example.id, example] as const))(
       }
     })
 
-    it('declares presets whose validity matches the declaration', async () => {
-      if (!example.presets) return
+    it('declares presets whose validity matches the declaration', async ({ skip }) => {
+      if (!example.presets) return skip()
       const port = await createJsonSchemaAdapter(example.schema, { defaultDialect: example.dialect })
       const ids = new Set<string>()
       for (const preset of example.presets) {

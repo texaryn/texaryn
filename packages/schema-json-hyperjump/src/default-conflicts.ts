@@ -2,6 +2,7 @@ import { resolveJsonPointer, schemaFragment, escapeSegment } from './pointer-uti
 import { deepEqual, liveBranch, selectProvisionalBranch } from './static-walk.js'
 import type { BranchChecker } from './static-walk.js'
 import type { Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 
 /** One `default` declaration, and the schema position that makes it. */
 interface DefaultDeclaration {
@@ -179,7 +180,9 @@ export function collectDefaultConflicts(
     const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
     if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(current)) {
       current.forEach((item, index) => {
-        const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+        let tuple: 'prefixItems' | 'items' | undefined
+        if (prefixItems?.[index] != null) tuple = 'prefixItems'
+        else if (tupleItems?.[index] != null) tuple = 'items'
         const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
         if (itemSchema === undefined) return
         if (!projected.has(`${pointer}/${index}`)) return
@@ -194,7 +197,7 @@ export function collectDefaultConflicts(
   const conflicts = new Map<string, readonly string[]>()
   if (sourcesOut) {
     for (const [pointer, list] of declarations) {
-      sourcesOut.set(pointer, [...new Set(list.map((declaration) => declaration.source))].sort())
+      sourcesOut.set(pointer, [...new Set(list.map((declaration) => declaration.source))].sort(compareCodeUnits))
     }
   }
   for (const [pointer, list] of declarations) {

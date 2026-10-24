@@ -49,7 +49,7 @@ const EmotionScope = styled.div<{ $mode: RendererProps['theme'] }>(({ $mode }) =
   '& [role="alert"]': { color: 'var(--tx-danger)' },
 }))
 
-export default function ReactEmotionRenderer({ theme }: RendererProps) {
+export default function ReactEmotionRenderer({ theme }: Readonly<RendererProps>) {
   return (
     <EmotionScope $mode={theme} data-style-system="emotion" data-theme={theme}>
       <FormRoot registry={registry} />

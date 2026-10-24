@@ -20,7 +20,7 @@ const TAILWIND_SCOPE = [
   '[&_input:focus-visible]:outline-2 [&_select:focus-visible]:outline-2 [&_textarea:focus-visible]:outline-2 [&_button:focus-visible]:outline-2 [&_input:focus-visible]:outline-[var(--tx-accent)] [&_select:focus-visible]:outline-[var(--tx-accent)] [&_textarea:focus-visible]:outline-[var(--tx-accent)] [&_button:focus-visible]:outline-[var(--tx-accent)]',
 ].join(' ')
 
-export default function ReactTailwindRenderer({ theme }: RendererProps) {
+export default function ReactTailwindRenderer({ theme }: Readonly<RendererProps>) {
   return (
     <div
       className={TAILWIND_SCOPE}

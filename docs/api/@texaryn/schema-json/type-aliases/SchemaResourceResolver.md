@@ -6,7 +6,7 @@
 
 # Type Alias: SchemaResourceResolver
 
-> **SchemaResourceResolver** = (`uri`) => [`MaybePromise`](../../core/type-aliases/MaybePromise.md)\<`unknown` \| `undefined`\>
+> **SchemaResourceResolver** = (`uri`) => [`MaybePromise`](../../core/type-aliases/MaybePromise.md)\<`unknown`\>
 
 Resolves one absolute resource URI without its fragment. The adapter never fetches it itself.
 
@@ -18,4 +18,4 @@ Resolves one absolute resource URI without its fragment. The adapter never fetch
 
 ## Returns
 
-[`MaybePromise`](../../core/type-aliases/MaybePromise.md)\<`unknown` \| `undefined`\>
+[`MaybePromise`](../../core/type-aliases/MaybePromise.md)\<`unknown`\>

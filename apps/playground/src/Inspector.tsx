@@ -7,6 +7,7 @@
 // It is labelled as exactly that rather than implying a hidden snapshot.
 import { useRef } from 'react'
 import type { KeyboardEvent } from 'react'
+import { compareObjectKeys } from './compare-object-keys.js'
 import type {
   FormRuntime,
   SchemaEvaluationPort,
@@ -48,7 +49,7 @@ export function Inspector({
   hints,
   tab,
   onTabChange,
-}: {
+}: Readonly<{
   runtime: FormRuntime
   port: SchemaEvaluationPort
   data: unknown
@@ -58,7 +59,7 @@ export function Inspector({
   hints: UIHints | undefined
   tab: Tab
   onTabChange: (tab: Tab) => void
-}) {
+}>) {
   const setTab = onTabChange
   const tabButtons = useRef<Array<HTMLButtonElement | null>>([])
 
@@ -137,7 +138,7 @@ export function Inspector({
 // visibleErrors is the runtime's own answer to "what should be shown right
 // now", which is not the same as re-running validation and printing whatever
 // comes back.
-function ValidationPane({ runtime }: { runtime: FormRuntime }) {
+function ValidationPane({ runtime }: Readonly<{ runtime: FormRuntime }>) {
   const visibleErrors = useStore(runtime.visibleErrors)
 
   if (visibleErrors.length === 0) {
@@ -146,9 +147,9 @@ function ValidationPane({ runtime }: { runtime: FormRuntime }) {
   return <InspectorTree label="Validation errors" value={visibleErrors} />
 }
 
-function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unknown }) {
+function ProjectionPane({ port, data }: Readonly<{ port: SchemaEvaluationPort; data: unknown }>) {
   const projection = port.project(data)
-  const pointers = [...projection.nodes.keys()].map(String).sort()
+  const pointers = [...projection.nodes.keys()].map(String).sort(compareObjectKeys)
 
   return (
     <>
@@ -162,7 +163,7 @@ function ProjectionPane({ port, data }: { port: SchemaEvaluationPort; data: unkn
   )
 }
 
-function IrPane({ document }: { document: UIDocument }) {
+function IrPane({ document }: Readonly<{ document: UIDocument }>) {
   const nodes = Object.values(document.nodes)
   return (
     <>
@@ -197,11 +198,11 @@ function RuntimePane({
   runtime,
   document,
   submission,
-}: {
+}: Readonly<{
   runtime: FormRuntime
   document: UIDocument
   submission: SubmissionState
-}) {
+}>) {
   const nodes = Object.values(document.nodes).filter((node) => node.dataPointer != null)
 
   return (
@@ -233,7 +234,7 @@ function RuntimePane({
 // Every property of NodeState is its own Store, so reading a snapshot would
 // render the right value once and then never update. Each row is a component
 // so the stores can be subscribed through the existing useStore bridge.
-function NodeStateRow({ runtime, node }: { runtime: FormRuntime; node: UINode }) {
+function NodeStateRow({ runtime, node }: Readonly<{ runtime: FormRuntime; node: UINode }>) {
   const state = runtime.getNodeState(node.id)
   if (!state) return null
   return <NodeStateRowInner pointer={node.dataPointer ?? '—'} state={state} />
@@ -242,10 +243,10 @@ function NodeStateRow({ runtime, node }: { runtime: FormRuntime; node: UINode })
 function NodeStateRowInner({
   pointer,
   state,
-}: {
+}: Readonly<{
   pointer: string
   state: NonNullable<ReturnType<FormRuntime['getNodeState']>>
-}) {
+}>) {
   const dirty = useStore(state.dirty)
   const touched = useStore(state.touched)
   const status = useStore(state.validationStatus)

@@ -70,7 +70,10 @@ function decodeLocalReference(reference: string): string {
     let decoded = ''
     for (let index = 0; index < escapes.length; ) {
       const first = Number.parseInt(escapes[index]!.slice(1), 16)
-      const length = first >= 0xc2 && first <= 0xdf ? 2 : first >= 0xe0 && first <= 0xef ? 3 : first >= 0xf0 && first <= 0xf4 ? 4 : 0
+      let length = 0
+      if (first >= 0xc2 && first <= 0xdf) length = 2
+      else if (first >= 0xe0 && first <= 0xef) length = 3
+      else if (first >= 0xf0 && first <= 0xf4) length = 4
       const sequence = escapes.slice(index, index + length)
       const validContinuation = length > 0 && sequence.length === length && sequence.slice(1).every((escape) => {
         const byte = Number.parseInt(escape.slice(1), 16)

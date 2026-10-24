@@ -70,28 +70,39 @@ function textCell(name: 'placeholder' | 'description' | 'help', ctx: KeyContext)
   }
 }
 
-export function dispose(name: string, value: JsonValue, ctx: KeyContext): Disposition {
+function disposeText(name: string, value: JsonValue, ctx: KeyContext): Disposition | undefined {
+  if (name !== 'placeholder' && name !== 'description' && name !== 'help') return undefined
+  const cell = textCell(name, ctx)
+  return cell === NONE || typeof value === 'string' ? cell : notText(name)
+}
+
+function disposeLabels(name: string, value: JsonValue, ctx: KeyContext): Disposition | undefined {
   const described = ctx.node.annotations?.description !== undefined
   switch (name) {
-    case 'placeholder':
-    case 'description':
-    case 'help': {
-      const cell = textCell(name, ctx)
-      return cell === NONE || typeof value === 'string' ? cell : notText(name)
-    }
     case 'title':
       return value === ctx.node.annotations?.title
         ? NONE
-        : unsupported('Texaryn labels a field with the schema title; move the text into the schema.')
+        : unsupported('Texaryn labels the field with the schema title; move the text into the schema.')
     case 'enableMarkdownInDescription':
       return value === true && (described || ctx.options.has('description'))
         ? unsupported('Texaryn renders a description as plain text.')
         : NONE
     case 'label':
       return value === false ? unsupported('Texaryn always renders the label.') : NONE
-    case 'classNames':
-    case 'style':
-      return unsupported('Texaryn has no styling hook per location; style the widget registered for it.')
+    default:
+      return undefined
+  }
+}
+
+function disposeStyling(name: string): Disposition | undefined {
+  if (name === 'classNames' || name === 'style') {
+    return unsupported('Texaryn has no styling hook per location; style the widget registered for it.')
+  }
+  return undefined
+}
+
+function disposeInteractivity(name: string, value: JsonValue, ctx: KeyContext): Disposition | undefined {
+  switch (name) {
     case 'disabled':
       return value === true ? unsupported('Texaryn has no disabled hint, so the field stays editable.') : NONE
     case 'readonly':
@@ -102,6 +113,13 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
       return value === true ? unsupported('Texaryn always renders the errors of a field.') : NONE
     case 'autofocus':
       return value === true ? unsupported('Texaryn has no autofocus hint.') : NONE
+    default:
+      return undefined
+  }
+}
+
+function disposeInputSettings(name: string, ctx: KeyContext): Disposition | undefined {
+  switch (name) {
     case 'autocomplete':
     case 'inputType':
       return ctx.kind === 'string' || ctx.kind === 'number'
@@ -115,6 +133,13 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
       return ctx.options.get('widget')?.value === 'textarea' && widgetOutcome('textarea', ctx.kind, ctx.node) === 'textarea'
         ? unsupported('The Texaryn textarea takes no row count.')
         : NONE
+    default:
+      return undefined
+  }
+}
+
+function disposeArraySettings(name: string, value: JsonValue, ctx: KeyContext): Disposition | undefined {
+  switch (name) {
     case 'enumNames':
       return ctx.kind === 'enum' || ctx.kind === 'array' ? unsupported('Texaryn labels each option with its value.') : NONE
     case 'enumDisabled':
@@ -127,20 +152,44 @@ export function dispose(name: string, value: JsonValue, ctx: KeyContext): Dispos
         : NONE
     case 'copyable':
       return ctx.kind === 'array' && value === true ? unsupported('Texaryn has no copy control.') : NONE
-    case 'accept':
-    case 'filePreview':
-      return ctx.kind === 'string' && ctx.node.format === 'data-url'
-        ? unsupported('RJSF renders a file input for a data-url string, and Texaryn renders a text input, so the file options have no effect.')
-        : NONE
-    case 'backstage':
-      return unsupported('Backstage reads ui:backstage in its review and feature flag steps, outside the form.')
-    case 'submitButtonOptions':
-      return ctx.root ? unsupported('The submit control is rendered by the host, not the form.') : NONE
     default:
-      return TEMPLATES.has(name)
-        ? unsupported('Texaryn has no template slot per location; register a widget for it instead.')
-        : NONE
+      return undefined
   }
+}
+
+function disposeFileSettings(name: string, ctx: KeyContext): Disposition | undefined {
+  if (name !== 'accept' && name !== 'filePreview') return undefined
+  return ctx.kind === 'string' && ctx.node.format === 'data-url'
+    ? unsupported('RJSF renders a file input for a data-url string, and Texaryn renders a text input, so the file options have no effect.')
+    : NONE
+}
+
+function disposeHostSettings(name: string, ctx: KeyContext): Disposition | undefined {
+  if (name === 'backstage') {
+    return unsupported('Backstage reads ui:backstage in its review and feature flag steps, outside the form.')
+  }
+  if (name === 'submitButtonOptions') {
+    return ctx.root ? unsupported('The submit control is rendered by the host, not the form.') : NONE
+  }
+  return undefined
+}
+
+function disposeTemplate(name: string): Disposition {
+  return TEMPLATES.has(name)
+    ? unsupported('Texaryn has no template slot per location; register a widget for it instead.')
+    : NONE
+}
+
+export function dispose(name: string, value: JsonValue, ctx: KeyContext): Disposition {
+  return disposeText(name, value, ctx)
+    ?? disposeLabels(name, value, ctx)
+    ?? disposeStyling(name)
+    ?? disposeInteractivity(name, value, ctx)
+    ?? disposeInputSettings(name, ctx)
+    ?? disposeArraySettings(name, value, ctx)
+    ?? disposeFileSettings(name, ctx)
+    ?? disposeHostSettings(name, ctx)
+    ?? disposeTemplate(name)
 }
 
 export function isInert(name: string, value: JsonValue): boolean {

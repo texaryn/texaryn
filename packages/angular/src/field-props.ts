@@ -31,11 +31,8 @@ export function fieldAria(
   const invalid = state.showErrors && state.errors.length > 0
   if (invalid) describedBy.push(makeId(idPrefix, node.id, 'error'))
 
-  const readOnly = node.readOnly
-    ? nativeReadOnly
-      ? { readonly: true }
-      : { 'aria-readonly': true as const }
-    : {}
+  const readOnlyProps = nativeReadOnly ? { readonly: true } : { 'aria-readonly': true as const }
+  const readOnly = node.readOnly ? readOnlyProps : {}
 
   return {
     id: makeId(idPrefix, node.id, 'input'),

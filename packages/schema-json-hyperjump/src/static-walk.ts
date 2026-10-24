@@ -11,6 +11,7 @@ import type {
   ProjectionOptions,
   ProjectionDiagnostic,
 } from '@texaryn/core'
+import { compareCodeUnits } from './string-order.js'
 import { isPre2019Dialect, type Dialect } from './dialect.js'
 import {
   projectionTypeFamilies,
@@ -286,11 +287,10 @@ const refTargets = (
   dialect: Dialect = 'draft-07',
 ): string[] => {
   if (position !== undefined) {
-    const keywords = dialect === '2020-12'
-      ? ['$ref', '$dynamicRef'] as const
-      : dialect === '2019-09'
-        ? ['$ref', '$recursiveRef'] as const
-        : ['$ref'] as const
+    let keywords: readonly ('$ref' | '$dynamicRef' | '$recursiveRef')[]
+    if (dialect === '2020-12') keywords = ['$ref', '$dynamicRef']
+    else if (dialect === '2019-09') keywords = ['$ref', '$recursiveRef']
+    else keywords = ['$ref']
     const targets: string[] = []
     for (const keyword of keywords) {
       const resolved = schemaReferenceTarget(rootSchema, position, keyword)
@@ -344,7 +344,7 @@ export function locationInfo(
   state: RecursionState,
 ): LocationInfo {
   const cache = state.cache
-  const memoKey = [...declaring].sort().join('\n')
+  const memoKey = [...declaring].sort(compareCodeUnits).join('\n')
   const cached = cache.info.get(memoKey)
   if (cached) return cached
   const at = (position: string): unknown => schemaAtPosition(rootSchema, position)
@@ -397,7 +397,7 @@ export function locationInfo(
   for (const position of declaring) visitAll(position, new Set())
 
   const info: LocationInfo = {
-    key: [...identity].sort().join('\n'),
+    key: [...identity].sort(compareCodeUnits).join('\n'),
     cycle,
     cyclic: [...identity].some((position) => cache.cyclic.has(position)),
     expanded,
@@ -718,7 +718,7 @@ function applicableRequiredAtLocation(
         }
       }
       if (previous === 'dependentSchemas' || previous === 'dependencies') {
-        const dependency = segment.replace(/~1/g, '/').replace(/~0/g, '~')
+        const dependency = segment.replaceAll('~1', '/').replaceAll('~0', '~')
         if (!isRecord(data) || !Object.hasOwn(data, dependency)) {
           applicable = false
           break
@@ -1138,7 +1138,9 @@ export function staticWalk(
   const walkRows = (createOnly: boolean): void => {
     if (!((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(data))) return
     data.forEach((item: unknown, index: number) => {
-      const tuple = prefixItems?.[index] != null ? 'prefixItems' : tupleItems?.[index] != null ? 'items' : undefined
+      let tuple: 'prefixItems' | 'items' | undefined
+      if (prefixItems?.[index] != null) tuple = 'prefixItems'
+      else if (tupleItems?.[index] != null) tuple = 'items'
       const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
       const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
       if (itemSchema !== undefined) {
@@ -1396,7 +1398,7 @@ export function selectProvisionalBranch(
 
   const resolved = branches.map((branch) => resolveBranch(branch, rootSchema))
   const discriminators = discriminatorKeys(resolved, rootSchema).filter((key) =>
-    Object.prototype.hasOwnProperty.call(data, key),
+    Object.hasOwn(data, key),
   )
   if (discriminators.length === 0) return undefined
 
@@ -1418,9 +1420,9 @@ export function unselectedAlternativeFamilies(
   rootSchema: unknown,
   keyword?: 'oneOf' | 'anyOf',
 ): Set<KeywordFamily> {
-  const branches = keyword
-    ? (Array.isArray(schema[keyword]) ? schema[keyword] as unknown[] : [])
-    : branchesOf(schema)
+  let branches: unknown[]
+  if (keyword) branches = Array.isArray(schema[keyword]) ? schema[keyword] as unknown[] : []
+  else branches = branchesOf(schema)
   if (branches.length === 0) return new Set()
   const shapes: ProjectionShape[] = []
   const branchFamilies: Set<KeywordFamily>[] = []
@@ -1547,7 +1549,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     return (
       left.length === right.length &&
       left.every(
-        (key) => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]),
+        (key) => Object.hasOwn(b, key) && deepEqual(a[key], b[key]),
       )
     )
   }

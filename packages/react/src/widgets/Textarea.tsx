@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function TextareaImpl({ node }: WidgetProps) {
+function TextareaImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

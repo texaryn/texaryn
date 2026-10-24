@@ -36,8 +36,7 @@ export function mountErrorSummary(
   const { runtime, idPrefix } = form
   const { focus = true } = options
   let messages = form.messages
-  const root = document.createElement('div')
-  root.setAttribute('role', 'group')
+  const root = document.createElement('section')
   root.tabIndex = -1
   const heading = document.createElement('h2')
   heading.id = makeId(idPrefix, 'error-summary', 'heading')
@@ -75,8 +74,10 @@ export function mountErrorSummary(
     for (const li of ordered) {
       if (li === anchor) {
         anchor = anchor.nextSibling
+      } else if (anchor) {
+        anchor.before(li)
       } else {
-        list.insertBefore(li, anchor)
+        list.append(li)
       }
     }
     if (root.parentNode !== container) container.prepend(root)

@@ -69,7 +69,7 @@ describe('ErrorSummary', () => {
     // No live role: the fields announce their own errors, so an aggregate
     // region would speak the same validation event a second time.
     expect(screen.queryByRole('alert')).toBeNull()
-    const group = screen.getByRole('group', { name: 'There is a problem' })
+    const group = screen.getByRole('region', { name: 'There is a problem' })
     expect(group.getAttribute('tabindex')).toBe('-1')
     const heading = group.querySelector('h2')!
     expect(group.firstElementChild).toBe(heading)
@@ -171,7 +171,7 @@ describe('ErrorSummary', () => {
     renderWithRuntime(makeMockRuntime(errors))
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(2)
-    expect(screen.getByRole('group', { name: 'There are 2 problems' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'There are 2 problems' })).toBeTruthy()
   })
 
   it('does not focus a summary mounted after an old failed attempt', () => {
@@ -185,7 +185,7 @@ describe('ErrorSummary', () => {
     ])
     runtime.submission.set({ status: 'idle', attempts: 2 })
     renderWithRuntime(runtime)
-    expect(screen.getByRole('group')).toBeTruthy()
+    expect(screen.getByRole('region')).toBeTruthy()
     expect(document.activeElement).toBe(document.body)
   })
 })
@@ -254,13 +254,13 @@ describe('ErrorSummary over a live runtime', () => {
     expect(document.getElementById(href.slice(1))).toBe(screen.getByLabelText(/^Full Name/))
   })
 
-  it('focuses the group once a failed submit settles, and again on the next attempt', async () => {
+  it('focuses the region once a failed submit settles, and again on the next attempt', async () => {
     await renderForm()
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole('group', { name: 'There is a problem' }))
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'There is a problem' }))
     })
-    const group = screen.getByRole('group')
+    const group = screen.getByRole('region')
     screen.getByLabelText(/^Full Name/).focus()
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => {
@@ -274,7 +274,7 @@ describe('ErrorSummary over a live runtime', () => {
     input.focus()
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => {
-      expect(screen.getByRole('group')).toBeTruthy()
+      expect(screen.getByRole('region')).toBeTruthy()
     })
     expect(document.activeElement).toBe(input)
   })
@@ -289,7 +289,7 @@ describe('ErrorSummary over a live runtime', () => {
     await renderForm({ messages: french })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => {
-      expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
+      expect(screen.getByRole('region', { name: 'Il y a un problème' })).toBeTruthy()
     })
     expect(screen.getByRole('listitem').textContent).toMatch(/^Full Name : ./)
   })
@@ -316,7 +316,7 @@ describe('ErrorSummary over a live runtime', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await waitFor(() => {
-      expect(screen.getByRole('group', { name: 'Il y a un problème' })).toBeTruthy()
+      expect(screen.getByRole('region', { name: 'Il y a un problème' })).toBeTruthy()
     })
     expect(screen.getByRole('link', { name: 'First name' })).toBeTruthy()
     expect(screen.getByLabelText(/^First name/)).toBeTruthy()

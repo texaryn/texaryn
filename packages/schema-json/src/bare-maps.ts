@@ -16,7 +16,14 @@ function bare(node: SchemaNode, field: string): void {
   const declared: unknown = Object.getPrototypeOf(map)
   if (declared === null) return
   const copy = Object.assign(Object.create(null), map) as Record<string, unknown>
-  if (declared !== Object.prototype) copy['__proto__'] = declared
+  if (declared !== Object.prototype) {
+    Object.defineProperty(copy, '__proto__', {
+      value: declared,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    })
+  }
   record[field] = copy
 }
 

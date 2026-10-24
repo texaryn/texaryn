@@ -72,7 +72,7 @@ export class ProjectionPlugin implements EvaluationPlugin<ProjectionContext> {
 
     const mine = this.stack.pop()!
     if (valid) {
-      const parent = this.stack[this.stack.length - 1]
+      const parent = this.stack.at(-1)
       if (parent) parent.push(...mine)
       else this.records.push(...mine)
     }

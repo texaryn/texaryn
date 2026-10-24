@@ -17,7 +17,7 @@ cost a hook subscription for a subtree that never renders.
 
 ### \_\_namedParameters
 
-[`NodeRendererProps`](../interfaces/NodeRendererProps.md)
+`Readonly`\<[`NodeRendererProps`](../interfaces/NodeRendererProps.md)\>
 
 ## Returns
 

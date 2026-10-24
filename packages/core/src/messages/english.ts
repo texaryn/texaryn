@@ -10,37 +10,48 @@ function limitFor(error: ValidationError): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
+interface LimitMessage {
+  readonly withoutLimit: string
+  readonly withLimit: (limit: number) => string
+}
+
+const LIMIT_MESSAGES: Readonly<Record<string, LimitMessage>> = {
+  minLength: { withoutLimit: 'This value is too short.', withLimit: (limit) => `Enter at least ${limit} characters.` },
+  maxLength: { withoutLimit: 'This value is too long.', withLimit: (limit) => `Enter no more than ${limit} characters.` },
+  minimum: { withoutLimit: 'This value is below the minimum.', withLimit: (limit) => `Enter a value of at least ${limit}.` },
+  exclusiveMinimum: { withoutLimit: 'This value must be above the minimum.', withLimit: (limit) => `Enter a value greater than ${limit}.` },
+  maximum: { withoutLimit: 'This value is above the maximum.', withLimit: (limit) => `Enter a value of at most ${limit}.` },
+  exclusiveMaximum: { withoutLimit: 'This value must be below the maximum.', withLimit: (limit) => `Enter a value less than ${limit}.` },
+  minItems: { withoutLimit: 'Add more items.', withLimit: (limit) => `Add at least ${limit} items.` },
+  maxItems: { withoutLimit: 'Remove some items.', withLimit: (limit) => `Use no more than ${limit} items.` },
+  minProperties: { withoutLimit: 'Add more fields.', withLimit: (limit) => `Provide at least ${limit} fields.` },
+  maxProperties: { withoutLimit: 'Remove some fields.', withLimit: (limit) => `Provide no more than ${limit} fields.` },
+}
+
+function limitValidationMessage(keyword: string, limit: number | undefined): string | undefined {
+  const message = Object.hasOwn(LIMIT_MESSAGES, keyword)
+    ? LIMIT_MESSAGES[keyword]
+    : undefined
+  if (!message) return undefined
+  return limit === undefined ? message.withoutLimit : message.withLimit(limit)
+}
+
+function formatValidationMessage(format: unknown): string {
+  if (format === 'email') return 'Enter a valid email address.'
+  if (format === 'uri' || format === 'url') return 'Enter a valid URL.'
+  if (format === 'date') return 'Enter a valid date.'
+  if (format === 'date-time') return 'Enter a valid date and time.'
+  return 'Enter a value in the required format.'
+}
+
 function validationMessage(error: ValidationError): string {
-  const limit = limitFor(error)
+  const limitedMessage = limitValidationMessage(error.keyword, limitFor(error))
+  if (limitedMessage !== undefined) return limitedMessage
   switch (error.keyword) {
     case 'required':
       return 'This field is required.'
-    case 'minLength':
-      return limit === undefined ? 'This value is too short.' : `Enter at least ${limit} characters.`
-    case 'maxLength':
-      return limit === undefined ? 'This value is too long.' : `Enter no more than ${limit} characters.`
-    case 'minimum':
-      return limit === undefined ? 'This value is below the minimum.' : `Enter a value of at least ${limit}.`
-    case 'exclusiveMinimum':
-      return limit === undefined ? 'This value must be above the minimum.' : `Enter a value greater than ${limit}.`
-    case 'maximum':
-      return limit === undefined ? 'This value is above the maximum.' : `Enter a value of at most ${limit}.`
-    case 'exclusiveMaximum':
-      return limit === undefined ? 'This value must be below the maximum.' : `Enter a value less than ${limit}.`
-    case 'minItems':
-      return limit === undefined ? 'Add more items.' : `Add at least ${limit} items.`
-    case 'maxItems':
-      return limit === undefined ? 'Remove some items.' : `Use no more than ${limit} items.`
-    case 'minProperties':
-      return limit === undefined ? 'Add more fields.' : `Provide at least ${limit} fields.`
-    case 'maxProperties':
-      return limit === undefined ? 'Remove some fields.' : `Provide no more than ${limit} fields.`
     case 'format':
-      if (error.params.format === 'email') return 'Enter a valid email address.'
-      if (error.params.format === 'uri' || error.params.format === 'url') return 'Enter a valid URL.'
-      if (error.params.format === 'date') return 'Enter a valid date.'
-      if (error.params.format === 'date-time') return 'Enter a valid date and time.'
-      return 'Enter a value in the required format.'
+      return formatValidationMessage(error.params.format)
     case 'pattern':
       return 'Enter a value in the required format.'
     case 'type':
@@ -63,15 +74,27 @@ function validationMessage(error: ValidationError): string {
 }
 
 /** Names carry the row's 1-based position, never its value: mutable, often blank, sometimes sensitive. */
+function addItemAccessibleName(itemTemplateTitle: string | undefined, containerTitle: string | undefined): string {
+  if (containerTitle !== undefined) return `Add item to ${containerTitle}`
+  if (itemTemplateTitle === undefined) return 'Add item'
+  return `Add ${itemTemplateTitle}`
+}
+
+function boundaryAccessibleName(
+  boundary: 'recursion' | 'budget',
+  containerTitle: string | undefined,
+  position: number,
+  count: number,
+): string {
+  const title = boundary === 'recursion' ? 'Expand recursive fields' : 'Show more fields'
+  const name = count > 1 ? `${title} ${position}` : title
+  return withContainer(name, 'in', containerTitle)
+}
+
 export const englishMessages: FormMessages & Required<Pick<FormMessages, 'expandBoundary'>> = {
   addItem: ({ itemTemplateTitle, containerTitle }) => ({
     label: 'Add',
-    accessibleName:
-      containerTitle !== undefined
-        ? `Add item to ${containerTitle}`
-        : itemTemplateTitle === undefined
-          ? 'Add item'
-          : `Add ${itemTemplateTitle}`,
+    accessibleName: addItemAccessibleName(itemTemplateTitle, containerTitle),
   }),
   removeItem: ({ position, itemTitle, containerTitle }) => ({
     label: 'Remove',
@@ -87,18 +110,7 @@ export const englishMessages: FormMessages & Required<Pick<FormMessages, 'expand
   }),
   expandBoundary: ({ boundary, containerTitle, position, count }) => ({
     label: boundary === 'recursion' ? 'Expand' : 'Show more fields',
-    accessibleName:
-      boundary === 'recursion'
-        ? withContainer(
-            `${count > 1 ? `Expand recursive fields ${position}` : 'Expand recursive fields'}`,
-            'in',
-            containerTitle,
-          )
-        : withContainer(
-            `${count > 1 ? `Show more fields ${position}` : 'Show more fields'}`,
-            'in',
-            containerTitle,
-          ),
+    accessibleName: boundaryAccessibleName(boundary, containerTitle, position, count),
   }),
   requiredIndicator: () => ({ text: '(required)', placement: 'after' }),
   errorSummaryHeading: ({ count }) => (count === 1 ? 'There is a problem' : `There are ${count} problems`),

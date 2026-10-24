@@ -24,7 +24,7 @@ describe('the document reaches the DOM', () => {
 
   it('renders a select for an enum rather than a text box', async () => {
     const { wrapper } = await mountExample('basics-enum-string')
-    expect(wrapper.findAll('select').length).toBe(1)
+    expect(wrapper.findAll('select')).toHaveLength(1)
     wrapper.unmount()
   })
 })

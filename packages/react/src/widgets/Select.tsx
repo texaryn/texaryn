@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function SelectImpl({ node }: WidgetProps) {
+function SelectImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   const enumValues = field.node.enumValues ?? []
 

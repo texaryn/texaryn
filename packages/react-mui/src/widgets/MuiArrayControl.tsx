@@ -15,7 +15,7 @@ function focusAfterRender(row: HTMLElement | null, direction: 'up' | 'down'): vo
   else setTimeout(focus, 0)
 }
 
-function MuiArrayControlImpl({ node }: WidgetProps) {
+function MuiArrayControlImpl({ node }: Readonly<WidgetProps>) {
   const containerNode = node as ContainerNode
   const fieldArray = useFieldArray(containerNode.id)
   const { document, registry } = useRendererContext()

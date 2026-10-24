@@ -114,7 +114,7 @@ describe('FormRuntime', () => {
     const doc = runtime.document.getSnapshot()
     expect(doc.version).toBe(1)
     expect(doc.rootId).toBeDefined()
-    expect(Object.keys(doc.nodes).length).toBe(3)
+    expect(Object.keys(doc.nodes)).toHaveLength(3)
     runtime.destroy()
   })
 
@@ -760,7 +760,7 @@ describe('FormRuntime validation scheduling', () => {
 
     expect(validateFn).toHaveBeenCalledTimes(1)
     expect(runtime.getNodeState(nameId)!.validationStatus.getSnapshot()).toBe('invalid')
-    expect(runtime.getNodeState(nameId)!.errors.getSnapshot().length).toBe(1)
+    expect(runtime.getNodeState(nameId)!.errors.getSnapshot()).toHaveLength(1)
     runtime.destroy()
   })
 

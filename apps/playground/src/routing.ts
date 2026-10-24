@@ -39,9 +39,9 @@ export function encodeSharedSchema(schemaText: string): string | null {
 
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+    binary += String.fromCodePoint(...bytes.subarray(offset, offset + 0x8000))
   }
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
 }
 
 function decodeSharedSchema(hash: string): string | undefined {
@@ -54,7 +54,7 @@ function decodeSharedSchema(hash: string): string | undefined {
   try {
     const base64 = token.replaceAll('-', '+').replaceAll('_', '/')
     const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4))
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    const bytes = Uint8Array.from(binary, (character) => character.codePointAt(0) ?? 0)
     if (bytes.length > MAX_SHARED_SCHEMA_BYTES) return undefined
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
@@ -105,7 +105,9 @@ export function parseLocation(
  */
 export function docsHref(base = '/'): string {
   const normalisedBase = base.endsWith('/') ? base : `${base}/`
-  const parent = normalisedBase.replace(/[^/]+\/$/, '')
+  const pathWithoutTrailingSlash = normalisedBase.slice(0, -1)
+  const parentSlash = pathWithoutTrailingSlash.lastIndexOf('/')
+  const parent = parentSlash < 0 ? '' : normalisedBase.slice(0, parentSlash + 1)
   return parent === '' ? '/' : parent
 }
 

@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function TextInputImpl({ node }: WidgetProps) {
+function TextInputImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

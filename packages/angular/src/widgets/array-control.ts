@@ -136,10 +136,10 @@ export class ArrayControl {
 
   private clearDrag(): void {
     const root = this.dragSession()?.root
-    root?.removeAttribute('data-array-drag-active')
+    if (root) delete root.dataset.arrayDragActive
     root?.querySelectorAll<HTMLElement>('[data-dragging], [data-drop-target]').forEach((row) => {
-      row.removeAttribute('data-dragging')
-      row.removeAttribute('data-drop-target')
+      delete row.dataset.dragging
+      delete row.dataset.dropTarget
     })
     this.dragSession.set(null)
   }
@@ -156,8 +156,9 @@ export class ArrayControl {
     event.dataTransfer.setData(this.dragType, itemId)
     event.dataTransfer.effectAllowed = 'move'
     this.dragSession.set({ runtime: this.context.form().runtime, identityKey, root, itemId })
-    root.setAttribute('data-array-drag-active', '')
-    ;(event.currentTarget as HTMLElement).closest('[data-array-row]')?.setAttribute('data-dragging', '')
+    root.dataset.arrayDragActive = ''
+    const row = (event.currentTarget as HTMLElement).closest<HTMLElement>('[data-array-row]')
+    if (row) row.dataset.dragging = ''
   }
 
   endDrag(event: DragEvent): void {
@@ -187,12 +188,12 @@ export class ArrayControl {
     event.preventDefault()
     event.stopPropagation()
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-    currentTarget.setAttribute('data-drop-target', '')
+    currentTarget.dataset.dropTarget = ''
   }
 
   dragLeave(event: DragEvent): void {
     if (Array.from(event.dataTransfer?.types ?? []).includes(this.dragType)) {
-      (event.currentTarget as HTMLElement).removeAttribute('data-drop-target')
+      delete (event.currentTarget as HTMLElement).dataset.dropTarget
     }
   }
 

@@ -6,7 +6,7 @@ export function parsePointer(pointer: JsonPointer): string[] {
   return pointer
     .slice(1)
     .split('/')
-    .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .map((s) => s.replaceAll('~1', '/').replaceAll('~0', '~'))
 }
 
 /**
@@ -20,7 +20,7 @@ export function parsePointer(pointer: JsonPointer): string[] {
  * written into, so the guard below refused it.
  */
 function ownMember(current: unknown, key: string): unknown {
-  return Object.prototype.hasOwnProperty.call(current as object, key)
+  return Object.hasOwn(current as object, key)
     ? (current as Record<string, unknown>)[key]
     : undefined
 }
@@ -109,7 +109,7 @@ function canHoldProperty(current: unknown): boolean {
  * `~` escaped again.
  */
 function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 /**

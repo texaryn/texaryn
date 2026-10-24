@@ -54,7 +54,9 @@ export function createFieldBinding(nodeId: Accessor<NodeId>) {
   ].filter(Boolean).join(' ') || undefined)
   const display = createMemo(() => {
     const current = value()
-    return typeof current === 'number' ? current : current == null ? '' : String(current)
+    if (typeof current === 'number') return current
+    if (current == null) return ''
+    return String(current)
   })
 
   function setValue(next: unknown): void {

@@ -9,7 +9,7 @@ export interface FormRootProps {
 }
 
 /** Renders the UI document tree. The consumer owns any native form element and submit handler. */
-export function FormRoot({ registry }: FormRootProps) {
+export function FormRoot({ registry }: Readonly<FormRootProps>) {
   const runtime = useFormContext()
   const document = useStore(runtime.document)
   const rootNode = document.nodes[document.rootId]

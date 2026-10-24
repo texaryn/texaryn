@@ -1,5 +1,5 @@
 import { For, Match, Show, Switch, createMemo } from 'solid-js'
-import type { FieldNode, UINode } from '@texaryn/core'
+import type { UINode } from '@texaryn/core'
 import { FieldErrors } from '../components/FieldErrors.js'
 import { createFieldBinding } from '../field.js'
 

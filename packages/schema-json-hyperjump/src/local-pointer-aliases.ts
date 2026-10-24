@@ -94,7 +94,7 @@ function pointerTargetWithBase(
   let resourceRootPosition = initialPosition
   let position = initialPosition
   for (const raw of pointer.slice(1).split('/')) {
-    const segment = raw.replace(/~1/g, '/').replace(/~0/g, '~')
+    const segment = raw.replaceAll('~1', '/').replaceAll('~0', '~')
     let child: unknown
     if (Array.isArray(current)) {
       const index = Number(segment)
@@ -106,7 +106,7 @@ function pointerTargetWithBase(
       return undefined
     }
 
-    position = `${position}/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`
+    position = `${position}/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`
     const childId = isRecord(child) ? schemaIdentifier(child, dialect) : undefined
     if (isRecord(child) && !(isPre2019Dialect(dialect) && typeof child.$ref === 'string') && typeof childId === 'string') {
       try {
@@ -164,7 +164,7 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
   if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
     for (const key of dialect === 'draft-04' ? ['definitions'] : ['definitions', '$defs']) {
       const map = schema[key]
-      if (isRecord(map)) for (const [name, child] of Object.entries(map)) add(child, `${position}/${key}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+      if (isRecord(map)) for (const [name, child] of Object.entries(map)) add(child, `${position}/${key}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
     }
     return found
   }
@@ -178,7 +178,7 @@ function children(schema: Record<string, unknown>, position: string, dialect: Di
     if (isRecord(map)) {
       for (const [name, child] of Object.entries(map)) {
         if (key === 'dependencies' && Array.isArray(child)) continue
-        add(child, `${position}/${key}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+        add(child, `${position}/${key}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
       }
     }
   }
@@ -211,7 +211,7 @@ function stripDraft04UnknownSchemaKeywords(
     } else if ((keyword === '$defs' || keyword === 'dependentSchemas') && isRecord(schema[keyword])) {
       const map = schema[keyword] as Record<string, unknown>
       for (const [name, child] of Object.entries(map)) {
-        const childPosition = `${position}/${keyword}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`
+        const childPosition = `${position}/${keyword}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`
         if (hasPreservedTarget(childPosition, preservedPointers)) {
           stripDraft04UnknownSchemaKeywords(child, childPosition, preservedPointers, visited)
         } else {
@@ -250,7 +250,7 @@ function valueAtPointer(document: unknown, pointer: string): unknown {
   if (!fragment.startsWith('/')) return undefined
   let value = document
   for (const rawSegment of fragment.slice(1).split('/')) {
-    const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+    const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
     if (Array.isArray(value)) {
       const index = Number(segment)
       if (!Number.isInteger(index) || index < 0 || index >= value.length) return undefined

@@ -13,18 +13,22 @@ export function StatusBar({
   schemaIssues = null,
   cursor = null,
   hint,
-}: {
+}: Readonly<{
   dialect: string
   parseError: string | null
   pending: boolean
   schemaIssues?: number | null
   cursor?: { line: number; column: number } | null
   hint?: ReactNode
-}) {
+}>) {
+  let documentStatus = 'JSON valid'
+  if (parseError) documentStatus = 'JSON error'
+  else if (pending) documentStatus = 'Applying…'
+
   return (
     <footer className="pg-status" aria-label="Status">
       <span>{dialect}</span>
-      <span>{parseError ? 'JSON error' : pending ? 'Applying…' : 'JSON valid'}</span>
+      <span>{documentStatus}</span>
       <span>{schemaIssueSentence(schemaIssues)}</span>
       <span className="pg-status__end">
         {cursor && `Ln ${cursor.line}, Col ${cursor.column}`}

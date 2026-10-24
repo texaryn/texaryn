@@ -14,7 +14,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function MuiObjectLayoutImpl({ node }: WidgetProps) {
+function MuiObjectLayoutImpl({ node }: Readonly<WidgetProps>) {
   const { document, registry } = useRendererContext()
   const { container, nested, title, children } = useObjectGroup(node)
 

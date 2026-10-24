@@ -306,7 +306,7 @@ function pointerTokens(fragment: string): string[] {
   }
   return decoded.slice(1).split('/').map((token) => {
     if (/~(?![01])/.test(token)) throw new OutputRejectedError(['Schema reference fragments must use valid JSON Pointer escapes.'])
-    return token.replace(/~1/g, '/').replace(/~0/g, '~')
+    return token.replaceAll('~1', '/').replaceAll('~0', '~')
   })
 }
 
@@ -422,7 +422,8 @@ async function checkFormSchemaKeywords(
       const target = pointerTarget(targetDocument.root, tokens)
       const targetPosition = schemaLocationKey(targetDocument, tokens)
       if (!validatedReferenceTargets.has(targetPosition)) {
-        await validateSchemaDocument(target, dialect)
+        // Validate each reference as traversal discovers it for stable errors.
+        await validateSchemaDocument(target, dialect) // NOSONAR
         validatedReferenceTargets.add(targetPosition)
       }
       pending.push({ document: targetDocument, path: tokens, schema: target })
@@ -458,6 +459,7 @@ async function checkFormSchemaPolicy(root: unknown, suppliedResources: ReadonlyM
   const resources = normalizedResources(suppliedResources)
   for (const resource of resources.values()) preflightSchemaResources(resource)
   await validateSchemaDocument(root, dialect)
+  // Preserve resource order so the first invalid resource has stable diagnostics.
   for (const resource of resources.values()) {
     if (isRecord(resource) && typeof resource.$schema === 'string') {
       const resourceDialect = schemaDialects.get(resource.$schema)
@@ -465,7 +467,7 @@ async function checkFormSchemaPolicy(root: unknown, suppliedResources: ReadonlyM
         throw new OutputRejectedError(['Host schema resources must use the same supported dialect as the generated form.'])
       }
     }
-    await validateSchemaDocument(resource, dialect)
+    await validateSchemaDocument(resource, dialect) // NOSONAR
   }
   await checkFormSchemaKeywords(root, resources, dialect)
   return resources
@@ -485,7 +487,7 @@ function checkActions(document: Record<string, unknown>, actions: Readonly<Recor
   const nodes = document.nodes as Record<string, Record<string, unknown>>
   for (const node of Object.values(nodes)) {
     if (node.type !== 'action') continue
-    if (!Object.prototype.hasOwnProperty.call(actions, node.actionType as string)) {
+    if (!Object.hasOwn(actions, node.actionType as string)) {
       throw new OutputRejectedError([`Display action "${String(node.actionType)}" is not registered by the host.`])
     }
   }

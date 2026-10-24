@@ -131,6 +131,14 @@ describe('englishMessages', () => {
     })).toBe('This value is invalid.')
   })
 
+  it('uses fallback copy for unknown keywords that match object properties', () => {
+    expect(englishMessages.validationMessage({
+      instancePointer: '/field',
+      keyword: 'constructor',
+      params: { limit: 3 },
+    })).toBe('This value is invalid.')
+  })
+
   it('formats standard validation keywords from safe parameters', () => {
     const cases: Array<[string, Record<string, unknown>, string]> = [
       ['minLength', {}, 'This value is too short.'],

@@ -1,8 +1,9 @@
 import type { MaybePromise } from '@texaryn/core'
 import { detectDialect, identifierKeyword, isPre2019Dialect, schemaIdentifier, type Dialect } from './dialect.js'
+import { compareCodeUnits } from './string-order.js'
 
 /** Resolves one absolute resource URI without its fragment. The adapter never fetches it itself. */
-export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown | undefined>
+export type SchemaResourceResolver = (uri: string) => MaybePromise<unknown>
 
 export interface SchemaResourceOptions {
   /** Supplies external schemas on the host's terms. Return undefined when the resource is unavailable. */
@@ -109,6 +110,18 @@ const META_URIS = new Set([
   'https://json-schema.org/draft/2020-12/meta/content',
 ])
 
+function referenceKeywords(dialect: Dialect): readonly string[] {
+  if (isPre2019Dialect(dialect)) return ['$ref']
+  if (dialect === '2019-09') return ['$ref', '$recursiveRef']
+  return ['$ref', '$dynamicRef']
+}
+
+function metaSchemaUri(dialect: Dialect): string {
+  if (dialect === 'draft-04') return 'http://json-schema.org/draft-04/schema#'
+  if (dialect === 'draft-07') return 'http://json-schema.org/draft-07/schema#'
+  return `https://json-schema.org/draft/${dialect}/schema`
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -165,7 +178,7 @@ interface LocalReference {
   readonly resourceRootPosition: string
 }
 
-const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
+const escape = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1')
 
 interface LocatedPointerTarget {
   readonly schema: unknown
@@ -203,7 +216,7 @@ function pointerTargetWithContext(
   let parentBase = base
   const segments = pointer.slice(1).split('/')
   for (const rawSegment of segments) {
-    const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+    const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
     let child: unknown
     if (Array.isArray(current)) {
       const index = Number(segment)
@@ -268,11 +281,7 @@ function referencesIn(
   const anchorTargets = new Map<string, { schema: unknown; base: string | undefined; position: string }>()
   const contextsByPosition = new Map<string, { base: string | undefined; resourceRoot: unknown; resourceRootPosition: string }>()
   const visitedLocalReferences = new Set<number>()
-  const referenceKeywords = isPre2019Dialect(dialect)
-    ? ['$ref']
-    : dialect === '2019-09'
-      ? ['$ref', '$recursiveRef']
-      : ['$ref', '$dynamicRef']
+  const referenceKeywordSet = new Set(referenceKeywords(dialect))
 
   const visit = (
     schema: unknown,
@@ -318,7 +327,7 @@ function referencesIn(
     if (dialect === '2020-12' && typeof record.$dynamicAnchor === 'string') {
       anchorTargets.set(`${base ?? ''}#${record.$dynamicAnchor}`, { schema, base, position })
     }
-    for (const keyword of referenceKeywords) {
+    for (const keyword of referenceKeywordSet) {
       const reference = record[keyword]
       if (typeof reference === 'string') {
         references.set(JSON.stringify([base, reference]), { base, reference, position: `${position}/${keyword}` })
@@ -659,8 +668,8 @@ function structurallyEqual(left: unknown, right: unknown, seen = new WeakMap<obj
   if (compared.has(right)) return true
   compared.add(right)
   seen.set(left, compared)
-  const leftKeys = Object.keys(left).sort()
-  const rightKeys = Object.keys(right).sort()
+  const leftKeys = Object.keys(left).sort(compareCodeUnits)
+  const rightKeys = Object.keys(right).sort(compareCodeUnits)
   return leftKeys.length === rightKeys.length && leftKeys.every((key, index) =>
     key === rightKeys[index] && structurallyEqual(left[key], right[key], seen))
 }
@@ -738,11 +747,7 @@ function remoteSchema(
   const sourceDocument = typeof source === 'boolean'
     ? { allOf: [source] }
     : source as Record<string, unknown>
-  const referenceKeywords = isPre2019Dialect(dialect)
-    ? new Set(['$ref'])
-    : dialect === '2019-09'
-      ? new Set(['$ref', '$recursiveRef'])
-      : new Set(['$ref', '$dynamicRef'])
+  const referenceKeywordSet = new Set(referenceKeywords(dialect))
   const legacyAnchors = isPre2019Dialect(dialect) ? legacyAnchorTargets(source, retrievalUri, dialect) : new Map()
   const memo = new WeakMap<object, Map<string | undefined, unknown>>()
 
@@ -783,7 +788,7 @@ function remoteSchema(
           ? originalId
           : resolvedId
         Object.defineProperty(output, keyword, { value: normalizedId, enumerable: true, configurable: true, writable: true })
-      } else if (referenceKeywords.has(keyword) && typeof child === 'string') {
+      } else if (referenceKeywordSet.has(keyword) && typeof child === 'string') {
         const resolved = absoluteUri(child, base)
         if (resolved === undefined) {
           throw new SchemaResourceResolutionError(`Cannot resolve schema reference "${child}" at "${position}/${keyword}" in the resource retrieved from "${retrievalUri}".`, retrievalUri, `${position}/${keyword}`)
@@ -803,14 +808,14 @@ function remoteSchema(
       } else if (LIST[dialect].has(keyword) && Array.isArray(child)) {
         Object.defineProperty(output, keyword, { value: child.map((member, index) => visit(member, base, `${position}/${keyword}/${index}`)), enumerable: true, configurable: true, writable: true })
       } else if (MAP[dialect].has(keyword) && isRecord(child)) {
-        Object.defineProperty(output, keyword, { value: Object.fromEntries(Object.entries(child).map(([name, member]) => [
-          name,
-          Array.isArray(member) && keyword === 'dependencies'
-            ? cloneValue(member)
-            : isRecord(member) || typeof member === 'boolean'
-              ? visit(member, base, `${position}/${keyword}/${escape(name)}`)
-              : cloneValue(member),
-        ])), enumerable: true, configurable: true, writable: true })
+        Object.defineProperty(output, keyword, { value: Object.fromEntries(Object.entries(child).map(([name, member]) => {
+          let normalizedMember: unknown
+          if (Array.isArray(member) && keyword === 'dependencies') normalizedMember = cloneValue(member)
+          else if (isRecord(member) || typeof member === 'boolean') {
+            normalizedMember = visit(member, base, `${position}/${keyword}/${escape(name)}`)
+          } else normalizedMember = cloneValue(member)
+          return [name, normalizedMember]
+        })), enumerable: true, configurable: true, writable: true })
       } else if (keyword === 'items' && dialect !== '2020-12' && Array.isArray(child)) {
         Object.defineProperty(output, keyword, { value: child.map((member, index) => visit(member, base, `${position}/items/${index}`)), enumerable: true, configurable: true, writable: true })
       } else {
@@ -821,11 +826,7 @@ function remoteSchema(
       output.$id = rootIdentifier
       if (dialect === 'draft-04') output.id = rootIdentifier
       if (!Object.hasOwn(output, '$schema')) {
-        output.$schema = dialect === 'draft-04'
-          ? 'http://json-schema.org/draft-04/schema#'
-          : dialect === 'draft-07'
-          ? 'http://json-schema.org/draft-07/schema#'
-          : `https://json-schema.org/draft/${dialect}/schema`
+        output.$schema = metaSchemaUri(dialect)
       }
     }
     return output
@@ -932,6 +933,7 @@ export async function loadExternalResources(
       '#',
       current.pointerTarget === undefined ? [] : [current.pointerTarget],
     )
+    // Loading mutates shared graph state, so references resolve in traversal order.
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
         continue
@@ -962,7 +964,7 @@ export async function loadExternalResources(
         }
         continue
       }
-      const loaded = await load(uri, position)
+      const loaded = await load(uri, position) // NOSONAR
       const remoteDialect = detectDialect(loaded.primary, { defaultDialect: dialect })
       if (remoteDialect !== dialect) {
         throw new SchemaResourceResolutionError(`The resource at "${uri}" uses ${remoteDialect}, but this adapter uses ${dialect}.`, uri, position)

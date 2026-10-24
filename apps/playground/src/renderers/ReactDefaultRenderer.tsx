@@ -3,6 +3,6 @@ import type { RendererProps } from '../renderer-types.js'
 
 const registry = createDefaultRegistry()
 
-export default function ReactDefaultRenderer(_props: RendererProps) {
+export default function ReactDefaultRenderer(_props: Readonly<RendererProps>) {
   return <FormRoot registry={registry} />
 }

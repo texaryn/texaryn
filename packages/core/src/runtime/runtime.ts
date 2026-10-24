@@ -6,6 +6,7 @@ import { processCommand, resetTarget } from '../commands/handler.js'
 import type { Command, Effect } from '../commands/types.js'
 import { initializeDefaults, viewFromProjection } from '../initialization/index.js'
 import type { InitializationResult } from '../initialization/index.js'
+import { compareCodeUnits } from '../string-order.js'
 import { createStore, createComputedStore } from '../state/store.js'
 import type { WritableStore, Store } from '../state/store.js'
 import { batch } from '../state/signal.js'
@@ -95,8 +96,8 @@ function assertSameJsonShape(before: unknown, next: unknown): void {
       if (typeof value !== 'object' || value === null || Array.isArray(value) || !isPlainRecord(value)) {
         throw new Error(`Remote form snapshot changes the object shape at "${pointer}".`)
       }
-      const oldKeys = Object.keys(previous).sort()
-      const newKeys = Object.keys(value).sort()
+      const oldKeys = Object.keys(previous).sort(compareCodeUnits)
+      const newKeys = Object.keys(value).sort(compareCodeUnits)
       if (oldKeys.length !== newKeys.length || oldKeys.some((key, index) => key !== newKeys[index])) {
         throw new Error(`Remote form snapshot changes object properties at "${pointer}".`)
       }
@@ -179,7 +180,7 @@ function changedScalarPointers(before: unknown, next: unknown): string[] {
     }
     if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
       for (const key of Object.keys(left)) {
-        const escaped = key.replace(/~/g, '~0').replace(/\//g, '~1')
+        const escaped = key.replaceAll('~', '~0').replaceAll('/', '~1')
         visit((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], `${pointer}/${escaped}`)
       }
     }
@@ -226,7 +227,7 @@ interface LogicalIndex {
 function propertyName(node: UINode): string | undefined {
   if (node.dataPointer == null) return undefined
   const segments = parsePointer(node.dataPointer)
-  return segments[segments.length - 1]
+  return segments.at(-1)
 }
 
 /**

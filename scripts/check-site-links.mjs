@@ -92,7 +92,7 @@ export function checkSite({ pages, exists, base, playground }) {
         broken.push({ page: page.path, href, reason: `outside the site base ${prefix}` })
         continue
       }
-      if (!candidates.some(exists)) {
+      if (!candidates.some((candidate) => exists(candidate))) {
         broken.push({ page: page.path, href, reason: 'no file in the artifact' })
         continue
       }

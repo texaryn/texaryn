@@ -1,5 +1,7 @@
 # @texaryn/react-mui
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Material UI v9 widgets for Texaryn: MUI components on top of `@texaryn/react`.
 
 > Status: pre-1.0. Public APIs may change before 1.0.

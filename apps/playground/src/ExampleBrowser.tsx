@@ -7,12 +7,12 @@ export function ExampleBrowser({
   onQueryChange,
   selectedId,
   onSelect,
-}: {
+}: Readonly<{
   query: string
   onQueryChange: (value: string) => void
   selectedId: string | null
   onSelect: (example: TexarynExample) => void
-}) {
+}>) {
   const selectedItem = useRef<HTMLButtonElement | null>(null)
   const groups = groupByCategory(searchExamples(query))
   const total = groups.reduce((sum, group) => sum + group.examples.length, 0)

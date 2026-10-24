@@ -37,7 +37,7 @@ export const ErrorSummary = defineComponent({
     return () =>
       visibleErrors.value.length === 0
         ? null
-        : h('div', { role: 'group', tabindex: -1, 'aria-labelledby': headingId, ref: container }, [
+        : h('section', { tabindex: -1, 'aria-labelledby': headingId, ref: container }, [
             h('h2', { id: headingId }, messages.value.errorSummaryHeading({ count: visibleErrors.value.length })),
             h(
               'ul',

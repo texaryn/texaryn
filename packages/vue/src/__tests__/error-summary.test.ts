@@ -124,7 +124,7 @@ describe('ErrorSummary over a live runtime', () => {
       expect(li.textContent).toMatch(/^(First|Second): ./)
     }
 
-    const group = host.querySelector('[role="group"]')!
+    const group = host.querySelector('section[aria-labelledby]')!
     expect(group.getAttribute('tabindex')).toBe('-1')
     const heading = group.querySelector('h2')!
     expect(group.firstElementChild).toBe(heading)
@@ -164,7 +164,7 @@ describe('ErrorSummary over a live runtime', () => {
     const { host, rt } = await liveForm()
     rt.dispatch({ type: 'Submit' })
     await settle()
-    const group = host.querySelector('[role="group"]')!
+    const group = host.querySelector('section[aria-labelledby]')!
     expect(document.activeElement).toBe(group)
 
     host.querySelector('input')!.focus()
@@ -179,7 +179,7 @@ describe('ErrorSummary over a live runtime', () => {
     input.focus()
     rt.dispatch({ type: 'Submit' })
     await settle()
-    expect(host.querySelector('[role="group"]')).not.toBeNull()
+    expect(host.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(input)
   })
 
@@ -192,7 +192,7 @@ describe('ErrorSummary over a live runtime', () => {
     await settle()
     const host = mountSummary(runtime, true)
     await settle()
-    expect(host.querySelector('[role="group"]')).not.toBeNull()
+    expect(host.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(document.body)
   })
 

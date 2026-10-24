@@ -12,9 +12,7 @@
 
 ### \_\_namedParameters
 
-#### field
-
-[`FieldBinding`](../../react/interfaces/FieldBinding.md)
+`Readonly`\<\{ `field`: [`FieldBinding`](../../react/interfaces/FieldBinding.md); \}\>
 
 ## Returns
 

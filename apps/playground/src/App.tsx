@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ComponentType, FormEvent, ReactNode } from 'react'
+import type { ComponentType, ReactNode, SyntheticEvent } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import type { SchemaEvaluationPort } from '@texaryn/core'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
@@ -142,7 +142,7 @@ function useAdapter(schema: unknown): AdapterState {
 // the three where there is no form to show. Writing that pair once keeps the
 // renderer selector outside the adapter's conditional, which is where it has
 // to be: choosing a renderer while a schema is still compiling is normal.
-function NotReady({ hosts, toolbar, children }: { hosts: PaneHosts; toolbar: ReactNode; children: ReactNode }) {
+function NotReady({ hosts, toolbar, children }: Readonly<{ hosts: PaneHosts; toolbar: ReactNode; children: ReactNode }>) {
   return (
     <>
       {createPortal(
@@ -182,7 +182,7 @@ function FormWorkspace({
   onActions,
   onDataChange,
   onTabChange,
-}: {
+}: Readonly<{
   hosts: PaneHosts
   port: SchemaEvaluationPort
   entry: { initialData?: unknown; hints?: TexarynExample['hints'] }
@@ -201,7 +201,7 @@ function FormWorkspace({
   onActions: (actions: WorkspaceActions | null) => void
   onDataChange: (data: unknown) => void
   onTabChange: (tab: Tab) => void
-}) {
+}>) {
   const simulateFailureRef = useRef(false)
   const [simulateFailure, setSimulateFailure] = useState(false)
 
@@ -241,10 +241,28 @@ function FormWorkspace({
     bootstrapFormRef.current = element
   }, [])
   const submit = () => form.runtime.dispatch({ type: 'Submit' })
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
     submit()
   }
+  let rendererContent: ReactNode
+  if (rendererLoadError) {
+    rendererContent = <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
+  } else if (Renderer) {
+    rendererContent = (
+      <Renderer
+        runtime={form.runtime}
+        theme={resolvedTheme}
+        onSubmit={handleSubmit}
+        onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
+      />
+    )
+  } else {
+    rendererContent = <output className="pg-empty">Loading {rendererLabel}…</output>
+  }
+  let submitLabel = 'Submit'
+  if (form.submission.status === 'validating') submitLabel = 'Validating...'
+  else if (form.submission.status === 'submitting') submitLabel = 'Submitting...'
   const rendererSurface = (
     <RendererSurface
       rendererKey={rendererKey}
@@ -252,18 +270,7 @@ function FormWorkspace({
       theme={resolvedTheme}
       defaultStyleMode={defaultStyleMode}
     >
-      {rendererLoadError ? (
-        <p className="pg-error" role="alert">Could not load {rendererLabel}: {rendererLoadError}</p>
-      ) : Renderer ? (
-        <Renderer
-          runtime={form.runtime}
-          theme={resolvedTheme}
-          onSubmit={handleSubmit}
-          onSubmitForm={isBootstrap ? setBootstrapForm : undefined}
-        />
-      ) : (
-        <p className="pg-empty" role="status">Loading {rendererLabel}…</p>
-      )}
+      {rendererContent}
     </RendererSurface>
   )
   const controls = (
@@ -282,11 +289,7 @@ function FormWorkspace({
             form.submission.status === 'submitting'
           }
         >
-          {form.submission.status === 'validating'
-            ? 'Validating...'
-            : form.submission.status === 'submitting'
-              ? 'Submitting...'
-              : 'Submit'}
+          {submitLabel}
         </button>
 
         <label className="pg-checkbox-label">
@@ -322,7 +325,7 @@ function FormWorkspace({
       {createPortal(
         <>
           {toolbar}
-          {previewNotice && <p className="pg-preview-notice" role="status">{previewNotice}</p>}
+          {previewNotice && <output className="pg-preview-notice">{previewNotice}</output>}
           <FormProvider value={form.runtime}>
             {isBootstrap ? (
               <>
@@ -680,13 +683,13 @@ export function App() {
   const applyFailed = adapterState.status === 'ready' && Boolean(adapterState.error)
   const applying =
     !parseError && !applyFailed && (draftHasChanges || (adapterState.status === 'ready' && !adapterMatchesDraft))
-  const previewNotice = parseError
-    ? 'Invalid JSON. This preview shows the last valid schema.'
-    : applyFailed
-      ? `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
-      : applying
-        ? 'Applying schema changes. The preview shows the last valid schema until they are ready.'
-        : null
+  let previewNotice: string | null = null
+  if (parseError) previewNotice = 'Invalid JSON. This preview shows the last valid schema.'
+  else if (applyFailed) {
+    previewNotice = `The schema could not be applied. This preview shows the last valid schema. ${adapterState.error}`
+  } else if (applying) {
+    previewNotice = 'Applying schema changes. The preview shows the last valid schema until they are ready.'
+  }
 
   const paletteCommands = useMemo(() => {
     const actions: CommandActions = {
@@ -839,7 +842,8 @@ export function App() {
           <CopyButton onCopy={handleCopySchema} />
         </div>
       </div>
-      <div className="pg-editor-tabs" role="group" aria-label="Schema editor mode">
+      <fieldset className="pg-editor-tabs">
+        <legend className="pg-sr-only">Schema editor mode</legend>
         <button
           aria-pressed={schemaMode === 'visual'}
           className="pg-editor-tabs__item"
@@ -856,7 +860,7 @@ export function App() {
         >
           JSON
         </button>
-      </div>
+      </fieldset>
       <div id="schema-editor-panel">
         {schemaMode === 'visual' && <FormBuilder schemaText={schemaText} onSchemaChange={handleSchemaChange} />}
         <div hidden={schemaMode === 'visual'} className="pg-code-editor-frame">
@@ -872,16 +876,24 @@ export function App() {
           />
         </div>
       </div>
-      <p role="status" aria-label="Schema problems" className="pg-sr-only">
+      <output aria-label="Schema problems" className="pg-sr-only">
         {schemaIssueSentence(schemaIssues, !narrow)}
-      </p>
+      </output>
       {parseError && <div className="pg-error">Invalid JSON: {parseError}</div>}
       {selectedId === CUSTOM_KEY && customSchemaToken === null && (
         <p className="pg-schema-share-note">This schema is too large to share in a link. It remains saved in this browser.</p>
       )}
-      {shareStatus && <p className="pg-schema-share-status" role="status">{shareStatus}</p>}
+      {shareStatus && <output className="pg-schema-share-status">{shareStatus}</output>}
     </>
   )
+
+  let notReadyState: { className: string; message: string } | null = null
+  if (adapterState.status === 'loading') notReadyState = { className: 'pg-empty', message: 'Loading…' }
+  else if (adapterState.status === 'error') {
+    notReadyState = { className: 'pg-error', message: adapterState.message }
+  } else if (selectedId !== CUSTOM_KEY && !adapterMatchesDraft) {
+    notReadyState = { className: 'pg-empty', message: 'Loading the selected example…' }
+  }
 
   return (
     <div className="pg-app">
@@ -940,7 +952,8 @@ export function App() {
                 ))}
               </select>
             </label>
-            <div className="pg-mobile-workspace__tabs" role="group" aria-label="Playground panels">
+            <fieldset className="pg-mobile-workspace__tabs">
+              <legend className="pg-sr-only">Playground panels</legend>
               {(['preview', 'schema', 'inspector'] as const).map((panelName) => (
                 <button
                   key={panelName}
@@ -948,10 +961,10 @@ export function App() {
                   aria-pressed={mobilePanel === panelName}
                   onClick={() => setMobilePanel(panelName)}
                 >
-                  {panelName === 'preview' ? 'Form' : panelName === 'schema' ? 'Schema' : 'Inspector'}
+                  {{ preview: 'Form', schema: 'Schema', inspector: 'Inspector' }[panelName]}
                 </button>
               ))}
-            </div>
+            </fieldset>
             <button type="button" className="pg-mobile-workspace__commands" aria-label="Open command palette" onClick={openPalette}>
               Commands
             </button>
@@ -988,19 +1001,12 @@ export function App() {
       {createPortal(examplesContent, hosts.examples)}
       {createPortal(schemaContent, hosts.schema)}
 
-      {adapterState.status === 'loading' ? (
+      {notReadyState && (
         <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-empty">Loading…</p>
+          <p className={notReadyState.className}>{notReadyState.message}</p>
         </NotReady>
-      ) : adapterState.status === 'error' ? (
-        <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-error">{adapterState.message}</p>
-        </NotReady>
-      ) : selectedId !== CUSTOM_KEY && !adapterMatchesDraft ? (
-        <NotReady hosts={hosts} toolbar={toolbar}>
-          <p className="pg-empty">Loading the selected example…</p>
-        </NotReady>
-      ) : (
+      )}
+      {adapterState.status === 'ready' && !notReadyState && (
         <FormWorkspace
           hosts={hosts}
           key={`${adapterState.id}:${exampleRevision}:${resetRevision}`}
@@ -1033,7 +1039,7 @@ export function App() {
           hint={<kbd>Ctrl K</kbd>}
         />
       )}
-      <p role="status" aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</p>
+      <output aria-label="Clipboard status" className="pg-sr-only">{clipboardStatus}</output>
       <CommandPaletteSlot
         open={paletteOpen}
         onOpenChange={handlePaletteOpenChange}

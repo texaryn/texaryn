@@ -1,10 +1,10 @@
 import type { FormRuntime } from '@texaryn/core'
-import type { FormEventHandler } from 'react'
+import type { SyntheticEvent } from 'react'
 import type { ResolvedTheme } from './theme.js'
 
 export interface RendererProps {
   runtime: FormRuntime
   theme: ResolvedTheme
-  onSubmit?: FormEventHandler<HTMLFormElement>
+  onSubmit?: (event: SyntheticEvent<HTMLFormElement>) => void
   onSubmitForm?: (form: HTMLFormElement | null) => void
 }

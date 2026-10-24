@@ -1,5 +1,7 @@
 # @texaryn/collaboration-yjs
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 Optional Yjs support for collaborative scalar field editing in Texaryn forms.
 The application owns the `Y.Doc`, provider, authentication, and persistence.
 

@@ -300,7 +300,7 @@ function enableLocalDynamicReferenceScopes(
         const outermost = reductionDepth === 0
         const inheritedLength = activeValidationScope.length
         if (outermost) activeValidationScope.push(...(options.path ?? []))
-        if (activeValidationScope[activeValidationScope.length - 1]?.node !== node) {
+        if (activeValidationScope.at(-1)?.node !== node) {
           activeValidationScope.push({ pointer: options.pointer ?? node.evaluationPath, node })
         }
         reductionDepth += 1
@@ -465,7 +465,7 @@ function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] |
       const member = segments[index + 1]
       if (
         typeof map !== 'object' || map === null || Array.isArray(map) || member === undefined ||
-        !Object.prototype.hasOwnProperty.call(map, member)
+        !Object.hasOwn(map, member)
       ) return undefined
       current = (map as Record<string, unknown>)[member]
       index += 2
@@ -646,12 +646,12 @@ function mapValidationError(error: JsonError, resolve: PointerResolver): Validat
   // name in data.key; consumers expect the error located at the missing property itself.
   const missingKey = code === 'required-property-error' && typeof data.key === 'string' ? data.key : undefined
   // These two report the parent as data.value; the child's own key says which child failed.
-  const lastKey =
-    code === 'no-additional-properties-error' && typeof data.property === 'string'
-      ? data.property
-      : code === 'additional-items-error' && data.key !== undefined
-        ? String(data.key)
-        : undefined
+  let lastKey: string | undefined
+  if (code === 'no-additional-properties-error' && typeof data.property === 'string') {
+    lastKey = data.property
+  } else if (code === 'additional-items-error' && data.key !== undefined) {
+    lastKey = String(data.key)
+  }
   return {
     instancePointer: resolve(basePointer, { code, value: data.value, missingKey, lastKey }),
     keyword,

@@ -7,6 +7,25 @@ export interface ReconcileOptions {
   itemKey?: JsonPointer
 }
 
+function reconcileItemIds(
+  oldIds: StableItemId[],
+  oldItems: unknown[],
+  newItems: unknown[],
+  nextId: number,
+  matcher: (oldItem: unknown, newItem: unknown) => boolean,
+): { ids: StableItemId[]; nextId: number } {
+  const usedOldIndices = new Set<number>()
+  const ids = newItems.map((newItem) => {
+    const matchedIndex = oldItems.findIndex((oldItem, index) =>
+      !usedOldIndices.has(index) && matcher(oldItem, newItem),
+    )
+    if (matchedIndex < 0) return `item_${nextId++}` as StableItemId
+    usedOldIndices.add(matchedIndex)
+    return oldIds[matchedIndex]
+  })
+  return { ids, nextId }
+}
+
 export function reconcile(
   map: IdentityMap,
   containerKey: IdentityKey,
@@ -18,28 +37,7 @@ export function reconcile(
   const matcher = options?.itemKey
     ? keyMatcher(options.itemKey)
     : defaultMatcher
-
-  const usedOldIndices = new Set<number>()
-  const newIds: StableItemId[] = []
-  let nextId = map.nextId
-
-  for (const newItem of newItems) {
-    let matchedIndex = -1
-    for (let i = 0; i < oldItems.length; i++) {
-      if (usedOldIndices.has(i)) continue
-      if (matcher(oldItems[i], newItem)) {
-        matchedIndex = i
-        break
-      }
-    }
-
-    if (matchedIndex >= 0) {
-      usedOldIndices.add(matchedIndex)
-      newIds.push(oldIds[matchedIndex])
-    } else {
-      newIds.push(`item_${nextId++}` as StableItemId)
-    }
-  }
+  const { ids: newIds, nextId } = reconcileItemIds(oldIds, oldItems, newItems, map.nextId, matcher)
 
   const arrayIdentities = new Map(map.arrayIdentities)
   arrayIdentities.set(containerKey, newIds)

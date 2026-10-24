@@ -45,21 +45,24 @@ function TreeNode({
   value,
   depth,
   hideUnset,
-}: {
+}: Readonly<{
   name: string
   value: unknown
   depth: number
   hideUnset: boolean
-}) {
+}>) {
   const [isOpen, setIsOpen] = useState(depth === 0)
   const entries = entriesFor(value)
   const visibleEntries = entries?.filter((entry) => !(hideUnset && entry.value === undefined))
+  let valueKind: string = typeof value
+  if (value === undefined) valueKind = 'undefined'
+  else if (value === null) valueKind = 'null'
 
   if (!entries || entries.length === 0) {
     return (
       <div className="pg-tree__leaf" style={{ '--pg-tree-depth': depth } as CSSProperties}>
         <span className="pg-tree__key">{name}</span>
-        <span className={`pg-tree__value pg-tree__value--${value === undefined ? 'undefined' : value === null ? 'null' : typeof value}`}>
+        <span className={`pg-tree__value pg-tree__value--${valueKind}`}>
           {preview(value)}
         </span>
       </div>
@@ -97,7 +100,7 @@ function TreeNode({
   )
 }
 
-export function InspectorTree({ label, value }: { label: string; value: unknown }) {
+export function InspectorTree({ label, value }: Readonly<{ label: string; value: unknown }>) {
   const [hideUnset, setHideUnset] = useState(false)
   const [copyStatus, setCopyStatus] = useState('')
   const rawJson = inspect(value)
@@ -128,9 +131,9 @@ export function InspectorTree({ label, value }: { label: string; value: unknown 
         </button>
         <span className="pg-sr-only" aria-live="polite">{copyStatus}</span>
       </div>
-      <div className="pg-tree" role="group" aria-label={`${label} value tree`}>
+      <section className="pg-tree" aria-label={`${label} value tree`}>
         <TreeNode name={label} value={value} depth={0} hideUnset={hideUnset} />
-      </div>
+      </section>
       <details className="pg-tree-view__raw">
         <summary>Raw diagnostic JSON</summary>
         <pre className="pg-pre">{rawJson}</pre>

@@ -8,7 +8,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function MuiTextareaImpl({ node }: WidgetProps) {
+function MuiTextareaImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
 
   return (

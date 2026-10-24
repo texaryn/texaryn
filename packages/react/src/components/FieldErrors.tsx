@@ -14,7 +14,7 @@ export interface FieldErrorsProps {
  * until an error exists meant the region arrived already populated, which is
  * the case screen readers do not reliably announce.
  */
-export function FieldErrors({ node, errors, showErrors }: FieldErrorsProps) {
+export function FieldErrors({ node, errors, showErrors }: Readonly<FieldErrorsProps>) {
   const idPrefix = useFormIdPrefix()
   const messages = useFormMessages()
   const visible = showErrors ? errors : []

@@ -6,7 +6,7 @@ import type { WidgetFactory } from '@texaryn/web-components'
 export const wcRegistry: RendererRegistry<WidgetFactory> = createWcRegistry()
 
 /** Mounts the tree only Web Components renderer over the shared runtime. */
-export function WcHost({ runtime }: { runtime: FormRuntime }) {
+export function WcHost({ runtime }: Readonly<{ runtime: FormRuntime }>) {
   const mountRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

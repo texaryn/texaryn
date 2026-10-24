@@ -22,10 +22,10 @@ describe('toJsonInstance', () => {
   })
 
   it('passes scalars and null through', () => {
-    expect(toJsonInstance(null)).toBe(null)
+    expect(toJsonInstance(null)).toBeNull()
     expect(toJsonInstance(3)).toBe(3)
     expect(toJsonInstance('x')).toBe('x')
-    expect(toJsonInstance(undefined)).toBe(undefined)
+    expect(toJsonInstance(undefined)).toBeUndefined()
   })
 
   /**

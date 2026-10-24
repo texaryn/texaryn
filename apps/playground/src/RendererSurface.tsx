@@ -8,13 +8,13 @@ export function RendererSurface({
   theme,
   defaultStyleMode = 'baseline',
   children,
-}: {
+}: Readonly<{
   rendererKey: RendererKey
   label: string
   theme: ResolvedTheme
   defaultStyleMode?: 'baseline' | 'unstyled'
   children: ReactNode
-}) {
+}>) {
   const usesDefaultStyles =
     rendererKey === 'default' ||
     rendererKey === 'vue' ||

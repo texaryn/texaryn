@@ -10,7 +10,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function ObjectLayoutImpl({ node }: WidgetProps) {
+function ObjectLayoutImpl({ node }: Readonly<WidgetProps>) {
   const { document, registry } = useRendererContext()
   const { container, nested, title, children } = useObjectGroup(node)
 

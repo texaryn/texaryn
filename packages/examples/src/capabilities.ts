@@ -524,7 +524,7 @@ export type CapabilityId = keyof typeof capabilities
 export const capabilityIds = Object.keys(capabilities) as CapabilityId[]
 
 export function isCapabilityId(value: string): value is CapabilityId {
-  return Object.prototype.hasOwnProperty.call(capabilities, value)
+  return Object.hasOwn(capabilities, value)
 }
 
 // `as const` narrows each entry to its literal shape, which drops the optional

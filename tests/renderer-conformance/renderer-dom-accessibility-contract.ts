@@ -939,18 +939,18 @@ export function rendererDomAccessibilityContract({
       })
 
       const changeHints = { '/first': { validationTrigger: 'change' }, '/second': { validationTrigger: 'change' } } as const
-      const groupOf = (q: ReturnType<typeof within>) => q.getByRole('group') as HTMLElement
+      const regionOf = (q: ReturnType<typeof within>) => q.getByRole('region') as HTMLElement
 
-      it('is a named group with tabindex -1 headed by its own h2', async () => {
+      it('is a named region with tabindex -1 headed by its own h2', async () => {
         const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
         await failSubmit(surface, runtime)
-        const group = q.getByRole('group', { name: 'There are 2 problems' })
-        expect(group.getAttribute('tabindex')).toBe('-1')
-        const heading = group.querySelector('h2')!
-        expect(group.firstElementChild).toBe(heading)
-        expect(group.getAttribute('aria-labelledby')).toBe(heading.id)
+        const region = q.getByRole('region', { name: 'There are 2 problems' })
+        expect(region.getAttribute('tabindex')).toBe('-1')
+        const heading = region.querySelector('h2')!
+        expect(region.firstElementChild).toBe(heading)
+        expect(region.getAttribute('aria-labelledby')).toBe(heading.id)
         expect(heading.id).toMatch(/-error-summary-heading$/)
-        expect(document.activeElement).toBe(group)
+        expect(document.activeElement).toBe(region)
       })
 
       it('focuses the summary that blur validation already showed, once', async () => {
@@ -964,15 +964,15 @@ export function rendererDomAccessibilityContract({
         await surface.act(() => {
           runtime.dispatch({ type: 'SetTouched', nodeId: nodeAt(runtime, '/first') })
         })
-        const group = groupOf(q)
-        expect(document.activeElement).not.toBe(group)
+        const region = regionOf(q)
+        expect(document.activeElement).not.toBe(region)
         let focuses = 0
-        group.addEventListener('focus', () => {
+        region.addEventListener('focus', () => {
           focuses += 1
         })
         await failSubmit(surface, runtime)
-        expect(q.getByRole('group')).toBe(group)
-        expect(document.activeElement).toBe(group)
+        expect(q.getByRole('region')).toBe(region)
+        expect(document.activeElement).toBe(region)
         expect(focuses).toBe(1)
       })
 
@@ -999,17 +999,17 @@ export function rendererDomAccessibilityContract({
           runtime.dispatch({ type: 'Submit' })
         })
         expect(runtime.submission.getSnapshot().attempts).toBe(1)
-        expect(document.activeElement).toBe(within(host).getByRole('group'))
+        expect(document.activeElement).toBe(within(host).getByRole('region'))
         expect(focuses).toBe(1)
       })
 
       it('refocuses on the next failed attempt after focus moved away', async () => {
         const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
         await failSubmit(surface, runtime)
-        const group = groupOf(q)
+        const region = regionOf(q)
         q.getByRole('textbox', { name: 'First' }).focus()
         await failSubmit(surface, runtime)
-        expect(document.activeElement).toBe(group)
+        expect(document.activeElement).toBe(region)
       })
 
       it('leaves focus alone when the errors refresh at the same attempt', async () => {
@@ -1036,21 +1036,21 @@ export function rendererDomAccessibilityContract({
         input.focus()
         await failSubmit(surface, runtime)
         expect(runtime.submission.getSnapshot().attempts).toBe(1)
-        expect(q.queryByRole('group')).toBeNull()
+        expect(q.queryByRole('region')).toBeNull()
         expect(document.activeElement).toBe(input)
       })
 
       it('focuses again after a Reset and another failed attempt', async () => {
         const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
         await failSubmit(surface, runtime)
-        expect(document.activeElement).toBe(groupOf(q))
+        expect(document.activeElement).toBe(regionOf(q))
         await surface.act(() => {
           runtime.dispatch({ type: 'Reset', data: { first: '', second: '' } })
         })
-        expect(q.queryByRole('group')).toBeNull()
+        expect(q.queryByRole('region')).toBeNull()
         q.getByRole('textbox', { name: 'First' }).focus()
         await failSubmit(surface, runtime)
-        expect(document.activeElement).toBe(groupOf(q))
+        expect(document.activeElement).toBe(regionOf(q))
       })
 
       it('does not focus a summary mounted after an old failed attempt', async () => {
@@ -1063,7 +1063,7 @@ export function rendererDomAccessibilityContract({
         const surface = await adapter.mount({ runtime, host, summary: true })
         surfaces.push(surface)
         await surface.act(() => {})
-        expect(within(host).getByRole('group')).toBeTruthy()
+        expect(within(host).getByRole('region')).toBeTruthy()
         expect(document.activeElement).toBe(document.body)
       })
 
@@ -1078,7 +1078,7 @@ export function rendererDomAccessibilityContract({
         const input = q.getByRole('textbox', { name: 'First' })
         input.focus()
         await failSubmit(surface, runtime)
-        expect(groupOf(q)).toBeTruthy()
+        expect(regionOf(q)).toBeTruthy()
         expect(document.activeElement).toBe(input)
       })
 
@@ -1092,8 +1092,8 @@ export function rendererDomAccessibilityContract({
         surfaces.push(first, second)
         await failSubmit(first, runtime)
         await second.act(() => {})
-        expect(document.activeElement).toBe(within(first.root).getByRole('group'))
-        expect(within(second.root).getByRole('group')).toBeTruthy()
+        expect(document.activeElement).toBe(within(first.root).getByRole('region'))
+        expect(within(second.root).getByRole('region')).toBeTruthy()
       })
 
       it('heads and details the summary from the configured messages, with no English', async () => {
@@ -1105,9 +1105,9 @@ export function rendererDomAccessibilityContract({
           true,
         )
         await failSubmit(surface, runtime)
-        const group = q.getByRole('group', { name: 'Il y a 2 problèmes' })
-        expect(document.activeElement).toBe(group)
-        expect(q.queryByRole('group', { name: /^There (is|are)\b/ })).toBeNull()
+        const region = q.getByRole('region', { name: 'Il y a 2 problèmes' })
+        expect(document.activeElement).toBe(region)
+        expect(q.queryByRole('region', { name: /^There (is|are)\b/ })).toBeNull()
         for (const li of q.getAllByRole('listitem')) {
           expect(li.textContent).toMatch(/^(First|Second) : ./)
         }
@@ -1116,12 +1116,12 @@ export function rendererDomAccessibilityContract({
       it('keeps the focused summary through a locale switch', async () => {
         const { surface, runtime, q } = await mount(twoRequiredSchema, { first: '', second: '' }, undefined, undefined, true)
         await failSubmit(surface, runtime)
-        const group = groupOf(q)
+        const region = regionOf(q)
         const link = q.getAllByRole('link')[0]
         await surface.setMessages(otherMessages)
-        expect(q.getByRole('group', { name: 'Il y a 2 problèmes' })).toBe(group)
+        expect(q.getByRole('region', { name: 'Il y a 2 problèmes' })).toBe(region)
         expect(q.getAllByRole('link')[0]).toBe(link)
-        expect(document.activeElement).toBe(group)
+        expect(document.activeElement).toBe(region)
       })
 
       it('renders exactly the detail the messages produce', async () => {

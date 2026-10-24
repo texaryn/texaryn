@@ -2,5 +2,5 @@ import { protoKeyConformanceSuite } from './proto-key.suite.js'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
 import { createHyperjumpAdapter } from '@texaryn/schema-json-hyperjump'
 
-protoKeyConformanceSuite('json-schema-library', (schema) => createJsonSchemaAdapter(schema))
-protoKeyConformanceSuite('@hyperjump/json-schema', (schema) => createHyperjumpAdapter(schema))
+protoKeyConformanceSuite('json-schema-library', (schema) => createJsonSchemaAdapter(schema)) // NOSONAR The shared harness registers this file's tests.
+protoKeyConformanceSuite('@hyperjump/json-schema', (schema) => createHyperjumpAdapter(schema)) // NOSONAR The shared harness registers this file's tests.

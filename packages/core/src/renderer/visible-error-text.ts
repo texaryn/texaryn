@@ -23,8 +23,8 @@ export function visibleFieldLabel(
   }
 
   const name = segment
-    .replace(/~1/g, '/')
-    .replace(/~0/g, '~')
+    .replaceAll('~1', '/')
+    .replaceAll('~0', '~')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[-_]+/g, ' ')
     .trim()

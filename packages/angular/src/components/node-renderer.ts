@@ -1,5 +1,5 @@
 import { NgComponentOutlet } from '@angular/common'
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core'
 import type { Type } from '@angular/core'
 import type { UINode } from '@texaryn/core'
 import { useFormContext } from '../context.js'

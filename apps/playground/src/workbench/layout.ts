@@ -66,8 +66,8 @@ export function activeView(state: LayoutState): WorkbenchView {
 }
 
 export const LAYOUT_STORAGE_KEY = 'texaryn-playground-layout'
-const PANES: readonly PaneId[] = ['schema', 'preview', 'inspector']
-const WIDTHS: readonly PreviewWidth[] = ['phone', 'tablet', 'fit']
+const PANES = new Set<PaneId>(['schema', 'preview', 'inspector'])
+const WIDTHS = new Set<PreviewWidth>(['phone', 'tablet', 'fit'])
 
 export function parseStoredLayout(raw: string | null): LayoutState {
   if (raw === null) return DEFAULT_LAYOUT
@@ -86,9 +86,9 @@ export function parseStoredLayout(raw: string | null): LayoutState {
     version: 1,
     inspectorCollapsed: flag('inspectorCollapsed', DEFAULT_LAYOUT.inspectorCollapsed),
     examplesCollapsed: flag('examplesCollapsed', DEFAULT_LAYOUT.examplesCollapsed),
-    maximized: PANES.includes(stored.maximized as PaneId) ? (stored.maximized as PaneId) : null,
+    maximized: PANES.has(stored.maximized as PaneId) ? (stored.maximized as PaneId) : null,
     focus: flag('focus', DEFAULT_LAYOUT.focus),
-    previewWidth: WIDTHS.includes(stored.previewWidth as PreviewWidth)
+    previewWidth: WIDTHS.has(stored.previewWidth as PreviewWidth)
       ? (stored.previewWidth as PreviewWidth)
       : DEFAULT_LAYOUT.previewWidth,
   }

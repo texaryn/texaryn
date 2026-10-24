@@ -7,7 +7,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function BootstrapCheckboxImpl({ node }: WidgetProps) {
+function BootstrapCheckboxImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   return (
     <div className="form-check mb-3">

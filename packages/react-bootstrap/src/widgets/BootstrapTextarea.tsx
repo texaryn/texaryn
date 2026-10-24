@@ -7,7 +7,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function BootstrapTextareaImpl({ node }: WidgetProps) {
+function BootstrapTextareaImpl({ node }: Readonly<WidgetProps>) {
   const field = useFieldBinding(node as FieldNode)
   return (
     <div className="mb-3">

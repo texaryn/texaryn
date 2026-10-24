@@ -9,7 +9,7 @@ export interface CommandPaletteProps {
   commands: readonly PaletteCommand[]
 }
 
-export default function CommandPalette({ open, onOpenChange, commands }: CommandPaletteProps) {
+export default function CommandPalette({ open, onOpenChange, commands }: Readonly<CommandPaletteProps>) {
   return (
     <Command.Dialog
       open={open}

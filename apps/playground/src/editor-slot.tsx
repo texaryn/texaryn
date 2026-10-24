@@ -4,7 +4,7 @@ import type { SchemaEditorProps } from './editor/SchemaEditor.js'
 
 const SchemaEditor = lazy(() => import('./editor/SchemaEditor.js'))
 
-function PlainEditor({ value, onChange, labelledBy }: SchemaEditorProps) {
+function PlainEditor({ value, onChange, labelledBy }: Readonly<SchemaEditorProps>) {
   return (
     <textarea
       aria-labelledby={labelledBy}

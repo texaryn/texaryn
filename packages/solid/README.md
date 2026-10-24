@@ -1,5 +1,7 @@
 # @texaryn/solid
 
+[![Repository coverage, SonarQube Cloud](https://sonarcloud.io/api/project_badges/measure?project=texaryn_texaryn&metric=coverage)](https://sonarcloud.io/summary/new_code?id=texaryn_texaryn)
+
 SolidJS bindings and default widgets for Texaryn forms.
 
 ```tsx

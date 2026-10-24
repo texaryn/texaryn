@@ -17,17 +17,17 @@ const fieldTypes: readonly { value: BuilderFieldType; label: string }[] = [
 export function FormBuilder({
   schemaText,
   onSchemaChange,
-}: {
+}: Readonly<{
   schemaText: string
   onSchemaChange: (schemaText: string) => void
-}) {
+}>) {
   const id = useId()
   const model = useMemo(() => getFormBuilderModel(schemaText), [schemaText])
 
   if (!model.available) {
     return (
       <div className="pg-builder">
-        <p className="pg-builder__message" role="status">{model.message}</p>
+        <output className="pg-builder__message">{model.message}</output>
       </div>
     )
   }

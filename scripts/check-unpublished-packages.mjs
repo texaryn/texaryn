@@ -51,7 +51,8 @@ export async function main({
     readVersions(root).map(({ name, version }) => checkVersion(name, version, { fetch })),
   )
   for (const r of results) {
-    log(`${r.name}@${r.version}: ${r.status}${r.detail ? ` (${r.detail})` : ''}`)
+    const detail = r.detail ? ` (${r.detail})` : ''
+    log(`${r.name}@${r.version}: ${r.status}${detail}`)
   }
   const shouldPublish = decide(results)
   log(`should-publish=${shouldPublish}`)

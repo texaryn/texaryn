@@ -24,7 +24,7 @@ Shared by the three React widget sets so they cannot drift on it.
 
 ### \_\_namedParameters
 
-[`FieldLabelContentProps`](../interfaces/FieldLabelContentProps.md)
+`Readonly`\<[`FieldLabelContentProps`](../interfaces/FieldLabelContentProps.md)\>
 
 ## Returns
 

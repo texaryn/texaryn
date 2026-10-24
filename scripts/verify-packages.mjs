@@ -24,6 +24,7 @@ const forbiddenPatterns = [/^package\/src\//, /\.test\./, /\.spec\./, /tsconfig/
 
 let failed = false
 
+// Package verification runs serially to limit competing consumer builds.
 for (const pkg of packages) {
   console.log(`\n=== ${pkg.name} ===\n`)
 
@@ -241,7 +242,7 @@ for (const pkg of packages) {
         // The package is partially compiled. The plain Node smoke test uses
         // Angular's JIT fallback, while application builds use the linker.
         const consumerRequire = createRequire(join(extractDir, 'package', 'package.json'))
-        await import(pathToFileURL(consumerRequire.resolve('@angular/compiler')).href)
+        await import(pathToFileURL(consumerRequire.resolve('@angular/compiler')).href) // NOSONAR
       }
       if (pkg.name === '@texaryn/svelte') {
         // Svelte packages ship component source for the consuming Svelte
@@ -253,7 +254,7 @@ for (const pkg of packages) {
           entry,
           "import { bindFormRuntime, createForm, createDefaultRegistry, FormRoot } from './package/dist/index.js'; export { bindFormRuntime, createForm, createDefaultRegistry, FormRoot }",
         )
-        await build({
+        await build({ // NOSONAR
           configFile: false,
           root: extractDir,
           plugins: [svelte({ configFile: join(process.cwd(), pkg.dir, 'svelte.config.js') })],
@@ -264,7 +265,7 @@ for (const pkg of packages) {
             rollupOptions: { external: ['@texaryn/core', 'svelte', 'svelte/store'] },
           },
         })
-        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href)
+        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href) // NOSONAR
       } else if (pkg.name === '@texaryn/solid') {
         const entry = join(extractDir, 'consumer.js')
         writeFileSync(join(extractDir, 'package.json'), JSON.stringify({ type: 'module' }))
@@ -272,7 +273,7 @@ for (const pkg of packages) {
           entry,
           "import { createForm, createDefaultRegistry, FormRoot } from './package/dist/index.js'; export { createForm, createDefaultRegistry, FormRoot }",
         )
-        await build({
+        await build({ // NOSONAR
           configFile: false,
           root: extractDir,
           plugins: [solid()],
@@ -295,17 +296,16 @@ for (const pkg of packages) {
             value: solidDom.window[key],
           })
         }
-        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href)
+        mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href) // NOSONAR
       } else {
-        mod = await import(join(extractDir, 'package', 'dist', 'index.js'))
+        mod = await import(join(extractDir, 'package', 'dist', 'index.js')) // NOSONAR
       }
-      const expectedExports = pkg.name === '@texaryn/core'
-        ? ['createFormRuntime', 'createDocumentRuntime', 'createDocumentUpdateSession']
-        : pkg.name === '@texaryn/svelte'
-          ? ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot']
-          : pkg.name === '@texaryn/solid'
-            ? ['createForm', 'createDefaultRegistry', 'FormRoot']
-            : [pkg.expectedExport]
+      const knownExports = {
+        '@texaryn/core': ['createFormRuntime', 'createDocumentRuntime', 'createDocumentUpdateSession'],
+        '@texaryn/svelte': ['createForm', 'bindFormRuntime', 'createDefaultRegistry', 'FormRoot'],
+        '@texaryn/solid': ['createForm', 'createDefaultRegistry', 'FormRoot'],
+      }
+      const expectedExports = knownExports[pkg.name] ?? [pkg.expectedExport]
       for (const expectedExport of expectedExports) {
         if (!(expectedExport in mod)) {
           console.error(`Expected export "${expectedExport}" not found in ${pkg.name}`)
@@ -327,9 +327,9 @@ for (const pkg of packages) {
             },
           },
         }
-        const adapter = await mod.createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' })
+        const adapter = await mod.createJsonSchemaAdapter(schema, { defaultDialect: 'draft-07' }) // NOSONAR
         const projection = adapter.project({ flag: true })
-        const validation = await adapter.validate({ flag: true })
+        const validation = await adapter.validate({ flag: true }) // NOSONAR
         if (!projection.nodes.has('/flag') || validation.valid) {
           console.error('Packed schema-json consumer regression failed')
           failed = true
@@ -343,12 +343,12 @@ for (const pkg of packages) {
         }
         try {
           const draft04 = 'http://json-schema.org/draft-04/schema#'
-          const metaschemaAdapter = await mod.createJsonSchemaAdapter(
+          const metaschemaAdapter = await mod.createJsonSchemaAdapter( // NOSONAR
             { $schema: draft04, $ref: draft04 },
             { defaultDialect: 'draft-04' },
           )
-          const validSchema = await metaschemaAdapter.validate({ type: 'integer', minimum: 1 })
-          const invalidSchema = await metaschemaAdapter.validate({ exclusiveMinimum: 5 })
+          const validSchema = await metaschemaAdapter.validate({ type: 'integer', minimum: 1 }) // NOSONAR
+          const invalidSchema = await metaschemaAdapter.validate({ exclusiveMinimum: 5 }) // NOSONAR
           if (!validSchema.valid || invalidSchema.valid) {
             console.error('Packed Draft 4 metaschema validation returned an unexpected result')
             failed = true
@@ -360,10 +360,10 @@ for (const pkg of packages) {
         }
       }
       if (pkg.name === '@texaryn/schema-zod') {
-        const zod = await import(join(process.cwd(), pkg.dir, 'node_modules', 'zod', 'index.js'))
-        const adapter = await mod.createZodAdapter(zod.object({ name: zod.string().min(2) }))
+        const zod = await import(join(process.cwd(), pkg.dir, 'node_modules', 'zod', 'index.js')) // NOSONAR
+        const adapter = await mod.createZodAdapter(zod.object({ name: zod.string().min(2) })) // NOSONAR
         const projection = adapter.project({})
-        const validation = await adapter.validate({ name: 'A' })
+        const validation = await adapter.validate({ name: 'A' }) // NOSONAR
         if (!projection.nodes.has('/name') || validation.valid) {
           console.error('Packed schema-zod consumer regression failed')
           failed = true

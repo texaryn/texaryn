@@ -162,7 +162,7 @@ function makeBranchChecker(
     if (pointer === '') return true
     let current = data
     for (const rawSegment of pointer.split('/').slice(1)) {
-      const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+      const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
       if (Array.isArray(current)) {
         const index = Number(segment)
         if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) {
@@ -302,11 +302,9 @@ function makeBranchChecker(
       const branchPointer = `${schemaPointer}${suffix}`
       const skipDraft07Reference =
         dialect === 'draft-07' && analyzeReferences(branchPointer).containsReference
-      const ifValid = scopeValidity.has(ifKey)
-        ? scopeValidity.get(ifKey)
-        : skipDraft07Reference
-          ? undefined
-          : missingIfResult(schemaPointer, instancePointer)
+      let ifValid: boolean | undefined
+      if (scopeValidity.has(ifKey)) ifValid = scopeValidity.get(ifKey)
+      else if (!skipDraft07Reference) ifValid = missingIfResult(schemaPointer, instancePointer)
       return suffix === '/then' ? ifValid === true : ifValid === false
     }
 

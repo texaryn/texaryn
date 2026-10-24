@@ -11,7 +11,7 @@ import type { WidgetComponent } from '@texaryn/svelte'
 export const svelteRegistry: RendererRegistry<WidgetComponent> = createDefaultRegistry()
 
 /** Renders a Svelte form over the runtime owned by the React shell. */
-export function SvelteHost({ runtime }: { runtime: FormRuntime }) {
+export function SvelteHost({ runtime }: Readonly<{ runtime: FormRuntime }>) {
   const mountRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

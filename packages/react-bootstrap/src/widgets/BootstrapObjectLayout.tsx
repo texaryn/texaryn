@@ -12,7 +12,7 @@ export interface WidgetProps {
   node: UINode
 }
 
-function BootstrapObjectLayoutImpl({ node }: WidgetProps) {
+function BootstrapObjectLayoutImpl({ node }: Readonly<WidgetProps>) {
   const { document, registry } = useRendererContext()
   const { container, nested, title, children } = useObjectGroup(node)
 

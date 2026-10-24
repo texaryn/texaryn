@@ -5,7 +5,7 @@ import type { RendererProps } from '../renderer-types.js'
 
 const registry = createBootstrapRegistry()
 
-export default function ReactBootstrapRenderer({ theme, onSubmit, onSubmitForm }: RendererProps) {
+export default function ReactBootstrapRenderer({ theme, onSubmit, onSubmitForm }: Readonly<RendererProps>) {
   return (
     <BootstrapBoundary theme={theme}>
       <form ref={onSubmitForm} className="pg-runtime-form" noValidate onSubmit={onSubmit}>

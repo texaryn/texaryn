@@ -213,7 +213,7 @@ describe('compile', () => {
       )! as any
       expect(addrNode.type).toBe('container')
       expect(addrNode.containerType).toBe('object')
-      expect(addrNode.children.length).toBe(2)
+      expect(addrNode.children).toHaveLength(2)
     })
   })
 
@@ -266,7 +266,7 @@ describe('compile', () => {
       const { identityMap } = result
       expect(identityMap.arrayIdentities.size).toBe(1)
       const [key, itemIds] = [...identityMap.arrayIdentities.entries()][0]
-      expect(itemIds.length).toBe(2)
+      expect(itemIds).toHaveLength(2)
       expect(arrayNodes(result)[0].arrayMeta!.identityKey).toBe(key)
     })
 

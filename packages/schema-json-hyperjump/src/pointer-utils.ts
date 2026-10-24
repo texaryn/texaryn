@@ -86,7 +86,7 @@ export function schemaPositionSegments(position: string): string[] {
   const hashIndex = position.indexOf('#')
   const fragment = hashIndex === -1 ? position : position.slice(hashIndex + 1)
   if (fragment === '') return []
-  return fragment.replace(/^\//, '').split('/').map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+  return fragment.replace(/^\//, '').split('/').map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
 }
 
 export function schemaParentPosition(position: string, segmentCount: number): string {
@@ -98,7 +98,7 @@ export function schemaParentPosition(position: string, segmentCount: number): st
 }
 
 export function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 export function instancePointerFromUri(instanceUri: string): string {
@@ -117,7 +117,7 @@ export function resolveJsonPointer(doc: unknown, pointer: string): unknown {
   const parts = pointer
     .split('/')
     .slice(1)
-    .map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .map((p) => p.replaceAll('~1', '/').replaceAll('~0', '~'))
   let cur: unknown = doc
   for (const part of parts) {
     if (cur === null || cur === undefined) return undefined
