@@ -161,21 +161,15 @@ describe('browser semantics', () => {
     }
   })
 
-  it('reordering the focused row keeps focus, selection and rebinding with the forced insertBefore fallback', async () => {
+  it('reordering the focused row keeps focus, selection and rebinding with the forced before fallback', async () => {
     const rt = await mount(listSchema, items, { '/items': { canReorder: true } })
     delete elementProto.moveBefore
     expect(typeof (rows()[0].parentElement as unknown as Movable).moveBefore).toBe('undefined')
 
-    const moved: Node[] = []
-    const original = Node.prototype.insertBefore
-    const spy = vi
-      .spyOn(Node.prototype, 'insertBefore')
-      .mockImplementation(function (this: Node, node: Node, ref: Node | null) {
-        moved.push(node)
-        return original.call(this, node, ref)
-      } as typeof Node.prototype.insertBefore)
+    const spy = vi.spyOn(Element.prototype, 'before')
     try {
       await reorderContract(rt)
+      const moved = spy.mock.calls.flatMap((args) => args.filter((node): node is Node => node instanceof Node))
       expect(moved.length).toBeGreaterThan(0)
       expect(moved).not.toContain(rows()[0])
     } finally {
