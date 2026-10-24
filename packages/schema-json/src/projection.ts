@@ -1593,6 +1593,55 @@ interface ComposedWalkShape extends InitialWalkShape {
   readonly wrapperIdentified: boolean
 }
 
+function shouldReduceInitialAllOf(
+  original: SchemaNode,
+  type: JsonSchemaType | undefined,
+  localShape: ReturnType<typeof inferAllOfProjectionShape>,
+  allOfType: JsonSchemaType | undefined,
+  hasReferencedAllOfBranch: boolean,
+): boolean {
+  if (!original.allOf || original.oneOf || original.anyOf || type) return false
+  if (localShape.kind === 'resolved' && allOfType === undefined) return false
+  return hasReferencedAllOfBranch || allOfType !== undefined
+}
+
+function reduceInitialAllOfShape(
+  original: SchemaNode,
+  data: unknown,
+  scope: ValidationPath,
+  initialType: JsonSchemaType | undefined,
+): InitialWalkShape | undefined {
+  const originalSchema = original.schema as Record<string, unknown>
+  const localShape = inferAllOfProjectionShape(original, originalSchema)
+  const allOfType = original.allOf ? allOfExplicitType(original) : undefined
+  const hasReferencedAllOfBranch = original.allOf ? hasReferencedAllOf(original) : false
+  if (!shouldReduceInitialAllOf(original, initialType, localShape, allOfType, hasReferencedAllOfBranch)) {
+    return undefined
+  }
+  const reductionData =
+    (allOfType === 'object' || declaresObject(original)) &&
+    (data === undefined || data === null)
+      ? {}
+      : data
+  const reduced = reduceAllOfForProjection(original, reductionData, scope)
+  const schema = reduced?.schema as Record<string, unknown> | undefined
+  if (!reduced || !schema || typeof schema !== 'object') return undefined
+  return { resolved: reduced, schema, type: initialType ?? resolveExplicitType(schema) }
+}
+
+function reduceDynamicReferenceShape(
+  original: SchemaNode,
+  data: unknown,
+  scope: ValidationPath,
+  shape: InitialWalkShape,
+): InitialWalkShape {
+  if (shape.type || !original.allOf?.length) return shape
+  const reduced = original.reduceNode(data, { path: [...scope] }).node
+  if (!reduced) return shape
+  const schema = reduced.schema as Record<string, unknown>
+  return { resolved: reduced, schema, type: resolveExplicitType(schema) }
+}
+
 function initialWalkShape(
   original: SchemaNode,
   originalSchema: Record<string, unknown>,
@@ -1600,90 +1649,76 @@ function initialWalkShape(
   scope: ValidationPath,
   ctx: RecursionContext,
 ): InitialWalkShape {
-  let resolved = original
-  let schema = originalSchema
-  let type = resolveExplicitType(schema)
-  const localShape = inferAllOfProjectionShape(original, schema)
-  const allOfType = original.allOf ? allOfExplicitType(original) : undefined
-  const hasReferencedAllOfBranch = original.allOf ? hasReferencedAllOf(original) : false
-  if (
-    original.allOf &&
-    !original.oneOf &&
-    !original.anyOf &&
-    !type &&
-    (localShape.kind !== 'resolved' || allOfType !== undefined) &&
-    (hasReferencedAllOfBranch || allOfType !== undefined)
-  ) {
-    const reductionData =
-      (allOfType === 'object' || declaresObject(original)) &&
-      (data === undefined || data === null)
-        ? {}
-        : data
-    const reduced = reduceAllOfForProjection(original, reductionData, scope)
-    const reducedSchema = reduced?.schema as Record<string, unknown> | undefined
-    if (reduced && reducedSchema && typeof reducedSchema === 'object') {
-      resolved = reduced
-      schema = reducedSchema
-      if (!type) type = resolveExplicitType(schema)
-    }
-  }
-  if (!type && ctx.cache.dynamicReferenceProjection && original.allOf?.length) {
-    const reduced = original.reduceNode(data, { path: [...scope] }).node
-    if (reduced) {
-      resolved = reduced
-      schema = reduced.schema as Record<string, unknown>
-      type = resolveExplicitType(schema)
-    }
-  }
-  return { resolved, schema, type }
+  const initialType = resolveExplicitType(originalSchema)
+  const allOfShape = reduceInitialAllOfShape(original, data, scope, initialType)
+  const shape = allOfShape ?? { resolved: original, schema: originalSchema, type: initialType }
+  return ctx.cache.dynamicReferenceProjection
+    ? reduceDynamicReferenceShape(original, data, scope, shape)
+    : shape
 }
 
-function resolveWalkComposition(
-  original: SchemaNode,
-  data: unknown,
-  scope: ValidationPath,
-  active: boolean,
-  provisional: boolean,
-  branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
-  initial: InitialWalkShape,
-  diagnostics: ProjectionDiagnostic[],
-  pointer: string,
-): ComposedWalkShape {
-  let { resolved, schema, type } = initial
-  let branchResolved = true
-  let composedAgainstData = false
-  let wrapperIdentified = false
-  if (!type && (original.oneOf || original.anyOf)) {
-    composedAgainstData = true
-    const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
-    if (branchNode) {
-      resolved = resolveSelectedBranch(original, branchNode, data, branchApplicability, scope)
-      schema = resolved.schema as Record<string, unknown>
-      type = resolveExplicitType(schema)
-    } else {
-      type = 'object'
-      branchResolved = false
-      wrapperIdentified =
-        (active || provisional) &&
-        selectProvisionalBranch(
-          original,
-          typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined,
-        ) !== undefined
+interface WalkCompositionInput {
+  readonly original: SchemaNode
+  readonly data: unknown
+  readonly scope: ValidationPath
+  readonly active: boolean
+  readonly provisional: boolean
+  readonly branchApplicability: WeakMap<SchemaNode, boolean> | undefined
+  readonly initial: InitialWalkShape
+  readonly diagnostics: ProjectionDiagnostic[]
+  readonly pointer: string
+}
+
+function identifyCompositionWrapper(input: WalkCompositionInput): boolean {
+  if (!input.active && !input.provisional) return false
+  const data = input.data
+  const dataRecord = typeof data === 'object' && data !== null ? data as Record<string, unknown> : undefined
+  return selectProvisionalBranch(input.original, dataRecord) !== undefined
+}
+
+function selectCompositionShape(input: WalkCompositionInput): ComposedWalkShape {
+  const { original, data, scope, branchApplicability, initial } = input
+  if (initial.type || (!original.oneOf && !original.anyOf)) {
+    return { ...initial, branchResolved: true, composedAgainstData: false, wrapperIdentified: false }
+  }
+  const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
+  if (!branchNode) {
+    return {
+      ...initial,
+      type: 'object',
+      branchResolved: false,
+      composedAgainstData: true,
+      wrapperIdentified: identifyCompositionWrapper(input),
     }
   }
-  if (!type) {
-    const inferred = inferAllOfProjectionShape(resolved, schema)
-    if (inferred.kind === 'resolved') {
-      type = inferred.type
-    } else {
-      const transientBranchMiss =
-        Object.keys(schema).every((keyword) => keyword === POSITION) && compositionHasRenderableAlternative(original)
-      if (!(inferred.kind === 'none' && composedAgainstData && transientBranchMiss)) {
-        diagnostics.push(shapeDiagnostic(toPointer(pointer), inferred, schema.enum !== undefined))
-      }
-    }
+  const resolved = resolveSelectedBranch(original, branchNode, data, branchApplicability, scope)
+  const schema = resolved.schema as Record<string, unknown>
+  return {
+    resolved,
+    schema,
+    type: resolveExplicitType(schema),
+    branchResolved: true,
+    composedAgainstData: true,
+    wrapperIdentified: false,
   }
-  return { resolved, schema, type, branchResolved, composedAgainstData, wrapperIdentified }
+}
+
+function inferCompositionType(input: WalkCompositionInput, shape: ComposedWalkShape): JsonSchemaType | undefined {
+  if (shape.type) return shape.type
+  const inferred = inferAllOfProjectionShape(shape.resolved, shape.schema)
+  if (inferred.kind === 'resolved') return inferred.type
+  const transientBranchMiss =
+    Object.keys(shape.schema).every((keyword) => keyword === POSITION) &&
+    compositionHasRenderableAlternative(input.original)
+  if (!(inferred.kind === 'none' && shape.composedAgainstData && transientBranchMiss)) {
+    input.diagnostics.push(shapeDiagnostic(toPointer(input.pointer), inferred, shape.schema.enum !== undefined))
+  }
+  return undefined
+}
+
+function resolveWalkComposition(input: WalkCompositionInput): ComposedWalkShape {
+  const shape = selectCompositionShape(input)
+  return { ...shape, type: inferCompositionType(input, shape) }
 }
 
 function reduceArrayWalkShape(
@@ -1941,17 +1976,17 @@ function walk(frame: ProjectionWalkFrame): void {
   } = frame
 
   const initialShape = initialWalkShape(original, originalSchema, data, scope, ctx)
-  const composedShape = resolveWalkComposition(
+  const composedShape = resolveWalkComposition({
     original,
     data,
     scope,
     active,
     provisional,
-    ctx.branchApplicability,
-    initialShape,
+    branchApplicability: ctx.branchApplicability,
+    initial: initialShape,
     diagnostics,
     pointer,
-  )
+  })
   const shape = reduceArrayWalkShape(original, data, scope, composedShape)
   const { resolved, schema, type } = shape
   if (!type) return
@@ -2203,7 +2238,7 @@ function addProvisionalAdditionalKeys(
 }
 
 function objectProjectionState(input: ObjectWalkInput): ObjectProjectionState {
-  const { frame, resolved, original, scope, presentation } = input
+  const { frame, original, scope, presentation } = input
   const { data, declaredAt, ctx } = frame
   const dataRecord = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined
   const reducedNode = reduceObjectNode(input, dataRecord)
@@ -2341,7 +2376,6 @@ function resolveObjectChildNodes(
   childProvisional: boolean,
   childData: unknown,
 ): ObjectChildNodes {
-  const { resolved } = object
   const reducedChildNode = memberSchema(state.reducedNode, key)
   const provisionalChildNode = memberSchema(state.provisionalBranch, key)
   const candidate = state.candidateProps.get(key)!
@@ -2501,8 +2535,6 @@ function projectObjectProjection(input: ObjectWalkInput): void {
   for (const [index, key] of propKeys.entries()) {
     walkObjectChild({ object: input, state, key, index })
   }
-  return
-
 }
 
 
