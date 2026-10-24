@@ -132,6 +132,75 @@ interface RenderedTableRow {
   cells: Map<string, HTMLTableCellElement>
 }
 
+function updateTableHeaders(
+  columns: TableNode['columns'],
+  headerRow: HTMLTableRowElement,
+  headers: Map<string, HTMLTableCellElement>,
+): void {
+  const activeColumns = new Set(columns.map((column) => column.id))
+  for (const [columnId, header] of headers) {
+    if (activeColumns.has(columnId)) continue
+    header.remove()
+    headers.delete(columnId)
+  }
+  for (const column of columns) {
+    let header = headers.get(column.id)
+    if (!header) {
+      header = document.createElement('th')
+      header.scope = 'col'
+      headers.set(column.id, header)
+    }
+    header.textContent = column.label
+    headerRow.append(header)
+  }
+}
+
+function updateTableRow(
+  row: DocumentCollectionRow,
+  columns: TableNode['columns'],
+  renderedRow: RenderedTableRow,
+): void {
+  const activeCells = new Set(columns.map((column) => column.id))
+  for (const [columnId, cell] of renderedRow.cells) {
+    if (activeCells.has(columnId)) continue
+    cell.remove()
+    renderedRow.cells.delete(columnId)
+  }
+  columns.forEach((column, index) => {
+    let cell = renderedRow.cells.get(column.id)
+    if (!cell) {
+      cell = document.createElement('td')
+      cell.dataset.columnId = column.id
+      renderedRow.cells.set(column.id, cell)
+    }
+    cell.textContent = displayValue(row.cells[index] ?? null)
+    renderedRow.element.append(cell)
+  })
+}
+
+function updateTableRows(
+  snapshot: readonly DocumentCollectionRow[],
+  columns: TableNode['columns'],
+  body: HTMLTableSectionElement,
+  rendered: Map<string, RenderedTableRow>,
+): void {
+  const activeRows = new Set<string>(snapshot.map((row) => row.id))
+  for (const [rowId, row] of rendered) {
+    if (activeRows.has(rowId)) continue
+    row.element.remove()
+    rendered.delete(rowId)
+  }
+  for (const row of snapshot) {
+    let renderedRow = rendered.get(row.id)
+    if (!renderedRow) {
+      renderedRow = { element: document.createElement('tr'), cells: new Map() }
+      rendered.set(row.id, renderedRow)
+    }
+    updateTableRow(row, columns, renderedRow)
+    body.append(renderedRow.element)
+  }
+}
+
 function mountTable(node: TableNode, context: InternalDocumentRenderContext): InternalDocumentNodeBinding {
   const table = document.createElement('table')
   const head = document.createElement('thead')
@@ -147,53 +216,8 @@ function mountTable(node: TableNode, context: InternalDocumentRenderContext): In
 
   function update(snapshot: readonly DocumentCollectionRow[]): void {
     const columns = currentNode.columns
-    const activeColumns = new Set(columns.map((column) => column.id))
-    for (const [columnId, header] of headers) {
-      if (activeColumns.has(columnId)) continue
-      header.remove()
-      headers.delete(columnId)
-    }
-    for (const column of columns) {
-      let header = headers.get(column.id)
-      if (!header) {
-        header = document.createElement('th')
-        header.scope = 'col'
-        headers.set(column.id, header)
-      }
-      header.textContent = column.label
-      headerRow.append(header)
-    }
-
-    const activeRows = new Set<string>(snapshot.map((row) => row.id))
-    for (const [rowId, row] of rendered) {
-      if (activeRows.has(rowId)) continue
-      row.element.remove()
-      rendered.delete(rowId)
-    }
-    for (const row of snapshot) {
-      let renderedRow = rendered.get(row.id)
-      if (!renderedRow) {
-        renderedRow = { element: document.createElement('tr'), cells: new Map() }
-        rendered.set(row.id, renderedRow)
-      }
-      const activeCells = new Set(columns.map((column) => column.id))
-      for (const [columnId, cell] of renderedRow.cells) {
-        if (activeCells.has(columnId)) continue
-        cell.remove()
-        renderedRow.cells.delete(columnId)
-      }
-      columns.forEach((column, index) => {
-        let cell = renderedRow!.cells.get(column.id)
-        if (!cell) {
-          cell = document.createElement('td')
-          cell.dataset.columnId = column.id
-          renderedRow!.cells.set(column.id, cell)
-        }
-        cell.textContent = displayValue(row.cells[index] ?? null)
-        renderedRow!.element.append(cell)
-      })
-      body.append(renderedRow.element)
-    }
+    updateTableHeaders(columns, headerRow, headers)
+    updateTableRows(snapshot, columns, body, rendered)
   }
 
   update(rows.getSnapshot())
@@ -211,117 +235,121 @@ function mountTable(node: TableNode, context: InternalDocumentRenderContext): In
   )
 }
 
-function mountNode(node: DocumentNode, context: InternalDocumentRenderContext): InternalDocumentNodeBinding {
-  const factory = context.registry?.resolve(node)
-  if (factory) {
-    const mountedChildren: InternalDocumentNodeBinding[] = []
-    const widgetContext: DocumentRenderContext = {
-      ...context,
-      mountChild(child) {
-        const binding = context.mountChild(child)
-        mountedChildren.push(binding)
-        return binding
-      },
+function mountWidget(
+  node: DocumentNode,
+  context: InternalDocumentRenderContext,
+  factory: DocumentWidgetFactory,
+): InternalDocumentNodeBinding {
+  const mountedChildren: InternalDocumentNodeBinding[] = []
+  const widgetContext: DocumentRenderContext = {
+    ...context,
+    mountChild(child) {
+      const binding = context.mountChild(child)
+      mountedChildren.push(binding)
+      return binding
     }
-    let widget: DocumentDomWidget
-    try {
-      widget = factory(node, widgetContext)
-    } catch (error) {
+  }
+  let widget: DocumentDomWidget
+  try {
+    widget = factory(node, widgetContext)
+  } catch (error) {
+    for (const child of mountedChildren) child.destroy()
+    throw error
+  }
+  return createBinding(
+    node,
+    widget.element,
+    () => false,
+    () => {},
+    () => {
+      widget.destroy()
       for (const child of mountedChildren) child.destroy()
-      throw error
-    }
-    return createBinding(
-      node,
-      widget.element,
-      () => false,
-      () => {},
-      () => {
-        widget.destroy()
-        for (const child of mountedChildren) child.destroy()
-      },
-      'widget',
-    )
+    },
+    'widget',
+  )
+}
+
+function mountContainer(
+  node: Extract<DocumentNode, { type: 'container' }>,
+  context: InternalDocumentRenderContext,
+): InternalDocumentNodeBinding {
+  const group = node.containerType === 'group'
+  const element = document.createElement(group ? 'fieldset' : 'div')
+  let children: readonly InternalDocumentNodeBinding[] = []
+  let legend: HTMLLegendElement | undefined
+  if (group) {
+    legend = document.createElement('legend')
+    legend.textContent = node.annotations.title ?? ''
+  } else {
+    element.dataset.texarynLayout = ''
   }
 
-  if (node.type === 'container') {
-    const group = node.containerType === 'group'
-    const element = document.createElement(group ? 'fieldset' : 'div')
-    let children: readonly InternalDocumentNodeBinding[] = []
-    let legend: HTMLLegendElement | undefined
-    if (group) {
-      legend = document.createElement('legend')
-      legend.textContent = node.annotations.title ?? ''
-    } else {
-      element.dataset.texarynLayout = ''
-    }
-
-    function setChildren(nextChildren: readonly InternalDocumentNodeBinding[], removeMissing = true): void {
-      const nextElements = new Set(nextChildren.map((child) => child.element))
-      if (removeMissing) {
-        for (const child of children) {
-          if (!nextElements.has(child.element)) child.element.remove()
-        }
+  function setChildren(nextChildren: readonly InternalDocumentNodeBinding[], removeMissing = true): void {
+    const nextElements = new Set(nextChildren.map((child) => child.element))
+    if (removeMissing) {
+      for (const child of children) {
+        if (!nextElements.has(child.element)) child.element.remove()
       }
-      if (legend && legend.parentElement !== element) element.prepend(legend)
-      let position: ChildNode | null = legend ? legend.nextSibling : element.firstChild
-      for (const child of nextChildren) {
-        if (child.element !== position) element.insertBefore(child.element, position)
-        position = child.element.nextSibling
-      }
-      children = [...nextChildren]
     }
-
-    const mounted: InternalDocumentNodeBinding[] = []
-    try {
-      for (const childId of node.children) {
-        const child = context.runtime.document.getSnapshot().nodes[childId]
-        if (!child) throw new Error(`Container ${node.id} references missing node ${childId}`)
-        mounted.push(context.mountChild(child))
-      }
-      setChildren(mounted)
-    } catch (error) {
-      for (const child of mounted) child.destroy()
-      throw error
+    if (legend && legend.parentElement !== element) element.prepend(legend)
+    let position: ChildNode | null = legend ? legend.nextSibling : element.firstChild
+    for (const child of nextChildren) {
+      if (child.element !== position) element.insertBefore(child.element, position)
+      position = child.element.nextSibling
     }
-
-    const binding = createBinding(
-      node,
-      element,
-      (next) => next.type === 'container' && next.containerType === node.containerType,
-      (next) => {
-        if (next.type !== 'container') return
-        if (legend) legend.textContent = next.annotations.title ?? ''
-        if (!group) element.dataset.texarynLayout = ''
-      },
-      () => {
-        for (const child of children) child.destroy()
-      },
-    )
-    Object.defineProperties(binding, {
-      children: { get: () => children },
-      setChildren: { value: setChildren },
-    })
-    return binding
+    children = [...nextChildren]
   }
 
-  if (node.type === 'text') {
-    const tag = node.textRole === 'heading' ? 'h2' : 'p'
-    const element = document.createElement(tag)
-    if (node.textRole === 'help') element.setAttribute('role', 'note')
-    element.textContent = node.content
-    return createBinding(
-      node,
-      element,
-      (next) => next.type === 'text' && next.textRole === node.textRole,
-      (next) => {
-        if (next.type === 'text') element.textContent = next.content
-      },
-      () => {},
-    )
+  const mounted: InternalDocumentNodeBinding[] = []
+  try {
+    for (const childId of node.children) {
+      const child = context.runtime.document.getSnapshot().nodes[childId]
+      if (!child) throw new Error(`Container ${node.id} references missing node ${childId}`)
+      mounted.push(context.mountChild(child))
+    }
+    setChildren(mounted)
+  } catch (error) {
+    for (const child of mounted) child.destroy()
+    throw error
   }
-  if (node.type === 'list') return mountList(node, context)
-  if (node.type === 'table') return mountTable(node, context)
 
+  const binding = createBinding(
+    node,
+    element,
+    (next) => next.type === 'container' && next.containerType === node.containerType,
+    (next) => {
+      if (next.type !== 'container') return
+      if (legend) legend.textContent = next.annotations.title ?? ''
+      if (!group) element.dataset.texarynLayout = ''
+    },
+    () => {
+      for (const child of children) child.destroy()
+    },
+  )
+  Object.defineProperties(binding, {
+    children: { get: () => children },
+    setChildren: { value: setChildren },
+  })
+  return binding
+}
+
+function mountText(node: Extract<DocumentNode, { type: 'text' }>): InternalDocumentNodeBinding {
+  const tag = node.textRole === 'heading' ? 'h2' : 'p'
+  const element = document.createElement(tag)
+  if (node.textRole === 'help') element.setAttribute('role', 'note')
+  element.textContent = node.content
+  return createBinding(
+    node,
+    element,
+    (next) => next.type === 'text' && next.textRole === node.textRole,
+    (next) => {
+      if (next.type === 'text') element.textContent = next.content
+    },
+    () => {},
+  )
+}
+
+function mountAction(node: Extract<DocumentNode, { type: 'action' }>, context: InternalDocumentRenderContext): InternalDocumentNodeBinding {
   const element = document.createElement('button')
   element.type = 'button'
   element.disabled = !context.runtime.hasActionHandler(node.actionType)
@@ -342,6 +370,19 @@ function mountNode(node: DocumentNode, context: InternalDocumentRenderContext): 
     },
     () => element.removeEventListener('click', onClick),
   )
+}
+
+function mountNode(node: DocumentNode, context: InternalDocumentRenderContext): InternalDocumentNodeBinding {
+  const factory = context.registry?.resolve(node)
+  if (factory) return mountWidget(node, context, factory)
+
+  switch (node.type) {
+    case 'container': return mountContainer(node, context)
+    case 'text': return mountText(node)
+    case 'list': return mountList(node, context)
+    case 'table': return mountTable(node, context)
+    case 'action': return mountAction(node, context)
+  }
 }
 
 function reconcileBindings(previous: InternalDocumentNodeBinding, next: InternalDocumentNodeBinding): InternalDocumentNodeBinding {
