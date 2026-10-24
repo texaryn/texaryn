@@ -18,8 +18,11 @@ type Movable = HTMLElement & { moveBefore?: (node: Node, child: Node | null) => 
 function place(parent: Movable, el: HTMLElement, ref: Node | null): void {
   if (el.parentNode === parent && typeof parent.moveBefore === 'function') {
     parent.moveBefore(el, ref)
+  } else if (ref) {
+    const referenceChild = ref as ChildNode
+    referenceChild.before(el)
   } else {
-    parent.insertBefore(el, ref)
+    parent.append(el)
   }
 }
 

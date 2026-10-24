@@ -512,7 +512,9 @@ function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] |
 
 function dynamicAnchorUri(resourceId: string | undefined, anchor: string): string {
   const currentId = resourceId ?? '#'
-  return `${currentId.replace(/#.*$/, '')}#${anchor}`
+  const fragmentStart = currentId.indexOf('#')
+  const baseId = fragmentStart < 0 ? currentId : currentId.slice(0, fragmentStart)
+  return `${baseId}#${anchor}`
 }
 
 function dynamicReferenceAnchor(reference: string): string | undefined {
@@ -537,7 +539,7 @@ function toDraftOption(dialect: Dialect): string {
 // compileSchema() is synchronous for schemas with only local $ref (Phase 1's scope); it is
 // wrapped in a Promise so the factory signature stays uniform with libraries whose
 // preparation step is genuinely async (e.g. hyperjump's annotate()).
-async function prepareSchema(
+function prepareSchema(
   schema: unknown,
   dialect: Dialect,
   remotes: JsonSchema[] | undefined,
@@ -554,7 +556,7 @@ async function prepareSchema(
     formatAssertion,
     remotes: remotes?.map((remote) => materializeLocalPointerAliases(remote, dialect, true) as JsonSchema),
   })
-  return root
+  return Promise.resolve(root)
 }
 
 function hasOneOf(value: unknown, visited = new WeakSet<object>()): boolean {
