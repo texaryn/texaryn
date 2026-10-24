@@ -463,7 +463,7 @@ export function materializeLocalPointerAliases(
       }
     }
     const fragment = referenceFragment(schema.$ref, scope.base)
-    if (fragment === undefined || !fragment.startsWith('/')) continue
+    if (!fragment?.startsWith('/')) continue
     const targetPosition = pointerPosition(scope.position, fragment)
     const localAlias = scope.aliases.get(targetPosition)
     if (localAlias !== undefined) {

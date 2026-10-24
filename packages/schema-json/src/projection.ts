@@ -1300,7 +1300,7 @@ function discriminatorKeys(branches: readonly SchemaNode[]): Set<string> {
     ),
   )
   for (const branch of branches.slice(1)) {
-    for (const key of [...shared]) {
+    for (const key of shared) {
       if (!isDiscriminator(branch, key)) shared.delete(key)
     }
   }
