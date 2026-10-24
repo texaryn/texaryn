@@ -132,6 +132,128 @@ interface ResourceScope {
   nextAlias: number
 }
 
+interface PendingPointerAlias {
+  readonly schema: Record<string, unknown>
+  readonly position: string
+  readonly scope: ResourceScope
+}
+
+interface PointerAliasRewriteState {
+  readonly dialect: Dialect
+  readonly keyword: string
+  readonly pending: readonly PendingPointerAlias[]
+  readonly recognizedPositions: ReadonlySet<string>
+  readonly scopesByPosition: ReadonlyMap<string, ResourceScope>
+  readonly createAlias: (scope: ResourceScope, position: string, target: unknown, resourceBase?: string) => string
+}
+
+interface ResourceWalkState {
+  readonly dialect: Dialect
+  readonly preserveRootId: boolean
+  readonly idKeyword: string
+  readonly visited: WeakMap<object, Set<string>>
+  readonly recognizedPositions: Set<string>
+  readonly scopesByPosition: Map<string, ResourceScope>
+  readonly pending: PendingPointerAlias[]
+}
+
+function createResourceScope(
+  schema: Record<string, unknown>,
+  position: string,
+  base: string | undefined,
+  materialized: boolean,
+): ResourceScope {
+  return {
+    schema,
+    position,
+    base,
+    knownPositions: new Set<string>(materialized ? [] : [position]),
+    copiedPositions: new Set<string>(),
+    aliases: new Map<string, string>(),
+    materialized,
+    nextAlias: 0,
+  }
+}
+
+function resourceScopeForSchema(
+  schema: Record<string, unknown>,
+  position: string,
+  inherited: ResourceScope,
+  materialized: boolean,
+  state: ResourceWalkState,
+): ResourceScope {
+  const id = schemaIdentifier(schema, state.dialect)
+  if (isLegacyReferenceSibling(schema, position, state)) return inherited
+  if (typeof id !== 'string' || isLegacyFragmentIdentifier(id, state.dialect)) return inherited
+  const base = resolveSchemaIdentifierBase(id, inherited.base)
+  return createResourceScope(schema, position, base === undefined ? undefined : withoutFragment(base), materialized)
+}
+
+function isLegacyReferenceSibling(schema: Record<string, unknown>, position: string, state: ResourceWalkState): boolean {
+  if (!isPre2019Dialect(state.dialect) || typeof schema.$ref !== 'string') return false
+  if (!(state.preserveRootId && position === '#')) Reflect.deleteProperty(schema, state.idKeyword)
+  return true
+}
+
+function isLegacyFragmentIdentifier(id: string, dialect: Dialect): boolean {
+  return isPre2019Dialect(dialect) && id.startsWith('#')
+}
+
+function resolveSchemaIdentifierBase(id: string, base: string | undefined): string | undefined {
+  try {
+    return base === undefined ? new URL(id).href : new URL(id, base).href
+  } catch {
+    return base
+  }
+}
+
+function resourceSchemaVisited(schema: Record<string, unknown>, position: string, inherited: ResourceScope, state: ResourceWalkState): boolean {
+  const positions = state.visited.get(schema) ?? new Set<string>()
+  const key = `${inherited.position}\u0000${position}`
+  if (positions.has(key)) return true
+  positions.add(key)
+  state.visited.set(schema, positions)
+  return false
+}
+
+function recordRecognizedResourcePosition(
+  scope: ResourceScope,
+  position: string,
+  recognized: boolean,
+  materialized: boolean,
+  state: ResourceWalkState,
+): void {
+  if (!recognized) return
+  if (materialized) {
+    scope.copiedPositions.add(position)
+    return
+  }
+  scope.knownPositions.add(position)
+  state.recognizedPositions.add(position)
+}
+
+interface ResourceWalkInput {
+  readonly schema: unknown
+  readonly position: string
+  readonly inherited: ResourceScope
+  readonly recognized: boolean
+  readonly materialized: boolean
+  readonly state: ResourceWalkState
+  readonly walk: (schema: unknown, position: string, inherited: ResourceScope, recognized: boolean, materialized: boolean) => void
+}
+
+function walkResourceSchema(input: ResourceWalkInput): void {
+  const { schema, position, inherited, recognized, materialized, state, walk } = input
+  if (!isRecord(schema) || resourceSchemaVisited(schema, position, inherited, state)) return
+  const scope = resourceScopeForSchema(schema, position, inherited, materialized, state)
+  recordRecognizedResourcePosition(scope, position, recognized, materialized, state)
+  state.scopesByPosition.set(position, scope)
+  state.pending.push({ schema, position, scope })
+  for (const child of children(schema, position, state.dialect)) {
+    walk(child.schema, child.position, scope, recognized, materialized)
+  }
+}
+
 interface LocatedChild {
   readonly schema: Record<string, unknown>
   readonly position: string
@@ -139,34 +261,83 @@ interface LocatedChild {
 
 function children(schema: Record<string, unknown>, position: string, dialect: Dialect): LocatedChild[] {
   const found: LocatedChild[] = []
-  const add = (value: unknown, childPosition: string): void => {
-    if (isRecord(value)) found.push({ schema: value, position: childPosition })
-  }
   if (isPre2019Dialect(dialect) && typeof schema.$ref === 'string') {
-    for (const key of dialect === 'draft-04' ? ['definitions'] : ['definitions', '$defs']) {
-      const map = schema[key]
-      if (isRecord(map)) for (const [name, child] of Object.entries(map)) add(child, `${position}/${key}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
-    }
+    collectLegacyDefinitionChildren(schema, position, dialect, found)
     return found
   }
-  for (const key of SINGLE[dialect]) add(schema[key], `${position}/${key}`)
-  for (const key of LIST[dialect]) {
-    const list = schema[key]
-    if (Array.isArray(list)) list.forEach((child, index) => add(child, `${position}/${key}/${index}`))
+  collectSingleSchemaChildren(schema, position, dialect, found)
+  collectListSchemaChildren(schema, position, dialect, found)
+  collectMapSchemaChildren(schema, position, dialect, found)
+  collectTupleItemChildren(schema, position, dialect, found)
+  return found
+}
+
+function addLocatedSchema(found: LocatedChild[], value: unknown, position: string): void {
+  if (isRecord(value)) found.push({ schema: value, position })
+}
+
+function collectLegacyDefinitionChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  dialect: Dialect,
+  found: LocatedChild[],
+): void {
+  const keywords = dialect === 'draft-04' ? ['definitions'] : ['definitions', '$defs']
+  for (const keyword of keywords) {
+    const definitions = schema[keyword]
+    if (!isRecord(definitions)) continue
+    for (const [name, child] of Object.entries(definitions)) {
+      addLocatedSchema(found, child, `${position}/${keyword}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
+    }
   }
-  for (const key of MAP[dialect]) {
-    const map = schema[key]
-    if (isRecord(map)) {
-      for (const [name, child] of Object.entries(map)) {
-        if (key === 'dependencies' && Array.isArray(child)) continue
-        add(child, `${position}/${key}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
+}
+
+function collectSingleSchemaChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  dialect: Dialect,
+  found: LocatedChild[],
+): void {
+  for (const keyword of SINGLE[dialect]) addLocatedSchema(found, schema[keyword], `${position}/${keyword}`)
+}
+
+function collectListSchemaChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  dialect: Dialect,
+  found: LocatedChild[],
+): void {
+  for (const keyword of LIST[dialect]) {
+    const list = schema[keyword]
+    if (Array.isArray(list)) list.forEach((child, index) => addLocatedSchema(found, child, `${position}/${keyword}/${index}`))
+  }
+}
+
+function collectMapSchemaChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  dialect: Dialect,
+  found: LocatedChild[],
+): void {
+  for (const keyword of MAP[dialect]) {
+    const map = schema[keyword]
+    if (!isRecord(map)) continue
+    for (const [name, child] of Object.entries(map)) {
+      if (keyword !== 'dependencies' || !Array.isArray(child)) {
+        addLocatedSchema(found, child, `${position}/${keyword}/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`)
       }
     }
   }
-  if (dialect !== '2020-12' && Array.isArray(schema.items)) {
-    schema.items.forEach((child, index) => add(child, `${position}/items/${index}`))
-  }
-  return found
+}
+
+function collectTupleItemChildren(
+  schema: Record<string, unknown>,
+  position: string,
+  dialect: Dialect,
+  found: LocatedChild[],
+): void {
+  if (dialect === '2020-12' || !Array.isArray(schema.items)) return
+  schema.items.forEach((child, index) => addLocatedSchema(found, child, `${position}/items/${index}`))
 }
 
 function referenceFragment(reference: string, base: string | undefined): string | undefined {
@@ -204,23 +375,14 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
   const scopesByPosition = new Map<string, ResourceScope>()
   const keyword = isPre2019Dialect(dialect) ? 'definitions' : '$defs'
   const idKeyword = identifierKeyword(dialect)
-  const newScope = (
-    schema: Record<string, unknown>,
-    position: string,
-    base: string | undefined,
-    materialized: boolean,
-  ): ResourceScope => {
-    const scope = {
-      schema,
-      position,
-      base,
-      knownPositions: new Set<string>(materialized ? [] : [position]),
-      copiedPositions: new Set<string>(),
-      aliases: new Map<string, string>(),
-      materialized,
-      nextAlias: 0,
-    }
-    return scope
+  const walkState: ResourceWalkState = {
+    dialect,
+    preserveRootId,
+    idKeyword,
+    visited,
+    recognizedPositions,
+    scopesByPosition,
+    pending,
   }
 
   const createAlias = (
@@ -262,39 +424,7 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
     recognized: boolean,
     materialized = false,
   ): void => {
-    if (!isRecord(schema)) return
-    const visitedPositions = visited.get(schema) ?? new Set<string>()
-    const visitKey = `${inherited.position}\u0000${position}`
-    if (visitedPositions.has(visitKey)) return
-    visitedPositions.add(visitKey)
-    visited.set(schema, visitedPositions)
-
-    let scope = inherited
-    const id = schemaIdentifier(schema, dialect)
-    const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
-    if (ignoresSiblings && !(preserveRootId && position === '#')) Reflect.deleteProperty(schema, idKeyword)
-    if (!ignoresSiblings && typeof id === 'string' && !(isPre2019Dialect(dialect) && id.startsWith('#'))) {
-      let base = inherited.base
-      try {
-        base = base === undefined ? new URL(id).href : new URL(id, base).href
-      } catch {
-        base = inherited.base
-      }
-      scope = newScope(schema, position, base === undefined ? undefined : withoutFragment(base), materialized)
-    }
-    if (recognized) {
-      if (materialized) {
-        scope.copiedPositions.add(position)
-      } else {
-        scope.knownPositions.add(position)
-        recognizedPositions.add(position)
-      }
-    }
-    scopesByPosition.set(position, scope)
-    pending.push({ schema, position, scope })
-    for (const child of children(schema, position, dialect)) {
-      walk(child.schema, child.position, scope, recognized, materialized)
-    }
+    walkResourceSchema({ schema, position, inherited, recognized, materialized, state: walkState, walk })
   }
 
   const documentId = schemaIdentifier(document, dialect)
@@ -303,95 +433,159 @@ export function materializeLocalPointerAliases(input: unknown, dialect: Dialect,
         try { return withoutFragment(new URL(documentId).href) } catch { return undefined }
       })()
     : undefined
-  const rootScope = newScope(document, '#', initialBase, false)
+  const rootScope = createResourceScope(document, '#', initialBase, false)
   walk(document, '#', rootScope, true)
 
-  for (const { schema, scope } of pending) {
-    if (typeof schema.$ref !== 'string') continue
-    const fragment = referenceFragment(schema.$ref, scope.base)
-    if (!fragment?.startsWith('/')) continue
-    const targetPosition = pointerPosition(scope.position, fragment)
-    const localAlias = scope.aliases.get(targetPosition)
-    if (localAlias !== undefined) {
-      setOwn(schema, '$ref', `#/${keyword}/${localAlias}`)
-      continue
-    }
-    const localAncestorAlias = ancestorAlias(scope.aliases, targetPosition)
-    if (localAncestorAlias !== undefined && scope.copiedPositions.has(targetPosition)) {
-      const suffix = targetPosition.slice(localAncestorAlias.position.length)
-      setOwn(schema, '$ref', `#/${keyword}/${localAncestorAlias.name}${suffix}`)
-      continue
-    }
-    const located = pointerTargetWithBase(scope.schema, fragment, scope.base, scope.position, dialect)
-    const target = located?.schema
-    if (!isRecord(target) && typeof target !== 'boolean') continue
-    if (
-      isPre2019Dialect(dialect) &&
-      recognizedPositions.has(located!.position) &&
-      located!.resourceRootPosition !== scope.position &&
-      located!.base !== undefined
-    ) {
-      const suffix = located!.position.slice(located!.resourceRootPosition.length)
-      setOwn(schema, '$ref', `${located!.base}#${suffix}`)
-      continue
-    }
-    if (scope.knownPositions.has(targetPosition)) continue
-
-    let targetScope = scope
-    let copiedResource = false
-    const resourcePosition = located!.resourceRootPosition
-    if (resourcePosition !== scope.position) {
-      targetScope = scopesByPosition.get(resourcePosition) ?? scope
-      if (targetScope === scope) {
-        createAlias(scope, resourcePosition, located!.resourceRoot, located!.base)
-        targetScope = scopesByPosition.get(resourcePosition) ?? scope
-      }
-      copiedResource = scope.aliases.has(resourcePosition)
-    }
-
-    if (copiedResource && targetPosition === resourcePosition) {
-      const resourceAlias = scope.aliases.get(resourcePosition)
-      if (resourceAlias !== undefined) setOwn(schema, '$ref', `#/${keyword}/${resourceAlias}`)
-      continue
-    }
-
-    const targetAlias = targetScope.aliases.get(targetPosition)
-    if (targetAlias !== undefined) {
-      const reference = targetScope === scope
-        ? `#/${keyword}/${targetAlias}`
-        : `${targetScope.base ?? ''}#/${keyword}/${targetAlias}`
-      setOwn(schema, '$ref', reference)
-      continue
-    }
-
-    const targetAncestorAlias = ancestorAlias(targetScope.aliases, targetPosition)
-    if (targetAncestorAlias !== undefined && targetScope.copiedPositions.has(targetPosition)) {
-      const suffix = targetPosition.slice(targetAncestorAlias.position.length)
-      const prefix = targetScope === scope ? '' : targetScope.base ?? ''
-      setOwn(schema, '$ref', `${prefix}#/${keyword}/${targetAncestorAlias.name}${suffix}`)
-      continue
-    }
-
-    if (targetScope !== scope && targetScope.materialized && targetScope.copiedPositions.has(targetPosition)) {
-      const suffix = located!.position.slice(resourcePosition.length)
-      setOwn(schema, '$ref', `${targetScope.base ?? ''}#${suffix}`)
-      continue
-    }
-
-    if (targetScope.knownPositions.has(targetPosition) || recognizedPositions.has(targetPosition)) {
-      if (copiedResource) {
-        const suffix = located!.position.slice(resourcePosition.length)
-        setOwn(schema, '$ref', `${targetScope.base ?? ''}#${suffix}`)
-      }
-      continue
-    }
-
-    const alias = createAlias(targetScope, targetPosition, target)
-    const reference = targetScope === scope
-      ? `#/${keyword}/${alias}`
-      : `${targetScope.base ?? ''}#/${keyword}/${alias}`
-    setOwn(schema, '$ref', reference)
-  }
+  rewritePendingPointerAliases({ dialect, keyword, pending, recognizedPositions, scopesByPosition, createAlias })
 
   return document
+}
+
+function rewritePendingPointerAliases(state: PointerAliasRewriteState): void {
+  for (const pending of state.pending) rewritePendingPointerAlias(pending, state)
+}
+
+function rewritePendingPointerAlias(pending: PendingPointerAlias, state: PointerAliasRewriteState): void {
+  const { schema, scope } = pending
+  if (typeof schema.$ref !== 'string') return
+  const fragment = referenceFragment(schema.$ref, scope.base)
+  if (!fragment?.startsWith('/')) return
+  const targetPosition = pointerPosition(scope.position, fragment)
+  if (rewriteExistingPointerAlias(schema, scope, targetPosition, state.keyword)) return
+  const located = pointerTargetWithBase(scope.schema, fragment, scope.base, scope.position, state.dialect)
+  const target = located?.schema
+  if (!isRecord(target) && typeof target !== 'boolean') return
+  if (rewriteRecognizedPointerTarget(schema, scope, located!, state)) return
+  if (scope.knownPositions.has(targetPosition)) return
+
+  const targetScope = getPointerAliasTargetScope(scope, located!, state)
+  if (rewriteCopiedResourceRoot(schema, scope, targetScope, targetPosition, located!, state.keyword)) return
+  if (rewriteExistingTargetScopeAlias(schema, scope, targetScope, targetPosition, located!, state.keyword)) return
+  if (rewriteKnownPointerTarget(schema, targetScope, targetPosition, located!, state)) return
+  writePointerTargetAlias(schema, scope, targetScope, targetPosition, target, state)
+}
+
+function rewriteExistingPointerAlias(
+  schema: Record<string, unknown>,
+  scope: ResourceScope,
+  targetPosition: string,
+  keyword: string,
+): boolean {
+  const localAlias = scope.aliases.get(targetPosition)
+  if (localAlias !== undefined) {
+    setOwn(schema, '$ref', `#/${keyword}/${localAlias}`)
+    return true
+  }
+  const ancestor = ancestorAlias(scope.aliases, targetPosition)
+  if (ancestor === undefined || !scope.copiedPositions.has(targetPosition)) return false
+  const suffix = targetPosition.slice(ancestor.position.length)
+  setOwn(schema, '$ref', `#/${keyword}/${ancestor.name}${suffix}`)
+  return true
+}
+
+function rewriteRecognizedPointerTarget(
+  schema: Record<string, unknown>,
+  scope: ResourceScope,
+  located: LocatedPointerTarget,
+  state: PointerAliasRewriteState,
+): boolean {
+  if (
+    !isPre2019Dialect(state.dialect) ||
+    !state.recognizedPositions.has(located.position) ||
+    located.resourceRootPosition === scope.position ||
+    located.base === undefined
+  ) return false
+  const suffix = located.position.slice(located.resourceRootPosition.length)
+  setOwn(schema, '$ref', `${located.base}#${suffix}`)
+  return true
+}
+
+function getPointerAliasTargetScope(
+  scope: ResourceScope,
+  located: LocatedPointerTarget,
+  state: PointerAliasRewriteState,
+): { readonly targetScope: ResourceScope; readonly copiedResource: boolean } {
+  const resourcePosition = located.resourceRootPosition
+  if (resourcePosition === scope.position) return { targetScope: scope, copiedResource: false }
+  let targetScope = state.scopesByPosition.get(resourcePosition) ?? scope
+  if (targetScope === scope) {
+    state.createAlias(scope, resourcePosition, located.resourceRoot, located.base)
+    targetScope = state.scopesByPosition.get(resourcePosition) ?? scope
+  }
+  return { targetScope, copiedResource: scope.aliases.has(resourcePosition) }
+}
+
+function rewriteCopiedResourceRoot(
+  schema: Record<string, unknown>,
+  scope: ResourceScope,
+  target: { readonly targetScope: ResourceScope; readonly copiedResource: boolean },
+  targetPosition: string,
+  located: LocatedPointerTarget,
+  keyword: string,
+): boolean {
+  if (!target.copiedResource || targetPosition !== located.resourceRootPosition) return false
+  const alias = scope.aliases.get(located.resourceRootPosition)
+  if (alias !== undefined) setOwn(schema, '$ref', `#/${keyword}/${alias}`)
+  return true
+}
+
+function rewriteExistingTargetScopeAlias(
+  schema: Record<string, unknown>,
+  scope: ResourceScope,
+  target: { readonly targetScope: ResourceScope; readonly copiedResource: boolean },
+  targetPosition: string,
+  located: LocatedPointerTarget,
+  keyword: string,
+): boolean {
+  const alias = target.targetScope.aliases.get(targetPosition)
+  if (alias !== undefined) {
+    const reference = target.targetScope === scope
+      ? `#/${keyword}/${alias}`
+      : `${target.targetScope.base ?? ''}#/${keyword}/${alias}`
+    setOwn(schema, '$ref', reference)
+    return true
+  }
+  const ancestor = ancestorAlias(target.targetScope.aliases, targetPosition)
+  if (ancestor !== undefined && target.targetScope.copiedPositions.has(targetPosition)) {
+    const suffix = targetPosition.slice(ancestor.position.length)
+    const prefix = target.targetScope === scope ? '' : target.targetScope.base ?? ''
+    setOwn(schema, '$ref', `${prefix}#/${keyword}/${ancestor.name}${suffix}`)
+    return true
+  }
+  if (target.targetScope !== scope && target.targetScope.materialized && target.targetScope.copiedPositions.has(targetPosition)) {
+    const suffix = located.position.slice(located.resourceRootPosition.length)
+    setOwn(schema, '$ref', `${target.targetScope.base ?? ''}#${suffix}`)
+    return true
+  }
+  return false
+}
+
+function rewriteKnownPointerTarget(
+  schema: Record<string, unknown>,
+  target: { readonly targetScope: ResourceScope; readonly copiedResource: boolean },
+  targetPosition: string,
+  located: LocatedPointerTarget,
+  state: PointerAliasRewriteState,
+): boolean {
+  if (!target.targetScope.knownPositions.has(targetPosition) && !state.recognizedPositions.has(targetPosition)) return false
+  if (target.copiedResource) {
+    const suffix = located.position.slice(located.resourceRootPosition.length)
+    setOwn(schema, '$ref', `${target.targetScope.base ?? ''}#${suffix}`)
+  }
+  return true
+}
+
+function writePointerTargetAlias(
+  schema: Record<string, unknown>,
+  scope: ResourceScope,
+  target: { readonly targetScope: ResourceScope },
+  targetPosition: string,
+  targetSchema: unknown,
+  state: PointerAliasRewriteState,
+): void {
+  const alias = state.createAlias(target.targetScope, targetPosition, targetSchema)
+  const reference = target.targetScope === scope
+    ? `#/${state.keyword}/${alias}`
+    : `${target.targetScope.base ?? ''}#/${state.keyword}/${alias}`
+  setOwn(schema, '$ref', reference)
 }
