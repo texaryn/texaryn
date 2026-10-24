@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createDocumentRuntime } from '../document-runtime.js'
 import type { DocumentNode, UIDocumentV2 } from '../../ir/types.js'
 import type { JsonPointer, NodeId } from '../../types.js'
+import type { DocumentActionHandler } from '../types.js'
 
 const id = (value: string) => value as NodeId
 const pointer = (value: string) => value as JsonPointer
@@ -230,7 +231,7 @@ describe('DocumentRuntime', () => {
   })
 
   it('requires a validator for action arguments and freezes the validated result', async () => {
-    expect(() => createDocumentRuntime(document(), { actions: { 'open-item': vi.fn() } }))
+    expect(() => createDocumentRuntime(document(), { actions: { 'open-item': vi.fn<DocumentActionHandler>() } }))
       .toThrow(/no validateArgs registration/)
 
     const handler = vi.fn()
@@ -271,7 +272,7 @@ describe('DocumentRuntime', () => {
 
   it('rejects invalid action registrations', () => {
     expect(() => createDocumentRuntime(document(), {
-      actions: { '': vi.fn() },
+      actions: { '': vi.fn<DocumentActionHandler>() },
     })).toThrow(/nonempty names/)
     expect(() => createDocumentRuntime(document(), {
       actions: { 'open-item': 1 as never },

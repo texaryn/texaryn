@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import solid from 'vite-plugin-solid'
 import { fileURLToPath } from 'node:url'
@@ -198,7 +199,7 @@ export default defineConfig({
           include: ['src/**/*.browser.test.ts'],
           browser: {
             enabled: true,
-            provider: 'playwright',
+            provider: playwright(),
             headless: true,
             screenshotFailures: false,
             instances: [{ browser: 'chromium' }],
@@ -269,7 +270,7 @@ export default defineConfig({
           include: ['src/**/*.browser.test.{ts,tsx}'],
           browser: {
             enabled: true,
-            provider: 'playwright',
+            provider: playwright(),
             headless: true,
             screenshotFailures: false,
             instances: [{ browser: 'chromium' }],
