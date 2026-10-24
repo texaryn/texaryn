@@ -21,7 +21,11 @@ export function displayValue(kind: FieldKind, value: unknown): string | number {
   if (kind === 'number' && typeof value === 'number') return value
   if (kind === 'string' && typeof value === 'string') return value
   if (value == null) return ''
-  if (typeof value !== 'object') return String(value)
+  if (typeof value === 'number' || typeof value === 'boolean' ||
+      typeof value === 'bigint' || typeof value === 'symbol') {
+    return value.toString()
+  }
+  if (typeof value === 'function') return value.name
   try {
     return JSON.stringify(value) ?? ''
   } catch {
