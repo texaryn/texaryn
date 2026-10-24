@@ -1,5 +1,14 @@
 # @texaryn/collaboration-yjs
 
+## 0.3.2
+
+### Patch Changes
+
+- efff799: Split JSON cloning by value shape to simplify validation.
+- Updated dependencies [5acddeb]
+- Updated dependencies [8e7ba1f]
+  - @texaryn/core@1.1.0
+
 ## 0.3.1
 
 ### Patch Changes

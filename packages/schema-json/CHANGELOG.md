@@ -1,5 +1,14 @@
 # @texaryn/schema-json
 
+## 1.0.4
+
+### Patch Changes
+
+- 8e7ba1f: Ignore unsupported object keys in additional item errors and simplify schema branch normalization without changing reference results.
+- Updated dependencies [5acddeb]
+- Updated dependencies [8e7ba1f]
+  - @texaryn/core@1.1.0
+
 ## 1.0.3
 
 ### Patch Changes

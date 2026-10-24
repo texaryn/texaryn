@@ -1,5 +1,15 @@
 # @texaryn/web-components
 
+## 0.8.3
+
+### Patch Changes
+
+- 7065dff: Reduce complexity in table rendering helpers.
+- 8e7ba1f: Render object field values as JSON text instead of generic object labels.
+- Updated dependencies [5acddeb]
+- Updated dependencies [8e7ba1f]
+  - @texaryn/core@1.1.0
+
 ## 0.8.2
 
 ### Patch Changes
