@@ -1,5 +1,13 @@
 # @texaryn/schema-json
 
+## 1.0.7
+
+### Patch Changes
+
+- 5f2420a: Reduces internal complexity in runtime setup and JSON Schema traversal without changing public behavior.
+- Updated dependencies [5f2420a]
+  - @texaryn/core@1.1.2
+
 ## 1.0.6
 
 ### Patch Changes
