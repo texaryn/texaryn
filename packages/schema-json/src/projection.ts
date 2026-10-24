@@ -202,58 +202,80 @@ function extractEnumValues(schema: Record<string, unknown>): EnumOption[] | unde
   return schema.enum.map((value) => ({ value }))
 }
 
-function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
-  const completed = new Set<string>()
-  const active = new Set<string>()
-  const parts: SchemaNode[] = []
-  let cycle = false
-  let unresolved = false
+interface DereferenceCollection {
+  readonly completed: Set<string>
+  readonly active: Set<string>
+  readonly parts: SchemaNode[]
+  cycle: boolean
+  unresolved: boolean
+}
 
-  const visit = (current: SchemaNode, referringSite = false): void => {
-    const position = positionOf(current)
-    if (active.has(position)) {
-      cycle = true
-      return
-    }
-    if (completed.has(position)) return
-    const references = referenceKeywords(current)
-    if (references.length === 0) {
-      parts.push(current)
-      completed.add(position)
-      return
-    }
-    if (!referringSite && !isPre2019Dialect(current.getDraftVersion()) && !onlyPoints(current)) {
-      parts.push(current)
-      completed.add(position)
-      return
-    }
-
-    active.add(position)
-    for (const keyword of references) {
-      const target = followRef(current, keyword)
-      if (target === undefined || !isSchemaNode(target)) {
-        unresolved = true
-      } else {
-        visit(target)
-      }
-    }
-    if (!isPre2019Dialect(current.getDraftVersion())) {
-      const sibling = mergeNode(current, current, ...references)
-      const siblingSchema = sibling?.schema as Record<string, unknown> | undefined
-      if (
-        isSchemaNode(sibling) &&
-        Object.keys(siblingSchema ?? {}).some((keyword) => !NON_ASSERTION_REFERENCE_SIBLINGS.has(keyword))
-      ) {
-        parts.push(sibling)
-      }
-    }
-    active.delete(position)
-    completed.add(position)
+function collectDereferenceParts(
+  current: SchemaNode,
+  collection: DereferenceCollection,
+  referringSite = false,
+): void {
+  const position = positionOf(current)
+  if (collection.active.has(position)) {
+    collection.cycle = true
+    return
+  }
+  if (collection.completed.has(position)) return
+  const references = referenceKeywords(current)
+  if (references.length === 0 || shouldKeepReferenceSite(current, referringSite)) {
+    collection.parts.push(current)
+    collection.completed.add(position)
+    return
   }
 
-  visit(node, true)
-  if (cycle) return { node, cycle: true, unresolved: false }
-  if (unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
+  collection.active.add(position)
+  for (const keyword of references) {
+    const target = followRef(current, keyword)
+    if (target === undefined || !isSchemaNode(target)) {
+      collection.unresolved = true
+      continue
+    }
+    collectDereferenceParts(target, collection)
+  }
+  collectNonAssertionSiblings(current, references, collection.parts)
+  collection.active.delete(position)
+  collection.completed.add(position)
+}
+
+function shouldKeepReferenceSite(current: SchemaNode, referringSite: boolean): boolean {
+  return !referringSite &&
+    !isPre2019Dialect(current.getDraftVersion()) &&
+    !onlyPoints(current)
+}
+
+function collectNonAssertionSiblings(
+  current: SchemaNode,
+  references: readonly string[],
+  parts: SchemaNode[],
+): void {
+  if (isPre2019Dialect(current.getDraftVersion())) return
+  const sibling = mergeNode(current, current, ...references)
+  const siblingSchema = sibling?.schema as Record<string, unknown> | undefined
+  if (
+    isSchemaNode(sibling) &&
+    Object.keys(siblingSchema ?? {}).some((keyword) => !NON_ASSERTION_REFERENCE_SIBLINGS.has(keyword))
+  ) {
+    parts.push(sibling)
+  }
+}
+
+function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolean; unresolved: boolean } {
+  const collection: DereferenceCollection = {
+    completed: new Set(),
+    active: new Set(),
+    parts: [],
+    cycle: false,
+    unresolved: false,
+  }
+  collectDereferenceParts(node, collection, true)
+  const { parts } = collection
+  if (collection.cycle) return { node, cycle: true, unresolved: false }
+  if (collection.unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
   if (parts.length === 1) return { node: parts[0]!, cycle: false, unresolved: false }
   const position = JSON.stringify(parts.map(positionOf))
   const type = referenceCompositionType(parts)
@@ -798,74 +820,120 @@ interface ApplicableTraversalOptions {
   readonly dynamicReferenceProjection?: boolean
 }
 
-function eachApplicable({
-  roots,
-  data,
-  branchApplicability,
-  visitor,
-  referenceVisitor,
-  cache,
-  scope = [],
-  dynamicReferenceProjection = false,
-}: ApplicableTraversalOptions): void {
-  const visited = new Set<string | SchemaNode>()
+interface ApplicableTraversalState {
+  readonly data: unknown
+  readonly branchApplicability: WeakMap<SchemaNode, boolean> | undefined
+  readonly visitor: (node: SchemaNode) => void
+  readonly referenceVisitor?: (node: SchemaNode) => void
+  readonly cache?: ProjectionCache
+  readonly dynamicReferenceProjection: boolean
+  readonly visited: Set<string | SchemaNode>
+}
 
-  const visit = (current: SchemaNode, parentScope: ValidationPath): void => {
-    if (referenceVisitor && cache) visitReferenceDefaultSites(current, cache, referenceVisitor, dynamicReferenceProjection)
-    const entered = dynamicReferenceProjection
-      ? enterDynamicScope(current, parentScope)
-      : { node: dereference(current), path: parentScope, dynamicReference: false }
-    const resolved = entered.node
-    const currentScope = entered.path
-    const key = traversalKey(resolved)
-    if (visited.has(key)) return
-    visited.add(key)
+function eachApplicable(options: ApplicableTraversalOptions): void {
+  const state: ApplicableTraversalState = {
+    ...options,
+    dynamicReferenceProjection: options.dynamicReferenceProjection ?? false,
+    visited: new Set(),
+  }
+  for (const root of options.roots) visitApplicable(root, options.scope ?? [], state)
+}
 
-    visitor(resolved)
-    for (const branch of resolved.allOf ?? []) visit(branch, currentScope)
+function visitApplicable(
+  current: SchemaNode,
+  parentScope: ValidationPath,
+  state: ApplicableTraversalState,
+): void {
+  visitReferenceDefaults(current, state)
+  const entered = enterApplicableScope(current, parentScope, state.dynamicReferenceProjection)
+  const resolved = entered.node
+  const currentScope = entered.path
+  const key = traversalKey(resolved)
+  if (state.visited.has(key)) return
+  state.visited.add(key)
 
-    // `oneOf` contributes the one branch it selects, which is the evaluator's
-    // rule and not "every branch the data matches": an empty object matches
-    // every permissive branch, and treating all of them as applicable would
-    // report a disagreement in a schema where the user has typed nothing. Zero
-    // or several matching selects none, and then the provisionally identified
-    // branch stands in, which is what the projection exposes.
-    const oneOf = resolved.oneOf ?? []
-    if (oneOf.length > 0) {
-      const matching = oneOf.filter((branch) =>
-        branchApplies(branch, data, currentScope, branchApplicability),
-      )
-      let selected: SchemaNode | undefined
-      if (matching.length === 1) selected = matching[0]
-      else {
-        let dataRecord: Record<string, unknown> | undefined
-        if (typeof data === 'object' && data !== null) dataRecord = data as Record<string, unknown>
-        selected = selectProvisionalBranch(resolved, dataRecord)
-      }
-      if (selected) visit(selected, currentScope)
-    }
+  state.visitor(resolved)
+  for (const branch of resolved.allOf ?? []) visitApplicable(branch, currentScope, state)
+  visitSelectedOneOf(resolved, currentScope, state)
+  visitApplicableAnyOf(resolved, currentScope, state)
+  visitApplicableConditional(resolved, currentScope, state)
+  visitApplicableDependencies(resolved, currentScope, state)
+}
 
-    // `anyOf` is the opposite case and needs no such rule: several of its
-    // branches applying at once is ordinary, and each that validates
-    // contributes its annotations, so each competes.
-    for (const branch of resolved.anyOf ?? []) {
-      if (branchApplies(branch, data, currentScope, branchApplicability)) visit(branch, currentScope)
-    }
+function visitReferenceDefaults(current: SchemaNode, state: ApplicableTraversalState): void {
+  if (state.referenceVisitor && state.cache) {
+    visitReferenceDefaultSites(
+      current,
+      state.cache,
+      state.referenceVisitor,
+      state.dynamicReferenceProjection,
+    )
+  }
+}
 
-    if (resolved.if) {
-      const taken = branchApplies(resolved.if, data, currentScope, branchApplicability) ? resolved.then : resolved.else
-      if (taken) visit(taken, currentScope)
-    }
+function enterApplicableScope(
+  current: SchemaNode,
+  parentScope: ValidationPath,
+  dynamicReferenceProjection: boolean,
+): { node: SchemaNode; path: ValidationPath; dynamicReference: boolean } {
+  if (dynamicReferenceProjection) return enterDynamicScope(current, parentScope)
+  return { node: dereference(current), path: parentScope, dynamicReference: false }
+}
 
-    const dependent = resolved.dependentSchemas as Record<string, SchemaNode> | undefined
-    if (dependent && typeof data === 'object' && data !== null && !Array.isArray(data)) {
-      for (const [dependency, subschema] of Object.entries(dependent)) {
-        if (Object.hasOwn(data, dependency)) visit(subschema, currentScope)
-      }
+function visitSelectedOneOf(
+  resolved: SchemaNode,
+  currentScope: ValidationPath,
+  state: ApplicableTraversalState,
+): void {
+  const oneOf = resolved.oneOf ?? []
+  if (oneOf.length === 0) return
+  const matching = oneOf.filter((branch) =>
+    branchApplies(branch, state.data, currentScope, state.branchApplicability),
+  )
+  const selected = matching.length === 1
+    ? matching[0]
+    : selectProvisionalBranch(resolved, asDataRecord(state.data))
+  if (selected) visitApplicable(selected, currentScope, state)
+}
+
+function asDataRecord(data: unknown): Record<string, unknown> | undefined {
+  return typeof data === 'object' && data !== null ? data as Record<string, unknown> : undefined
+}
+
+function visitApplicableAnyOf(
+  resolved: SchemaNode,
+  currentScope: ValidationPath,
+  state: ApplicableTraversalState,
+): void {
+  for (const branch of resolved.anyOf ?? []) {
+    if (branchApplies(branch, state.data, currentScope, state.branchApplicability)) {
+      visitApplicable(branch, currentScope, state)
     }
   }
+}
 
-  for (const root of roots) visit(root, scope)
+function visitApplicableConditional(
+  resolved: SchemaNode,
+  currentScope: ValidationPath,
+  state: ApplicableTraversalState,
+): void {
+  if (!resolved.if) return
+  const taken = branchApplies(resolved.if, state.data, currentScope, state.branchApplicability)
+    ? resolved.then
+    : resolved.else
+  if (taken) visitApplicable(taken, currentScope, state)
+}
+
+function visitApplicableDependencies(
+  resolved: SchemaNode,
+  currentScope: ValidationPath,
+  state: ApplicableTraversalState,
+): void {
+  const dependent = resolved.dependentSchemas as Record<string, SchemaNode> | undefined
+  if (!dependent || typeof state.data !== 'object' || state.data === null || Array.isArray(state.data)) return
+  for (const [dependency, subschema] of Object.entries(dependent)) {
+    if (Object.hasOwn(state.data, dependency)) visitApplicable(subschema, currentScope, state)
+  }
 }
 
 function enterDynamicScope(
@@ -1194,6 +1262,12 @@ const candidatePropertyCache = new WeakMap<SchemaNode, ReadonlyMap<string, Candi
  * reference. Other nodes keep their location key, so references still close
  * at the same point in the traversal as before.
  */
+interface CandidateCollectionState {
+  readonly candidates: Map<string, CandidateProperty>
+  readonly visited: Set<string>
+  readonly scopes: { node: SchemaNode; own: boolean }[]
+}
+
 function collectCandidateProperties(
   node: SchemaNode,
   data: Record<string, unknown> | undefined,
@@ -1203,58 +1277,112 @@ function collectCandidateProperties(
     const cached = candidatePropertyCache.get(node)
     if (cached) return cached
   }
-  const candidates = new Map<string, CandidateProperty>()
-  const visited = new Set<string>()
-  const scopes: { node: SchemaNode; own: boolean }[] = []
-
-  const record = (key: string, propNode: SchemaNode, direct: boolean): void => {
-    const entry = candidates.get(key) ?? { alternatives: [] }
-    if (direct) entry.direct ??= propNode
-    else entry.alternatives.push(propNode)
-    candidates.set(key, entry)
+  const state: CandidateCollectionState = {
+    candidates: new Map(),
+    visited: new Set(),
+    scopes: [],
   }
 
-  const visit = (current: SchemaNode, own: boolean): void => {
-    const resolved = dereference(current)
+  visitCandidateScope(node, true, state)
+  for (const declaration of declarations) visitCandidateScope(declaration, false, state)
 
-    const key = traversalKey(resolved)
-    if (visited.has(key)) return
-    visited.add(key)
-    scopes.push({ node: resolved, own })
-
-    for (const [key, propNode] of Object.entries(resolved.properties ?? {})) {
-      record(key, propNode, own)
-    }
-
-    for (const branch of [resolved.if, resolved.then, resolved.else]) {
-      if (branch) visit(branch, false)
-    }
-    for (const branch of resolved.allOf ?? []) visit(branch, own)
-    for (const branches of [resolved.anyOf, resolved.oneOf]) {
-      for (const branch of branches ?? []) visit(branch, false)
-    }
-    for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
-      if (dependency && typeof dependency === 'object') {
-        visit(dependency as SchemaNode, false)
-      }
-    }
-  }
-
-  visit(node, true)
-  for (const declaration of declarations) visit(declaration, false)
   const memberKeys = new Set(Object.keys(data ?? {}))
-  for (const scope of scopes) for (const key of scope.node.required ?? []) memberKeys.add(key)
+  addRequiredCandidateKeys(state.scopes, memberKeys)
+  addAdditionalCandidateProperties(state.scopes, memberKeys, state.candidates)
+
+  const hasDataDependentAdditionalProperties = state.scopes.some(
+    ({ node: scope }) => Boolean(scope.additionalProperties),
+  )
+  if (declarations.length === 0) {
+    candidatePropertyCache.set(
+      node,
+      hasDataDependentAdditionalProperties ? null : state.candidates,
+    )
+  }
+  return state.candidates
+}
+
+function visitCandidateScope(
+  current: SchemaNode,
+  own: boolean,
+  state: CandidateCollectionState,
+): void {
+  const resolved = dereference(current)
+  const key = traversalKey(resolved)
+  if (state.visited.has(key)) return
+  state.visited.add(key)
+  state.scopes.push({ node: resolved, own })
+
+  for (const [property, propNode] of Object.entries(resolved.properties ?? {})) {
+    recordCandidate(state.candidates, property, propNode, own)
+  }
+  visitCandidateConditionalBranches(resolved, state)
+  for (const branch of resolved.allOf ?? []) visitCandidateScope(branch, own, state)
+  visitCandidateAlternatives(resolved, state)
+  visitCandidateDependencies(resolved, state)
+}
+
+function recordCandidate(
+  candidates: Map<string, CandidateProperty>,
+  key: string,
+  propNode: SchemaNode,
+  direct: boolean,
+): void {
+  const entry = candidates.get(key) ?? { alternatives: [] }
+  if (direct) entry.direct ??= propNode
+  else entry.alternatives.push(propNode)
+  candidates.set(key, entry)
+}
+
+function visitCandidateConditionalBranches(
+  resolved: SchemaNode,
+  state: CandidateCollectionState,
+): void {
+  for (const branch of [resolved.if, resolved.then, resolved.else]) {
+    if (branch) visitCandidateScope(branch, false, state)
+  }
+}
+
+function visitCandidateAlternatives(
+  resolved: SchemaNode,
+  state: CandidateCollectionState,
+): void {
+  for (const branches of [resolved.anyOf, resolved.oneOf]) {
+    for (const branch of branches ?? []) visitCandidateScope(branch, false, state)
+  }
+}
+
+function visitCandidateDependencies(
+  resolved: SchemaNode,
+  state: CandidateCollectionState,
+): void {
+  for (const dependency of Object.values(resolved.dependentSchemas ?? {})) {
+    if (dependency && typeof dependency === 'object') {
+      visitCandidateScope(dependency as SchemaNode, false, state)
+    }
+  }
+}
+
+function addRequiredCandidateKeys(
+  scopes: readonly { node: SchemaNode; own: boolean }[],
+  memberKeys: Set<string>,
+): void {
+  for (const scope of scopes) {
+    for (const key of scope.node.required ?? []) memberKeys.add(key)
+  }
+}
+
+function addAdditionalCandidateProperties(
+  scopes: readonly { node: SchemaNode; own: boolean }[],
+  memberKeys: ReadonlySet<string>,
+  candidates: Map<string, CandidateProperty>,
+): void {
   for (const { node: scope, own } of scopes) {
     for (const key of memberKeys) {
       const propNode = additionalPropertySchema(scope, key)
-      if (propNode) record(key, propNode, own)
+      if (propNode) recordCandidate(candidates, key, propNode, own)
     }
   }
-  const hasDataDependentAdditionalProperties = scopes.some(({ node: scope }) => Boolean(scope.additionalProperties))
-  if (declarations.length === 0) {
-    candidatePropertyCache.set(node, hasDataDependentAdditionalProperties ? null : candidates)
-  }
-  return candidates
 }
 
 function hasRetainedDescendant(position: string, cache: ProjectionCache): boolean {
@@ -1514,10 +1642,31 @@ function schemaRequiresReduction(schema: unknown, visiting = new WeakSet<object>
   visiting.add(schema)
 
   const record = schema as Record<string, unknown>
-  const direct =
-    REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.hasOwn(record, field)) ||
+  const direct = hasDirectReduction(record)
+  const children = collectReductionChildren(record)
+  const required = direct || children.some((child) => schemaRequiresReduction(child, visiting))
+  visiting.delete(schema)
+  reductionRequirementCache.set(schema, required)
+  return required
+}
+
+function hasDirectReduction(record: Record<string, unknown>): boolean {
+  return REDUCE_NODE_SCHEMA_FIELDS.some((field) => Object.hasOwn(record, field)) ||
     Object.hasOwn(record, 'oneOfProperty') ||
     Array.isArray(record.type)
+}
+
+function collectReductionChildren(record: Record<string, unknown>): unknown[] {
+  return [
+    ...mapKeywordChildren(record),
+    ...singleKeywordChildren(record),
+    ...arrayKeywordChildren(record),
+    ...Object.values(record.dependencies ?? {}),
+    ...propertyDependencyChildren(record),
+  ]
+}
+
+function mapKeywordChildren(record: Record<string, unknown>): unknown[] {
   const children: unknown[] = []
   for (const keyword of SCHEMA_MAP_KEYWORDS) {
     const value = record[keyword]
@@ -1525,23 +1674,34 @@ function schemaRequiresReduction(schema: unknown, visiting = new WeakSet<object>
       children.push(...Object.values(value))
     }
   }
+  return children
+}
+
+function singleKeywordChildren(record: Record<string, unknown>): unknown[] {
+  const children: unknown[] = []
   for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
     const value = record[keyword]
     if (keyword === 'items' && Array.isArray(value)) children.push(...value)
     else if (value !== undefined) children.push(value)
   }
+  return children
+}
+
+function arrayKeywordChildren(record: Record<string, unknown>): unknown[] {
+  const children: unknown[] = []
   for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
     const value = record[keyword]
     if (Array.isArray(value)) children.push(...value)
   }
-  for (const value of Object.values(record.dependencies ?? {})) children.push(value)
+  return children
+}
+
+function propertyDependencyChildren(record: Record<string, unknown>): unknown[] {
+  const children: unknown[] = []
   for (const values of Object.values(record.propertyDependencies ?? {})) {
     if (typeof values === 'object' && values !== null) children.push(...Object.values(values))
   }
-  const required = direct || children.some((child) => schemaRequiresReduction(child, visiting))
-  visiting.delete(schema)
-  reductionRequirementCache.set(schema, required)
-  return required
+  return children
 }
 
 function requiresReduction(node: SchemaNode): boolean {
@@ -2550,6 +2710,63 @@ function projectObjectProjection(input: ObjectWalkInput): void {
  * contract), while array items are walked from `data` (an array's length is a data-time
  * fact, not a schema-time one). $ref is resolved transparently via node.resolveRef().
  */
+function drainProjectionQueue(ctx: RecursionContext): void {
+  for (const level of ctx.queue) {
+    for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
+  }
+}
+
+function removeDeletedProjectionChildren(
+  nodes: Map<JsonPointer, NodeProjection>,
+  removed: ReadonlySet<string>,
+): void {
+  for (const node of nodes.values()) {
+    if (!node.children?.some((child) => removed.has(child.pointer))) continue
+    const mutableNode = node as { children?: NodeProjection['children'] }
+    mutableNode.children = node.children.filter(
+      (child) => !removed.has(child.pointer),
+    )
+  }
+}
+
+function markRecursiveProjectionExpansions(
+  nodes: Map<JsonPointer, NodeProjection>,
+  flagged: ReadonlySet<string>,
+): void {
+  for (const pointer of flagged) {
+    const node = nodes.get(toPointer(pointer))
+    if (node) (node as { recursiveExpansion?: true }).recursiveExpansion = true
+  }
+}
+
+function attachProjectionBoundaries(
+  nodes: Map<JsonPointer, NodeProjection>,
+  ctx: RecursionContext,
+): void {
+  for (const [pointer, reasons] of ctx.boundaries) {
+    const node = nodes.get(toPointer(pointer))
+    if (!node) continue
+    const mutableNode = node as { boundaries?: readonly ProjectionBoundary[] }
+    mutableNode.boundaries = (
+      ['recursion', 'budget'] as const
+    ).filter((reason) => reasons.has(reason))
+    const targets = ctx.boundaryTargets.get(pointer)
+    if (targets) {
+      const mutableNode = node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }
+      mutableNode.boundaryTargets = [
+        ...targets.values(),
+      ]
+    }
+  }
+}
+
+function finalizeProjection(nodes: Map<JsonPointer, NodeProjection>, ctx: RecursionContext): void {
+  drainProjectionQueue(ctx)
+  removeDeletedProjectionChildren(nodes, ctx.removed)
+  markRecursiveProjectionExpansions(nodes, ctx.flagged)
+  attachProjectionBoundaries(nodes, ctx)
+}
+
 export function buildProjection(
   root: SchemaNode,
   data: unknown,
@@ -2589,31 +2806,6 @@ export function buildProjection(
     path: [],
     scope: [{ pointer: '#', node: root }],
   })
-  for (const level of ctx.queue) for (const { enter } of (level ?? []).sort((a, b) => walkOrder(a.path, b.path))) enter()
-  for (const node of nodes.values()) {
-    if (node.children?.some((child) => ctx.removed.has(child.pointer))) {
-      ;(node as { children?: NodeProjection['children'] }).children = node.children.filter(
-        (child) => !ctx.removed.has(child.pointer),
-      )
-    }
-  }
-  for (const pointer of ctx.flagged) {
-    const node = nodes.get(toPointer(pointer))
-    if (node) (node as { recursiveExpansion?: true }).recursiveExpansion = true
-  }
-  for (const [pointer, reasons] of ctx.boundaries) {
-    const node = nodes.get(toPointer(pointer))
-    if (node) {
-      ;(node as { boundaries?: readonly ProjectionBoundary[] }).boundaries = (
-        ['recursion', 'budget'] as const
-      ).filter((reason) => reasons.has(reason))
-      const targets = ctx.boundaryTargets.get(pointer)
-      if (targets) {
-        ;(node as { boundaryTargets?: readonly ProjectionBoundaryTarget[] }).boundaryTargets = [
-          ...targets.values(),
-        ]
-      }
-    }
-  }
+  finalizeProjection(nodes, ctx)
   return { nodes, diagnostics }
 }
