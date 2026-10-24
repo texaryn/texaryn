@@ -172,49 +172,72 @@ function childSchemas(schema: Record<string, unknown>, position: string, dialect
   return found
 }
 
+function addNamedLegacyFragment(index: ResourceIndex, resolved: string, position: string, dialect: Dialect): boolean {
+  if (!isPre2019Dialect(dialect)) return false
+  const hash = resolved.indexOf('#')
+  const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
+  if (fragment === undefined || fragment === '' || fragment.startsWith('/')) return false
+  index.anchors.set(resolved, position)
+  return true
+}
+
+function addResourceAnchors(
+  index: ResourceIndex,
+  schema: Record<string, unknown>,
+  position: string,
+  base: string,
+  dialect: Dialect,
+  ignoresSiblings: boolean,
+): void {
+  if (ignoresSiblings) return
+  if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
+    index.identifiers.add(position)
+    index.anchors.set(`${base}#${schema.$anchor}`, position)
+  }
+  if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
+    index.identifiers.add(position)
+    index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
+    const list = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
+    list.push(position)
+    index.dynamicAnchors.set(schema.$dynamicAnchor, list)
+  }
+  if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
+}
+
+function resourceBaseForSchema(
+  index: ResourceIndex,
+  schema: Record<string, unknown>,
+  position: string,
+  parentBase: string,
+  dialect: Dialect,
+  preserveLegacyResources: boolean,
+): string {
+  let base = parentBase
+  const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
+  const identifier = schemaIdentifier(schema, dialect)
+  if (!ignoresSiblings && typeof identifier === 'string') {
+    index.identifiers.add(position)
+    if (isPre2019Dialect(dialect) && identifier.startsWith('#')) {
+      index.anchors.set(`${withoutFragment(base)}${identifier}`, position)
+    } else {
+      const resolved = resolveUri(identifier, parentBase)
+      if (resolved) {
+        base = withoutFragment(resolved)
+        const namedLegacyFragment = preserveLegacyResources && addNamedLegacyFragment(index, resolved, position, dialect)
+        if (!namedLegacyFragment || !index.resources.has(base)) index.resources.set(base, position)
+      }
+    }
+  }
+  addResourceAnchors(index, schema, position, base, dialect, ignoresSiblings)
+  return base
+}
+
 function indexResources(documents: Documents, dialect: Dialect): ResourceIndex {
   const index: ResourceIndex = { resources: new Map(), anchors: new Map(), identifiers: new Set(), dynamicAnchors: new Map(), recursiveAnchors: [], baseAt: new Map() }
   const visit = (position: string, parentBase: string): void => {
     const schema = at(documents, position)
     if (!isRecord(schema)) return
-    let base = parentBase
-    const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
-    const identifier = schemaIdentifier(schema, dialect)
-    if (!ignoresSiblings && typeof identifier === 'string') {
-      index.identifiers.add(position)
-      if (isPre2019Dialect(dialect) && identifier.startsWith('#')) {
-        index.anchors.set(`${withoutFragment(base)}${identifier}`, position)
-      } else {
-        const resolved = resolveUri(identifier, parentBase)
-        if (resolved) {
-          base = withoutFragment(resolved)
-          let namedLegacyFragment = false
-          if (isPre2019Dialect(dialect)) {
-            const hash = resolved.indexOf('#')
-            const fragment = hash === -1 ? undefined : resolved.slice(hash + 1)
-            if (fragment !== undefined && fragment !== '' && !fragment.startsWith('/')) {
-              index.anchors.set(resolved, position)
-              namedLegacyFragment = true
-            }
-          }
-          if (!namedLegacyFragment || !index.resources.has(base)) index.resources.set(base, position)
-        }
-      }
-    }
-    if (!ignoresSiblings) {
-      if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
-        index.identifiers.add(position)
-        index.anchors.set(`${base}#${schema.$anchor}`, position)
-      }
-      if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
-        index.identifiers.add(position)
-        index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
-        const list = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
-        list.push(position)
-        index.dynamicAnchors.set(schema.$dynamicAnchor, list)
-      }
-      if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
-    }
+    const base = resourceBaseForSchema(index, schema, position, parentBase, dialect, true)
     index.baseAt.set(position, base)
     for (const child of childSchemas(schema, position, dialect, true)) visit(child.position, base)
   }
@@ -250,79 +273,87 @@ function resolveReference(reference: string, base: string, index: ResourceIndex,
   return index.anchors.get(uri)
 }
 
+interface GraphTraversal {
+  readonly documents: Documents
+  readonly dialect: Dialect
+  readonly index: ResourceIndex
+  readonly edges: Map<string, Edge[]>
+  readonly references: Map<string, string>
+  readonly reachable: Set<string>
+}
+
+function addReferenceEdges(
+  graph: GraphTraversal,
+  schema: Record<string, unknown>,
+  position: string,
+  base: string,
+  edges: Edge[],
+): void {
+  const { documents, dialect, index } = graph
+  for (const keyword of REFERENCES[dialect]) {
+    const reference = schema[keyword]
+    if (typeof reference !== 'string') continue
+    const target = resolveReference(reference, base, index, documents)
+    if (target === undefined) continue
+    graph.references.set(`${position}\u0000${keyword}`, target)
+    const targetSchema = at(documents, target)
+    const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
+    if (keyword === '$dynamicRef' && isRecord(targetSchema) && fragment !== '' && targetSchema.$dynamicAnchor === fragment) {
+      for (const anchor of index.dynamicAnchors.get(fragment) ?? []) edges.push({ to: anchor, via: keyword, inPlace: true })
+      continue
+    }
+    edges.push({ to: target, via: keyword, inPlace: true })
+    // json-schema-library resolves $recursiveRef dynamically whatever its static target declares.
+    if (keyword === '$recursiveRef') {
+      for (const anchor of index.recursiveAnchors) {
+        if (anchor !== target) edges.push({ to: anchor, via: keyword, inPlace: true })
+      }
+    }
+  }
+}
+
+function visitGraph(graph: GraphTraversal, position: string, inheritedBase = ANONYMOUS_BASE): void {
+  if (graph.reachable.has(position)) return
+  graph.reachable.add(position)
+  const schema = at(graph.documents, position)
+  const edges: Edge[] = []
+  graph.edges.set(position, edges)
+  if (!isRecord(schema)) return
+  let base = graph.index.baseAt.get(position) ?? inheritedBase
+  if (!graph.index.baseAt.has(position)) {
+    base = resourceBaseForSchema(graph.index, schema, position, base, graph.dialect, false)
+    graph.index.baseAt.set(position, base)
+  }
+  addReferenceEdges(graph, schema, position, base, edges)
+  for (const child of childSchemas(schema, position, graph.dialect, false)) {
+    edges.push({ to: child.position, via: child.via, inPlace: child.inPlace })
+  }
+  for (const edge of edges) visitGraph(graph, edge.to, base)
+}
+
 export function buildSchemaGraph(document: unknown, dialect: Dialect, remotes: readonly unknown[] = []): SchemaGraph {
   const documents = documentsOf(document, remotes)
-  const index = indexResources(documents, dialect)
-  const edges = new Map<string, Edge[]>()
-  const references = new Map<string, string>()
-  const reachable = new Set<string>()
-  const visit = (position: string, inheritedBase = ANONYMOUS_BASE): void => {
-    if (reachable.has(position)) return
-    reachable.add(position)
-    const schema = at(documents, position)
-    const list: Edge[] = []
-    edges.set(position, list)
-    if (!isRecord(schema)) return
-    let base = index.baseAt.get(position) ?? inheritedBase
-    if (!index.baseAt.has(position)) {
-      const ignoresSiblings = isPre2019Dialect(dialect) && typeof schema.$ref === 'string'
-      const identifier = schemaIdentifier(schema, dialect)
-      if (!ignoresSiblings && typeof identifier === 'string') {
-        index.identifiers.add(position)
-        if (isPre2019Dialect(dialect) && identifier.startsWith('#')) {
-          index.anchors.set(`${withoutFragment(base)}${identifier}`, position)
-        } else {
-          const resolved = resolveUri(identifier, base)
-          if (resolved) {
-            base = withoutFragment(resolved)
-            index.resources.set(base, position)
-          }
-        }
-      }
-      if (!ignoresSiblings) {
-        if (!isPre2019Dialect(dialect) && typeof schema.$anchor === 'string') {
-          index.identifiers.add(position)
-          index.anchors.set(`${base}#${schema.$anchor}`, position)
-        }
-        if (dialect === '2020-12' && typeof schema.$dynamicAnchor === 'string') {
-          index.identifiers.add(position)
-          index.anchors.set(`${base}#${schema.$dynamicAnchor}`, position)
-          const anchors = index.dynamicAnchors.get(schema.$dynamicAnchor) ?? []
-          anchors.push(position)
-          index.dynamicAnchors.set(schema.$dynamicAnchor, anchors)
-        }
-        if (dialect === '2019-09' && schema.$recursiveAnchor === true) index.recursiveAnchors.push(position)
-      }
-      index.baseAt.set(position, base)
-    }
-    for (const keyword of REFERENCES[dialect]) {
-      const reference = schema[keyword]
-      if (typeof reference !== 'string') continue
-      const target = resolveReference(reference, base, index, documents)
-      if (target === undefined) continue
-      references.set(`${position}\u0000${keyword}`, target)
-      const targetSchema = at(documents, target)
-      const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
-      if (keyword === '$dynamicRef' && isRecord(targetSchema) && fragment !== '' && targetSchema.$dynamicAnchor === fragment) {
-        for (const anchor of index.dynamicAnchors.get(fragment) ?? []) list.push({ to: anchor, via: keyword, inPlace: true })
-        continue
-      }
-      list.push({ to: target, via: keyword, inPlace: true })
-      // json-schema-library resolves $recursiveRef dynamically whatever its static target declares.
-      if (keyword === '$recursiveRef') {
-        for (const anchor of index.recursiveAnchors) if (anchor !== target) list.push({ to: anchor, via: keyword, inPlace: true })
-      }
-    }
-    for (const child of childSchemas(schema, position, dialect, false)) list.push({ to: child.position, via: child.via, inPlace: child.inPlace })
-    for (const edge of list) visit(edge.to, base)
+  const graph: GraphTraversal = {
+    documents,
+    dialect,
+    index: indexResources(documents, dialect),
+    edges: new Map(),
+    references: new Map(),
+    reachable: new Set(),
   }
-  visit('#')
-  const retainedPositions = new Set(index.identifiers)
-  for (const [source, target] of references) {
+  visitGraph(graph, '#')
+  const retainedPositions = new Set(graph.index.identifiers)
+  for (const [source, target] of graph.references) {
     retainedPositions.add(source.slice(0, source.indexOf('\u0000')))
     retainedPositions.add(target)
   }
-  return { edges, reachable, references, resources: index.resources, retainedPositions }
+  return {
+    edges: graph.edges,
+    reachable: graph.reachable,
+    references: graph.references,
+    resources: graph.index.resources,
+    retainedPositions,
+  }
 }
 
 export const POSITION = 'x-texaryn-position'
