@@ -69,6 +69,48 @@ interface JsonBudget {
   active: WeakSet<object>
 }
 
+function cloneJsonArray(value: unknown[], state: JsonBudget, depth: number, pointer: string): JsonValue[] {
+  if (value.length > MAX_ARRAY_ITEMS || Object.getOwnPropertySymbols(value).length > 0 ||
+      Object.getOwnPropertyNames(value).length !== value.length + 1) {
+    throw new Error(`Shared array exceeds its supported shape at "${pointer}".`)
+  }
+  const result: JsonValue[] = []
+  for (let index = 0; index < value.length; index++) {
+    if (!Object.hasOwn(value, index)) throw new Error(`Shared state contains a sparse array at "${pointer}".`)
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
+    if (!descriptor?.enumerable || !('value' in descriptor)) {
+      throw new Error(`Shared state contains an accessor at "${pointer}/${index}".`)
+    }
+    result.push(cloneJson(descriptor.value, state, depth + 1, `${pointer}/${index}`))
+  }
+  state.active.delete(value)
+  return result
+}
+
+function cloneJsonRecord(value: object, state: JsonBudget, depth: number, pointer: string): JsonValue {
+  if (!isRecord(value) || Object.getOwnPropertySymbols(value).length > 0 ||
+      Object.getOwnPropertyNames(value).length !== Object.keys(value).length) {
+    throw new Error(`Shared state contains a non-JSON object at "${pointer}".`)
+  }
+  const result: Record<string, JsonValue> = {}
+  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+    if (!descriptor.enumerable) continue
+    if (!('value' in descriptor)) throw new Error(`Shared state contains an accessor at "${pointer}/${key}".`)
+    state.stringLength += key.length
+    if (state.stringLength > MAX_TOTAL_STRING_LENGTH) {
+      throw new Error('Shared JSON exceeds the supported string size.')
+    }
+    Object.defineProperty(result, key, {
+      value: cloneJson(descriptor.value, state, depth + 1, `${pointer}/${key}`),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    })
+  }
+  state.active.delete(value)
+  return result
+}
+
 function cloneJson(value: unknown, budget?: JsonBudget, depth = 0, pointer = ''): JsonValue {
   const state = budget ?? {
     values: 0,
@@ -93,46 +135,9 @@ function cloneJson(value: unknown, budget?: JsonBudget, depth = 0, pointer = '')
   }
   if (state.active.has(value)) throw new Error('Shared state contains a cycle.')
   state.active.add(value)
-
-  if (Array.isArray(value)) {
-    if (value.length > MAX_ARRAY_ITEMS || Object.getOwnPropertySymbols(value).length > 0 ||
-        Object.getOwnPropertyNames(value).length !== value.length + 1) {
-      throw new Error(`Shared array exceeds its supported shape at "${pointer}".`)
-    }
-    const result: JsonValue[] = []
-    for (let index = 0; index < value.length; index++) {
-      if (!Object.hasOwn(value, index)) throw new Error(`Shared state contains a sparse array at "${pointer}".`)
-      const descriptor = Object.getOwnPropertyDescriptor(value, String(index))
-      if (!descriptor?.enumerable || !('value' in descriptor)) {
-        throw new Error(`Shared state contains an accessor at "${pointer}/${index}".`)
-      }
-      result.push(cloneJson(descriptor.value, state, depth + 1, `${pointer}/${index}`))
-    }
-    state.active.delete(value)
-    return result
-  }
-
-  if (!isRecord(value) || Object.getOwnPropertySymbols(value).length > 0 ||
-      Object.getOwnPropertyNames(value).length !== Object.keys(value).length) {
-    throw new Error(`Shared state contains a non-JSON object at "${pointer}".`)
-  }
-  const result: Record<string, JsonValue> = {}
-  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
-    if (!descriptor.enumerable) continue
-    if (!('value' in descriptor)) throw new Error(`Shared state contains an accessor at "${pointer}/${key}".`)
-    state.stringLength += key.length
-    if (state.stringLength > MAX_TOTAL_STRING_LENGTH) {
-      throw new Error('Shared JSON exceeds the supported string size.')
-    }
-    Object.defineProperty(result, key, {
-      value: cloneJson(descriptor.value, state, depth + 1, `${pointer}/${key}`),
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    })
-  }
-  state.active.delete(value)
-  return result
+  return Array.isArray(value)
+    ? cloneJsonArray(value, state, depth, pointer)
+    : cloneJsonRecord(value, state, depth, pointer)
 }
 
 function escapePointerSegment(value: string): string {
