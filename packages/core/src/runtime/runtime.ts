@@ -180,7 +180,7 @@ function changedScalarPointers(before: unknown, next: unknown): string[] {
     }
     if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
       for (const key of Object.keys(left)) {
-        const escaped = key.replace(/~/g, '~0').replace(/\//g, '~1')
+        const escaped = key.replaceAll('~', '~0').replaceAll('/', '~1')
         visit((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], `${pointer}/${escaped}`)
       }
     }

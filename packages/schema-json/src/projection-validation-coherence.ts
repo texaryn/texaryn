@@ -72,7 +72,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function escape(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 type ContractSegment =

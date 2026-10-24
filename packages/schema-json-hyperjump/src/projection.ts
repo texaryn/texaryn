@@ -162,7 +162,7 @@ function makeBranchChecker(
     if (pointer === '') return true
     let current = data
     for (const rawSegment of pointer.split('/').slice(1)) {
-      const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+      const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
       if (Array.isArray(current)) {
         const index = Number(segment)
         if (!Number.isInteger(index) || index < 0 || index >= current.length || !Object.hasOwn(current, index)) {

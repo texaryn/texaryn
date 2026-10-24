@@ -6,7 +6,7 @@ export interface TextRange {
 }
 
 function unescapeSegment(segment: string): string {
-  return segment.replace(/~1/g, '/').replace(/~0/g, '~')
+  return segment.replaceAll('~1', '/').replaceAll('~0', '~')
 }
 
 function readName(doc: string, node: SyntaxNode): string | null {

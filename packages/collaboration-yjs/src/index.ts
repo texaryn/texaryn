@@ -136,7 +136,7 @@ function cloneJson(value: unknown, budget?: JsonBudget, depth = 0, pointer = '')
 }
 
 function escapePointerSegment(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1')
+  return value.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 function canonicalPointer(pointer: string): string {

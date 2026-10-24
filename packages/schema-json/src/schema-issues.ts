@@ -5,7 +5,7 @@ import type { SchemaIssue } from './types.js'
 const MAX_READINGS = 32
 
 function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 interface Search {

@@ -126,7 +126,7 @@ const STRIPPED_MAPS = new Set(['$defs', 'definitions', 'dependencies', 'dependen
 function strippedMemberKey(parent: SchemaNode, keyword: string, node: SchemaNode, suffix: string): string | undefined {
   if (!STRIPPED_MAPS.has(keyword) || !node.evaluationPath.startsWith(`${parent.evaluationPath}/${keyword}/`)) return undefined
   const spelled = suffix.slice(keyword.length + 2)
-  return keyword === 'definitions' ? decodeURIComponent(spelled).replace(/~1/g, '/').replace(/~0/g, '~') : spelled
+  return keyword === 'definitions' ? decodeURIComponent(spelled).replaceAll('~1', '/').replaceAll('~0', '~') : spelled
 }
 
 export function positionOf(node: SchemaNode): string {

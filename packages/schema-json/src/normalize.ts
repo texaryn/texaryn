@@ -24,8 +24,8 @@ const ALIASES: Record<string, string> = { definitions: '$defs', dependentSchemas
 const isRecord = (value: unknown): value is Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
-const unescape = (segment: string): string => segment.replace(/~1/g, '/').replace(/~0/g, '~')
+const escape = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1')
+const unescape = (segment: string): string => segment.replaceAll('~1', '/').replaceAll('~0', '~')
 const alias = (segment: string): string => (Object.hasOwn(ALIASES, segment) ? ALIASES[segment]! : segment)
 
 type Position = { escaped: string; raw: string; registry: string; keys: readonly string[] }

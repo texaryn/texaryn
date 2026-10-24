@@ -32,10 +32,10 @@ function jsonFiles(dir) {
 
 const files = [
   ...jsonFiles(join(suiteRoot, 'tests')).map((path) =>
-    relative(suiteRoot, path).split('\\').join('/'),
+    relative(suiteRoot, path).replaceAll('\\', '/'),
   ),
   ...jsonFiles(join(suiteRoot, 'remotes')).map((path) =>
-    relative(suiteRoot, path).split('\\').join('/'),
+    relative(suiteRoot, path).replaceAll('\\', '/'),
   ),
   ...extraFiles,
 ].sort(compareCodeUnits)

@@ -306,7 +306,7 @@ function pointerTokens(fragment: string): string[] {
   }
   return decoded.slice(1).split('/').map((token) => {
     if (/~(?![01])/.test(token)) throw new OutputRejectedError(['Schema reference fragments must use valid JSON Pointer escapes.'])
-    return token.replace(/~1/g, '/').replace(/~0/g, '~')
+    return token.replaceAll('~1', '/').replaceAll('~0', '~')
   })
 }
 

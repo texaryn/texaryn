@@ -1,7 +1,7 @@
 import type { JsonPointer } from '@texaryn/core'
 
 export function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 export function append(base: string, segment: string): string {
@@ -18,7 +18,7 @@ export function segmentsOf(pointer: string): string[] | undefined {
   return pointer
     .slice(1)
     .split('/')
-    .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
 }
 
 export function isCanonicalIndex(segment: string): boolean {

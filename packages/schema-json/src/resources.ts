@@ -100,7 +100,7 @@ interface LocalReference {
   readonly resourceRootPosition: string
 }
 
-const escape = (segment: string): string => segment.replace(/~/g, '~0').replace(/\//g, '~1')
+const escape = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1')
 
 interface LocatedPointerTarget {
   readonly schema: unknown
@@ -143,7 +143,7 @@ function pointerTargetWithContext(
   let parentBase = base
   const segments = pointer.slice(1).split('/')
   for (const rawSegment of segments) {
-    const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~')
+    const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~')
     let child: unknown
     if (Array.isArray(current)) {
       const index = Number(segment)

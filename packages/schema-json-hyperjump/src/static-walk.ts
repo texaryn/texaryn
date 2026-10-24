@@ -719,7 +719,7 @@ function applicableRequiredAtLocation(
         }
       }
       if (previous === 'dependentSchemas' || previous === 'dependencies') {
-        const dependency = segment.replace(/~1/g, '/').replace(/~0/g, '~')
+        const dependency = segment.replaceAll('~1', '/').replaceAll('~0', '~')
         if (!isRecord(data) || !Object.hasOwn(data, dependency)) {
           applicable = false
           break

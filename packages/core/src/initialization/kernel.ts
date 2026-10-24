@@ -415,7 +415,7 @@ function properAncestors(
  */
 function encodePointer(segments: readonly string[]): Location {
   return segments
-    .map((segment) => `/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+    .map((segment) => `/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`)
     .join('') as Location
 }
 

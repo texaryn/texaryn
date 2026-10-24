@@ -51,7 +51,7 @@ function validationParameters(keyword: string, schemaValue: unknown): Record<str
 }
 
 function unescapePointerSegment(segment: string): string {
-  return segment.replace(/~1/g, '/').replace(/~0/g, '~')
+  return segment.replaceAll('~1', '/').replaceAll('~0', '~')
 }
 
 function schemaPathSegments(pointer: string): string[] {
@@ -119,7 +119,7 @@ function hasSchemaKeyword(schema: unknown, pointer: string, keyword: string): bo
 function decodePointerFragment(pointer: string): string {
   return pointer.split('/').map((segment) => {
     try {
-      return decodeURIComponent(segment).replace(/\//g, '~1')
+      return decodeURIComponent(segment).replaceAll('/', '~1')
     } catch {
       return segment
     }

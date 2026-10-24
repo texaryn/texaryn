@@ -66,7 +66,7 @@ function toPointer(value: string): JsonPointer {
 }
 
 function escapeSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 /** The `type` the schema itself declares, and nothing else. */

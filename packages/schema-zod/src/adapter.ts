@@ -114,7 +114,7 @@ function keywordForIssue(code: string, issue: z.ZodError['issues'][number]): str
 }
 
 function escapePointerSegment(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1')
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
 function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): string | undefined {
