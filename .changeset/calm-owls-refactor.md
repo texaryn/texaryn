@@ -2,4 +2,4 @@
 '@texaryn/core': patch
 ---
 
-Split document update validation into focused steps while preserving its behavior.
+Refactor document update and remote snapshot validation into focused steps while preserving their behavior.
