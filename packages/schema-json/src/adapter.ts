@@ -160,243 +160,399 @@ const SCHEMA_SINGLE_KEYWORDS = new Set([
   'unevaluatedItems', 'unevaluatedProperties',
 ])
 
+interface LocalReferencePolicies {
+  readonly dynamic: Map<string, string | undefined>
+  readonly recursive: Map<string, boolean>
+  readonly unclassified: Set<string>
+  readonly classified: Set<string>
+}
+
+interface LocalReferenceContext {
+  readonly root: SchemaNode
+  readonly dialect: Dialect
+  readonly externalResourceIds: ReadonlySet<string>
+  readonly policies: LocalReferencePolicies
+  readonly activeValidationScope: ValidationPath
+  readonly validatorWrappers: WeakMap<Function, SchemaNode['validators'][number]>
+  readonly wrappedValidators: WeakSet<Function>
+  readonly instrumented: WeakSet<SchemaNode>
+  readonly depths: { validation: number; reduction: number }
+}
+
+interface CompiledReference {
+  readonly schema: Record<string, unknown>
+  readonly dynamic: boolean
+  readonly keyword: '$dynamicRef' | '$recursiveRef'
+  readonly reference: string
+}
+
+type ResolvedReference = ReturnType<SchemaNode['resolveRef']>
+
 function enableLocalDynamicReferenceScopes(
   root: SchemaNode,
   dialect: Dialect,
   externalResourceIds: ReadonlySet<string>,
 ): void {
-  const compiledRoots = [
+  const compiledRoots = compiledSchemaRoots(root, externalResourceIds)
+  const policies: LocalReferencePolicies = {
+    dynamic: new Map(),
+    recursive: new Map(),
+    unclassified: new Set(),
+    classified: new Set(),
+  }
+  collectLocalReferencePolicies(compiledRoots, root, dialect, externalResourceIds, policies)
+  assertClassifiedReferencePolicies(policies)
+
+  const context: LocalReferenceContext = {
     root,
-    ...Object.values(root.context.remotes).filter((remote) => {
-      if (!isSchemaNode(remote) || remote === root || typeof remote.$id !== 'string') return false
-      return externalResourceIds.has(remote.$id.split('#', 1)[0]!)
-    }),
+    dialect,
+    externalResourceIds,
+    policies,
+    activeValidationScope: [],
+    validatorWrappers: new WeakMap(),
+    wrappedValidators: new WeakSet(),
+    instrumented: new WeakSet(),
+    depths: { validation: 0, reduction: 0 },
+  }
+  for (const compiledRoot of compiledRoots) instrumentCompiledRoot(compiledRoot, context)
+}
+
+function compiledSchemaRoots(root: SchemaNode, externalResourceIds: ReadonlySet<string>): SchemaNode[] {
+  return [
+    root,
+    ...Object.values(root.context.remotes).filter((remote): remote is SchemaNode =>
+      isSchemaNode(remote) &&
+      remote !== root &&
+      typeof remote.$id === 'string' &&
+      externalResourceIds.has(remote.$id.split('#', 1)[0]!),
+    ),
   ]
-  const referencePolicies = new Map<string, string | undefined>()
-  const recursiveReferencePolicies = new Map<string, boolean>()
-  const unclassifiedCompiledReferencePolicies = new Set<string>()
-  const classifiedReferencePolicies = new Set<string>()
-  const activeValidationScope: ValidationPath = []
-  const validatorWrappers = new WeakMap<Function, SchemaNode['validators'][number]>()
-  const wrappedValidators = new WeakSet<Function>()
-  let validationDepth = 0
-  let reductionDepth = 0
+}
+
+function collectLocalReferencePolicies(
+  compiledRoots: readonly SchemaNode[],
+  root: SchemaNode,
+  dialect: Dialect,
+  externalResourceIds: ReadonlySet<string>,
+  policies: LocalReferencePolicies,
+): void {
   for (const compiledRoot of compiledRoots) {
-    const authoredReferencePaths = collectAuthoredReferencePaths(compiledRoot.schema)
+    const authoredPaths = collectAuthoredReferencePaths(compiledRoot.schema)
     for (const node of compiledRoot.toSchemaNodes()) {
-      if (node.$id?.startsWith('/')) {
-        throw new TypeError('Local reference projection does not support root-relative resource identifiers.')
-      }
-      if (typeof node.schema !== 'object' || node.schema === null) continue
-      const schema = node.schema as Record<string, unknown>
-      if (dialect === '2020-12' && '$recursiveRef' in schema) {
-        throw new TypeError('Local dynamic reference projection does not support $recursiveRef.')
-      }
-      const dynamicReference = dialect === '2020-12' && typeof schema.$dynamicRef === 'string'
-      const recursiveReference = dialect === '2019-09' && typeof schema.$recursiveRef === 'string'
-      if (!dynamicReference && !recursiveReference) continue
-      if (recursiveReference && schema.$recursiveRef !== '#') {
-        throw new TypeError('Local dynamic reference projection only supports the $recursiveRef value "#".')
-      }
-
-      const keyword = dynamicReference ? '$dynamicRef' : '$recursiveRef'
-      const reference = schema.$dynamicRef ?? schema.$recursiveRef
-      const policyKey = referencePolicyKey(node, keyword, reference as string)
-      const authoredPaths = authoredReferencePaths.get(schema)
-      const parsedPath = authoredPaths ? undefined : schemaKeywordPath(compiledRoot, node.schemaLocation)
-      const keywordPaths = authoredPaths ?? (parsedPath ? [parsedPath] : undefined)
-      if (!keywordPaths) {
-        unclassifiedCompiledReferencePolicies.add(policyKey)
-      } else {
-        classifiedReferencePolicies.add(policyKey)
-        for (const keywords of keywordPaths) {
-          if (
-            !keywords.some((pathKeyword) => pathKeyword === 'properties' || pathKeyword === 'items') ||
-            keywords.some((pathKeyword) => DYNAMIC_REFERENCE_SCOPE_BARRIERS.has(pathKeyword))
-          ) {
-            throw new TypeError('Local dynamic reference projection does not support references below unsupported applicators or tuple items.')
-          }
-        }
-      }
-      if (recursiveReference && Object.keys(schema).some((keyword) => keyword !== '$recursiveRef' && keyword !== POSITION)) {
-        throw new TypeError('Local dynamic reference projection does not support siblings beside $recursiveRef.')
-      }
-      if (dynamicReference && Object.keys(schema).some((keyword) => keyword !== '$dynamicRef' && !DYNAMIC_REFERENCE_ANNOTATIONS.has(keyword))) {
-        throw new TypeError('Local dynamic reference projection does not support assertion siblings beside $dynamicRef.')
-      }
-
-      const staticTarget = node.resolveRef({ path: [] })
-      if (!isSchemaNode(staticTarget)) {
-        throw new TypeError(`Cannot resolve local reference at ${node.schemaLocation}.`)
-      }
-      const targetRoot = staticTarget.context.rootNode
-      const targetRootId = targetRoot.$id?.split('#', 1)[0]
-      if (targetRoot !== root && (!targetRootId || !externalResourceIds.has(targetRootId))) {
-        throw new TypeError('Local dynamic reference projection does not support external targets unless they were loaded by the configured resource resolver.')
-      }
-      if (dynamicReference) {
-        const anchor = dynamicReferenceAnchor(schema.$dynamicRef as string)
-        const policy =
-          anchor !== undefined && (staticTarget.schema as Record<string, unknown>).$dynamicAnchor === anchor
-            ? anchor
-            : undefined
-        referencePolicies.set(referencePolicyKey(node, '$dynamicRef', schema.$dynamicRef as string), policy)
-      } else {
-        recursiveReferencePolicies.set(
-          referencePolicyKey(node, '$recursiveRef', schema.$recursiveRef as string),
-          (staticTarget.schema as Record<string, unknown>).$recursiveAnchor === true,
-        )
-      }
+      collectNodeReferencePolicy(node, compiledRoot, authoredPaths, root, dialect, externalResourceIds, policies)
     }
   }
+}
 
-  for (const key of unclassifiedCompiledReferencePolicies) {
-    if (!classifiedReferencePolicies.has(key)) {
-      throw new TypeError('Cannot classify a compiled local dynamic reference.')
+function collectNodeReferencePolicy(
+  node: SchemaNode,
+  compiledRoot: SchemaNode,
+  authoredPaths: WeakMap<object, string[][]>,
+  root: SchemaNode,
+  dialect: Dialect,
+  externalResourceIds: ReadonlySet<string>,
+  policies: LocalReferencePolicies,
+): void {
+  const reference = compiledReference(node, dialect)
+  if (!reference) return
+  classifyCompiledReference(node, compiledRoot, reference, authoredPaths, policies)
+  assertReferenceSiblings(reference.schema, reference.dynamic)
+  const staticTarget = resolveLocalReferenceTarget(node, root, externalResourceIds)
+  const key = referencePolicyKey(node, reference.keyword, reference.reference)
+  recordReferencePolicy(reference, staticTarget, key, policies)
+}
+
+function compiledReference(node: SchemaNode, dialect: Dialect): CompiledReference | undefined {
+  if (node.$id?.startsWith('/')) {
+    throw new TypeError('Local reference projection does not support root-relative resource identifiers.')
+  }
+  if (typeof node.schema !== 'object' || node.schema === null) return undefined
+  const schema = node.schema as Record<string, unknown>
+  if (dialect === '2020-12' && '$recursiveRef' in schema) {
+    throw new TypeError('Local dynamic reference projection does not support $recursiveRef.')
+  }
+  const dynamic = dialect === '2020-12' && typeof schema.$dynamicRef === 'string'
+  const recursive = dialect === '2019-09' && typeof schema.$recursiveRef === 'string'
+  if (!dynamic && !recursive) return undefined
+  if (recursive && schema.$recursiveRef !== '#') {
+    throw new TypeError('Local dynamic reference projection only supports the $recursiveRef value "#".')
+  }
+  const keyword = dynamic ? '$dynamicRef' : '$recursiveRef'
+  return { schema, dynamic, keyword, reference: schema[keyword] as string }
+}
+
+function classifyCompiledReference(
+  node: SchemaNode,
+  compiledRoot: SchemaNode,
+  reference: CompiledReference,
+  authoredPaths: WeakMap<object, string[][]>,
+  policies: LocalReferencePolicies,
+): void {
+  const key = referencePolicyKey(node, reference.keyword, reference.reference)
+  const authored = authoredPaths.get(reference.schema)
+  const parsed = authored ? undefined : schemaKeywordPath(compiledRoot, node.schemaLocation)
+  const paths = authored ?? (parsed ? [parsed] : undefined)
+  if (!paths) {
+    policies.unclassified.add(key)
+    return
+  }
+  policies.classified.add(key)
+  assertSupportedReferencePaths(paths)
+}
+
+function assertSupportedReferencePaths(paths: readonly (readonly string[])[]): void {
+  for (const keywords of paths) {
+    const insideScope = keywords.some((keyword) => keyword === 'properties' || keyword === 'items')
+    const crossesBarrier = keywords.some((keyword) => DYNAMIC_REFERENCE_SCOPE_BARRIERS.has(keyword))
+    if (!insideScope || crossesBarrier) {
+      throw new TypeError(
+        'Local dynamic reference projection does not support references below unsupported applicators or tuple items.',
+      )
     }
   }
+}
 
-  const instrumented = new WeakSet<SchemaNode>()
-  const instrument = (compiledRoot: SchemaNode): void => {
-    for (const node of compiledRoot.toSchemaNodes()) {
-      if (instrumented.has(node)) continue
-      instrumented.add(node)
+function assertReferenceSiblings(schema: Record<string, unknown>, dynamic: boolean): void {
+  const hasUnsupportedSibling = Object.keys(schema).some((keyword) =>
+    dynamic
+      ? keyword !== '$dynamicRef' && !DYNAMIC_REFERENCE_ANNOTATIONS.has(keyword)
+      : keyword !== '$recursiveRef' && keyword !== POSITION,
+  )
+  if (!hasUnsupportedSibling) return
+  const message = dynamic
+    ? 'Local dynamic reference projection does not support assertion siblings beside $dynamicRef.'
+    : 'Local dynamic reference projection does not support siblings beside $recursiveRef.'
+  throw new TypeError(message)
+}
 
-      const schema = node.schema as Record<string, unknown>
-      node.validators = node.validators.map((validator) => {
-        if (wrappedValidators.has(validator)) return validator
-        const existing = validatorWrappers.get(validator)
-        if (existing) return existing
-        const wrapped = ((params: Parameters<typeof validator>[0]) => {
-          activeValidationScope.push({ pointer: params.pointer, node: params.node })
-          try {
-            return validator(params)
-          } finally {
-            activeValidationScope.pop()
-          }
-        }) as typeof validator
-        Object.assign(wrapped, validator)
-        wrappedValidators.add(wrapped)
-        validatorWrappers.set(validator, wrapped)
-        return wrapped
-      })
+function resolveLocalReferenceTarget(
+  node: SchemaNode,
+  root: SchemaNode,
+  externalResourceIds: ReadonlySet<string>,
+): SchemaNode {
+  const target = node.resolveRef({ path: [] })
+  if (!isSchemaNode(target)) throw new TypeError(`Cannot resolve local reference at ${node.schemaLocation}.`)
+  const targetRoot = target.context.rootNode
+  const targetRootId = targetRoot.$id?.split('#', 1)[0]
+  if (targetRoot !== root && (!targetRootId || !externalResourceIds.has(targetRootId))) {
+    throw new TypeError(
+      'Local dynamic reference projection does not support external targets unless they were loaded by the configured resource resolver.',
+    )
+  }
+  return target
+}
 
-      const validate = node.validate.bind(node)
-      node.validate = ((data, pointer = '#', path = []) => {
-        const outermost = validationDepth === 0
-        const inheritedLength = activeValidationScope.length
-        if (outermost) activeValidationScope.push(...path)
-        validationDepth += 1
-        try {
-          return validate(data, pointer, path)
-        } finally {
-          validationDepth -= 1
-          if (outermost) activeValidationScope.length = inheritedLength
-        }
-      }) as SchemaNode['validate']
+function recordReferencePolicy(
+  reference: CompiledReference,
+  staticTarget: SchemaNode,
+  key: string,
+  policies: LocalReferencePolicies,
+): void {
+  const targetSchema = staticTarget.schema as Record<string, unknown>
+  if (reference.dynamic) {
+    const anchor = dynamicReferenceAnchor(reference.reference)
+    const policy = anchor !== undefined && targetSchema.$dynamicAnchor === anchor ? anchor : undefined
+    policies.dynamic.set(key, policy)
+    return
+  }
+  policies.recursive.set(key, targetSchema.$recursiveAnchor === true)
+}
 
-      const reduceNode = node.reduceNode.bind(node)
-      node.reduceNode = ((data, options = {}) => {
-        const outermost = reductionDepth === 0
-        const inheritedLength = activeValidationScope.length
-        if (outermost) activeValidationScope.push(...(options.path ?? []))
-        if (activeValidationScope.at(-1)?.node !== node) {
-          activeValidationScope.push({ pointer: options.pointer ?? node.evaluationPath, node })
-        }
-        reductionDepth += 1
-        try {
-          return reduceNode(data, options)
-        } finally {
-          reductionDepth -= 1
-          activeValidationScope.length = inheritedLength
-        }
-      }) as SchemaNode['reduceNode']
+function assertClassifiedReferencePolicies(policies: LocalReferencePolicies): void {
+  for (const key of policies.unclassified) {
+    if (!policies.classified.has(key)) throw new TypeError('Cannot classify a compiled local dynamic reference.')
+  }
+}
 
-      if (dialect === '2020-12' && typeof schema.$dynamicRef === 'string') {
-        const key = referencePolicyKey(node, '$dynamicRef', schema.$dynamicRef)
-        if (!referencePolicies.has(key)) {
-          throw new TypeError(`Cannot verify compiled local $dynamicRef at ${node.schemaLocation}.`)
-        }
-        const anchor = referencePolicies.get(key)
-        const resolveRef = node.resolveRef.bind(node)
-        node.resolveRef = ({ pointer, path = [] }: { pointer?: string; path?: ValidationPath } = {}) => {
-          if (anchor === undefined) {
-            const staticPath: ValidationPath = []
-            const resolved = resolveRef({ pointer, path: staticPath })
-            if (path !== staticPath) path.push(...staticPath)
-            return resolved
-          }
-
-          const scopedPath: ValidationPath = []
-          const scope =
-            (validationDepth > 0 || reductionDepth > 0) && activeValidationScope.length > 0
-              ? activeValidationScope
-              : path
-          for (const entry of scope) {
-            const anchorNode = entry.node.context.dynamicAnchors[dynamicAnchorUri(entry.node.$id, anchor)]
-            if (isSchemaNode(anchorNode)) scopedPath.push({ pointer: entry.pointer, node: anchorNode })
-          }
-          const inheritedLength = scopedPath.length
-          const resolved = resolveRef({ pointer, path: scopedPath })
-          if (path !== scopedPath) path.push(...scopedPath.slice(inheritedLength))
-          return resolved
-        }
-      }
-      if (dialect === '2019-09' && typeof schema.$recursiveRef === 'string') {
-        const key = referencePolicyKey(node, '$recursiveRef', schema.$recursiveRef)
-        let isRecursive = recursiveReferencePolicies.get(key)
-        if (isRecursive === undefined && !recursiveReferencePolicies.has(key)) {
-          if (schema.$recursiveRef !== '#') {
-            throw new TypeError(`Cannot verify compiled local $recursiveRef at ${node.schemaLocation}.`)
-          }
-          const staticTarget = node.resolveRef({ path: [] })
-          const targetRootId = isSchemaNode(staticTarget) ? staticTarget.context.rootNode.$id?.split('#', 1)[0] : undefined
-          if (
-            !isSchemaNode(staticTarget) ||
-            (staticTarget.context.rootNode !== root && (!targetRootId || !externalResourceIds.has(targetRootId)))
-          ) {
-            throw new TypeError(`Cannot verify compiled local $recursiveRef at ${node.schemaLocation}.`)
-          }
-          isRecursive = (staticTarget.schema as Record<string, unknown>).$recursiveAnchor === true
-        }
-        const resolveRef = node.resolveRef.bind(node)
-        node.resolveRef = ({ pointer, path = [] }: { pointer?: string; path?: ValidationPath } = {}) => {
-          const staticPath: ValidationPath = []
-          const staticTarget = resolveRef({ pointer, path: staticPath })
-          if (!isRecursive || !isSchemaNode(staticTarget) || (staticTarget.schema as Record<string, unknown>).$recursiveAnchor !== true) {
-            if (path !== staticPath) path.push(...staticPath)
-            return staticTarget
-          }
-
-          const scope =
-            (validationDepth > 0 || reductionDepth > 0) && activeValidationScope.length > 0
-              ? activeValidationScope
-              : path
-          const outerAnchor = scope.find(({ node: entry }) =>
-            (entry.schema as Record<string, unknown>).$recursiveAnchor === true,
-          )
-          if (outerAnchor) {
-            const resourceRoot = outerAnchor.node.getNodeRef('#')
-            if (isSchemaNode(resourceRoot)) {
-              path.push({ pointer: pointer!, node: resourceRoot })
-              return resourceRoot
-            }
-          }
-          if (path !== staticPath) path.push(...staticPath)
-          return staticTarget
-        }
-      }
-
-      const compileSchema = node.compileSchema.bind(node)
-      node.compileSchema = ((schema, evaluationPath, schemaLocation, dynamicId) => {
-        const compiled = compileSchema(schema, evaluationPath, schemaLocation, dynamicId)
-        instrument(compiled)
-        return compiled
-      }) as SchemaNode['compileSchema']
+function instrumentCompiledRoot(compiledRoot: SchemaNode, context: LocalReferenceContext): void {
+  const instrument = (currentRoot: SchemaNode): void => {
+    for (const node of currentRoot.toSchemaNodes()) {
+      if (context.instrumented.has(node)) continue
+      context.instrumented.add(node)
+      instrumentNode(node, context, instrument)
     }
   }
+  instrument(compiledRoot)
+}
 
-  for (const compiledRoot of compiledRoots) instrument(compiledRoot)
+function instrumentNode(
+  node: SchemaNode,
+  context: LocalReferenceContext,
+  instrument: (root: SchemaNode) => void,
+): void {
+  const schema = node.schema as Record<string, unknown>
+  wrapNodeValidators(node, context)
+  wrapNodeValidation(node, context)
+  wrapNodeReduction(node, context)
+  installDynamicReferenceResolver(node, schema, context)
+  installRecursiveReferenceResolver(node, schema, context)
+
+  const compile = node.compileSchema.bind(node)
+  node.compileSchema = ((childSchema, evaluationPath, schemaLocation, dynamicId) => {
+    const compiled = compile(childSchema, evaluationPath, schemaLocation, dynamicId)
+    instrument(compiled)
+    return compiled
+  }) as SchemaNode['compileSchema']
+}
+
+function wrapNodeValidators(node: SchemaNode, context: LocalReferenceContext): void {
+  node.validators = node.validators.map((validator) => {
+    if (context.wrappedValidators.has(validator)) return validator
+    const existing = context.validatorWrappers.get(validator)
+    if (existing) return existing
+    const wrapped = ((params: Parameters<typeof validator>[0]) => {
+      context.activeValidationScope.push({ pointer: params.pointer, node: params.node })
+      try {
+        return validator(params)
+      } finally {
+        context.activeValidationScope.pop()
+      }
+    }) as typeof validator
+    Object.assign(wrapped, validator)
+    context.wrappedValidators.add(wrapped)
+    context.validatorWrappers.set(validator, wrapped)
+    return wrapped
+  })
+}
+
+function wrapNodeValidation(node: SchemaNode, context: LocalReferenceContext): void {
+  const validate = node.validate.bind(node)
+  node.validate = ((data, pointer = '#', path = []) => {
+    const outermost = context.depths.validation === 0
+    const inheritedLength = context.activeValidationScope.length
+    if (outermost) context.activeValidationScope.push(...path)
+    context.depths.validation += 1
+    try {
+      return validate(data, pointer, path)
+    } finally {
+      context.depths.validation -= 1
+      if (outermost) context.activeValidationScope.length = inheritedLength
+    }
+  }) as SchemaNode['validate']
+}
+
+function wrapNodeReduction(node: SchemaNode, context: LocalReferenceContext): void {
+  const reduceNode = node.reduceNode.bind(node)
+  node.reduceNode = ((data, options = {}) => {
+    const outermost = context.depths.reduction === 0
+    const inheritedLength = context.activeValidationScope.length
+    if (outermost) context.activeValidationScope.push(...(options.path ?? []))
+    if (context.activeValidationScope.at(-1)?.node !== node) {
+      context.activeValidationScope.push({ pointer: options.pointer ?? node.evaluationPath, node })
+    }
+    context.depths.reduction += 1
+    try {
+      return reduceNode(data, options)
+    } finally {
+      context.depths.reduction -= 1
+      context.activeValidationScope.length = inheritedLength
+    }
+  }) as SchemaNode['reduceNode']
+}
+
+function activeReferenceScope(context: LocalReferenceContext, path: ValidationPath): ValidationPath {
+  return (context.depths.validation > 0 || context.depths.reduction > 0) && context.activeValidationScope.length > 0
+    ? context.activeValidationScope
+    : path
+}
+
+function installDynamicReferenceResolver(
+  node: SchemaNode,
+  schema: Record<string, unknown>,
+  context: LocalReferenceContext,
+): void {
+  if (context.dialect !== '2020-12' || typeof schema.$dynamicRef !== 'string') return
+  const key = referencePolicyKey(node, '$dynamicRef', schema.$dynamicRef)
+  if (!context.policies.dynamic.has(key)) {
+    throw new TypeError(`Cannot verify compiled local $dynamicRef at ${node.schemaLocation}.`)
+  }
+  const anchor = context.policies.dynamic.get(key)
+  const resolveRef = node.resolveRef.bind(node)
+  node.resolveRef = ({ pointer, path = [] }: { pointer?: string; path?: ValidationPath } = {}) => {
+    if (anchor === undefined) {
+      const staticPath: ValidationPath = []
+      const resolved = resolveRef({ pointer, path: staticPath })
+      if (path !== staticPath) path.push(...staticPath)
+      return resolved
+    }
+    const scopedPath: ValidationPath = []
+    for (const entry of activeReferenceScope(context, path)) {
+      const anchorNode = entry.node.context.dynamicAnchors[dynamicAnchorUri(entry.node.$id, anchor)]
+      if (isSchemaNode(anchorNode)) scopedPath.push({ pointer: entry.pointer, node: anchorNode })
+    }
+    const inheritedLength = scopedPath.length
+    const resolved = resolveRef({ pointer, path: scopedPath })
+    if (path !== scopedPath) path.push(...scopedPath.slice(inheritedLength))
+    return resolved
+  }
+}
+
+function installRecursiveReferenceResolver(
+  node: SchemaNode,
+  schema: Record<string, unknown>,
+  context: LocalReferenceContext,
+): void {
+  if (context.dialect !== '2019-09' || typeof schema.$recursiveRef !== 'string') return
+  const key = referencePolicyKey(node, '$recursiveRef', schema.$recursiveRef)
+  const isRecursive = recursiveReferencePolicy(node, schema, key, context)
+  const resolveRef = node.resolveRef.bind(node)
+  node.resolveRef = ({ pointer, path = [] }: { pointer?: string; path?: ValidationPath } = {}) => {
+    const staticPath: ValidationPath = []
+    const staticTarget = resolveRef({ pointer, path: staticPath })
+    return resolveRecursiveTarget(staticTarget, isRecursive, pointer, path, staticPath, context)
+  }
+}
+
+function recursiveReferencePolicy(
+  node: SchemaNode,
+  schema: Record<string, unknown>,
+  key: string,
+  context: LocalReferenceContext,
+): boolean {
+  let isRecursive = context.policies.recursive.get(key)
+  if (isRecursive !== undefined || context.policies.recursive.has(key)) return isRecursive ?? false
+  if (schema.$recursiveRef !== '#') {
+    throw new TypeError(`Cannot verify compiled local $recursiveRef at ${node.schemaLocation}.`)
+  }
+  const staticTarget = node.resolveRef({ path: [] })
+  const targetRootId = isSchemaNode(staticTarget)
+    ? staticTarget.context.rootNode.$id?.split('#', 1)[0]
+    : undefined
+  if (
+    !isSchemaNode(staticTarget) ||
+    (staticTarget.context.rootNode !== context.root &&
+      (!targetRootId || !context.externalResourceIds.has(targetRootId)))
+  ) {
+    throw new TypeError(`Cannot verify compiled local $recursiveRef at ${node.schemaLocation}.`)
+  }
+  return (staticTarget.schema as Record<string, unknown>).$recursiveAnchor === true
+}
+
+function resolveRecursiveTarget(
+  staticTarget: ResolvedReference,
+  isRecursive: boolean,
+  pointer: string | undefined,
+  path: ValidationPath,
+  staticPath: ValidationPath,
+  context: LocalReferenceContext,
+): ResolvedReference {
+  if (!isRecursive || !isSchemaNode(staticTarget) ||
+    (staticTarget.schema as Record<string, unknown>).$recursiveAnchor !== true) {
+    if (path !== staticPath) path.push(...staticPath)
+    return staticTarget
+  }
+  const outerAnchor = activeReferenceScope(context, path).find(({ node }) =>
+    (node.schema as Record<string, unknown>).$recursiveAnchor === true,
+  )
+  if (outerAnchor) {
+    const resourceRoot = outerAnchor.node.getNodeRef('#')
+    if (isSchemaNode(resourceRoot)) {
+      path.push({ pointer: pointer!, node: resourceRoot })
+      return resourceRoot
+    }
+  }
+  if (path !== staticPath) path.push(...staticPath)
+  return staticTarget
 }
 
 function referencePolicyKey(node: SchemaNode, keyword: string, reference: string): string {

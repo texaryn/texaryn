@@ -383,10 +383,10 @@ function reportOf(result: InitializationResult): InitializationReport {
     : { outcome: 'budget-exhausted', passes: result.passes }
 }
 
-export function createFormRuntime(
+function initializeRuntimeData(
   port: SchemaEvaluationPort,
-  options: FormRuntimeOptions = {},
-): FormRuntime {
+  options: FormRuntimeOptions,
+): { initialData: unknown; construction: InitializationResult | undefined } {
   if (options.submission === 'projected' && typeof port.projectSubmission !== 'function') {
     throw new Error('Projected submission requires a SchemaEvaluationPort with projectSubmission().')
   }
@@ -441,6 +441,14 @@ export function createFormRuntime(
   // Rule 6: what the pass materialised is the baseline, so a seeded location is
   // not modified against it and `handleSetValue` needs no new code.
   const initialData = construction === undefined ? suppliedData : construction.data
+  return { initialData, construction }
+}
+
+export function createFormRuntime(
+  port: SchemaEvaluationPort,
+  options: FormRuntimeOptions = {},
+): FormRuntime {
+  const { initialData, construction } = initializeRuntimeData(port, options)
   const projection = port.project(initialData)
   const initialCompile = compile(projection, initialData, options.hints)
 

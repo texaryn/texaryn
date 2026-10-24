@@ -277,6 +277,14 @@ function dereferenceChecked(node: SchemaNode): { node: SchemaNode; cycle: boolea
   if (collection.cycle) return { node, cycle: true, unresolved: false }
   if (collection.unresolved || parts.length === 0) return { node, cycle: false, unresolved: true }
   if (parts.length === 1) return { node: parts[0]!, cycle: false, unresolved: false }
+  return composeDereferencedParts(parts)
+}
+
+function composeDereferencedParts(parts: readonly SchemaNode[]): {
+  node: SchemaNode
+  cycle: false
+  unresolved: false
+} {
   const position = JSON.stringify(parts.map(positionOf))
   const type = referenceCompositionType(parts)
   const oneOfSource = parts.find((part) => part.oneOf !== undefined)
