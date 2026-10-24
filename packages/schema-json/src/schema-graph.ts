@@ -132,28 +132,51 @@ function addInPlaceChildren(found: LocatedChildSchema[], schema: Record<string, 
   if (!isPre2019Dialect(dialect)) addMapChildren(found, schema, position, 'dependentSchemas', true)
 }
 
-function addInstanceChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
+function addSingleInstanceChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
   for (const keyword of INSTANCE_SINGLE) {
     if (dialect === 'draft-04' && keyword !== 'additionalProperties') continue
     if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
-  if (dialect !== '2020-12' && Array.isArray(schema.items) && isRecord(schema.additionalItems)) {
-    found.push({ position: `${position}/additionalItems`, via: 'additionalItems', inPlace: false })
+}
+
+function addAdditionalItemsChild(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
+  if (dialect === '2020-12' || !Array.isArray(schema.items) || !isRecord(schema.additionalItems)) return
+  found.push({ position: `${position}/additionalItems`, via: 'additionalItems', inPlace: false })
+}
+
+function addUnevaluatedChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
+  if (isPre2019Dialect(dialect)) return
+  for (const keyword of ['unevaluatedItems', 'unevaluatedProperties'] as const) {
+    if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
   }
-  if (!isPre2019Dialect(dialect)) {
-    for (const keyword of ['unevaluatedItems', 'unevaluatedProperties'] as const) {
-      if (isRecord(schema[keyword])) found.push({ position: `${position}/${keyword}`, via: keyword, inPlace: false })
-    }
-  }
+}
+
+function addInstanceMapChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string): void {
   for (const keyword of INSTANCE_MAP) addMapChildren(found, schema, position, keyword, false)
+}
+
+function addItemsChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
   const items = schema.items
-  if (isRecord(items)) found.push({ position: `${position}/items`, via: 'items', inPlace: false })
-  else if (Array.isArray(items) && dialect !== '2020-12') {
+  if (isRecord(items)) {
+    found.push({ position: `${position}/items`, via: 'items', inPlace: false })
+  } else if (Array.isArray(items) && dialect !== '2020-12') {
     items.forEach((_, index) => found.push({ position: `${position}/items/${index}`, via: `items/${index}`, inPlace: false }))
   }
+}
+
+function addPrefixItemsChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
   if (dialect === '2020-12' && Array.isArray(schema.prefixItems)) {
     schema.prefixItems.forEach((_, index) => found.push({ position: `${position}/prefixItems/${index}`, via: `prefixItems/${index}`, inPlace: false }))
   }
+}
+
+function addInstanceChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
+  addSingleInstanceChildren(found, schema, position, dialect)
+  addAdditionalItemsChild(found, schema, position, dialect)
+  addUnevaluatedChildren(found, schema, position, dialect)
+  addInstanceMapChildren(found, schema, position)
+  addItemsChildren(found, schema, position, dialect)
+  addPrefixItemsChildren(found, schema, position, dialect)
 }
 
 function addLexicalChildren(found: LocatedChildSchema[], schema: Record<string, unknown>, position: string, dialect: Dialect): void {
@@ -282,6 +305,42 @@ interface GraphTraversal {
   readonly reachable: Set<string>
 }
 
+function addDynamicReferenceEdges(
+  graph: GraphTraversal,
+  keyword: string,
+  targetSchema: unknown,
+  fragment: string,
+  edges: Edge[],
+): boolean {
+  if (keyword !== '$dynamicRef' || !isRecord(targetSchema) || fragment === '' || targetSchema.$dynamicAnchor !== fragment) return false
+  for (const anchor of graph.index.dynamicAnchors.get(fragment) ?? []) edges.push({ to: anchor, via: keyword, inPlace: true })
+  return true
+}
+
+function addRecursiveReferenceEdges(graph: GraphTraversal, keyword: string, target: string, edges: Edge[]): void {
+  if (keyword !== '$recursiveRef') return
+  // json-schema-library resolves `$recursiveRef` dynamically beyond its static target.
+  for (const anchor of graph.index.recursiveAnchors) {
+    if (anchor !== target) edges.push({ to: anchor, via: keyword, inPlace: true })
+  }
+}
+
+function addResolvedReferenceEdge(
+  graph: GraphTraversal,
+  keyword: string,
+  reference: string,
+  position: string,
+  target: string,
+  edges: Edge[],
+): void {
+  graph.references.set(`${position}\u0000${keyword}`, target)
+  const targetSchema = at(graph.documents, target)
+  const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
+  if (addDynamicReferenceEdges(graph, keyword, targetSchema, fragment, edges)) return
+  edges.push({ to: target, via: keyword, inPlace: true })
+  addRecursiveReferenceEdges(graph, keyword, target, edges)
+}
+
 function addReferenceEdges(
   graph: GraphTraversal,
   schema: Record<string, unknown>,
@@ -295,20 +354,7 @@ function addReferenceEdges(
     if (typeof reference !== 'string') continue
     const target = resolveReference(reference, base, index, documents)
     if (target === undefined) continue
-    graph.references.set(`${position}\u0000${keyword}`, target)
-    const targetSchema = at(documents, target)
-    const fragment = reference.includes('#') ? reference.slice(reference.indexOf('#') + 1) : ''
-    if (keyword === '$dynamicRef' && isRecord(targetSchema) && fragment !== '' && targetSchema.$dynamicAnchor === fragment) {
-      for (const anchor of index.dynamicAnchors.get(fragment) ?? []) edges.push({ to: anchor, via: keyword, inPlace: true })
-      continue
-    }
-    edges.push({ to: target, via: keyword, inPlace: true })
-    // json-schema-library resolves $recursiveRef dynamically whatever its static target declares.
-    if (keyword === '$recursiveRef') {
-      for (const anchor of index.recursiveAnchors) {
-        if (anchor !== target) edges.push({ to: anchor, via: keyword, inPlace: true })
-      }
-    }
+    addResolvedReferenceEdge(graph, keyword, reference, position, target, edges)
   }
 }
 
