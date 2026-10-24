@@ -11,7 +11,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^9.0.0",
-    "@texaryn/core": "0.11.0",
+    "@texaryn/core": "1.0.1",
     "@texaryn/react": "0.4.4",
     "@texaryn/react-mui": "0.3.4",
     "@texaryn/schema-json": "0.6.0",
