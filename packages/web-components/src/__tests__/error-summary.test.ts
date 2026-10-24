@@ -224,7 +224,7 @@ describe('mountErrorSummary', () => {
     mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
     rt.dispatch({ type: 'Submit' })
     await flush()
-    const group = container.querySelector('[role="group"]')!
+    const group = container.querySelector('section[aria-labelledby]')!
     expect(group).toBe(container.firstElementChild)
     expect(group.getAttribute('tabindex')).toBe('-1')
     const heading = group.querySelector('h2')!
@@ -241,7 +241,7 @@ describe('mountErrorSummary', () => {
     mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
     rt.dispatch({ type: 'Submit' })
     await flush()
-    const group = container.querySelector('[role="group"]')!
+    const group = container.querySelector('section[aria-labelledby]')!
     expect(document.activeElement).toBe(group)
 
     container.querySelector('input')!.focus()
@@ -259,13 +259,13 @@ describe('mountErrorSummary', () => {
     input.focus()
     rt.dispatch({ type: 'Submit' })
     await flush()
-    expect(container.querySelector('[role="group"]')).not.toBeNull()
+    expect(container.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(input)
 
     passive.unmount()
     input.blur()
     mountErrorSummary(container, form)
-    expect(container.querySelector('[role="group"]')).not.toBeNull()
+    expect(container.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(document.body)
   })
 
@@ -287,7 +287,7 @@ describe('mountErrorSummary', () => {
     mountErrorSummary(container, mountForm(container, rt, { registry, idPrefix: 'f' }))
     rt.dispatch({ type: 'SetTouched', nodeId: nodeAt(rt, '/first') })
     await flush()
-    expect(container.querySelector('[role="group"]')).not.toBeNull()
+    expect(container.querySelector('section[aria-labelledby]')).not.toBeNull()
 
     fail = true
     const input = container.querySelector('input')!
@@ -306,7 +306,7 @@ describe('mountErrorSummary', () => {
     await flush()
     summary.unmount()
     summary.setMessages({ ...englishMessages, errorSummaryHeading: () => 'Encore' })
-    expect(container.querySelector('[role="group"]')).toBeNull()
+    expect(container.querySelector('section[aria-labelledby]')).toBeNull()
   })
 
   it('follows a messages switch on the mounted summary without losing focus', async () => {
@@ -316,7 +316,7 @@ describe('mountErrorSummary', () => {
     const summary = mountErrorSummary(container, form)
     rt.dispatch({ type: 'Submit' })
     await flush()
-    const group = container.querySelector('[role="group"]')!
+    const group = container.querySelector('section[aria-labelledby]')!
     const link = container.querySelector('a')!
     summary.setMessages({
       ...englishMessages,
@@ -324,7 +324,7 @@ describe('mountErrorSummary', () => {
       errorSummaryDetail: ({ messages }) => ` : ${messages.join(', ')}`,
       validationMessage: () => 'Champ invalide.',
     })
-    expect(container.querySelector('[role="group"]')).toBe(group)
+    expect(container.querySelector('section[aria-labelledby]')).toBe(group)
     expect(container.querySelector('a')).toBe(link)
     expect(group.querySelector('h2')!.textContent).toBe('Il y a 2 problèmes')
     expect(container.querySelector('li')!.textContent).toMatch(/^First : ./)
@@ -508,14 +508,14 @@ describe('<texaryn-form error-summary>', () => {
     const input = el.querySelector('input')!
     input.focus()
     await failSubmit(rt)
-    expect(el.querySelector('[role="group"]')).not.toBeNull()
+    expect(el.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(input)
 
     el.errorSummaryFocus = true
     expect(el.getAttribute('error-summary')).toBe('')
     input.focus()
     await failSubmit(rt)
-    expect(document.activeElement).toBe(el.querySelector('[role="group"]'))
+    expect(document.activeElement).toBe(el.querySelector('section[aria-labelledby]'))
 
     el.errorSummaryFocus = false
     expect(el.getAttribute('error-summary')).toBe('no-focus')

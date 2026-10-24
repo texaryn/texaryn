@@ -162,7 +162,7 @@ describe('the schema editor toolbar', () => {
     }
     expect(written).toEqual([readSchemaText()])
     expect(unhandled).toEqual([])
-    expect(screen.getByText('Copy failed').getAttribute('role')).toBe('status')
+    expect(screen.getByText('Copy failed').tagName).toBe('OUTPUT')
   })
 
   it('says Copied in a polite status region after the clipboard accepts the schema', async () => {
@@ -174,7 +174,7 @@ describe('the schema editor toolbar', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     try {
       fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-      await waitFor(() => expect(screen.getByText('Copied').getAttribute('role')).toBe('status'))
+      await waitFor(() => expect(screen.getByText('Copied').tagName).toBe('OUTPUT'))
     } finally {
       Reflect.deleteProperty(navigator, 'clipboard')
     }
@@ -186,7 +186,7 @@ describe('the schema editor toolbar', () => {
     Reflect.deleteProperty(navigator, 'clipboard')
     expect(navigator.clipboard?.writeText).toBeUndefined()
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(screen.getByText('Copy failed').getAttribute('role')).toBe('status'))
+    await waitFor(() => expect(screen.getByText('Copy failed').tagName).toBe('OUTPUT'))
   })
 })
 

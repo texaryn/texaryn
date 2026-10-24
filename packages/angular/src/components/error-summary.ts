@@ -21,9 +21,8 @@ import { makeId } from '../field-props.js'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (form().visibleErrors().length > 0) {
-      <div
+      <section
         #container
-        role="group"
         tabindex="-1"
         [attr.aria-labelledby]="headingId()"
       >
@@ -33,7 +32,7 @@ import { makeId } from '../field-props.js'
             <li><a [attr.href]="'#' + makeId(idPrefix(), entry.nodeId, 'input')">{{ errorLabel(entry) }}</a>{{ messageSet().errorSummaryDetail({ messages: errorMessages(entry) }) }}</li>
           }
         </ul>
-      </div>
+      </section>
     }
   `,
 })
@@ -48,7 +47,7 @@ export class ErrorSummary {
   readonly errorMessages = (entry: VisibleError): string[] => visibleErrorMessages(entry, this.messageSet())
   readonly makeId = makeId
   private readonly injector = inject(Injector)
-  private readonly container = viewChild<ElementRef<HTMLDivElement>>('container')
+  private readonly container = viewChild<ElementRef<HTMLElement>>('container')
 
   constructor() {
     let tracker: ReturnType<typeof createFailedSubmitTracker> | undefined

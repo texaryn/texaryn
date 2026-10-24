@@ -13,7 +13,7 @@
   const messages = context.messages
   const tracker = createFailedSubmitTracker(context.form.runtime.submission.getSnapshot())
   const headingId = makeId(context.idPrefix, 'error-summary', 'heading')
-  let container: HTMLDivElement | undefined
+  let container: HTMLElement | undefined
 
   $: if (tracker.settle($submission, $visibleErrors)) {
     void tick().then(() => {
@@ -27,7 +27,7 @@
 </script>
 
 {#if $visibleErrors.length > 0}
-  <div bind:this={container} role="group" tabindex="-1" aria-labelledby={headingId}>
+  <section bind:this={container} tabindex="-1" aria-labelledby={headingId}>
     <h2 id={headingId}>{$messages.errorSummaryHeading({ count: $visibleErrors.length })}</h2>
     <ul>
       {#each $visibleErrors as entry (entry.nodeId)}
@@ -37,5 +37,5 @@
         </li>
       {/each}
     </ul>
-  </div>
+  </section>
 {/if}

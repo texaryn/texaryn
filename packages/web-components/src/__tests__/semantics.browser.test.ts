@@ -217,12 +217,12 @@ describe('browser semantics', () => {
     expect(name(owned)).toBe('')
   })
 
-  it('a failed submit focuses the summary group, labelled by its heading', async () => {
+  it('a failed submit focuses the summary region, labelled by its heading', async () => {
     const rt = await mount(requiredSchema, { name: '' })
     mountErrorSummary(container, mounted)
     rt.dispatch({ type: 'Submit' })
     await flush()
-    const group = container.querySelector<HTMLElement>('[role="group"]')!
+    const group = container.querySelector<HTMLElement>('section[aria-labelledby]')!
     expect(document.activeElement).toBe(group)
     const heading = document.getElementById(group.getAttribute('aria-labelledby')!)!
     expect(heading.tagName).toBe('H2')

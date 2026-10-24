@@ -286,7 +286,7 @@ describe('Angular branch coverage', () => {
     fixture.componentInstance.form.dispatch({ type: 'Submit' })
     await fixture.whenStable()
 
-    expect(fixture.nativeElement.querySelector('[role="group"]')).not.toBeNull()
+    expect(fixture.nativeElement.querySelector('section[aria-labelledby]')).not.toBeNull()
     expect(document.activeElement).toBe(field)
 
     fixture.destroy()

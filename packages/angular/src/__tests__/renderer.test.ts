@@ -406,13 +406,13 @@ describe('Angular signal renderer', () => {
     document.body.append(fixture.nativeElement)
     fixture.autoDetectChanges()
     await fixture.whenStable()
-    expect(fixture.nativeElement.querySelector('[role="group"]')).toBeNull()
+    expect(fixture.nativeElement.querySelector('section[aria-labelledby]')).toBeNull()
 
     fixture.componentInstance.form.dispatch({ type: 'Submit' })
     await fixture.whenStable()
     fixture.detectChanges()
 
-    const summary = fixture.nativeElement.querySelector('[role="group"]') as HTMLDivElement
+    const summary = fixture.nativeElement.querySelector('section[aria-labelledby]') as HTMLElement
     expect(summary.textContent).toContain('Name')
     const href = summary.querySelector('a')?.getAttribute('href')
     expect(fixture.nativeElement.querySelector(href)?.id).toBe(href?.slice(1))

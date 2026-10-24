@@ -80,10 +80,10 @@ describe('Svelte renderer', () => {
       required: ['name'],
     }, {}, undefined, false, true)
 
-    expect(screen.queryByRole('group')).toBeNull()
+    expect(screen.queryByRole('region')).toBeNull()
     await fireEvent.submit(screen.getByTestId('consumer-form'))
     await vi.waitFor(() => expect(get(form.visibleErrors)).toHaveLength(1))
-    expect(screen.queryByRole('group')).toBeNull()
+    expect(screen.queryByRole('region')).toBeNull()
   })
 
   it('switches runtimes consistently and transfers default teardown ownership', async () => {
