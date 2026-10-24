@@ -526,7 +526,7 @@ function advanceSchemaPath(schema: Record<string, unknown>, cursor: SchemaPathCu
   return false
 }
 
-function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] | undefined {
+export function schemaKeywordPath(root: SchemaNode, schemaLocation: string): string[] | undefined {
   const hashIndex = schemaLocation.indexOf('#')
   if (hashIndex < 0) return undefined
   const fragment = schemaLocation.slice(hashIndex + 1)
