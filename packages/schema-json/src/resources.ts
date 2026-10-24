@@ -329,8 +329,8 @@ function referencesIn(
       const hash = local.uri.indexOf('#')
       const fragment = hash === -1 ? '' : local.uri.slice(hash + 1)
       let target: unknown
-      let targetBase = local.base
-      let targetPosition = local.resourceRootPosition
+      let targetBase: string | undefined
+      let targetPosition: string
       let targetResourceRoot = local.resourceRoot
       let targetResourceRootPosition = local.resourceRootPosition
       if (fragment === '' || fragment.startsWith('/')) {

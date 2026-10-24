@@ -64,7 +64,7 @@ export function Inspector({
   const tabButtons = useRef<Array<HTMLButtonElement | null>>([])
 
   function moveTabFocus(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let nextIndex = index
+    let nextIndex: number
     if (event.key === 'ArrowRight') nextIndex = (index + 1) % TABS.length
     else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length
     else if (event.key === 'Home') nextIndex = 0

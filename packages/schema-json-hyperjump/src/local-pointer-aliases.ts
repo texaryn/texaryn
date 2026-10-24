@@ -442,7 +442,7 @@ export function materializeLocalPointerAliases(
   walk(document, '#', rootScope, true)
 
   for (let cursor = 0; cursor < pending.length; cursor += 1) {
-    const { schema, position, scope } = pending[cursor]!
+    const { schema, scope } = pending[cursor]!
     if (typeof schema.$ref !== 'string') continue
     if (isPre2019Dialect(dialect) && scope.base !== undefined) {
       try {

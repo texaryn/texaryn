@@ -9,7 +9,7 @@
 // distinguishable if the system preference can be made to change.
 
 class MemoryStorage implements Storage {
-  #entries = new Map<string, string>()
+  readonly #entries = new Map<string, string>()
 
   get length(): number {
     return this.#entries.size

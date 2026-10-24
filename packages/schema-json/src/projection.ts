@@ -2155,8 +2155,10 @@ function walk(
         )
       // Deferring the children the budget counts, by depth below the anchor, admits it breadth first.
       const counted = selfLineage && (recursive || budgeted(locationInfo(positions.declaring, ctx.cache)))
-      if (counted) (ctx.queue[selfLineage.depth] ??= []).push({ path: [...path, index], enter })
-      else enter()
+      if (counted) {
+        ctx.queue[selfLineage.depth] ??= []
+        ctx.queue[selfLineage.depth].push({ path: [...path, index], enter })
+      } else enter()
     }
     return
   }
