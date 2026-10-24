@@ -68,6 +68,33 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
       return reject(path, String(key), 'reading it threw')
     }
   }
+  const visitArray = (value: object, path: string, depth: number): JsonValue => {
+    const items: JsonValue[] = []
+    const array = value as unknown[]
+    for (let index = 0; index < array.length && !over; index++) {
+      const at = `${path}/${index}`
+      const item = read(array, index, at)
+      const json = item && visit(item.value, at, String(index), depth + 1)
+      if (json === undefined && over) break
+      items.push(json ?? null)
+    }
+    return items
+  }
+  const visitObject = (value: object, path: string, key: string, depth: number): JsonValue | undefined => {
+    const prototype: object | null = Object.getPrototypeOf(value)
+    if (prototype !== null && Object.getPrototypeOf(prototype) !== null) {
+      return reject(path, key, 'only a plain object is a JSON object')
+    }
+    const copy: JsonObject = {}
+    for (const name of Object.keys(value)) {
+      if (over) break
+      const at = append(path, name)
+      const item = read(value, name, at)
+      const json = item && visit(item.value, at, name, depth + 1)
+      if (json !== undefined) define(copy, name, json)
+    }
+    return copy
+  }
   const visit = (value: unknown, path: string, key: string, depth: number): JsonValue | undefined => {
     if (++count > MAX_VALUES) {
       over = true
@@ -83,30 +110,8 @@ export function toJson(input: unknown, outside: OutsideJson[]): JsonValue | unde
     if (ancestors.has(value)) return reject(path, key, 'the value contains itself')
     ancestors.add(value)
     try {
-      if (Array.isArray(value)) {
-        const items: JsonValue[] = []
-        for (let index = 0; index < value.length && !over; index++) {
-          const at = `${path}/${index}`
-          const item = read(value, index, at)
-          const json = item && visit(item.value, at, String(index), depth + 1)
-          if (json === undefined && over) break
-          items.push(json ?? null)
-        }
-        return items
-      }
-      const prototype: object | null = Object.getPrototypeOf(value)
-      if (prototype !== null && Object.getPrototypeOf(prototype) !== null) {
-        return reject(path, key, 'only a plain object is a JSON object')
-      }
-      const copy: JsonObject = {}
-      for (const name of Object.keys(value)) {
-        if (over) break
-        const at = append(path, name)
-        const item = read(value, name, at)
-        const json = item && visit(item.value, at, name, depth + 1)
-        if (json !== undefined) define(copy, name, json)
-      }
-      return copy
+      if (Array.isArray(value)) return visitArray(value, path, depth)
+      return visitObject(value, path, key, depth)
     } catch {
       return reject(path, key, 'reading it threw')
     } finally {
