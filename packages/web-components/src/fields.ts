@@ -121,41 +121,34 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
     )
   }
 
-  function render(): void {
-    writeLabel(
-      label,
-      visibleFieldLabel(node.annotations.title, node.dataPointer, ctx.messages),
-      node.constraints.required === true,
-      ctx.messages,
-    )
-    renderOptions()
+  function renderValue(): void {
     const value = state.value
     if (control instanceof HTMLInputElement && kind === 'boolean') {
       control.checked = value === true
-    } else {
-      // Only write when the DOM disagrees: writing an equal value moves the
-      // caret in real browsers, and the DOM already holds what was typed.
-      const text = display(value)
-      if (control.value !== text) control.value = text
+      return
     }
-    control.disabled = state.disabled
-    // A control HTML has no readonly for can only say so through ARIA, and is
-    // put back by commit above.
+    // Only write when the DOM disagrees: writing an equal value moves the
+    // caret in real browsers, and the DOM already holds what was typed.
+    const text = display(value)
+    if (control.value !== text) control.value = text
+  }
+
+  function renderReadOnly(): void {
     if (hasNativeReadOnly(kind)) {
       ;(control as HTMLInputElement | HTMLTextAreaElement).readOnly = node.readOnly
-    } else if (node.readOnly) {
-      control.setAttribute('aria-readonly', 'true')
-    } else {
-      control.removeAttribute('aria-readonly')
+      return
     }
+    if (node.readOnly) control.setAttribute('aria-readonly', 'true')
+    else control.removeAttribute('aria-readonly')
+  }
+
+  function renderControlAttributes(): void {
     if (node.placeholder && !(control instanceof HTMLSelectElement)) control.placeholder = node.placeholder
     if (node.constraints.required) control.setAttribute('aria-required', 'true')
     else control.removeAttribute('aria-required')
+  }
 
-    const helpText = node.helpText ?? node.annotations.description
-    description.textContent = helpText ?? ''
-    description.hidden = !helpText
-
+  function renderErrors(): typeof state.errors {
     const visibleErrors = state.showErrors ? state.errors : []
     errors.replaceChildren(
       ...visibleErrors.map((error) => {
@@ -164,7 +157,10 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
         return line
       }),
     )
+    return visibleErrors
+  }
 
+  function renderDescriptions(helpText: string | undefined, visibleErrors: typeof state.errors): void {
     const describedBy: string[] = []
     if (helpText) describedBy.push(description.id)
     if (visibleErrors.length > 0) describedBy.push(errors.id)
@@ -172,6 +168,28 @@ function fieldWidget(kind: Kind, initial: UINode, ctx: RenderContext): DomWidget
     else control.removeAttribute('aria-describedby')
     if (visibleErrors.length > 0) control.setAttribute('aria-invalid', 'true')
     else control.removeAttribute('aria-invalid')
+  }
+
+  function render(): void {
+    writeLabel(
+      label,
+      visibleFieldLabel(node.annotations.title, node.dataPointer, ctx.messages),
+      node.constraints.required === true,
+      ctx.messages,
+    )
+    renderOptions()
+    renderValue()
+    control.disabled = state.disabled
+    // A control HTML has no readonly for can only say so through ARIA, and is
+    // put back by commit above.
+    renderReadOnly()
+    renderControlAttributes()
+
+    const helpText = node.helpText ?? node.annotations.description
+    description.textContent = helpText ?? ''
+    description.hidden = !helpText
+
+    renderDescriptions(helpText, renderErrors())
   }
 
   renderIds()
