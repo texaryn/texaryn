@@ -649,7 +649,9 @@ function mapValidationError(error: JsonError, resolve: PointerResolver): Validat
   let lastKey: string | undefined
   if (code === 'no-additional-properties-error' && typeof data.property === 'string') {
     lastKey = data.property
-  } else if (code === 'additional-items-error' && data.key !== undefined) {
+  } else if (code === 'additional-items-error' &&
+    (typeof data.key === 'string' || typeof data.key === 'number')
+  ) {
     lastKey = String(data.key)
   }
   return {

@@ -33,7 +33,10 @@ function preview(value: unknown): string {
   if (value === undefined) return 'undefined'
   if (value === null) return 'null'
   if (typeof value === 'string') return JSON.stringify(value)
-  if (typeof value !== 'object') return String(value)
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return `${value}`
+  }
+  if (typeof value === 'symbol' || typeof value === 'function') return value.toString()
   if (Array.isArray(value)) return `Array(${value.length})`
   if (value instanceof Map) return `Map(${value.size})`
   if (value instanceof Set) return `Set(${value.size})`

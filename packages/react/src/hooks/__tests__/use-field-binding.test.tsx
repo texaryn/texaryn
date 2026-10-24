@@ -193,6 +193,11 @@ describe('useFieldBinding: domInputProps display value and coercion', () => {
     expect(binding().value).toBe('Bob')
   })
 
+  it('renders mismatched object values as JSON text', () => {
+    const { control } = mount({ type: 'string' }, { data: { f: { name: 'Ada' } } })
+    expect(control.value).toBe('{"name":"Ada"}')
+  })
+
   it('number and integer: shows the number, empty for null, coerces "" to undefined and text to Number', async () => {
     const { control, binding } = mount({ type: 'integer' }, { data: { f: 30 } })
     expect(control.value).toBe('30')

@@ -516,8 +516,7 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
   }
 
   const scannedTargets = new Set<string>()
-  for (let cursor = 0; cursor < pendingReferences.length; cursor += 1) {
-    const { base: referenceBase, reference } = pendingReferences[cursor]!
+  for (const { base: referenceBase, reference } of pendingReferences) {
     const resolved = absoluteUri(reference, referenceBase)
     if (resolved === undefined) continue
     const hash = resolved.indexOf('#')

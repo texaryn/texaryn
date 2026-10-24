@@ -1,4 +1,4 @@
-import { visibleFieldLabel } from '@texaryn/core'
+import { formatFieldDisplayValue, visibleFieldLabel } from '@texaryn/core'
 import type { FieldNode, FormMessages, UINode } from '@texaryn/core'
 import { FieldState } from './field-state.js'
 import { makeId } from './ids.js'
@@ -18,7 +18,7 @@ function coerce(kind: Kind, node: FieldNode, raw: string): unknown {
 }
 
 function display(value: unknown): string {
-  return value == null ? '' : String(value)
+  return formatFieldDisplayValue(value)
 }
 
 /** The marker stays out of the accessible name: aria-required already reports the state, and some screen readers would say it twice. */

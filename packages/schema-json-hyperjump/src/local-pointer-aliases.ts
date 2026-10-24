@@ -441,8 +441,7 @@ export function materializeLocalPointerAliases(
   const rootScope = newScope(document, '#', initialBase, false)
   walk(document, '#', rootScope, true)
 
-  for (let cursor = 0; cursor < pending.length; cursor += 1) {
-    const { schema, scope } = pending[cursor]!
+  for (const { schema, scope } of pending) {
     if (typeof schema.$ref !== 'string') continue
     if (isPre2019Dialect(dialect) && scope.base !== undefined) {
       try {

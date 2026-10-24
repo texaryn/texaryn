@@ -1,4 +1,4 @@
-import { visibleFieldLabel } from '@texaryn/core'
+import { formatFieldDisplayValue, visibleFieldLabel } from '@texaryn/core'
 import type { FieldNode, ValidationError } from '@texaryn/core'
 import { useField } from './use-field.js'
 import { useFormIdPrefix } from '../id-prefix.js'
@@ -89,9 +89,7 @@ function fieldKind(node: FieldNode): FieldKind {
 }
 
 function displayValue(kind: FieldKind, value: unknown): string | number {
-  if (kind === 'number' && typeof value === 'number') return value
-  if (kind === 'string' && typeof value === 'string') return value
-  return value == null ? '' : String(value)
+  return formatFieldDisplayValue(value, kind)
 }
 
 function coerce(kind: FieldKind, node: FieldNode, raw: string): unknown {
