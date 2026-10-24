@@ -128,6 +128,7 @@
 - [createIdentityMap](functions/createIdentityMap.md)
 - [createRendererRegistry](functions/createRendererRegistry.md)
 - [createStore](functions/createStore.md)
+- [formatFieldDisplayValue](functions/formatFieldDisplayValue.md)
 - [getAtPointer](functions/getAtPointer.md)
 - [identityKey](functions/identityKey.md)
 - [insertItem](functions/insertItem.md)
