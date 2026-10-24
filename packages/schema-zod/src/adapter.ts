@@ -117,6 +117,23 @@ function escapePointerSegment(segment: string): string {
   return segment.replaceAll('~', '~0').replaceAll('/', '~1')
 }
 
+function serializeStableArray(value: unknown[], ancestors: WeakSet<object>): string | undefined {
+  const items = value.map((item) => stableSerialize(item, ancestors))
+  if (items.includes(undefined)) return undefined
+  return JSON.stringify(['array', items])
+}
+
+function serializeStableRecord(value: object, ancestors: WeakSet<object>): string | undefined {
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return undefined
+  const record = value as Record<string, unknown>
+  const entries = Object.keys(record)
+    .sort(compareCodeUnits)
+    .map((key) => [key, stableSerialize(record[key], ancestors)] as const)
+  if (entries.some(([, item]) => item === undefined)) return undefined
+  return JSON.stringify(['object', prototype === null ? 'null-prototype' : 'plain', entries])
+}
+
 function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): string | undefined {
   if (value === null) return JSON.stringify(['null'])
   if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify([typeof value, value])
@@ -131,20 +148,9 @@ function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): str
 
   ancestors.add(value)
   try {
-    if (Array.isArray(value)) {
-      const items = value.map((item) => stableSerialize(item, ancestors))
-      if (items.includes(undefined)) return undefined
-      return JSON.stringify(['array', items])
-    }
-
-    const prototype = Object.getPrototypeOf(value)
-    if (prototype !== Object.prototype && prototype !== null) return undefined
-    const record = value as Record<string, unknown>
-    const entries = Object.keys(record)
-      .sort(compareCodeUnits)
-      .map((key) => [key, stableSerialize(record[key], ancestors)] as const)
-    if (entries.some(([, item]) => item === undefined)) return undefined
-    return JSON.stringify(['object', prototype === null ? 'null-prototype' : 'plain', entries])
+    return Array.isArray(value)
+      ? serializeStableArray(value, ancestors)
+      : serializeStableRecord(value, ancestors)
   } finally {
     ancestors.delete(value)
   }
