@@ -265,16 +265,27 @@ function seenAtBase(seen: WeakMap<object, Set<string | undefined>>, schema: obje
   return false
 }
 
-function referencesIn(
-  document: unknown,
-  initialBase: string | undefined,
-  dialect: Dialect,
-  knownResources?: Set<string>,
+interface ReferenceScanOptions {
+  readonly document: unknown
+  readonly initialBase: string | undefined
+  readonly dialect: Dialect
+  readonly knownResources?: Set<string>
+  readonly initialPosition?: string
+  readonly initialResourceRoot?: unknown
+  readonly initialResourceRootPosition?: string
+  readonly entryPointerFragments?: readonly string[]
+}
+
+function referencesIn({
+  document,
+  initialBase,
+  dialect,
+  knownResources,
   initialPosition = '#',
-  initialResourceRoot: unknown = document,
+  initialResourceRoot = document,
   initialResourceRootPosition = initialPosition,
-  entryPointerFragments: readonly string[] = [],
-): LocatedReference[] {
+  entryPointerFragments = [],
+}: ReferenceScanOptions): LocatedReference[] {
   const references = new Map<string, LocatedReference>()
   const seen = new WeakMap<object, Set<string | undefined>>()
   const localReferences: LocalReference[] = []
@@ -512,7 +523,7 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
   for (const document of documents) {
     const identifier = isRecord(document) ? schemaIdentifier(document, dialect) : undefined
     const base = typeof identifier === 'string' ? resourceBase(identifier, undefined, dialect) : undefined
-    pendingReferences.push(...referencesIn(document, base, dialect, knownResources))
+    pendingReferences.push(...referencesIn({ document, initialBase: base, dialect, knownResources }))
   }
 
   const scannedTargets = new Set<string>()
@@ -545,15 +556,15 @@ export function referencedPointerTargets(documents: readonly unknown[], dialect:
     )
     if (located === undefined) continue
     documentScanners.get(resource.document)?.(located.schema, located.parentBase, located.position)
-    pendingReferences.push(...referencesIn(
-      located.schema,
-      located.parentBase,
+    pendingReferences.push(...referencesIn({
+      document: located.schema,
+      initialBase: located.parentBase,
       dialect,
       knownResources,
-      located.position,
-      located.resourceRoot,
-      located.resourceRootPosition,
-    ))
+      initialPosition: located.position,
+      initialResourceRoot: located.resourceRoot,
+      initialResourceRootPosition: located.resourceRootPosition,
+    }))
   }
   return targets
 }
@@ -883,7 +894,7 @@ export async function loadExternalResources(
   const known = declaredResourceIds(schema, rootId, dialect, resourceSchemas)
   if (rootId) known.add(rootId)
   if (!resolver) {
-    referencesIn(schema, rootId, dialect, known)
+    referencesIn({ document: schema, initialBase: rootId, dialect, knownResources: known })
     return []
   }
   const maximum = options.maxExternalResources ?? DEFAULT_MAX_EXTERNAL_RESOURCES
@@ -922,16 +933,16 @@ export async function loadExternalResources(
     ])
     if (scanned.has(key)) continue
     scanned.add(key)
-    const references = referencesIn(
-      current.document,
-      current.base,
+    const references = referencesIn({
+      document: current.document,
+      initialBase: current.base,
       dialect,
-      known,
-      '#',
-      current.document,
-      '#',
-      current.pointerTarget === undefined ? [] : [current.pointerTarget],
-    )
+      knownResources: known,
+      initialPosition: '#',
+      initialResourceRoot: current.document,
+      initialResourceRootPosition: '#',
+      entryPointerFragments: current.pointerTarget === undefined ? [] : [current.pointerTarget],
+    })
     // Loading mutates shared graph state, so references resolve in traversal order.
     for (const { base, reference, position } of references) {
       if (reference.startsWith('#')) {
