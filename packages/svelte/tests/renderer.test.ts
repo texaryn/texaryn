@@ -68,7 +68,7 @@ describe('Svelte renderer', () => {
 
     await fireEvent.submit(screen.getByTestId('consumer-form'))
 
-    const summary = await screen.findByRole('group')
+    const summary = await screen.findByRole('region')
     expect(summary.querySelector('a')?.getAttribute('href')).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid')).toBe('true')
   })
@@ -111,7 +111,7 @@ describe('Svelte renderer', () => {
     expect(get(first.data)).toEqual({ name: 'Ada' })
 
     await fireEvent.submit(screen.getByTestId('consumer-form'))
-    const summary = await screen.findByRole('group')
+    const summary = await screen.findByRole('region')
     await vi.waitFor(() => expect(document.activeElement).toBe(summary))
     expect(get(second.visibleErrors)).toHaveLength(1)
 
