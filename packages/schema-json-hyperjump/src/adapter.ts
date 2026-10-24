@@ -113,30 +113,34 @@ function ownRoot(value: unknown): unknown {
   return new Proxy(value, {})
 }
 
+function unsharedMap(key: string, value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).map(([name, child]) => [
+    name,
+    key === 'dependencies' && Array.isArray(child) ? cloneData(child) : unshared(child),
+  ]))
+}
+
+function unsharedMember(key: string, member: unknown): unknown {
+  if ((key === '$ref' || key === '$dynamicRef' || key === '$recursiveRef') && typeof member === 'string') {
+    return decodeLocalReference(member)
+  }
+  if (SCHEMA_SINGLE.has(key) && (typeof member === 'boolean' || (typeof member === 'object' && member !== null))) {
+    return unshared(member)
+  }
+  if (SCHEMA_LIST.has(key) && Array.isArray(member)) return member.map(unshared)
+  if (SCHEMA_MAP.has(key) && typeof member === 'object' && member !== null && !Array.isArray(member)) {
+    return unsharedMap(key, member as Record<string, unknown>)
+  }
+  return cloneData(member)
+}
+
 function unshared(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(unshared)
   if (typeof value !== 'object' || value === null) return value
   const prototype = Object.getPrototypeOf(value)
   if (prototype !== Object.prototype && prototype !== null) return value
   const result: Record<string, unknown> = {}
-  for (const [key, member] of Object.entries(value)) {
-    if ((key === '$ref' || key === '$dynamicRef' || key === '$recursiveRef') && typeof member === 'string') {
-      setOwn(result, key, decodeLocalReference(member))
-    } else if (SCHEMA_SINGLE.has(key) && (typeof member === 'boolean' || (typeof member === 'object' && member !== null))) {
-      setOwn(result, key, unshared(member))
-    } else if (SCHEMA_LIST.has(key) && Array.isArray(member)) {
-      setOwn(result, key, member.map(unshared))
-    } else if (SCHEMA_MAP.has(key) && typeof member === 'object' && member !== null && !Array.isArray(member)) {
-      setOwn(result, key, Object.fromEntries(
-        Object.entries(member).map(([name, child]) => [
-          name,
-          key === 'dependencies' && Array.isArray(child) ? cloneData(child) : unshared(child),
-        ]),
-      ))
-    } else {
-      setOwn(result, key, cloneData(member))
-    }
-  }
+  for (const [key, member] of Object.entries(value)) setOwn(result, key, unsharedMember(key, member))
   return result
 }
 
