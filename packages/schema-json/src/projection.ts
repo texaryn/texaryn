@@ -529,8 +529,8 @@ function resolveSelectedBranch(
   original: SchemaNode,
   reduced: SchemaNode,
   data: unknown,
-  scope: ValidationPath = [],
   branchApplicability: WeakMap<SchemaNode, boolean> | undefined,
+  scope: ValidationPath = [],
 ): SchemaNode {
   const reducedSchema = reduced.schema as Record<string, unknown>
   if (reducedSchema && typeof reducedSchema === 'object') {
@@ -1649,7 +1649,7 @@ function walk(
     composedAgainstData = true
     const { node: branchNode } = original.reduceNode(data, { path: [...scope] })
     if (branchNode) {
-      resolved = resolveSelectedBranch(original, branchNode, data, scope, ctx.branchApplicability)
+      resolved = resolveSelectedBranch(original, branchNode, data, ctx.branchApplicability, scope)
       schema = resolved.schema as Record<string, unknown>
       type = resolveExplicitType(schema)
     } else {
@@ -1852,8 +1852,8 @@ function walk(
         original,
         reducedNode,
         dataRecord ?? {},
-        scope,
         ctx.branchApplicability,
+        scope,
       )
     }
     const reducedSchema = reducedNode?.schema as Record<string, unknown> | undefined
