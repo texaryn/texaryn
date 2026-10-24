@@ -72,124 +72,123 @@ export function collectDefaultConflicts(
     declarations.set(pointer, list)
   }
 
-  const visit = (
-    schema: unknown,
+  function visitLocalReference(
+    schema: Record<string, unknown>,
     current: unknown,
     pointer: string,
     schemaPointer: string,
     visited: Set<string>,
-  ): void => {
-    if (!isRecord(schema)) return
-
-    // Draft 7 ignores a `$ref` site's siblings. Later dialects apply them, so
-    // record the site's default before following the target, then keep walking
-    // the sibling keywords at their authored position.
-    const ref =
-      typeof schema.$ref === 'string' && schema.$ref.startsWith('#') ? schema.$ref : undefined
-    if (ref !== undefined) {
-      const target = schemaFragment(ref)
-      const cycleKey = `${target}@${pointer}`
-      if (visited.has(cycleKey)) return
-      visited.add(cycleKey)
-      if (dialect !== 'draft-07' && 'default' in schema) {
-        record(pointer, { value: schema.default, source: schemaPointer })
-      }
-      visit(resolveJsonPointer(rootSchema, target), current, pointer, target, visited)
-      visited.delete(cycleKey)
-      if (dialect === 'draft-07') return
-    } else if ('default' in schema) {
+  ): 'none' | 'continue' | 'stop' {
+    const ref = typeof schema.$ref === 'string' && schema.$ref.startsWith('#') ? schema.$ref : undefined
+    if (ref === undefined) return 'none'
+    const target = schemaFragment(ref)
+    const cycleKey = `${target}@${pointer}`
+    if (visited.has(cycleKey)) return 'stop'
+    visited.add(cycleKey)
+    if (dialect !== 'draft-07' && 'default' in schema) {
       record(pointer, { value: schema.default, source: schemaPointer })
     }
+    visit(resolveJsonPointer(rootSchema, target), current, pointer, target, visited)
+    visited.delete(cycleKey)
+    return dialect === 'draft-07' ? 'stop' : 'continue'
+  }
 
-    if (Array.isArray(schema.allOf)) {
-      schema.allOf.forEach((branch, index) => {
-        visit(branch, current, pointer, `${schemaPointer}/allOf/${index}`, visited)
-      })
-    }
+  function visitAllOf(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    if (!Array.isArray(schema.allOf)) return
+    schema.allOf.forEach((branch, index) => {
+      visit(branch, current, pointer, `${schemaPointer}/allOf/${index}`, visited)
+    })
+  }
 
-    // The conditional edges, entered only where the caller asked for them and
-    // only where this instance selects them. The rules mirror `staticWalk`'s
-    // exactly, because they are the same question: `then`/`else` resolve
-    // through the `if` scope's own validity, `oneOf` contributes one branch or
-    // the provisionally identified one, `anyOf` contributes every branch that
-    // validates, and `dependentSchemas` follows key presence.
-    if (isBranchActive !== undefined) {
-      if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
-        if (isRecord(schema.then) && isBranchActive(schemaPointer, pointer, '/then')) {
-          visit(schema.then, current, pointer, `${schemaPointer}/then`, visited)
-        }
-        if (isRecord(schema.else) && isBranchActive(schemaPointer, pointer, '/else')) {
-          visit(schema.else, current, pointer, `${schemaPointer}/else`, visited)
-        }
+  function visitConditionalBranches(
+    schema: Record<string, unknown>,
+    current: unknown,
+    pointer: string,
+    schemaPointer: string,
+    visited: Set<string>,
+  ): void {
+    if (isRecord(schema.if) && (isRecord(schema.then) || isRecord(schema.else))) {
+      if (isRecord(schema.then) && isBranchActive!(schemaPointer, pointer, '/then')) {
+        visit(schema.then, current, pointer, `${schemaPointer}/then`, visited)
       }
-      const live = liveBranch(schema)
-      if (live !== undefined) visit(schema[live], current, pointer, `${schemaPointer}/${live}`, visited)
-
-      if (Array.isArray(schema.oneOf)) {
-        const branches = schema.oneOf as unknown[]
-        const local = branches.map((_, index) =>
-          isBranchActive(schemaPointer, pointer, `/oneOf/${index}`),
-        )
-        // A provisionally identified branch competes, though it does not
-        // validate: the projection exposes it and a policy fills from it, so a
-        // disagreement it carries has to be visible where the fill happens.
-        const selected = local.some(Boolean)
-          ? undefined
-          : selectProvisionalBranch(branches, current, rootSchema)
-        branches.forEach((branch, index) => {
-          if (!local[index] && index !== selected) return
-          visit(branch, current, pointer, `${schemaPointer}/oneOf/${index}`, visited)
-        })
-      }
-
-      if (Array.isArray(schema.anyOf)) {
-        ;(schema.anyOf as unknown[]).forEach((branch, index) => {
-          if (!isBranchActive(schemaPointer, pointer, `/anyOf/${index}`)) return
-          visit(branch, current, pointer, `${schemaPointer}/anyOf/${index}`, visited)
-        })
-      }
-
-      if (dialect !== 'draft-07' && isRecord(schema.dependentSchemas)) {
-        for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
-          if (!isRecord(current) || !(key in current)) continue
-          visit(
-            branch,
-            current,
-            pointer,
-            `${schemaPointer}/dependentSchemas/${escapeSegment(key)}`,
-            visited,
-          )
-        }
+      if (isRecord(schema.else) && isBranchActive!(schemaPointer, pointer, '/else')) {
+        visit(schema.else, current, pointer, `${schemaPointer}/else`, visited)
       }
     }
+    const live = liveBranch(schema)
+    if (live !== undefined) visit(schema[live], current, pointer, `${schemaPointer}/${live}`, visited)
+    visitOneOfBranches(schema, current, pointer, schemaPointer, visited)
+    visitAnyOfBranches(schema, current, pointer, schemaPointer, visited)
+    visitDependentSchemas(schema, current, pointer, schemaPointer, visited)
+  }
 
-    if (isRecord(schema.properties)) {
-      for (const [key, child] of Object.entries(schema.properties)) {
-        const escaped = escapeSegment(key)
-        const childPointer = `${pointer}/${escaped}`
-        const childCurrent = isRecord(current) ? current[key] : undefined
-        if (!projected.has(childPointer)) continue
-        visit(child, childCurrent, childPointer, `${schemaPointer}/properties/${escaped}`, visited)
-      }
+  function visitOneOfBranches(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    if (!Array.isArray(schema.oneOf)) return
+    const branches = schema.oneOf as unknown[]
+    const local = branches.map((_, index) => isBranchActive!(schemaPointer, pointer, `/oneOf/${index}`))
+    // A provisionally identified branch competes, though it does not validate: the projection exposes it and a policy fills from it.
+    const selected = local.some(Boolean) ? undefined : selectProvisionalBranch(branches, current, rootSchema)
+    branches.forEach((branch, index) => {
+      if (!local[index] && index !== selected) return
+      visit(branch, current, pointer, `${schemaPointer}/oneOf/${index}`, visited)
+    })
+  }
+
+  function visitAnyOfBranches(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    const branches = schema.anyOf
+    if (!Array.isArray(branches)) return
+    branches.forEach((branch, index) => {
+      if (!isBranchActive!(schemaPointer, pointer, `/anyOf/${index}`)) return
+      visit(branch, current, pointer, `${schemaPointer}/anyOf/${index}`, visited)
+    })
+  }
+
+  function visitDependentSchemas(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    if (dialect === 'draft-07' || !isRecord(schema.dependentSchemas)) return
+    for (const [key, branch] of Object.entries(schema.dependentSchemas)) {
+      if (!isRecord(current) || !(key in current)) continue
+      visit(branch, current, pointer, `${schemaPointer}/dependentSchemas/${escapeSegment(key)}`, visited)
     }
+  }
 
-    // Both `items` forms, as `staticWalk` supports both: a single subschema in
-    // 2019-09 and later, and a positional tuple in draft-07.
+  function visitProperties(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    if (!isRecord(schema.properties)) return
+    for (const [key, child] of Object.entries(schema.properties)) {
+      const escaped = escapeSegment(key)
+      const childPointer = `${pointer}/${escaped}`
+      const childCurrent = isRecord(current) ? current[key] : undefined
+      if (!projected.has(childPointer)) continue
+      visit(child, childCurrent, childPointer, `${schemaPointer}/properties/${escaped}`, visited)
+    }
+  }
+
+  function visitItems(schema: Record<string, unknown>, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
     const prefixItems = Array.isArray(schema.prefixItems) ? schema.prefixItems : undefined
     const tupleItems = Array.isArray(schema.items) ? schema.items : undefined
     const singleItems = !tupleItems && schema.items !== undefined ? schema.items : undefined
-    if ((singleItems !== undefined || prefixItems || tupleItems) && Array.isArray(current)) {
-      current.forEach((item, index) => {
-        let tuple: 'prefixItems' | 'items' | undefined
-        if (prefixItems?.[index] != null) tuple = 'prefixItems'
-        else if (tupleItems?.[index] != null) tuple = 'items'
-        const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
-        if (itemSchema === undefined) return
-        if (!projected.has(`${pointer}/${index}`)) return
-        const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
-        visit(itemSchema, item, `${pointer}/${index}`, itemSchemaPointer, visited)
-      })
+    if ((singleItems === undefined && !prefixItems && !tupleItems) || !Array.isArray(current)) return
+    current.forEach((item, index) => {
+      let tuple: 'prefixItems' | 'items' | undefined
+      if (prefixItems?.[index] != null) tuple = 'prefixItems'
+      else if (tupleItems?.[index] != null) tuple = 'items'
+      const itemSchema = tuple === undefined ? singleItems : (schema[tuple] as unknown[])[index]
+      if (itemSchema === undefined || !projected.has(`${pointer}/${index}`)) return
+      const itemSchemaPointer = tuple === undefined ? `${schemaPointer}/items` : `${schemaPointer}/${tuple}/${index}`
+      visit(itemSchema, item, `${pointer}/${index}`, itemSchemaPointer, visited)
+    })
+  }
+
+  function visit(schema: unknown, current: unknown, pointer: string, schemaPointer: string, visited: Set<string>): void {
+    if (!isRecord(schema)) return
+    const referenceAction = visitLocalReference(schema, current, pointer, schemaPointer, visited)
+    if (referenceAction === 'stop') return
+    if (referenceAction === 'none' && 'default' in schema) {
+      record(pointer, { value: schema.default, source: schemaPointer })
     }
+    visitAllOf(schema, current, pointer, schemaPointer, visited)
+    if (isBranchActive !== undefined) visitConditionalBranches(schema, current, pointer, schemaPointer, visited)
+    visitProperties(schema, current, pointer, schemaPointer, visited)
+    visitItems(schema, current, pointer, schemaPointer, visited)
   }
 
   visit(rootSchema, data, '', '', new Set())
