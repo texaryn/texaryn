@@ -227,6 +227,24 @@ export function authoredSchema(node: SchemaNode, cache: ProjectionCache): unknow
   return (marker === undefined ? undefined : cache.schemaAt(marker)) ?? node.schema
 }
 
+function hasReferenceSiblings(node: SchemaNode, cache: ProjectionCache): boolean {
+  const raw = authoredSchema(node, cache)
+  return typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))
+}
+
+function addReferenceClosures(
+  node: SchemaNode,
+  references: readonly ReferenceKeyword[],
+  cache: ProjectionCache,
+  stack: Set<string>,
+  out: Set<string>,
+): void {
+  for (const keyword of references) {
+    const target = followReference(node, keyword)
+    if (target) for (const position of closureOf(target, cache, stack)) out.add(position)
+  }
+}
+
 function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>): readonly string[] {
   const position = positionOf(node)
   const cached = cache.closure.get(position)
@@ -240,16 +258,10 @@ function closureOf(node: SchemaNode, cache: ProjectionCache, stack: Set<string>)
   const references = referenceKeywords(node)
   if (references.length > 0) {
     if (!isPre2019Dialect(cache.dialect)) {
-      const raw = authoredSchema(node, cache)
-      if (typeof raw === 'object' && raw !== null && Object.keys(raw).some((keyword) => !NON_APPLYING.has(keyword))) {
-        out.add(position)
-      }
+      if (hasReferenceSiblings(node, cache)) out.add(position)
       addAllOf()
     }
-    for (const keyword of references) {
-      const target = followReference(node, keyword)
-      if (target) for (const p of closureOf(target, cache, stack)) out.add(p)
-    }
+    addReferenceClosures(node, references, cache, stack, out)
   } else {
     out.add(position)
     addAllOf()
@@ -290,7 +302,39 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
   const expanded: SchemaNode[] = []
   const deadNodes = new Set<SchemaNode>()
   const seen = new Map<string, SchemaNode>()
-  const visitAll = (node: SchemaNode, stack: Set<string>, dead = false): void => {
+  function visitReferences(
+    node: SchemaNode,
+    references: readonly ReferenceKeyword[],
+    stack: Set<string>,
+    dead: boolean,
+  ): void {
+    for (const keyword of references) {
+      const target = followReference(node, keyword)
+      if (target) visitAll(target, stack, dead)
+    }
+  }
+  function visitInPlaceBranches(node: SchemaNode, stack: Set<string>, dead: boolean): void {
+    const raw = authoredSchema(node, cache) as Record<string, unknown> | undefined
+    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
+    for (const keyword of IN_PLACE_BRANCHES) {
+      const branch = node[keyword] as SchemaNode | undefined
+      const never =
+        (keyword === 'then' && (condition === undefined || condition === false)) ||
+        (keyword === 'else' && (condition === undefined || condition === true))
+      if (branch && isSchemaNode(branch)) visitAll(branch, stack, dead || never)
+    }
+  }
+  function visitApplicatorBranches(node: SchemaNode, stack: Set<string>, dead: boolean): void {
+    for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
+      for (const branch of branches ?? []) visitAll(branch, stack, dead)
+    }
+  }
+  function visitDependentSchemas(node: SchemaNode, stack: Set<string>, dead: boolean): void {
+    for (const dependency of Object.values(node.dependentSchemas ?? {})) {
+      if (dependency && isSchemaNode(dependency)) visitAll(dependency, stack, dead)
+    }
+  }
+  function visitAll(node: SchemaNode, stack: Set<string>, dead = false): void {
     const position = positionOf(node)
     if (stack.has(position)) {
       if (!dead) cycle = true
@@ -307,30 +351,15 @@ export function locationInfo(declaring: readonly SchemaNode[], cache: Projection
     stack.add(position)
     const references = referenceKeywords(node)
     if (references.length > 0) {
-      for (const keyword of references) {
-        const target = followReference(node, keyword)
-        if (target) visitAll(target, stack, dead)
-      }
+      visitReferences(node, references, stack, dead)
       if (isPre2019Dialect(cache.dialect)) {
         stack.delete(position)
         return
       }
     }
-    const raw = authoredSchema(node, cache) as Record<string, unknown> | undefined
-    const condition = typeof raw === 'object' && raw !== null && 'if' in raw ? raw.if : undefined
-    for (const keyword of IN_PLACE_BRANCHES) {
-      const branch = node[keyword] as SchemaNode | undefined
-      const never =
-        (keyword === 'then' && (condition === undefined || condition === false)) ||
-        (keyword === 'else' && (condition === undefined || condition === true))
-      if (branch && isSchemaNode(branch)) visitAll(branch, stack, dead || never)
-    }
-    for (const branches of [node.allOf, node.anyOf, node.oneOf]) {
-      for (const branch of branches ?? []) visitAll(branch, stack, dead)
-    }
-    for (const dependency of Object.values(node.dependentSchemas ?? {})) {
-      if (dependency && isSchemaNode(dependency)) visitAll(dependency as SchemaNode, stack, dead)
-    }
+    visitInPlaceBranches(node, stack, dead)
+    visitApplicatorBranches(node, stack, dead)
+    visitDependentSchemas(node, stack, dead)
     stack.delete(position)
   }
   for (const node of declaring) visitAll(node, new Set())
