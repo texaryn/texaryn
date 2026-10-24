@@ -1,5 +1,12 @@
 # @texaryn/schema-json
 
+## 1.0.5
+
+### Patch Changes
+
+- f2802c1: Clarify schema pattern extraction and DOM container placement.
+- 9f59c13: Simplifies reference default detection without changing projection behavior.
+
 ## 1.0.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@texaryn/web-components",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Schema-driven forms and display documents for the DOM, with a custom form element and native widgets",
   "keywords": [
     "web-components",

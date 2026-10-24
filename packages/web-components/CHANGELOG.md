@@ -1,5 +1,11 @@
 # @texaryn/web-components
 
+## 0.8.4
+
+### Patch Changes
+
+- f2802c1: Clarify schema pattern extraction and DOM container placement.
+
 ## 0.8.3
 
 ### Patch Changes
