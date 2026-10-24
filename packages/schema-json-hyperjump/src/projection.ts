@@ -308,11 +308,11 @@ function makeBranchChecker(
       return suffix === '/then' ? ifValid === true : ifValid === false
     }
 
-    const match = suffix.match(/^\/(oneOf|anyOf)\/(\d+)$/)
+    const match = /^\/(oneOf|anyOf)\/(\d+)$/.exec(suffix)
     if (!match) return scopeValidity.get(`${schemaPointer}${suffix}@${instancePointer}`) === true
 
     const [, keyword, indexStr] = match
-    const branchIndex = parseInt(indexStr, 10)
+    const branchIndex = Number.parseInt(indexStr, 10)
     const construct = schemaAtPosition(rawSchema, schemaPointer)
     const branches = isRecord(construct) && Array.isArray(construct[keyword])
       ? construct[keyword] as unknown[]
