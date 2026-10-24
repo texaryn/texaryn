@@ -788,9 +788,7 @@ export function createFormRuntime(
     }
   }
 
-  function dispatch(incoming: Command, dispatchOptions: { origin?: unknown } = {}): void {
-    if (destroyed) return
-
+  function rejectGuardedCommand(incoming: Command): boolean {
     for (const entry of commandGuards) {
       let rejection: string | undefined
       try {
@@ -804,112 +802,118 @@ export function createFormRuntime(
       } catch {
         // A rejected command remains rejected even if its reporter fails.
       }
-      return
+      return true
     }
+    return false
+  }
 
+  function prepareCommand(incoming: Command): {
+    command: Command
+    report?: InitializationReport
+  } | undefined {
     // `Reset` establishes a new baseline, so the policy that produced the first
     // one produces this one, with or without `cmd.data`. It runs before the
     // handler and before any teardown, so an exhausted budget leaves the
-    // runtime exactly as it was: a baseline that was never initialized under
-    // its own policy is the incoherence rule 7 exists to prevent, and refusing
-    // the whole command is the only way to avoid establishing one.
-    //
-    // An ordinary edit establishes no baseline, so it is seeded after the
-    // handler instead, and an exhausted budget there discards only the seeding.
-    let report: InitializationReport | undefined
-    let command = incoming
-    if (initialize !== undefined && incoming.type === 'Reset') {
-      const result = initialize(resetTarget(state, incoming))
-      if (result.outcome === 'budget-exhausted') {
-        initializationStore.set(reportOf(result))
-        return
-      }
-      report = reportOf(result)
-      command = { type: 'Reset', data: result.data }
+    // runtime exactly as it was. An ordinary edit is seeded after the handler.
+    if (initialize === undefined || incoming.type !== 'Reset') {
+      return { command: incoming }
     }
 
-    const mutatesData = isDataMutatingCommand(command)
+    const result = initialize(resetTarget(state, incoming))
+    if (result.outcome === 'budget-exhausted') {
+      initializationStore.set(reportOf(result))
+      return undefined
+    }
+    return {
+      command: { type: 'Reset', data: result.data },
+      report: reportOf(result),
+    }
+  }
 
-    // Nothing observable happens until the handler has returned. A command is
-    // not guaranteed to happen: `setAtPointer` refuses to write through a
-    // value that cannot hold a property, which is reachable whenever the
-    // caller's data contradicts its schema. Tearing down validation first and
-    // then throwing left the form wedged, because `invalidate` drops the
-    // in-flight result as stale and every repair below runs past the throw.
-    //
-    // A refused write changed no data, so the validation already running
-    // against that unchanged data is still the right answer and is left alone.
-    // `isDataMutatingCommand` reads the command and not the state, so deciding
-    // it above and acting on it here observes nothing in between.
-    //
-    // Only `invalidate` is observably load-bearing: a mutation that moves it
-    // back turns the pins red, while one that moves only the `Reset` block
-    // back does not, because `Reset` never reaches `setAtPointer` and so
-    // cannot throw today. It moves with the rest because the invariant is the
-    // ordering, not the one line that currently demonstrates it.
-    const beforeData = state.data
-    const beforeDocument = currentDoc
-    const { nextState, effects, provisional } = processCommand(state, command, currentDoc)
+  function invalidateForCommand(command: Command, mutatesData: boolean): void {
+    if (!mutatesData) return
+    scheduler.invalidate()
+    if (command.type !== 'Reset') return
+    scheduler.cancelScheduled()
+    submissionGeneration++
+    currentAttempt = null
+  }
 
-    if (mutatesData) {
-      scheduler.invalidate()
-      if (command.type === 'Reset') {
-        scheduler.cancelScheduled()
-        submissionGeneration++
-        currentAttempt = null
-      }
+  function seedAfterCommand(
+    command: Command,
+    mutatesData: boolean,
+    provisional: readonly JsonPointer[] | undefined,
+  ): { report?: InitializationReport; seeded: readonly string[] } {
+    if (initialize === undefined || !mutatesData || command.type === 'Reset') {
+      return { seeded: [] }
     }
 
-    state = nextState
+    // A row created without a stated value reads as absent to the pass while
+    // the data holds the `null` standing in for it. This keeps arrays dense
+    // and keeps non-JSON values away from the schema port.
+    const result = initialize(state.data, provisional)
+    const report = reportOf(result)
+    if (result.outcome !== 'initialized') return { report, seeded: [] }
+    state = { ...state, data: result.data }
+    return { report, seeded: result.written }
+  }
 
-    // An ordinary edit can change what is reachable, so it seeds too, and this
-    // is the only moment whose result is not also the baseline. `Reset` was
-    // seeded above, before the handler, because its result becomes one.
-    let seeded: readonly string[] = []
-    if (initialize !== undefined && mutatesData && command.type !== 'Reset') {
-      // A row the command created without a value stated for it reads as absent
-      // to the pass while the data holds the `null` standing in for it, so an
-      // array never has a hole and nothing but JSON reaches the port. If the
-      // pass writes nothing there, or the run is discarded, that `null` is what
-      // the caller gets, which is the behaviour without a policy.
-      const result = initialize(state.data, provisional)
-      report = reportOf(result)
-      if (result.outcome === 'initialized') {
-        state = { ...state, data: result.data }
-        seeded = result.written
-      }
-    }
-
-    const isAcceptedSubmit = effects.some(
-      (e) => e.type === 'validate' && e.trigger === 'submit',
+  function prepareSubmission(effects: readonly Effect[]): boolean {
+    const acceptedSubmit = effects.some(
+      (effect) => effect.type === 'validate' && effect.trigger === 'submit',
     )
-    let submissionProjectionFailed = false
-    if (isAcceptedSubmit) {
-      scheduler.cancelScheduled()
-      const generation = ++submissionGeneration
-      try {
-        const data = options.submission === 'projected'
-          ? port.projectSubmission!(state.data)
-          : state.data
-        currentAttempt = { generation, data }
-      } catch (error) {
-        submissionProjectionFailed = true
-        currentAttempt = null
-        state = {
-          ...state,
-          submission: { status: 'idle', error, attempts: state.submission.attempts },
-        }
-      }
-    }
+    if (!acceptedSubmit) return false
 
-    if (mutatesData && state.submission.status === 'validating') {
-      submissionGeneration++
+    scheduler.cancelScheduled()
+    const generation = ++submissionGeneration
+    try {
+      const data = options.submission === 'projected'
+        ? port.projectSubmission!(state.data)
+        : state.data
+      currentAttempt = { generation, data }
+      return false
+    } catch (error) {
       currentAttempt = null
-      state = { ...state, submission: { status: 'idle', attempts: state.submission.attempts, cancelled: true } }
+      state = {
+        ...state,
+        submission: { status: 'idle', error, attempts: state.submission.attempts },
+      }
+      return true
     }
+  }
 
-    let publicationFailed = false
-    let publicationError: unknown
+  function cancelSubmissionAfterMutation(mutatesData: boolean): void {
+    if (!mutatesData || state.submission.status !== 'validating') return
+    submissionGeneration++
+    currentAttempt = null
+    state = {
+      ...state,
+      submission: {
+        status: 'idle',
+        attempts: state.submission.attempts,
+        cancelled: true,
+      },
+    }
+  }
+
+  function handleDispatchEffect(effect: Effect, submissionProjectionFailed: boolean): void {
+    if (
+      submissionProjectionFailed &&
+      effect.type === 'validate' &&
+      effect.trigger === 'submit'
+    ) {
+      return
+    }
+    handleEffect(effect)
+  }
+
+  function publishCommand(
+    mutatesData: boolean,
+    report: InitializationReport | undefined,
+    effects: readonly Effect[],
+    seeded: readonly string[],
+    submissionProjectionFailed: boolean,
+  ): { failed: boolean; error?: unknown } {
     try {
       batch(() => {
         if (mutatesData) resetPendingNodes()
@@ -918,27 +922,67 @@ export function createFormRuntime(
         publishSubmission()
         syncNodeStores()
         for (const effect of effects) {
-          if (submissionProjectionFailed && effect.type === 'validate' && effect.trigger === 'submit') continue
-          handleEffect(effect)
+          handleDispatchEffect(effect, submissionProjectionFailed)
         }
         if (seeded.length > 0) markSeeded(seeded)
       })
+      return { failed: false }
     } catch (error) {
-      publicationFailed = true
-      publicationError = error
+      return { failed: true, error }
     }
+  }
 
-    if (state.data !== beforeData) {
-      notifyMutation({
-        command,
-        origin: dispatchOptions.origin,
-        beforeData,
-        data: state.data,
-        beforeDocument,
-        document: currentDoc,
-      })
-    }
-    if (publicationFailed) throw publicationError
+  function notifyChangedData(
+    beforeData: unknown,
+    beforeDocument: UIDocument,
+    command: Command,
+    origin: unknown,
+  ): void {
+    if (state.data === beforeData) return
+    notifyMutation({
+      command,
+      origin,
+      beforeData,
+      data: state.data,
+      beforeDocument,
+      document: currentDoc,
+    })
+  }
+
+  function dispatch(incoming: Command, dispatchOptions: { origin?: unknown } = {}): void {
+    if (destroyed || rejectGuardedCommand(incoming)) return
+
+    const prepared = prepareCommand(incoming)
+    if (prepared === undefined) return
+    const { command } = prepared
+    let report = prepared.report
+    const mutatesData = isDataMutatingCommand(command)
+
+    // Process before invalidating. A refused write leaves validation running
+    // against the unchanged data.
+    const beforeData = state.data
+    const beforeDocument = currentDoc
+    const { nextState, effects, provisional } = processCommand(state, command, currentDoc)
+
+    invalidateForCommand(command, mutatesData)
+    state = nextState
+
+    const seeding = seedAfterCommand(command, mutatesData, provisional)
+    if (seeding.report !== undefined) report = seeding.report
+
+    const submissionProjectionFailed = prepareSubmission(effects)
+    cancelSubmissionAfterMutation(mutatesData)
+
+    const publication = publishCommand(
+      mutatesData,
+      report,
+      effects,
+      seeding.seeded,
+      submissionProjectionFailed,
+    )
+
+    notifyChangedData(beforeData, beforeDocument, command, dispatchOptions.origin)
+    if (publication.failed) throw publication.error
   }
 
   /**
