@@ -125,7 +125,7 @@ function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): str
     return JSON.stringify(['number', normalized])
   }
   if (typeof value === 'bigint') return JSON.stringify(['bigint', value.toString()])
-  if (typeof value === 'undefined') return JSON.stringify(['undefined'])
+  if (value === undefined) return JSON.stringify(['undefined'])
   if (typeof value === 'symbol' || typeof value === 'function') return undefined
   if (ancestors.has(value)) return undefined
 
@@ -133,7 +133,7 @@ function stableSerialize(value: unknown, ancestors = new WeakSet<object>()): str
   try {
     if (Array.isArray(value)) {
       const items = value.map((item) => stableSerialize(item, ancestors))
-      if (items.some((item) => item === undefined)) return undefined
+      if (items.includes(undefined)) return undefined
       return JSON.stringify(['array', items])
     }
 
