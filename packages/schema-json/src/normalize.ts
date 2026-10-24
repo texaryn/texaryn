@@ -54,7 +54,9 @@ const aliased = (pointer: string): string => pointer.split('/').map(alias).join(
 
 type Reference = { strings: string[]; segments: string[] }
 function spellings(reference: string): Reference[] {
-  const trimmed = reference.replace(/#+$/, '')
+  let end = reference.length
+  while (reference[end - 1] === '#') end -= 1
+  const trimmed = reference.slice(0, end)
   const first = trimmed.indexOf('#')
   if (first < 0 && !trimmed.startsWith('/')) return []
   const fragments = first < 0 ? [trimmed] : [...new Set([trimmed.slice(first + 1), trimmed.slice(trimmed.lastIndexOf('#') + 1)])]
@@ -107,6 +109,52 @@ function isReached(at: Position, bases: readonly Position[], references: readonl
   return bases.some((base) => reachesFromBase(at, base, references))
 }
 
+interface NormalizationContext {
+  references: readonly Reference[]
+  dialect: Dialect
+}
+
+function schemaAt(
+  schema: unknown,
+  position: Position,
+  bases: readonly Position[],
+  context: NormalizationContext,
+): unknown {
+  const { references, dialect } = context
+  if (!isRecord(schema)) return copy(schema)
+  const within = typeof schema[identifierKeyword(dialect)] === 'string' && position.keys.length > 0
+    ? [...bases, position]
+    : bases
+  const dropped = (key: string): boolean =>
+    unreachable(schema, key) &&
+    !isReached(below(position, key), within, references) &&
+    !declaresIdentifier(schema[key], dialect)
+  const branches = ['then', 'else'].filter((key) => key in schema)
+  const bare = typeof schema.if === 'boolean' &&
+    branches.length > 0 &&
+    branches.every(dropped) &&
+    !isReached(below(position, 'if'), within, references)
+  const entries: [string, unknown][] = []
+  for (const [key, value] of Object.entries(schema)) {
+    const at = below(position, key)
+    if (dropped(key) || (key === 'if' && bare)) continue
+    if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) {
+      entries.push([key, schemaAt(value, at, within, context)])
+    } else if (LIST.has(key) && Array.isArray(value)) {
+      entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within, context))])
+    } else if (MAP.has(key) && isRecord(value)) {
+      const member = key === '$defs' || key === 'definitions'
+      entries.push([
+        key,
+        Object.fromEntries(
+          Object.entries(value).map(([name, m]) => [name, schemaAt(m, below(at, name, member), within, context)]),
+        ),
+      ])
+    } else entries.push([key, copy(value)])
+  }
+  return Object.fromEntries(entries)
+}
+
 /** Keeps a branch the specification never evaluates when a reference or an identifier could reach it. */
 export function withoutUnreachableBranches(
   document: unknown,
@@ -115,26 +163,6 @@ export function withoutUnreachableBranches(
 ): unknown {
   const references = referencePointers(document, [])
   for (const pointer of referencedPositions) references.push(...referencePointers({ $ref: pointer }, []))
-  const schemaAt = (schema: unknown, position: Position, bases: readonly Position[]): unknown => {
-    if (!isRecord(schema)) return copy(schema)
-    const within = typeof schema[identifierKeyword(dialect)] === 'string' && position.keys.length > 0 ? [...bases, position] : bases
-    const dropped = (key: string): boolean => unreachable(schema, key) && !isReached(below(position, key), within, references) && !declaresIdentifier(schema[key], dialect)
-    const branches = ['then', 'else'].filter((key) => key in schema)
-    const bare = typeof schema.if === 'boolean' && branches.length > 0 && branches.every(dropped) && !isReached(below(position, 'if'), within, references)
-    const entries: [string, unknown][] = []
-    for (const [key, value] of Object.entries(schema)) {
-      const at = below(position, key)
-      if (dropped(key) || (key === 'if' && bare)) continue
-      if (SINGLE.has(key) && (isRecord(value) || typeof value === 'boolean')) entries.push([key, schemaAt(value, at, within)])
-      else if (LIST.has(key) && Array.isArray(value)) entries.push([key, value.map((item, i) => schemaAt(item, below(at, String(i)), within))])
-      else if (MAP.has(key) && isRecord(value)) {
-        const member = key === '$defs' || key === 'definitions'
-        entries.push([key, Object.fromEntries(Object.entries(value).map(([name, m]) => [name, schemaAt(m, below(at, name, member), within)]))])
-      } else entries.push([key, copy(value)])
-    }
-    return Object.fromEntries(entries)
-  }
-
   const root: Position = { escaped: '', raw: '', registry: '', keys: [] }
-  return schemaAt(document, root, [root])
+  return schemaAt(document, root, [root], { references, dialect })
 }
