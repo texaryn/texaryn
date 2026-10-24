@@ -132,6 +132,75 @@ interface RenderedTableRow {
   cells: Map<string, HTMLTableCellElement>
 }
 
+function updateTableHeaders(
+  columns: TableNode['columns'],
+  headerRow: HTMLTableRowElement,
+  headers: Map<string, HTMLTableCellElement>,
+): void {
+  const activeColumns = new Set(columns.map((column) => column.id))
+  for (const [columnId, header] of headers) {
+    if (activeColumns.has(columnId)) continue
+    header.remove()
+    headers.delete(columnId)
+  }
+  for (const column of columns) {
+    let header = headers.get(column.id)
+    if (!header) {
+      header = document.createElement('th')
+      header.scope = 'col'
+      headers.set(column.id, header)
+    }
+    header.textContent = column.label
+    headerRow.append(header)
+  }
+}
+
+function updateTableRow(
+  row: DocumentCollectionRow,
+  columns: TableNode['columns'],
+  renderedRow: RenderedTableRow,
+): void {
+  const activeCells = new Set(columns.map((column) => column.id))
+  for (const [columnId, cell] of renderedRow.cells) {
+    if (activeCells.has(columnId)) continue
+    cell.remove()
+    renderedRow.cells.delete(columnId)
+  }
+  columns.forEach((column, index) => {
+    let cell = renderedRow.cells.get(column.id)
+    if (!cell) {
+      cell = document.createElement('td')
+      cell.dataset.columnId = column.id
+      renderedRow.cells.set(column.id, cell)
+    }
+    cell.textContent = displayValue(row.cells[index] ?? null)
+    renderedRow.element.append(cell)
+  })
+}
+
+function updateTableRows(
+  snapshot: readonly DocumentCollectionRow[],
+  columns: TableNode['columns'],
+  body: HTMLTableSectionElement,
+  rendered: Map<string, RenderedTableRow>,
+): void {
+  const activeRows = new Set<string>(snapshot.map((row) => row.id))
+  for (const [rowId, row] of rendered) {
+    if (activeRows.has(rowId)) continue
+    row.element.remove()
+    rendered.delete(rowId)
+  }
+  for (const row of snapshot) {
+    let renderedRow = rendered.get(row.id)
+    if (!renderedRow) {
+      renderedRow = { element: document.createElement('tr'), cells: new Map() }
+      rendered.set(row.id, renderedRow)
+    }
+    updateTableRow(row, columns, renderedRow)
+    body.append(renderedRow.element)
+  }
+}
+
 function mountTable(node: TableNode, context: InternalDocumentRenderContext): InternalDocumentNodeBinding {
   const table = document.createElement('table')
   const head = document.createElement('thead')
@@ -147,53 +216,8 @@ function mountTable(node: TableNode, context: InternalDocumentRenderContext): In
 
   function update(snapshot: readonly DocumentCollectionRow[]): void {
     const columns = currentNode.columns
-    const activeColumns = new Set(columns.map((column) => column.id))
-    for (const [columnId, header] of headers) {
-      if (activeColumns.has(columnId)) continue
-      header.remove()
-      headers.delete(columnId)
-    }
-    for (const column of columns) {
-      let header = headers.get(column.id)
-      if (!header) {
-        header = document.createElement('th')
-        header.scope = 'col'
-        headers.set(column.id, header)
-      }
-      header.textContent = column.label
-      headerRow.append(header)
-    }
-
-    const activeRows = new Set<string>(snapshot.map((row) => row.id))
-    for (const [rowId, row] of rendered) {
-      if (activeRows.has(rowId)) continue
-      row.element.remove()
-      rendered.delete(rowId)
-    }
-    for (const row of snapshot) {
-      let renderedRow = rendered.get(row.id)
-      if (!renderedRow) {
-        renderedRow = { element: document.createElement('tr'), cells: new Map() }
-        rendered.set(row.id, renderedRow)
-      }
-      const activeCells = new Set(columns.map((column) => column.id))
-      for (const [columnId, cell] of renderedRow.cells) {
-        if (activeCells.has(columnId)) continue
-        cell.remove()
-        renderedRow.cells.delete(columnId)
-      }
-      columns.forEach((column, index) => {
-        let cell = renderedRow!.cells.get(column.id)
-        if (!cell) {
-          cell = document.createElement('td')
-          cell.dataset.columnId = column.id
-          renderedRow!.cells.set(column.id, cell)
-        }
-        cell.textContent = displayValue(row.cells[index] ?? null)
-        renderedRow!.element.append(cell)
-      })
-      body.append(renderedRow.element)
-    }
+    updateTableHeaders(columns, headerRow, headers)
+    updateTableRows(snapshot, columns, body, rendered)
   }
 
   update(rows.getSnapshot())
