@@ -149,14 +149,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # Node 24.22.1 bundles npm 11.19.1, which supports trusted publishing.
       - uses: ./.github/actions/setup
-      # Keep setup-node from writing an empty NODE_AUTH_TOKEN entry. npm needs
-      # to detect the GitHub OIDC environment for trusted publishing.
-      # .nvmrc pins only the Node major, so the bundled npm drifts with the
-      # runner image. Trusted publishing needs npm 11.5.1 or later; npm 12
-      # changes publish behaviour and is not adopted implicitly.
-      - name: Pin npm for publishing
-        run: npm install --global npm@11.19.1
+        with:
+          node-version: 24.22.1
       - run: pnpm build
       - id: publish
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
@@ -187,6 +183,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+        with:
+          node-version: 24.22.1
       - name: Read existing GitHub releases
         id: releases
         env:
@@ -200,8 +198,6 @@ jobs:
       - name: Check published package versions
         id: registry
         run: node scripts/check-unpublished-packages.mjs
-      - name: Pin npm for provenance verification
-        run: npm install --global npm@11.19.1
       - name: Verify package provenance and source commits
         id: provenance
         env:
