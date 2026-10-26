@@ -50,7 +50,7 @@
     "@texaryn/examples": "workspace:*",
     "@texaryn/schema-json": "workspace:*",
     "@vue/server-renderer": "^3.5.0",
-    "@vue/test-utils": "^2.4.6",
+    "@vue/test-utils": "^2.5.1",
     "jsdom": "^25.0.0",
     "vue": "^3.5.0"
   },
