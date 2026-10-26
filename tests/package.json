@@ -21,7 +21,7 @@
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vue/test-utils": "^2.4.6",
+    "@vue/test-utils": "^2.5.1",
     "dom-accessibility-api": "^0.7.0",
     "jsdom": "^25.0.0",
     "react": "^19.0.0",
