@@ -62,13 +62,13 @@ importers:
         version: 5.57.2
       typedoc:
         specifier: ^0.28.20
-        version: 0.28.20(typescript@5.8.3)
+        version: 0.28.20(typescript@6.0.3)
       typedoc-plugin-markdown:
         specifier: ^4.13.0
-        version: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+        version: 4.13.0(typedoc@0.28.20(typescript@6.0.3))
       typescript:
-        specifier: ~5.8.0
-        version: 5.8.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^7.3.7
         version: 7.3.7(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0)
@@ -80,13 +80,13 @@ importers:
         version: 4.1.12(@types/node@24.13.3)(@vitest/browser-playwright@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@25.0.1(supports-color@10.2.2))(vite@7.3.7(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0))
       vue:
         specifier: ^3.5.0
-        version: 3.5.42(typescript@5.8.3)
+        version: 3.5.42(typescript@6.0.3)
 
   apps/docs:
     dependencies:
       '@astrojs/starlight':
         specifier: ^0.42.0
-        version: 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)
+        version: 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3)
       '@texaryn/examples':
         specifier: workspace:*
         version: link:../../packages/examples
@@ -102,19 +102,19 @@ importers:
         version: 11.17.2
       starlight-links-validator:
         specifier: ^0.26.0
-        version: 0.26.0(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)
+        version: 0.26.0(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)
       starlight-llms-txt:
         specifier: ^0.12.0
-        version: 0.12.0(@astrojs/markdown-satteri@0.4.0)(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)
+        version: 0.12.0(@astrojs/markdown-satteri@0.4.0)(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)
       starlight-typedoc:
         specifier: ^0.23.1
-        version: 0.23.1(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3))
+        version: 0.23.1(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@6.0.3)))(typedoc@0.28.20(typescript@6.0.3))
       typedoc:
         specifier: ^0.28.20
-        version: 0.28.20(typescript@5.8.3)
+        version: 0.28.20(typescript@6.0.3)
       typedoc-plugin-markdown:
         specifier: ^4.13.0
-        version: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+        version: 4.13.0(typedoc@0.28.20(typescript@6.0.3))
 
   apps/playground:
     dependencies:
@@ -174,7 +174,7 @@ importers:
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@rjsf/core':
         specifier: 6.11.0
-        version: 6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))
+        version: 6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@6.0.3))
       '@rjsf/validator-ajv8':
         specifier: 6.11.0
         version: 6.11.0(@rjsf/utils@6.11.0(react@19.2.8))
@@ -237,11 +237,11 @@ importers:
         version: 5.57.2
       vue:
         specifier: ^3.5.0
-        version: 3.5.42(typescript@5.8.3)
+        version: 3.5.42(typescript@6.0.3)
     devDependencies:
       '@angular/compiler-cli':
         specifier: 20.3.34
-        version: 20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@5.8.3)
+        version: 20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@6.0.3)
       '@babel/core':
         specifier: 8.0.7
         version: 8.0.7
@@ -270,8 +270,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: ~5.8.0
-        version: 5.8.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^6.0.0
         version: 6.4.5(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0)
@@ -290,7 +290,7 @@ importers:
         version: 20.3.34
       '@angular/compiler-cli':
         specifier: 20.3.34
-        version: 20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@5.8.3)
+        version: 20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@6.0.3)
       '@angular/core':
         specifier: 20.3.34
         version: 20.3.34(@angular/compiler@20.3.34)(rxjs@7.8.2)
@@ -307,8 +307,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       typescript:
-        specifier: ~5.8.0
-        version: 5.8.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/collaboration-yjs:
     dependencies:
@@ -542,8 +542,8 @@ importers:
         specifier: ^1.9.9
         version: 1.9.17
       typescript:
-        specifier: ~5.8.0
-        version: 5.8.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^7.3.7
         version: 7.3.7(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.0)
@@ -599,13 +599,13 @@ importers:
         version: 3.5.42
       '@vue/test-utils':
         specifier: ^2.4.6
-        version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@5.8.3))
+        version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@6.0.3))
       jsdom:
         specifier: ^25.0.0
         version: 25.0.1(supports-color@10.2.2)
       vue:
         specifier: ^3.5.0
-        version: 3.5.42(typescript@5.8.3)
+        version: 3.5.42(typescript@6.0.3)
 
   packages/web-components:
     dependencies:
@@ -673,7 +673,7 @@ importers:
         version: 19.2.5(@types/react@19.2.18)
       '@vue/test-utils':
         specifier: ^2.4.6
-        version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@5.8.3))
+        version: 2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@6.0.3))
       dom-accessibility-api:
         specifier: ^0.7.0
         version: 0.7.1
@@ -688,7 +688,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       vue:
         specifier: ^3.5.0
-        version: 3.5.42(typescript@5.8.3)
+        version: 3.5.42(typescript@6.0.3)
 
 packages:
 
@@ -5474,11 +5474,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typescript@5.8.3:
-    resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
@@ -5993,7 +5988,7 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
-  '@angular/compiler-cli@20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@5.8.3)':
+  '@angular/compiler-cli@20.3.34(@angular/compiler@20.3.34)(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@angular/compiler': 20.3.34
       '@babel/core': 7.29.7(supports-color@10.2.2)
@@ -6005,7 +6000,7 @@ snapshots:
       tslib: 2.8.1
       yargs: 18.2.0
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
 
@@ -6174,7 +6169,7 @@ snapshots:
       sitemap: 9.0.1
       zod: 4.6.7
 
-  '@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)':
+  '@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@astrojs/markdown-satteri': 0.4.0
       '@astrojs/mdx': 8.0.0(@astrojs/markdown-satteri@0.4.0)(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))
@@ -6191,7 +6186,7 @@ snapshots:
       hast-util-to-html: 9.0.5
       hast-util-to-string: 3.0.1
       hastscript: 9.0.1
-      i18next: 26.4.2(typescript@5.8.3)
+      i18next: 26.4.2(typescript@6.0.3)
       js-yaml: 4.3.2
       klona: 2.0.6
       magic-string: 1.2.3
@@ -7514,10 +7509,10 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@rjsf/core@6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))':
+  '@rjsf/core@6.11.0(@rjsf/utils@6.11.0(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@6.0.3))':
     dependencies:
       '@rjsf/utils': 6.11.0(react@19.2.8)
-      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3))
+      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@6.0.3))
       react: 19.2.8
     transitivePeerDependencies:
       - react-native
@@ -8387,11 +8382,11 @@ snapshots:
 
   '@vue/shared@3.5.42': {}
 
-  '@vue/test-utils@2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@5.8.3))':
+  '@vue/test-utils@2.5.0(@vue/compiler-dom@3.5.42)(@vue/server-renderer@3.5.42)(vue@3.5.42(typescript@6.0.3))':
     dependencies:
       '@vue/compiler-dom': 3.5.42
       js-beautify: 2.0.3
-      vue: 3.5.42(typescript@5.8.3)
+      vue: 3.5.42(typescript@6.0.3)
       vue-component-type-helpers: 3.3.11
     optionalDependencies:
       '@vue/server-renderer': 3.5.42
@@ -9571,9 +9566,9 @@ snapshots:
 
   human-id@4.2.1: {}
 
-  i18next@26.4.2(typescript@5.8.3):
+  i18next@26.4.2(typescript@6.0.3):
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 6.0.3
 
   iconv-lite@0.6.3:
     dependencies:
@@ -9921,11 +9916,11 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@5.8.3)):
+  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.42(typescript@6.0.3)):
     optionalDependencies:
       react: 19.2.8
       solid-js: 1.9.17
-      vue: 3.5.42(typescript@5.8.3)
+      vue: 3.5.42(typescript@6.0.3)
 
   marked-terminal@7.3.0(marked@9.1.6):
     dependencies:
@@ -10944,10 +10939,10 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  starlight-links-validator@0.26.0(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2):
+  starlight-links-validator@0.26.0(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2):
     dependencies:
       '@astrojs/markdown-satteri': 0.4.0
-      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)
+      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3)
       '@types/picomatch': 4.0.3
       astro: 7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1)
       github-slugger: 2.0.0
@@ -10963,10 +10958,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  starlight-llms-txt@0.12.0(@astrojs/markdown-satteri@0.4.0)(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2):
+  starlight-llms-txt@0.12.0(@astrojs/markdown-satteri@0.4.0)(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2):
     dependencies:
       '@astrojs/mdx': 8.0.1(@astrojs/markdown-satteri@0.4.0)(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))
-      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)
+      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3)
       '@types/hast': 3.0.5
       '@types/micromatch': 4.0.10
       astro: 7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -10984,13 +10979,13 @@ snapshots:
       - '@astrojs/markdown-satteri'
       - supports-color
 
-  starlight-typedoc@0.23.1(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3)):
+  starlight-typedoc@0.23.1(@astrojs/starlight@0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3))(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@6.0.3)))(typedoc@0.28.20(typescript@6.0.3)):
     dependencies:
-      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)
+      '@astrojs/starlight': 0.42.0(astro@7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1))(supports-color@10.2.2)(typescript@6.0.3)
       astro: 7.4.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.12)(yaml@2.9.1)
       github-slugger: 2.0.0
-      typedoc: 0.28.20(typescript@5.8.3)
-      typedoc-plugin-markdown: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+      typedoc: 0.28.20(typescript@6.0.3)
+      typedoc-plugin-markdown: 4.13.0(typedoc@0.28.20(typescript@6.0.3))
 
   std-env@4.3.0: {}
 
@@ -11174,22 +11169,20 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)):
+  typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@6.0.3)):
     dependencies:
-      typedoc: 0.28.20(typescript@5.8.3)
+      typedoc: 0.28.20(typescript@6.0.3)
 
-  typedoc@0.28.20(typescript@5.8.3):
+  typedoc@0.28.20(typescript@6.0.3):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
       markdown-it: 14.3.3
       minimatch: 10.2.6
-      typescript: 5.8.3
+      typescript: 6.0.3
       yaml: 2.9.0
 
   typescript@5.6.1-rc: {}
-
-  typescript@5.8.3: {}
 
   typescript@6.0.3: {}
 
@@ -11475,7 +11468,7 @@ snapshots:
 
   vue-component-type-helpers@3.3.11: {}
 
-  vue@3.5.42(typescript@5.8.3):
+  vue@3.5.42(typescript@6.0.3):
     dependencies:
       '@vue/compiler-dom': 3.5.42
       '@vue/compiler-sfc': 3.5.42
@@ -11483,7 +11476,7 @@ snapshots:
       '@vue/server-renderer': 3.5.42
       '@vue/shared': 3.5.42
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 6.0.3
 
   w3c-keyname@2.2.8: {}
 
