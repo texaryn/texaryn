@@ -56,7 +56,7 @@
     "@texaryn/schema-json": "workspace:*",
     "jsdom": "^25.0.0",
     "rxjs": "^7.8.2",
-    "typescript": "~5.8.0"
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "build": "pnpm --filter @texaryn/core build && ngc -p tsconfig.json",
