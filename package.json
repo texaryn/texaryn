@@ -25,7 +25,7 @@
     "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^3.0.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.6.5",
     "@vitest/browser": "4.1.12",
     "@vitest/browser-playwright": "4.1.12",
     "@vitest/coverage-v8": "4.1.12",
