@@ -49,7 +49,7 @@ importers:
         specifier: 4.1.12
         version: 4.1.12(@vitest/browser@4.1.12)(vitest@4.1.12)
       fast-check:
-        specifier: 4.10.3
+        specifier: ^4.10.3
         version: 4.10.3
       playwright:
         specifier: 1.65.1
@@ -58,7 +58,7 @@ importers:
         specifier: ^0.3.25
         version: 0.3.25
       svelte:
-        specifier: 5.58.1
+        specifier: ^5.58.1
         version: 5.58.1
       typedoc:
         specifier: ^0.28.20
@@ -73,7 +73,7 @@ importers:
         specifier: ^7.3.7
         version: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)
       vite-plugin-solid:
-        specifier: 2.11.17
+        specifier: ^2.11.17
         version: 2.11.17(solid-js@1.9.17)(supports-color@10.2.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
       vitest:
         specifier: ^4.1.11
@@ -233,7 +233,7 @@ importers:
         specifier: ^1.9.9
         version: 1.9.17
       svelte:
-        specifier: 5.58.1
+        specifier: ^5.58.1
         version: 5.58.1
       vue:
         specifier: ^3.5.46
@@ -249,7 +249,7 @@ importers:
         specifier: ^6.2.4
         version: 6.2.4(svelte@5.58.1)(vite@6.4.5(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
       '@tailwindcss/vite':
-        specifier: 4.3.5
+        specifier: ^4.3.5
         version: 4.3.5(vite@6.4.5(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
       '@testing-library/react':
         specifier: ^16.0.0
@@ -267,7 +267,7 @@ importers:
         specifier: ^31.0.1
         version: 31.0.1
       tailwindcss:
-        specifier: 4.3.5
+        specifier: ^4.3.5
         version: 4.3.5
       typescript:
         specifier: ~5.9.3
@@ -548,7 +548,7 @@ importers:
         specifier: ^7.3.7
         version: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)
       vite-plugin-solid:
-        specifier: 2.11.17
+        specifier: ^2.11.17
         version: 2.11.17(solid-js@1.9.17)(supports-color@10.2.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
 
   packages/svelte:
@@ -570,7 +570,7 @@ importers:
         specifier: ^31.0.1
         version: 31.0.1
       svelte:
-        specifier: 5.58.1
+        specifier: ^5.58.1
         version: 5.58.1
       svelte-check:
         specifier: ^4.7.8
