@@ -31,6 +31,9 @@ export function angularAdapter(name: string): DomAccessibilityAdapter {
         root: host,
         async act(run) {
           run()
+          // whenStable does not track the runtime's own validation promises,
+          // so a macrotask lets them settle, as in the other adapters.
+          await new Promise((resolve) => setTimeout(resolve, 0))
           await application.whenStable()
           application.tick()
         },

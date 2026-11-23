@@ -1,6 +1,7 @@
 import { For, Match, Show, Switch, createMemo } from 'solid-js'
 import type { UINode } from '@texaryn/core'
 import { FieldErrors } from '../components/FieldErrors.js'
+import { useFormContext } from '../context.js'
 import { createFieldBinding } from '../field.js'
 
 function sameJsonValue(left: unknown, right: unknown): boolean {
@@ -19,7 +20,9 @@ function sameJsonValue(left: unknown, right: unknown): boolean {
 }
 
 export function FieldWidget(props: { node: UINode }) {
+  const context = useFormContext()
   const field = createFieldBinding(() => props.node.id)
+  const indicator = () => context.messages().requiredIndicator()
   const current = createMemo(() => field.node())
   const optionIndex = createMemo(() => {
     const options = current()?.enumValues ?? []
@@ -43,8 +46,13 @@ export function FieldWidget(props: { node: UINode }) {
     <Show when={field.visible() && current()}>
       {(node) => <div>
         <label for={field.inputId()}>
+          <Show when={node().constraints.required && indicator().placement === 'before'}>
+            <span aria-hidden="true">{`${indicator().text} `}</span>
+          </Show>
           {field.label()}
-          <Show when={node().constraints.required}><span> (required)</span></Show>
+          <Show when={node().constraints.required && indicator().placement === 'after'}>
+            <span aria-hidden="true">{` ${indicator().text}`}</span>
+          </Show>
         </label>
         <Switch>
           <Match when={node().enumValues?.length}>
