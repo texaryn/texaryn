@@ -10,6 +10,9 @@ updates:
     groups:
       npm-minor-and-patch:
         patterns: ["*"]
+        # React 19.3 adds 8.6 KB gzipped to the playground initial bundle, past
+        # its 175 KB budget, so React arrives in its own pull request.
+        exclude-patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
         update-types: ["minor", "patch"]
     ignore:
       # @angular/compiler-cli 20 sets the @texaryn/angular peer floor and
