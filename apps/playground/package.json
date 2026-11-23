@@ -52,7 +52,7 @@
     "vue": "^3.5.46"
   },
   "devDependencies": {
-    "@angular/compiler-cli": "20.3.34",
+    "@angular/compiler-cli": "22.3.0",
     "@babel/core": "8.0.7",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tailwindcss/vite": "^4.3.3",
