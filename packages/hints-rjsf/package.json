@@ -23,7 +23,7 @@
     "@texaryn/core": "workspace:^"
   },
   "devDependencies": {
-    "@rjsf/utils": "5.24.13",
+    "@rjsf/utils": "6.11.1",
     "@testing-library/react": "^16.0.0",
     "@texaryn/core": "workspace:*",
     "@texaryn/react": "workspace:*",
