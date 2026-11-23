@@ -64,8 +64,8 @@ importers:
         specifier: ^0.28.20
         version: 0.28.20(typescript@5.8.3)
       typedoc-plugin-markdown:
-        specifier: ^4.13.0
-        version: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+        specifier: ^4.14.1
+        version: 4.14.1(typedoc@0.28.20(typescript@5.8.3))
       typescript:
         specifier: ~5.8.0
         version: 5.8.3
@@ -108,13 +108,13 @@ importers:
         version: 0.12.0(@astrojs/markdown-satteri@0.4.0)(@astrojs/starlight@0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)
       starlight-typedoc:
         specifier: ^0.23.1
-        version: 0.23.1(@astrojs/starlight@0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3))
+        version: 0.23.1(@astrojs/starlight@0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(typedoc-plugin-markdown@4.14.1(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3))
       typedoc:
         specifier: ^0.28.20
         version: 0.28.20(typescript@5.8.3)
       typedoc-plugin-markdown:
-        specifier: ^4.13.0
-        version: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+        specifier: ^4.14.1
+        version: 4.14.1(typedoc@0.28.20(typescript@5.8.3))
 
   apps/playground:
     dependencies:
@@ -1040,6 +1040,10 @@ packages:
     resolution: {integrity: sha512-G7sHYigPY17oO5SYWnfD/0MTBwVR781S/JI643e/JhUYgVgWE/61SoW3NH9KWUKyKq5LVh3npif99Wkt6j86Jw==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-string-parser@7.29.14':
+    resolution: {integrity: sha512-CXvKMFvM80ihI7Vox9jb+kQjnyjESQNPM+vB7U0Zz6TWuZA+Z/FL0QPMH300h33qJtIx+REeBhXqWOPW48TcAQ==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-string-parser@7.29.15':
     resolution: {integrity: sha512-C2FuapQ2Kh1OnVHAoLi5rD3GBJ8COb9Q609T6HEpLqaBAo560PDP5OxBE5dCI/h951MBO/+bCUYU5SZ+8ZlV+w==}
     engines: {node: '>=6.9.0'}
@@ -1075,6 +1079,11 @@ packages:
   '@babel/helpers@8.0.7':
     resolution: {integrity: sha512-5dMj5kFwS2AY7Dt4PZp4px3c5ThMbbEa7tZfuHTncCGSFYq8uoA1ufDE1IS/lYpQedE+3+GQ3cPZUiplIu195w==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/parser@7.29.14':
+    resolution: {integrity: sha512-VL220vXuyO2z3rNIQwY7ftj9UwpqOt+33sH+sBWkOekbsSR2g7EEMnOx24ZlCH0xOA3DM/33SifVFGbnJD8r/w==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
 
   '@babel/parser@7.29.15':
     resolution: {integrity: sha512-RpKWyisHoP81twtSCgmE02iU0RnPcq1DN5bBEbpUePrjA9Q3wXhufnCJrrayPpoZieqFh3zyZQqwtSK0gGccRA==}
@@ -1128,6 +1137,10 @@ packages:
   '@babel/traverse@8.0.7':
     resolution: {integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/types@7.29.14':
+    resolution: {integrity: sha512-UjI/dKmwJwT9pOszJitq2G6EObZPnsZUfdCr92z2TlF3EZK9J3EdfOKUrCzHl6wFthbzwhzl1Soc/UIwxRiq6w==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.15':
     resolution: {integrity: sha512-/XKpKDakL//LZ66bq1XsZOswuqeI5MZqPLDu18o3XdkU1fNJ7bdPtzgnc4ZNS+bBGHV0FJG8jjb8SwcC3nNVQQ==}
@@ -5783,8 +5796,8 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  typedoc-plugin-markdown@4.13.0:
-    resolution: {integrity: sha512-OHaOLoMTS0wL2ud73WXvxv486mrUEtgXxW4iKiTOGJVipT/VBWY76rlVRMQGes7aVonoIf5roWRe1UvHbufLlQ==}
+  typedoc-plugin-markdown@4.14.1:
+    resolution: {integrity: sha512-24XX0oqyBsjBIBNoSH4wbgQkouci/CmgmO1ZBSaVkrcflqXFL2PQ5zFOpkz+Ewow5xQ3q2You+wrcmilNepRKg==}
     engines: {node: '>= 18'}
     peerDependencies:
       typedoc: 0.28.x
@@ -6746,6 +6759,8 @@ snapshots:
 
   '@babel/helper-plugin-utils@7.29.7': {}
 
+  '@babel/helper-string-parser@7.29.14': {}
+
   '@babel/helper-string-parser@7.29.15': {}
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -6769,6 +6784,10 @@ snapshots:
     dependencies:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
+
+  '@babel/parser@7.29.14':
+    dependencies:
+      '@babel/types': 7.29.14
 
   '@babel/parser@7.29.15':
     dependencies:
@@ -6832,6 +6851,11 @@ snapshots:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
       obug: 3.0.0
+
+  '@babel/types@7.29.14':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.14
+      '@babel/helper-validator-identifier': 7.29.7
 
   '@babel/types@7.29.15':
     dependencies:
@@ -8912,7 +8936,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.46':
     dependencies:
-      '@babel/parser': 7.29.15
+      '@babel/parser': 7.29.14
       '@vue/shared': 3.5.46
       entities: 7.0.1
       estree-walker: 2.0.2
@@ -11624,13 +11648,13 @@ snapshots:
       - '@astrojs/markdown-satteri'
       - supports-color
 
-  starlight-typedoc@0.23.1(@astrojs/starlight@0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3)):
+  starlight-typedoc@0.23.1(@astrojs/starlight@0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3))(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(typedoc-plugin-markdown@4.14.1(typedoc@0.28.20(typescript@5.8.3)))(typedoc@0.28.20(typescript@5.8.3)):
     dependencies:
       '@astrojs/starlight': 0.42.11(astro@7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1))(supports-color@10.2.2)(typescript@5.8.3)
       astro: 7.4.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.1)
       github-slugger: 2.0.0
       typedoc: 0.28.20(typescript@5.8.3)
-      typedoc-plugin-markdown: 4.13.0(typedoc@0.28.20(typescript@5.8.3))
+      typedoc-plugin-markdown: 4.14.1(typedoc@0.28.20(typescript@5.8.3))
 
   std-env@4.3.0: {}
 
@@ -11812,7 +11836,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.8.3)):
+  typedoc-plugin-markdown@4.14.1(typedoc@0.28.20(typescript@5.8.3)):
     dependencies:
       typedoc: 0.28.20(typescript@5.8.3)
 
