@@ -174,7 +174,7 @@ importers:
         version: 9.5.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@rjsf/core':
         specifier: 6.11.1
-        version: 6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.9.3))
+        version: 6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@2.0.3)(vue@3.5.46(typescript@5.9.3))
       '@rjsf/validator-ajv8':
         specifier: 6.11.1
         version: 6.11.1(@rjsf/utils@6.11.1(react@19.2.8))
@@ -230,8 +230,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       solid-js:
-        specifier: ^1.9.9
-        version: 1.9.17
+        specifier: ^2.0.3
+        version: 2.0.3
       svelte:
         specifier: ^5.59.1
         version: 5.59.1
@@ -531,7 +531,7 @@ importers:
     devDependencies:
       '@solidjs/testing-library':
         specifier: ^0.8.10
-        version: 0.8.10(solid-js@1.9.17)
+        version: 0.8.10(solid-js@2.0.3)
       '@texaryn/schema-json':
         specifier: workspace:*
         version: link:../schema-json
@@ -539,8 +539,8 @@ importers:
         specifier: ^31.0.1
         version: 31.0.1
       solid-js:
-        specifier: ^1.9.9
-        version: 1.9.17
+        specifier: ^2.0.3
+        version: 2.0.3
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -549,7 +549,7 @@ importers:
         version: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)
       vite-plugin-solid:
         specifier: ^2.11.17
-        version: 2.11.17(solid-js@1.9.17)(supports-color@10.2.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
+        version: 2.11.17(solid-js@2.0.3)(supports-color@10.2.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
 
   packages/svelte:
     dependencies:
@@ -2874,6 +2874,10 @@ packages:
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
+
+  '@solidjs/signals@2.0.3':
+    resolution: {integrity: sha512-M6+kiJflqSvJRHRcmdsdIXpPLPkQrY817zWKKfxZ3z3ZRE5eEtddtWPrDXY4IM1Wz3zAqG+3Fx/HQIkAtpRwnA==}
+    engines: {node: '>=22.12.0'}
 
   '@solidjs/testing-library@0.8.10':
     resolution: {integrity: sha512-qdeuIerwyq7oQTIrrKvV0aL9aFeuwTd86VYD3afdq5HYEwoox1OBTJy4y8A3TFZr8oAR0nujYgCzY/8wgHGfeQ==}
@@ -5273,9 +5277,19 @@ packages:
     peerDependencies:
       seroval: ^1.0
 
+  seroval-plugins@1.8.0:
+    resolution: {integrity: sha512-96vBb12rDvPPwdKUgWw1op3fGq8AVBFOr0IllbnM72yR5J9WWXF18cQ4g1XfDO7HCyh2dt70P3XdtyRayP8FWg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      seroval: ^1.8.0
+
   seroval@1.6.9:
     resolution: {integrity: sha512-UeEzHwAK+yl0YLbsvROV1t5yMYEwZZ0CfKYxDvUgS2fO9Vxdf8djqVIB+OuVpuawRNPqw68LE1Du/GMsW2ZPqA==}
     engines: {node: '>=10'}
+
+  seroval@1.8.2:
+    resolution: {integrity: sha512-zmMxi/9MdLK1MKazLmIP6Rk39RuK0Xydd+QHeOYntS37olJeTjB3+nwVj4ce/ZWiZJeRhcO5htfxt0mUzQBscQ==}
+    engines: {node: '>=20'}
 
   sharp@0.35.5:
     resolution: {integrity: sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==}
@@ -5324,6 +5338,10 @@ packages:
 
   solid-js@1.9.17:
     resolution: {integrity: sha512-4GAmLOWPfNV8H9Jfn2LSFTpNEG6jiOKPiwd5lnLGQtehHaX6l3TOLzJqQ7mqwB/3k1Yy3zyumFVopmc/tm34ow==}
+
+  solid-js@2.0.3:
+    resolution: {integrity: sha512-XOHstv+GAJjfcSGZU9xfX5q6Mbqmv72IcdWh2JuMx3KvBbfpQPdy/Yl00A1ouk7A0etjqhNe799CPdr6i7koWg==}
+    engines: {node: '>=22.12.0'}
 
   solid-refresh@0.6.3:
     resolution: {integrity: sha512-F3aPsX6hVw9ttm5LYlth8Q15x6MlI/J3Dn+o3EQyRTtTxidepSTwAYdozt01/YA+7ObcciagGEyXIopGZzQtbA==}
@@ -7671,10 +7689,10 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@rjsf/core@6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.9.3))':
+  '@rjsf/core@6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@2.0.3)(vue@3.5.46(typescript@5.9.3))':
     dependencies:
       '@rjsf/utils': 6.11.1(react@19.2.8)
-      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.9.3))
+      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@2.0.3)(vue@3.5.46(typescript@5.9.3))
       react: 19.2.8
     transitivePeerDependencies:
       - react-native
@@ -7992,10 +8010,12 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
-  '@solidjs/testing-library@0.8.10(solid-js@1.9.17)':
+  '@solidjs/signals@2.0.3': {}
+
+  '@solidjs/testing-library@0.8.10(solid-js@2.0.3)':
     dependencies:
       '@testing-library/dom': 10.4.1
-      solid-js: 1.9.17
+      solid-js: 2.0.3
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -8808,6 +8828,13 @@ snapshots:
       babel-plugin-jsx-dom-expressions: 0.40.11(@babel/core@7.29.7(supports-color@10.2.2))
     optionalDependencies:
       solid-js: 1.9.17
+
+  babel-preset-solid@1.9.16(@babel/core@7.29.7(supports-color@10.2.2))(solid-js@2.0.3):
+    dependencies:
+      '@babel/core': 7.29.7(supports-color@10.2.2)
+      babel-plugin-jsx-dom-expressions: 0.40.11(@babel/core@7.29.7(supports-color@10.2.2))
+    optionalDependencies:
+      solid-js: 2.0.3
 
   bail@2.0.2: {}
 
@@ -10000,10 +10027,10 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.9.3)):
+  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@2.0.3)(vue@3.5.46(typescript@5.9.3)):
     optionalDependencies:
       react: 19.2.8
-      solid-js: 1.9.17
+      solid-js: 2.0.3
       vue: 3.5.46(typescript@5.9.3)
 
   marked-terminal@7.3.0(marked@9.1.6):
@@ -10946,7 +10973,13 @@ snapshots:
     dependencies:
       seroval: 1.6.9
 
+  seroval-plugins@1.8.0(seroval@1.8.2):
+    dependencies:
+      seroval: 1.8.2
+
   seroval@1.6.9: {}
+
+  seroval@1.8.2: {}
 
   sharp@0.35.5(@types/node@24.19.2):
     dependencies:
@@ -11035,12 +11068,27 @@ snapshots:
       seroval: 1.6.9
       seroval-plugins: 1.6.9(seroval@1.6.9)
 
+  solid-js@2.0.3:
+    dependencies:
+      '@solidjs/signals': 2.0.3
+      seroval: 1.8.2
+      seroval-plugins: 1.8.0(seroval@1.8.2)
+
   solid-refresh@0.6.3(solid-js@1.9.17)(supports-color@10.2.2):
     dependencies:
       '@babel/generator': 7.29.8
       '@babel/helper-module-imports': 7.29.7(supports-color@10.2.2)
       '@babel/types': 7.29.15
       solid-js: 1.9.17
+    transitivePeerDependencies:
+      - supports-color
+
+  solid-refresh@0.6.3(solid-js@2.0.3)(supports-color@10.2.2):
+    dependencies:
+      '@babel/generator': 7.29.8
+      '@babel/helper-module-imports': 7.29.7(supports-color@10.2.2)
+      '@babel/types': 7.29.15
+      solid-js: 2.0.3
     transitivePeerDependencies:
       - supports-color
 
@@ -11441,6 +11489,19 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.17
       solid-refresh: 0.6.3(solid-js@1.9.17)(supports-color@10.2.2)
+      vite: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-solid@2.11.17(solid-js@2.0.3)(supports-color@10.2.2)(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)):
+    dependencies:
+      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@types/babel__core': 7.20.5
+      babel-preset-solid: 1.9.16(@babel/core@7.29.7(supports-color@10.2.2))(solid-js@2.0.3)
+      merge-anything: 5.1.7
+      solid-js: 2.0.3
+      solid-refresh: 0.6.3(solid-js@2.0.3)(supports-color@10.2.2)
       vite: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0)
       vitefu: 1.1.3(vite@7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.90.0)(tsx@4.23.15)(yaml@2.9.0))
     transitivePeerDependencies:
