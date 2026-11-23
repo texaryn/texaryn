@@ -16,6 +16,9 @@ updates:
       # Node types follow the runtime major in .nvmrc.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # Angular 20 is the @texaryn/angular build and peer floor.
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
