@@ -23,7 +23,7 @@
     "solid-js": "^1.9.9",
     "typescript": "~6.0.3",
     "vite": "^7.3.7",
-    "vite-plugin-solid": "^2.11.8"
+    "vite-plugin-solid": "^2.11.17"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json --force && vite build",
