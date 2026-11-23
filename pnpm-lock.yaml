@@ -173,8 +173,8 @@ importers:
         specifier: ^9.5.0
         version: 9.5.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@rjsf/core':
-        specifier: 6.11.0
-        version: 6.11.0(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))
+        specifier: 6.11.1
+        version: 6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))
       '@rjsf/validator-ajv8':
         specifier: 6.11.1
         version: 6.11.1(@rjsf/utils@6.11.1(react@19.2.8))
@@ -1037,6 +1037,10 @@ packages:
     resolution: {integrity: sha512-G7sHYigPY17oO5SYWnfD/0MTBwVR781S/JI643e/JhUYgVgWE/61SoW3NH9KWUKyKq5LVh3npif99Wkt6j86Jw==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-string-parser@7.29.14':
+    resolution: {integrity: sha512-CXvKMFvM80ihI7Vox9jb+kQjnyjESQNPM+vB7U0Zz6TWuZA+Z/FL0QPMH300h33qJtIx+REeBhXqWOPW48TcAQ==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-string-parser@7.29.15':
     resolution: {integrity: sha512-C2FuapQ2Kh1OnVHAoLi5rD3GBJ8COb9Q609T6HEpLqaBAo560PDP5OxBE5dCI/h951MBO/+bCUYU5SZ+8ZlV+w==}
     engines: {node: '>=6.9.0'}
@@ -1072,6 +1076,11 @@ packages:
   '@babel/helpers@8.0.7':
     resolution: {integrity: sha512-5dMj5kFwS2AY7Dt4PZp4px3c5ThMbbEa7tZfuHTncCGSFYq8uoA1ufDE1IS/lYpQedE+3+GQ3cPZUiplIu195w==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/parser@7.29.14':
+    resolution: {integrity: sha512-VL220vXuyO2z3rNIQwY7ftj9UwpqOt+33sH+sBWkOekbsSR2g7EEMnOx24ZlCH0xOA3DM/33SifVFGbnJD8r/w==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
 
   '@babel/parser@7.29.15':
     resolution: {integrity: sha512-RpKWyisHoP81twtSCgmE02iU0RnPcq1DN5bBEbpUePrjA9Q3wXhufnCJrrayPpoZieqFh3zyZQqwtSK0gGccRA==}
@@ -1125,6 +1134,10 @@ packages:
   '@babel/traverse@8.0.7':
     resolution: {integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/types@7.29.14':
+    resolution: {integrity: sha512-UjI/dKmwJwT9pOszJitq2G6EObZPnsZUfdCr92z2TlF3EZK9J3EdfOKUrCzHl6wFthbzwhzl1Soc/UIwxRiq6w==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.15':
     resolution: {integrity: sha512-/XKpKDakL//LZ66bq1XsZOswuqeI5MZqPLDu18o3XdkU1fNJ7bdPtzgnc4ZNS+bBGHV0FJG8jjb8SwcC3nNVQQ==}
@@ -2457,11 +2470,11 @@ packages:
       '@types/react':
         optional: true
 
-  '@rjsf/core@6.11.0':
-    resolution: {integrity: sha512-8Hp3nd2RysjfmxHKy3/1GJtdAaDBt9VkU/c+pSXrs332BvliJM/Tp/QXTTnHYKYUSi1klFTygnvq1ujSefpcug==}
+  '@rjsf/core@6.11.1':
+    resolution: {integrity: sha512-2kH39lspUUQf552l+vSTj9vnwdv1gSOyDKqSDmFuTo16+92zbJ381knrQpk3KKowjp/sbxu4qPiBptgXH6i4UQ==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@rjsf/utils': ^6.11.0
+      '@rjsf/utils': ^6.11.1
       react: '>=18'
 
   '@rjsf/utils@5.24.13':
@@ -4773,8 +4786,8 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
-  markdown-to-jsx@9.10.3:
-    resolution: {integrity: sha512-J5/NCmNYQ0ExsnThzvF3F1fSzNYLgROcW2diUqRqoIoiyhoy8DSI06jLuMYk0c86SQd/FiVYJrV6tIgci9S2tQ==}
+  markdown-to-jsx@9.10.6:
+    resolution: {integrity: sha512-vvd4cMAAK6RDCzklzRYykG8Tos1Wyid8IoxenyiSAnGb1JIX2fTzn6MuU5QBu9Kb4BdjOCnKlbs84NQRVsaaVA==}
     engines: {node: '>= 18'}
     peerDependencies:
       react: '>= 16.0.0'
@@ -6616,6 +6629,8 @@ snapshots:
 
   '@babel/helper-plugin-utils@7.29.7': {}
 
+  '@babel/helper-string-parser@7.29.14': {}
+
   '@babel/helper-string-parser@7.29.15': {}
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -6639,6 +6654,10 @@ snapshots:
     dependencies:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
+
+  '@babel/parser@7.29.14':
+    dependencies:
+      '@babel/types': 7.29.14
 
   '@babel/parser@7.29.15':
     dependencies:
@@ -6702,6 +6721,11 @@ snapshots:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
       obug: 3.0.0
+
+  '@babel/types@7.29.14':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.14
+      '@babel/helper-validator-identifier': 7.29.7
 
   '@babel/types@7.29.15':
     dependencies:
@@ -7872,10 +7896,10 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@rjsf/core@6.11.0(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))':
+  '@rjsf/core@6.11.1(@rjsf/utils@6.11.1(react@19.2.8))(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))':
     dependencies:
       '@rjsf/utils': 6.11.1(react@19.2.8)
-      markdown-to-jsx: 9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))
+      markdown-to-jsx: 9.10.6(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3))
       react: 19.2.8
     transitivePeerDependencies:
       - react-native
@@ -8816,7 +8840,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.46':
     dependencies:
-      '@babel/parser': 7.29.15
+      '@babel/parser': 7.29.14
       '@vue/shared': 3.5.46
       entities: 7.0.1
       estree-walker: 2.0.2
@@ -10344,7 +10368,7 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  markdown-to-jsx@9.10.3(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3)):
+  markdown-to-jsx@9.10.6(react@19.2.8)(solid-js@1.9.17)(vue@3.5.46(typescript@5.8.3)):
     optionalDependencies:
       react: 19.2.8
       solid-js: 1.9.17
