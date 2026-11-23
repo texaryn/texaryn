@@ -19,6 +19,9 @@ updates:
       # Angular 20 is the @texaryn/angular build and peer floor.
       - dependency-name: "@angular/*"
         update-types: ["version-update:semver-major"]
+      # @texaryn/hints-rjsf converts RJSF 5.24.13 uiSchemas (ADR-006).
+      - dependency-name: "@rjsf/utils"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
