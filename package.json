@@ -32,7 +32,7 @@
     "fast-check": "^4.10.3",
     "playwright": "1.65.1",
     "publint": "^0.3.25",
-    "svelte": "^5.59.0",
+    "svelte": "^5.59.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.14.1",
     "typescript": "~6.0.3",

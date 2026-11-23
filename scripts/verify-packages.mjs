@@ -22,6 +22,33 @@ const requiredFiles = [
 
 const forbiddenPatterns = [/^package\/src\//, /\.test\./, /\.spec\./, /tsconfig/]
 
+// Client-compiled Svelte and Solid components read these at module load, so
+// the consumer bundle needs them before Node imports it.
+const domGlobals = ['window', 'document', 'Node', 'Element', 'HTMLElement', 'SVGElement', 'Text', 'Event', 'MutationObserver']
+
+function installDomGlobals(pkgDir) {
+  const { JSDOM } = createRequire(join(process.cwd(), pkgDir, 'package.json'))('jsdom')
+  const dom = new JSDOM('', { url: 'http://localhost/' })
+  const descriptors = new Map()
+  for (const key of domGlobals) {
+    descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
+    Object.defineProperty(globalThis, key, {
+      configurable: true,
+      writable: true,
+      value: dom.window[key],
+    })
+  }
+  return { dom, descriptors }
+}
+
+function restoreDomGlobals({ dom, descriptors }) {
+  dom.window.close()
+  for (const [key, descriptor] of descriptors) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+    else delete globalThis[key]
+  }
+}
+
 let failed = false
 
 // Package verification runs serially to limit competing consumer builds.
@@ -30,8 +57,7 @@ for (const pkg of packages) {
 
   const tmp = mkdtempSync(join(process.cwd(), pkg.dir, '.verify-'))
   let isolatedConsumerDir
-  let solidDom
-  let solidDomGlobalDescriptors
+  let consumerDom
   try {
     execSync(`pnpm pack --pack-destination ${tmp}`, {
       cwd: pkg.dir,
@@ -266,6 +292,7 @@ for (const pkg of packages) {
             rollupOptions: { external: ['@texaryn/core', 'svelte', 'svelte/store'] },
           },
         })
+        consumerDom = installDomGlobals(pkg.dir)
         mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href) // NOSONAR
       } else if (pkg.name === '@texaryn/solid') {
         const entry = join(extractDir, 'consumer.js')
@@ -285,18 +312,7 @@ for (const pkg of packages) {
             rollupOptions: { external: ['@texaryn/core'] },
           },
         })
-        const consumerRequire = createRequire(join(process.cwd(), pkg.dir, 'package.json'))
-        const { JSDOM } = consumerRequire('jsdom')
-        solidDom = new JSDOM('', { url: 'http://localhost/' })
-        solidDomGlobalDescriptors = new Map()
-        for (const key of ['window', 'document', 'Node', 'Element', 'HTMLElement', 'SVGElement', 'Event', 'MutationObserver']) {
-          solidDomGlobalDescriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
-          Object.defineProperty(globalThis, key, {
-            configurable: true,
-            writable: true,
-            value: solidDom.window[key],
-          })
-        }
+        consumerDom = installDomGlobals(pkg.dir)
         mod = await import(pathToFileURL(join(extractDir, 'consumer-dist', 'consumer.js')).href) // NOSONAR
       } else {
         mod = await import(join(extractDir, 'package', 'dist', 'index.js')) // NOSONAR
@@ -403,13 +419,7 @@ for (const pkg of packages) {
       failed = true
     }
   } finally {
-    if (solidDom) {
-      solidDom.window.close()
-      for (const [key, descriptor] of solidDomGlobalDescriptors) {
-        if (descriptor) Object.defineProperty(globalThis, key, descriptor)
-        else delete globalThis[key]
-      }
-    }
+    if (consumerDom) restoreDomGlobals(consumerDom)
     rmSync(tmp, { recursive: true, force: true })
     if (isolatedConsumerDir) rmSync(isolatedConsumerDir, { recursive: true, force: true })
   }
