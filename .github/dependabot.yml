@@ -10,6 +10,9 @@ updates:
     groups:
       npm-minor-and-patch:
         patterns: ["*"]
+        # React 19.3 adds 8.6 KB gzipped to the playground initial bundle, past
+        # its 175 KB budget, so React arrives in its own pull request.
+        exclude-patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
         update-types: ["minor", "patch"]
     ignore:
       # @angular/compiler-cli 20 sets the @texaryn/angular peer floor and
@@ -25,6 +28,10 @@ updates:
       # @texaryn/hints-rjsf converts RJSF 5.24.13 uiSchemas (ADR-006).
       - dependency-name: "@rjsf/utils"
         update-types: ["version-update:semver-major"]
+      # 1.18.1 fails to compile $id values that are Windows file URIs, which
+      # drops 4 mandatory JSON Schema Test Suite passes in every draft.
+      - dependency-name: "@hyperjump/json-schema"
+        versions: ["1.18.1"]
 
   - package-ecosystem: github-actions
     directory: "/"
