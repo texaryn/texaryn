@@ -25,6 +25,10 @@ updates:
       # @texaryn/hints-rjsf converts RJSF 5.24.13 uiSchemas (ADR-006).
       - dependency-name: "@rjsf/utils"
         update-types: ["version-update:semver-major"]
+      # 1.18.1 fails to compile $id values that are Windows file URIs, which
+      # drops 4 mandatory JSON Schema Test Suite passes in every draft.
+      - dependency-name: "@hyperjump/json-schema"
+        versions: ["1.18.1"]
 
   - package-ecosystem: github-actions
     directory: "/"
