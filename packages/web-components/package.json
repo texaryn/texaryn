@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@texaryn/schema-json": "workspace:*",
-    "jsdom": "^25.0.0"
+    "jsdom": "^31.0.1"
   },
   "scripts": {
     "build": "tsc --build"
