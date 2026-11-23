@@ -497,8 +497,8 @@ importers:
   packages/schema-json-hyperjump:
     dependencies:
       '@hyperjump/json-schema':
-        specifier: ^1.18.0
-        version: 1.18.0(@hyperjump/browser@1.5.0)
+        specifier: ^1.18.1
+        version: 1.18.1(@hyperjump/browser@1.6.0)
       '@texaryn/core':
         specifier: workspace:*
         version: link:../core
@@ -1020,6 +1020,10 @@ packages:
     resolution: {integrity: sha512-G7sHYigPY17oO5SYWnfD/0MTBwVR781S/JI643e/JhUYgVgWE/61SoW3NH9KWUKyKq5LVh3npif99Wkt6j86Jw==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-string-parser@7.29.14':
+    resolution: {integrity: sha512-CXvKMFvM80ihI7Vox9jb+kQjnyjESQNPM+vB7U0Zz6TWuZA+Z/FL0QPMH300h33qJtIx+REeBhXqWOPW48TcAQ==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-string-parser@7.29.15':
     resolution: {integrity: sha512-C2FuapQ2Kh1OnVHAoLi5rD3GBJ8COb9Q609T6HEpLqaBAo560PDP5OxBE5dCI/h951MBO/+bCUYU5SZ+8ZlV+w==}
     engines: {node: '>=6.9.0'}
@@ -1051,6 +1055,11 @@ packages:
   '@babel/helpers@8.1.3':
     resolution: {integrity: sha512-s5s0hMqsgSVikMuK7XHFDlIJvZp5CdAFpJcgNF5b/6oRvVCS8n779zsJVQuwtUUu75/nCYceKvi+K2FDKcogXg==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/parser@7.29.14':
+    resolution: {integrity: sha512-VL220vXuyO2z3rNIQwY7ftj9UwpqOt+33sH+sBWkOekbsSR2g7EEMnOx24ZlCH0xOA3DM/33SifVFGbnJD8r/w==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
 
   '@babel/parser@7.29.15':
     resolution: {integrity: sha512-RpKWyisHoP81twtSCgmE02iU0RnPcq1DN5bBEbpUePrjA9Q3wXhufnCJrrayPpoZieqFh3zyZQqwtSK0gGccRA==}
@@ -1099,6 +1108,10 @@ packages:
   '@babel/traverse@8.1.3':
     resolution: {integrity: sha512-Mil7E37zLel1sjGwcgAF0wn8tbTJp3LLVMb0fqgDxWJJm52NXBv3MJaqmNOp76qzInY/0uDH3rSZfl3BqCjHiw==}
     engines: {node: ^22.18.0 || >=24.11.0}
+
+  '@babel/types@7.29.14':
+    resolution: {integrity: sha512-UjI/dKmwJwT9pOszJitq2G6EObZPnsZUfdCr92z2TlF3EZK9J3EdfOKUrCzHl6wFthbzwhzl1Soc/UIwxRiq6w==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.15':
     resolution: {integrity: sha512-/XKpKDakL//LZ66bq1XsZOswuqeI5MZqPLDu18o3XdkU1fNJ7bdPtzgnc4ZNS+bBGHV0FJG8jjb8SwcC3nNVQQ==}
@@ -1769,26 +1782,35 @@ packages:
   '@gerrit0/mini-shiki@3.23.0':
     resolution: {integrity: sha512-bEMORlG0cqdjVyCEuU0cDQbORWX+kYCeo0kV1lbxF5bt4r7SID2l9bqsxJEM0zndaxpOUT7riCyIVEuqq/Ynxg==}
 
-  '@hyperjump/browser@1.5.0':
-    resolution: {integrity: sha512-h+fGXfmMOAxYjd2aZ4Y5jpP2WRi0TAkBmKNtoNJKcJLOahNrurwHEUgd1/jO2Hs2j/b/G1EhX0edX8ntXkH2MA==}
+  '@hyperjump/browser@1.6.0':
+    resolution: {integrity: sha512-FcD0B9cOTIj8bJCrX7RtsLSnA2CrX43KCdaFOpS2cH9VnNMuKX4EJ3mgSdQFWF6vz/fbXUNYU1LpIYXYn3TTXA==}
     engines: {node: '>=18.0.0'}
 
   '@hyperjump/json-pointer@1.1.2':
     resolution: {integrity: sha512-zPNgu1zdhtjQHFNLGzvEsLDsLOEvhRj6u6ktIQmlz7YPESv5uF8SnAe3Dq0oL6gZ6OGWSLq2n7pphRNF6Hpg6w==}
 
+  '@hyperjump/json-pointer@1.1.4':
+    resolution: {integrity: sha512-c6slpSqSiNL10JA78HdQOx50xaXHy1dKsPZOiEVjr/RqcVg5MgnWcP7vbvpxa42CD7pMkU6TtTCS+redjpjc2w==}
+
   '@hyperjump/json-schema-formats@1.0.5':
     resolution: {integrity: sha512-JHMa2YwBmHG7N1LD4sOKx3gfYJjXDiV1MRPIpN2huma/hTLMoCZ/cGe2tCQsfqD9KgjFaRO2mmXFlamwdN3/wQ==}
 
-  '@hyperjump/json-schema@1.18.0':
-    resolution: {integrity: sha512-YPLJsCosW6pHhulKrFogUsl1WxQVRy+fY0pROt66FDFygjIWZkMxXyiy8HLRR1JKeAd5OE6NSZs0NVjSBNwb2Q==}
-    peerDependencies:
-      '@hyperjump/browser': ^1.1.0
+  '@hyperjump/json-schema-formats@1.1.0':
+    resolution: {integrity: sha512-vLMIOwMThlgWgPJBV39Ds7kaTaygK0+UxjvQShTmKB8rRy8HXq472jnHP8/uaik+77HDx2M+W5Bvzhq6zFc2zQ==}
 
-  '@hyperjump/pact@1.4.0':
-    resolution: {integrity: sha512-01Q7VY6BcAkp9W31Fv+ciiZycxZHGlR2N6ba9BifgyclHYHdbaZgITo0U6QMhYRlem4k8pf8J31/tApxvqAz8A==}
+  '@hyperjump/json-schema@1.18.1':
+    resolution: {integrity: sha512-RJkZloGX6BupKOdkWINajsityuyn8RG9XZA1EbLf98HCEzfcWI9V7sSMpQOTOU/DrUY/0ceBNuw0VXAhnJE34Q==}
+    peerDependencies:
+      '@hyperjump/browser': ^1.6.0
+
+  '@hyperjump/pact@1.5.1':
+    resolution: {integrity: sha512-AmMAUpM5FzqMo5Ip4r9XQ7P8eAEuRlyeeMaOPqcv9ItS0Gogl+Sbod19CZZlzSO5n16SNPFijFwEwrid1eCY9Q==}
 
   '@hyperjump/uri@1.3.5':
     resolution: {integrity: sha512-GxiCm6iMt2j74T00mo0hHnJT1hNVGZMcuja5Mi+YHyPZhltKT6pQXLIpc8tPPL5bWaB/8je5UJy8lZZ0+9mBKw==}
+
+  '@hyperjump/uri@1.4.1':
+    resolution: {integrity: sha512-AvzrZhbAXctdMe1WQXKtfymmK+nSTVE3f2edfMdAt4QwK8147HKPH+vr5AyzjEgReFetX5x5NGtIBYy/NO4tNQ==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -4311,6 +4333,10 @@ packages:
   idn-hostname@15.1.15:
     resolution: {integrity: sha512-iZuQU4W6ui2xmXsmdZftiV4lwLXTlDmxKfKLPcGrIMGvZb1/m2pQqW2Hb7zFByBkp1jPQWHU0Ioc7S6BjfmY1g==}
 
+  idn-hostname@15.1.19:
+    resolution: {integrity: sha512-pRGRbFpQWCptOBWw9Gn5DXtPdern5/XtdkcXdoEavjd+sh72jNm2eVI1eeysp64UisXPfaqoQrnLUKpSN4hJWw==}
+    engines: {node: '>=20.12.0 <21 || >=22.0.0'}
+
   immutable@5.1.9:
     resolution: {integrity: sha512-m8nVez3rwrgmWxtLMt1ZYXB2Lv7OKYn/disyxAlSDYAlKSlFoPPfIAmAM/M5xqL4m4C/wAPw7S2/CNaUii1Hxg==}
 
@@ -5772,8 +5798,8 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  uuid@14.0.2:
-    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
+  uuid@14.0.3:
+    resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
     hasBin: true
 
   valid-url@1.0.9:
@@ -6510,6 +6536,8 @@ snapshots:
 
   '@babel/helper-plugin-utils@7.29.7': {}
 
+  '@babel/helper-string-parser@7.29.14': {}
+
   '@babel/helper-string-parser@7.29.15': {}
 
   '@babel/helper-string-parser@8.1.3': {}
@@ -6531,6 +6559,10 @@ snapshots:
     dependencies:
       '@babel/template': 8.1.2
       '@babel/types': 8.1.3
+
+  '@babel/parser@7.29.14':
+    dependencies:
+      '@babel/types': 7.29.14
 
   '@babel/parser@7.29.15':
     dependencies:
@@ -6590,6 +6622,11 @@ snapshots:
       '@babel/template': 8.1.2
       '@babel/types': 8.1.3
       obug: 3.0.0
+
+  '@babel/types@7.29.14':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.14
+      '@babel/helper-validator-identifier': 7.29.7
 
   '@babel/types@7.29.15':
     dependencies:
@@ -7194,34 +7231,42 @@ snapshots:
       '@shikijs/types': 3.23.0
       '@shikijs/vscode-textmate': 10.0.2
 
-  '@hyperjump/browser@1.5.0':
+  '@hyperjump/browser@1.6.0':
     dependencies:
       '@hyperjump/json-pointer': 1.1.2
       '@hyperjump/uri': 1.3.5
       content-type: 1.0.5
-      just-curry-it: 5.3.0
 
   '@hyperjump/json-pointer@1.1.2': {}
+
+  '@hyperjump/json-pointer@1.1.4': {}
 
   '@hyperjump/json-schema-formats@1.0.5':
     dependencies:
       '@hyperjump/uri': 1.3.5
       idn-hostname: 15.1.15
 
-  '@hyperjump/json-schema@1.18.0(@hyperjump/browser@1.5.0)':
+  '@hyperjump/json-schema-formats@1.1.0':
     dependencies:
-      '@hyperjump/browser': 1.5.0
-      '@hyperjump/json-pointer': 1.1.2
-      '@hyperjump/json-schema-formats': 1.0.5
-      '@hyperjump/pact': 1.4.0
-      '@hyperjump/uri': 1.3.5
+      '@hyperjump/uri': 1.4.1
+      idn-hostname: 15.1.19
+
+  '@hyperjump/json-schema@1.18.1(@hyperjump/browser@1.6.0)':
+    dependencies:
+      '@hyperjump/browser': 1.6.0
+      '@hyperjump/json-pointer': 1.1.4
+      '@hyperjump/json-schema-formats': 1.1.0
+      '@hyperjump/pact': 1.5.1
+      '@hyperjump/uri': 1.4.1
       content-type: 1.0.5
       just-curry-it: 5.3.0
-      uuid: 14.0.2
+      uuid: 14.0.3
 
-  '@hyperjump/pact@1.4.0': {}
+  '@hyperjump/pact@1.5.1': {}
 
   '@hyperjump/uri@1.3.5': {}
+
+  '@hyperjump/uri@1.4.1': {}
 
   '@iconify/types@2.0.0': {}
 
@@ -8621,7 +8666,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.46':
     dependencies:
-      '@babel/parser': 7.29.15
+      '@babel/parser': 7.29.14
       '@vue/shared': 3.5.46
       entities: 7.0.1
       estree-walker: 2.0.2
@@ -9783,6 +9828,10 @@ snapshots:
       safer-buffer: 2.1.2
 
   idn-hostname@15.1.15:
+    dependencies:
+      punycode: 2.3.1
+
+  idn-hostname@15.1.19:
     dependencies:
       punycode: 2.3.1
 
@@ -11510,7 +11559,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@14.0.2: {}
+  uuid@14.0.3: {}
 
   valid-url@1.0.9: {}
 
