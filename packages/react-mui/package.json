@@ -51,7 +51,7 @@
   "devDependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/material": "^9.4.0",
+    "@mui/material": "^9.5.0",
     "@testing-library/react": "^16.0.0",
     "@texaryn/react": "workspace:*",
     "@texaryn/schema-json": "workspace:*",

@@ -27,7 +27,7 @@
     "@lezer/common": "1.5.3",
     "@lezer/highlight": "1.2.5",
     "@lezer/json": "1.0.3",
-    "@mui/material": "^9.4.0",
+    "@mui/material": "^9.5.0",
     "@rjsf/core": "6.11.0",
     "@rjsf/validator-ajv8": "6.11.0",
     "@texaryn/angular": "workspace:*",
@@ -49,7 +49,7 @@
     "rxjs": "^7.8.2",
     "solid-js": "^1.9.9",
     "svelte": "^5.57.2",
-    "vue": "^3.5.0"
+    "vue": "^3.5.46"
   },
   "devDependencies": {
     "@angular/compiler-cli": "20.3.34",
