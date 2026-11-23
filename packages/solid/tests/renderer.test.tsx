@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@solidjs/testing-li
 import { createSignal } from 'solid-js'
 import type { Accessor } from 'solid-js'
 import { createJsonSchemaAdapter } from '@texaryn/schema-json'
+import { englishMessages } from '@texaryn/core'
 import type { FormRuntime, NodeId, UIHints } from '@texaryn/core'
 import type { JSX } from 'solid-js'
 import { createForm } from '../src/form.js'
@@ -64,8 +65,24 @@ describe('Solid renderer', () => {
 
     const summary = await screen.findByRole('region', { name: 'There is a problem' })
     await waitFor(() => expect(document.activeElement).toBe(summary))
-    expect(screen.getByRole('textbox', { name: 'Name (required)' }).getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid')).toBe('true')
     expect(summary.querySelector('a')?.getAttribute('href')).toBeTruthy()
+  })
+
+  it('keeps the required indicator out of the accessible name and follows its message', async () => {
+    const port = await createJsonSchemaAdapter({
+      type: 'object',
+      properties: { name: { type: 'string', title: 'Name' } },
+      required: ['name'],
+    })
+    const form = createForm(port, { initialData: { name: '' } })
+    const messages = { ...englishMessages, requiredIndicator: () => ({ text: '*', placement: 'before' as const }) }
+    render(() => <FormRoot form={form} registry={createDefaultRegistry()} messages={messages} />)
+
+    const input = await screen.findByRole<HTMLInputElement>('textbox', { name: 'Name' })
+    const marker = input.labels?.[0]?.querySelector('[aria-hidden="true"]')
+    expect(marker?.textContent).toBe('* ')
+    expect(input.labels?.[0]?.textContent).toBe('* Name')
   })
 
   it('restores read-only checkbox and select state after browser changes', async () => {
