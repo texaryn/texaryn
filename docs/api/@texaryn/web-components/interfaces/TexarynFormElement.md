@@ -21,6 +21,8 @@ sources are mutually exclusive.
 
 > **accessKey**: `string`
 
+The **`HTMLElement.accessKey`** property sets the keystroke which a user can press to jump to a given element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/accessKey)
 
 #### Inherited from
@@ -33,11 +35,25 @@ sources are mutually exclusive.
 
 > `readonly` **accessKeyLabel**: `string`
 
+The **`HTMLElement.accessKeyLabel`** read-only property returns a string containing the element's browser-assigned access key (if any); otherwise it returns an empty string.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/accessKeyLabel)
 
 #### Inherited from
 
 `HTMLElement.accessKeyLabel`
+
+***
+
+### ariaActiveDescendantElement
+
+> **ariaActiveDescendantElement**: `Element` \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaActiveDescendantElement)
+
+#### Inherited from
+
+`HTMLElement.ariaActiveDescendantElement`
 
 ***
 
@@ -161,6 +177,18 @@ sources are mutually exclusive.
 
 ***
 
+### ariaControlsElements
+
+> **ariaControlsElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaControlsElements)
+
+#### Inherited from
+
+`HTMLElement.ariaControlsElements`
+
+***
+
 ### ariaCurrent
 
 > **ariaCurrent**: `string` \| `null`
@@ -170,6 +198,18 @@ sources are mutually exclusive.
 #### Inherited from
 
 `HTMLElement.ariaCurrent`
+
+***
+
+### ariaDescribedByElements
+
+> **ariaDescribedByElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaDescribedByElements)
+
+#### Inherited from
+
+`HTMLElement.ariaDescribedByElements`
 
 ***
 
@@ -185,6 +225,18 @@ sources are mutually exclusive.
 
 ***
 
+### ariaDetailsElements
+
+> **ariaDetailsElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaDetailsElements)
+
+#### Inherited from
+
+`HTMLElement.ariaDetailsElements`
+
+***
+
 ### ariaDisabled
 
 > **ariaDisabled**: `string` \| `null`
@@ -197,6 +249,18 @@ sources are mutually exclusive.
 
 ***
 
+### ariaErrorMessageElements
+
+> **ariaErrorMessageElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaErrorMessageElements)
+
+#### Inherited from
+
+`HTMLElement.ariaErrorMessageElements`
+
+***
+
 ### ariaExpanded
 
 > **ariaExpanded**: `string` \| `null`
@@ -206,6 +270,18 @@ sources are mutually exclusive.
 #### Inherited from
 
 `HTMLElement.ariaExpanded`
+
+***
+
+### ariaFlowToElements
+
+> **ariaFlowToElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaFlowToElements)
+
+#### Inherited from
+
+`HTMLElement.ariaFlowToElements`
 
 ***
 
@@ -237,6 +313,8 @@ sources are mutually exclusive.
 
 > **ariaInvalid**: `string` \| `null`
 
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaInvalid)
+
 #### Inherited from
 
 `HTMLElement.ariaInvalid`
@@ -264,6 +342,18 @@ sources are mutually exclusive.
 #### Inherited from
 
 `HTMLElement.ariaLabel`
+
+***
+
+### ariaLabelledByElements
+
+> **ariaLabelledByElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaLabelledByElements)
+
+#### Inherited from
+
+`HTMLElement.ariaLabelledByElements`
 
 ***
 
@@ -336,6 +426,18 @@ sources are mutually exclusive.
 #### Inherited from
 
 `HTMLElement.ariaOrientation`
+
+***
+
+### ariaOwnsElements
+
+> **ariaOwnsElements**: readonly `Element`[] \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/ariaOwnsElements)
+
+#### Inherited from
+
+`HTMLElement.ariaOwnsElements`
 
 ***
 
@@ -581,6 +683,8 @@ sources are mutually exclusive.
 
 > `readonly` **attributes**: `NamedNodeMap`
 
+The **`Element.attributes`** property returns a live collection of all attribute nodes registered to the specified node. It is a NamedNodeMap, not an Array, so it has no Array methods and the Attr nodes' indexes may differ among browsers. To be more specific, attributes is a key/value pair of strings that represents any information regarding that attribute.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/attributes)
 
 #### Inherited from
@@ -605,11 +709,27 @@ sources are mutually exclusive.
 
 > **autocapitalize**: `string`
 
+The **`autocapitalize`** property of the HTMLElement interface represents the element's capitalization behavior for user input. It is available on all HTML elements, though it doesn't affect all of them, including:
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/autocapitalize)
 
 #### Inherited from
 
 `HTMLElement.autocapitalize`
+
+***
+
+### autocorrect
+
+> **autocorrect**: `boolean`
+
+The **`autocorrect`** property of the HTMLElement interface controls whether or not autocorrection of editable text is enabled for spelling and/or punctuation errors.
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/autocorrect)
+
+#### Inherited from
+
+`HTMLElement.autocorrect`
 
 ***
 
@@ -629,7 +749,7 @@ sources are mutually exclusive.
 
 > `readonly` **baseURI**: `string`
 
-Returns node's node document's document base URL.
+The read-only **`baseURI`** property of the Node interface returns the absolute base URL of the document containing the node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/baseURI)
 
@@ -667,7 +787,7 @@ node is a CDATASection node.
 
 > `readonly` **childNodes**: `NodeListOf`\<`ChildNode`\>
 
-Returns the children.
+The read-only **`childNodes`** property of the Node interface returns a live NodeList of child nodes of the given element where the first child node is assigned index 0. Child nodes include elements, text and comments.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/childNodes)
 
@@ -695,7 +815,7 @@ Returns the child elements.
 
 > **className**: `string`
 
-Returns the value of element's class content attribute. Can be set to change it.
+The **`className`** property of the Element interface gets and sets the value of the class attribute of the specified element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/className)
 
@@ -709,6 +829,8 @@ Returns the value of element's class content attribute. Can be set to change it.
 
 > `readonly` **clientHeight**: `number`
 
+The **`clientHeight`** read-only property of the Element interface is zero for elements with no CSS or inline layout boxes; otherwise, it's the inner height of an element in pixels. It includes padding but excludes borders, margins, and horizontal scrollbars (if present).
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/clientHeight)
 
 #### Inherited from
@@ -720,6 +842,8 @@ Returns the value of element's class content attribute. Can be set to change it.
 ### clientLeft
 
 > `readonly` **clientLeft**: `number`
+
+The **`clientLeft`** read-only property of the Element interface returns the width of the left border of an element in pixels. It includes the width of the vertical scrollbar if the text direction of the element is right-to-left and if there is an overflow causing a left vertical scrollbar to be rendered. clientLeft does not include the left margin or the left padding.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/clientLeft)
 
@@ -733,6 +857,8 @@ Returns the value of element's class content attribute. Can be set to change it.
 
 > `readonly` **clientTop**: `number`
 
+The **`clientTop`** read-only property of the Element interface returns the width of the top border of an element in pixels.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/clientTop)
 
 #### Inherited from
@@ -744,6 +870,8 @@ Returns the value of element's class content attribute. Can be set to change it.
 ### clientWidth
 
 > `readonly` **clientWidth**: `number`
+
+The **`clientWidth`** read-only property of the Element interface is zero for inline elements and elements with no CSS; otherwise, it's the inner width of an element in pixels. It includes padding but excludes borders, margins, and vertical scrollbars (if present).
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/clientWidth)
 
@@ -781,11 +909,23 @@ node is a Comment node.
 
 > `readonly` **currentCSSZoom**: `number`
 
+The **`currentCSSZoom`** read-only property of the Element interface provides the "effective" CSS zoom of an element, taking into account the zoom applied to the element and all its parent elements.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/currentCSSZoom)
 
 #### Inherited from
 
 `HTMLElement.currentCSSZoom`
+
+***
+
+### customElementRegistry
+
+> `readonly` **customElementRegistry**: `CustomElementRegistry` \| `null`
+
+#### Inherited from
+
+`TexarynFormElement`.[`customElementRegistry`](#customelementregistry)
 
 ***
 
@@ -804,6 +944,8 @@ node is a Comment node.
 ### dir
 
 > **dir**: `string`
+
+The **`HTMLElement.dir`** property indicates the text writing directionality of the content of the current element. It reflects the element's dir attribute.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dir)
 
@@ -923,6 +1065,8 @@ node is a doctype.
 
 > **draggable**: `boolean`
 
+The **`draggable`** property of the HTMLElement interface gets and sets a Boolean primitive indicating if the element is draggable.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/draggable)
 
 #### Inherited from
@@ -995,13 +1139,13 @@ Reflected as the `error-summary` value `no-focus`. Off for all but one summary w
 
 > `readonly` **firstChild**: `ChildNode` \| `null`
 
-Returns the first child.
+The read-only **`firstChild`** property of the Node interface returns the node's first child in the tree, or null if the node has no children.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/firstChild)
 
 #### Inherited from
 
-`TexarynFormElement`.[`firstChild`](#firstchild)
+`HTMLElement.firstChild`
 
 ***
 
@@ -1015,13 +1159,15 @@ Returns the first child that is an element, and null otherwise.
 
 #### Inherited from
 
-`TexarynFormElement`.[`firstElementChild`](#firstelementchild)
+`HTMLElement.firstElementChild`
 
 ***
 
 ### hidden
 
-> **hidden**: `boolean`
+> **hidden**: `boolean` \| `"until-found"`
+
+The HTMLElement property **`hidden`** reflects the value of the element's hidden attribute.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidden)
 
@@ -1035,7 +1181,7 @@ Returns the first child that is an element, and null otherwise.
 
 > **id**: `string`
 
-Returns the value of element's id content attribute. Can be set to change it.
+The **`id`** property of the Element interface represents the element's identifier, reflecting the id global attribute.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/id)
 
@@ -1055,6 +1201,8 @@ Returns the value of element's id content attribute. Can be set to change it.
 
 > **inert**: `boolean`
 
+The HTMLElement property **`inert`** reflects the value of the element's inert attribute. It is a boolean value that, when present, makes the browser "ignore" user input events for the element, including focus events and events from assistive technologies. The browser may also ignore page search and text selection in the element. This can be useful when building UIs such as modals where you would want to "trap" the focus inside the modal when it's visible.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/inert)
 
 #### Inherited from
@@ -1067,6 +1215,8 @@ Returns the value of element's id content attribute. Can be set to change it.
 
 > **innerHTML**: `string`
 
+The **`innerHTML`** property of the Element interface gets or sets the HTML or XML markup contained within the element, omitting any shadow roots in both cases.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/innerHTML)
 
 #### Inherited from
@@ -1078,6 +1228,8 @@ Returns the value of element's id content attribute. Can be set to change it.
 ### innerText
 
 > **innerText**: `string`
+
+The **`innerText`** property of the HTMLElement interface represents the rendered text content of a node and its descendants.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/innerText)
 
@@ -1103,7 +1255,7 @@ Returns the value of element's id content attribute. Can be set to change it.
 
 > `readonly` **isConnected**: `boolean`
 
-Returns true if node is connected and false otherwise.
+The read-only **`isConnected`** property of the Node interface returns a boolean indicating whether the node is connected (directly or indirectly) to a Document object.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/isConnected)
 
@@ -1129,6 +1281,8 @@ Returns true if node is connected and false otherwise.
 
 > **lang**: `string`
 
+The **`lang`** property of the HTMLElement interface indicates the base language of an element's attribute values and text content, in the form of a BCP 47 language tag. It reflects the element's lang attribute; the xml:lang attribute does not affect this property.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/lang)
 
 #### Inherited from
@@ -1141,13 +1295,13 @@ Returns true if node is connected and false otherwise.
 
 > `readonly` **lastChild**: `ChildNode` \| `null`
 
-Returns the last child.
+The read-only **`lastChild`** property of the Node interface returns the last child of the node, or null if there are no child nodes.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/lastChild)
 
 #### Inherited from
 
-`TexarynFormElement`.[`lastChild`](#lastchild)
+`HTMLElement.lastChild`
 
 ***
 
@@ -1161,7 +1315,7 @@ Returns the last child that is an element, and null otherwise.
 
 #### Inherited from
 
-`TexarynFormElement`.[`lastElementChild`](#lastelementchild)
+`HTMLElement.lastElementChild`
 
 ***
 
@@ -1169,7 +1323,7 @@ Returns the last child that is an element, and null otherwise.
 
 > `readonly` **localName**: `string`
 
-Returns the local name.
+The **`Element.localName`** read-only property returns the local part of the qualified name of an element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/localName)
 
@@ -1191,7 +1345,7 @@ The whole set, or English. Setting it on a mounted element switches the copy in 
 
 > `readonly` **namespaceURI**: `string` \| `null`
 
-Returns the namespace.
+The **`Element.namespaceURI`** read-only property returns the namespace URI of the element, or null if the element is not in a namespace.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/namespaceURI)
 
@@ -1219,13 +1373,13 @@ Returns the first following sibling that is an element, and null otherwise.
 
 > `readonly` **nextSibling**: `ChildNode` \| `null`
 
-Returns the next sibling.
+The read-only **`nextSibling`** property of the Node interface returns the node immediately following the specified one in their parent's childNodes, or returns null if the specified node is the last child in the parent element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/nextSibling)
 
 #### Inherited from
 
-`TexarynFormElement`.[`nextSibling`](#nextsibling)
+`HTMLElement.nextSibling`
 
 ***
 
@@ -1233,7 +1387,7 @@ Returns the next sibling.
 
 > `readonly` **nodeName**: `string`
 
-Returns a string appropriate for the type of node.
+The read-only **`nodeName`** property of Node returns the name of the current node as a string.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/nodeName)
 
@@ -1247,7 +1401,7 @@ Returns a string appropriate for the type of node.
 
 > `readonly` **nodeType**: `number`
 
-Returns the type of node.
+The read-only **`nodeType`** property of a Node interface is an integer that identifies what the node is. It distinguishes different kinds of nodes from each other, such as elements, text, and comments.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/nodeType)
 
@@ -1261,17 +1415,19 @@ Returns the type of node.
 
 > **nodeValue**: `string` \| `null`
 
+The **`nodeValue`** property of the Node interface returns or sets the value of the current node.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/nodeValue)
 
 #### Inherited from
 
-`TexarynFormElement`.[`nodeValue`](#nodevalue)
+`HTMLElement.nodeValue`
 
 ***
 
-### nonce?
+### nonce
 
-> `optional` **nonce?**: `string`
+> **nonce**: `string`
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/nonce)
 
@@ -1295,6 +1451,8 @@ Returns the type of node.
 
 > `readonly` **offsetHeight**: `number`
 
+The **`offsetHeight`** read-only property of the HTMLElement interface returns the height of an element, including vertical padding and borders, as an integer.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/offsetHeight)
 
 #### Inherited from
@@ -1306,6 +1464,8 @@ Returns the type of node.
 ### offsetLeft
 
 > `readonly` **offsetLeft**: `number`
+
+The **`offsetLeft`** read-only property of the HTMLElement interface returns the number of pixels that the upper left corner of the current element is offset to the left within the HTMLElement.offsetParent node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/offsetLeft)
 
@@ -1319,6 +1479,8 @@ Returns the type of node.
 
 > `readonly` **offsetParent**: `Element` \| `null`
 
+The **`HTMLElement.offsetParent`** read-only property returns a reference to the element which is the closest (nearest in the containment hierarchy) positioned ancestor element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/offsetParent)
 
 #### Inherited from
@@ -1330,6 +1492,8 @@ Returns the type of node.
 ### offsetTop
 
 > `readonly` **offsetTop**: `number`
+
+The **`offsetTop`** read-only property of the HTMLElement interface returns the distance from the outer border of the current element (including its margin) to the top padding edge of the offsetParent, the closest positioned ancestor element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/offsetTop)
 
@@ -1343,6 +1507,8 @@ Returns the type of node.
 
 > `readonly` **offsetWidth**: `number`
 
+The **`offsetWidth`** read-only property of the HTMLElement interface returns the layout width of an element as an integer.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/offsetWidth)
 
 #### Inherited from
@@ -1354,14 +1520,6 @@ Returns the type of node.
 ### onabort
 
 > **onabort**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user aborts the download.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/abort_event)
 
@@ -1443,6 +1601,18 @@ The event.
 
 ***
 
+### onbeforematch
+
+> **onbeforematch**: ((`this`, `ev`) => `any`) \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/beforematch_event)
+
+#### Inherited from
+
+`HTMLElement.onbeforematch`
+
+***
+
 ### onbeforetoggle
 
 > **onbeforetoggle**: ((`this`, `ev`) => `any`) \| `null`
@@ -1458,14 +1628,6 @@ The event.
 ### onblur
 
 > **onblur**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the object loses the input focus.
-
-#### Param
-
-**ev**
-
-The focus event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/blur_event)
 
@@ -1491,14 +1653,6 @@ The focus event.
 
 > **oncanplay**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when playback is possible, but would require further buffering.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/canplay_event)
 
 #### Inherited from
@@ -1523,14 +1677,6 @@ The event.
 
 > **onchange**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the contents of the object or selection have changed.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/change_event)
 
 #### Inherited from
@@ -1542,14 +1688,6 @@ The event.
 ### onclick
 
 > **onclick**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user clicks the left mouse button on the object
-
-#### Param
-
-**ev**
-
-The mouse event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/click_event)
 
@@ -1571,6 +1709,18 @@ The mouse event.
 
 ***
 
+### oncommand
+
+> **oncommand**: ((`this`, `ev`) => `any`) \| `null`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/command_event)
+
+#### Inherited from
+
+`HTMLElement.oncommand`
+
+***
+
 ### oncontextlost
 
 > **oncontextlost**: ((`this`, `ev`) => `any`) \| `null`
@@ -1586,14 +1736,6 @@ The mouse event.
 ### oncontextmenu
 
 > **oncontextmenu**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user clicks the right mouse button in the client area, opening the context menu.
-
-#### Param
-
-**ev**
-
-The mouse event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/contextmenu_event)
 
@@ -1655,14 +1797,6 @@ The mouse event.
 
 > **ondblclick**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the user double-clicks the object.
-
-#### Param
-
-**ev**
-
-The mouse event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/dblclick_event)
 
 #### Inherited from
@@ -1674,14 +1808,6 @@ The mouse event.
 ### ondrag
 
 > **ondrag**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires on the source object continuously during a drag operation.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/drag_event)
 
@@ -1695,14 +1821,6 @@ The event.
 
 > **ondragend**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires on the source object when the user releases the mouse at the close of a drag operation.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dragend_event)
 
 #### Inherited from
@@ -1714,14 +1832,6 @@ The event.
 ### ondragenter
 
 > **ondragenter**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires on the target element when the user drags the object to a valid drop target.
-
-#### Param
-
-**ev**
-
-The drag event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dragenter_event)
 
@@ -1735,14 +1845,6 @@ The drag event.
 
 > **ondragleave**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires on the target object when the user moves the mouse out of a valid drop target during a drag operation.
-
-#### Param
-
-**ev**
-
-The drag event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dragleave_event)
 
 #### Inherited from
@@ -1755,14 +1857,6 @@ The drag event.
 
 > **ondragover**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires on the target element continuously while the user drags the object over a valid drop target.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dragover_event)
 
 #### Inherited from
@@ -1774,14 +1868,6 @@ The event.
 ### ondragstart
 
 > **ondragstart**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires on the source object when the user starts to drag a text selection or selected object.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/dragstart_event)
 
@@ -1807,14 +1893,6 @@ The event.
 
 > **ondurationchange**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the duration attribute is updated.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/durationchange_event)
 
 #### Inherited from
@@ -1826,14 +1904,6 @@ The event.
 ### onemptied
 
 > **onemptied**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs when the media element is reset to its initial state.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/emptied_event)
 
@@ -1847,14 +1917,6 @@ The event.
 
 > **onended**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the end of playback is reached.
-
-#### Param
-
-**ev**
-
-The event
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/ended_event)
 
 #### Inherited from
@@ -1867,14 +1929,6 @@ The event
 
 > **onerror**: `OnErrorEventHandler`
 
-Fires when an error occurs during object loading.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/error_event)
 
 #### Inherited from
@@ -1886,14 +1940,6 @@ The event.
 ### onfocus
 
 > **onfocus**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the object receives focus.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/focus_event)
 
@@ -1979,14 +2025,6 @@ The event.
 
 > **onkeydown**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the user presses a key.
-
-#### Param
-
-**ev**
-
-The keyboard event
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/keydown_event)
 
 #### Inherited from
@@ -1998,14 +2036,6 @@ The keyboard event
 ### ~~onkeypress~~
 
 > **onkeypress**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user presses an alphanumeric key.
-
-#### Param
-
-**ev**
-
-The event.
 
 #### Deprecated
 
@@ -2021,14 +2051,6 @@ The event.
 
 > **onkeyup**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the user releases a key.
-
-#### Param
-
-**ev**
-
-The keyboard event
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/keyup_event)
 
 #### Inherited from
@@ -2041,15 +2063,7 @@ The keyboard event
 
 > **onload**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires immediately after the browser loads the object.
-
-#### Param
-
-**ev**
-
-The event.
-
-[MDN Reference](https://developer.mozilla.org/docs/Web/API/SVGElement/load_event)
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/load_event)
 
 #### Inherited from
 
@@ -2060,14 +2074,6 @@ The event.
 ### onloadeddata
 
 > **onloadeddata**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs when media data is loaded at the current playback position.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/loadeddata_event)
 
@@ -2081,14 +2087,6 @@ The event.
 
 > **onloadedmetadata**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the duration and dimensions of the media have been determined.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/loadedmetadata_event)
 
 #### Inherited from
@@ -2100,14 +2098,6 @@ The event.
 ### onloadstart
 
 > **onloadstart**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs when Internet Explorer begins looking for media data.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/loadstart_event)
 
@@ -2132,14 +2122,6 @@ The event.
 ### onmousedown
 
 > **onmousedown**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user clicks the object with either mouse button.
-
-#### Param
-
-**ev**
-
-The mouse event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/mousedown_event)
 
@@ -2177,14 +2159,6 @@ The mouse event.
 
 > **onmousemove**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the user moves the mouse over the object.
-
-#### Param
-
-**ev**
-
-The mouse event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/mousemove_event)
 
 #### Inherited from
@@ -2196,14 +2170,6 @@ The mouse event.
 ### onmouseout
 
 > **onmouseout**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user moves the mouse pointer outside the boundaries of the object.
-
-#### Param
-
-**ev**
-
-The mouse event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/mouseout_event)
 
@@ -2217,14 +2183,6 @@ The mouse event.
 
 > **onmouseover**: ((`this`, `ev`) => `any`) \| `null`
 
-Fires when the user moves the mouse pointer into the object.
-
-#### Param
-
-**ev**
-
-The mouse event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/mouseover_event)
 
 #### Inherited from
@@ -2236,14 +2194,6 @@ The mouse event.
 ### onmouseup
 
 > **onmouseup**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user releases a mouse button while the mouse is over the object.
-
-#### Param
-
-**ev**
-
-The mouse event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/mouseup_event)
 
@@ -2269,14 +2219,6 @@ The mouse event.
 
 > **onpause**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when playback is paused.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/pause_event)
 
 #### Inherited from
@@ -2289,14 +2231,6 @@ The event.
 
 > **onplay**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the play method is requested.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/play_event)
 
 #### Inherited from
@@ -2308,14 +2242,6 @@ The event.
 ### onplaying
 
 > **onplaying**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs when the audio or video has started playing.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/playing_event)
 
@@ -2409,6 +2335,20 @@ The event.
 
 ***
 
+### onpointerrawupdate
+
+> **onpointerrawupdate**: ((`this`, `ev`) => `any`) \| `null`
+
+Available only in secure contexts.
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/pointerrawupdate_event)
+
+#### Inherited from
+
+`HTMLElement.onpointerrawupdate`
+
+***
+
 ### onpointerup
 
 > **onpointerup**: ((`this`, `ev`) => `any`) \| `null`
@@ -2425,14 +2365,6 @@ The event.
 
 > **onprogress**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs to indicate progress while downloading media data.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/progress_event)
 
 #### Inherited from
@@ -2445,14 +2377,6 @@ The event.
 
 > **onratechange**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the playback rate is increased or decreased.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/ratechange_event)
 
 #### Inherited from
@@ -2464,14 +2388,6 @@ The event.
 ### onreset
 
 > **onreset**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user resets a form.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLFormElement/reset_event)
 
@@ -2496,14 +2412,6 @@ The event.
 ### onscroll
 
 > **onscroll**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the user repositions the scroll box in the scroll bar on the object.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Document/scroll_event)
 
@@ -2541,14 +2449,6 @@ The event.
 
 > **onseeked**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the seek operation ends.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/seeked_event)
 
 #### Inherited from
@@ -2561,14 +2461,6 @@ The event.
 
 > **onseeking**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the current playback position is moved.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/seeking_event)
 
 #### Inherited from
@@ -2580,14 +2472,6 @@ The event.
 ### onselect
 
 > **onselect**: ((`this`, `ev`) => `any`) \| `null`
-
-Fires when the current selection changes.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLInputElement/select_event)
 
@@ -2637,14 +2521,6 @@ The event.
 
 > **onstalled**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the download has stopped.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/stalled_event)
 
 #### Inherited from
@@ -2669,14 +2545,6 @@ The event.
 
 > **onsuspend**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs if the load operation has been intentionally halted.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/suspend_event)
 
 #### Inherited from
@@ -2688,14 +2556,6 @@ The event.
 ### ontimeupdate
 
 > **ontimeupdate**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs to indicate the current playback position.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/timeupdate_event)
 
@@ -2817,14 +2677,6 @@ The event.
 
 > **onvolumechange**: ((`this`, `ev`) => `any`) \| `null`
 
-Occurs when the volume is changed, or playback is muted or unmuted.
-
-#### Param
-
-**ev**
-
-The event.
-
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/volumechange_event)
 
 #### Inherited from
@@ -2836,14 +2688,6 @@ The event.
 ### onwaiting
 
 > **onwaiting**: ((`this`, `ev`) => `any`) \| `null`
-
-Occurs when playback stops because the next frame of a video resource is not available.
-
-#### Param
-
-**ev**
-
-The event.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLMediaElement/waiting_event)
 
@@ -2941,6 +2785,8 @@ Read when the managed runtime is created, so set it before `port`.
 
 > **outerHTML**: `string`
 
+The **`outerHTML`** attribute of the Element interface gets or sets the HTML or XML markup of the element and its descendants, omitting any shadow roots in both cases.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/outerHTML)
 
 #### Inherited from
@@ -2952,6 +2798,8 @@ Read when the managed runtime is created, so set it before `port`.
 ### outerText
 
 > **outerText**: `string`
+
+The **`outerText`** property of the HTMLElement interface returns the same value as HTMLElement.innerText. When used as a setter it replaces the whole current node with the given text (this differs from innerText, which replaces the content inside the current node).
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/outerText)
 
@@ -2965,7 +2813,7 @@ Read when the managed runtime is created, so set it before `port`.
 
 > `readonly` **ownerDocument**: `Document`
 
-Returns the node document. Returns null for documents.
+The read-only **`ownerDocument`** property of the Node interface returns the top-level document object of the node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/ownerDocument)
 
@@ -2979,13 +2827,13 @@ Returns the node document. Returns null for documents.
 
 > `readonly` **parentElement**: `HTMLElement` \| `null`
 
-Returns the parent element.
+The read-only **`parentElement`** property of Node interface returns the DOM node's parent Element, or null if the node either has no parent, or its parent isn't a DOM Element. Node.parentNode on the other hand returns any kind of parent, regardless of its type.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/parentElement)
 
 #### Inherited from
 
-`TexarynFormElement`.[`parentElement`](#parentelement)
+`HTMLElement.parentElement`
 
 ***
 
@@ -2993,19 +2841,21 @@ Returns the parent element.
 
 > `readonly` **parentNode**: `ParentNode` \| `null`
 
-Returns the parent.
+The read-only **`parentNode`** property of the Node interface returns the parent of the specified node in the DOM tree.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/parentNode)
 
 #### Inherited from
 
-`TexarynFormElement`.[`parentNode`](#parentnode)
+`HTMLElement.parentNode`
 
 ***
 
 ### popover
 
 > **popover**: `string` \| `null`
+
+The **`popover`** property of the HTMLElement interface gets and sets an element's popover state via JavaScript ("auto", "hint", or "manual"), and can be used for feature detection.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/popover)
 
@@ -3027,7 +2877,7 @@ Managed: the element builds a runtime from this and destroys it on removal.
 
 > `readonly` **prefix**: `string` \| `null`
 
-Returns the namespace prefix.
+The **`Element.prefix`** read-only property returns the namespace prefix of the specified element, or null if no prefix is specified.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/prefix)
 
@@ -3055,13 +2905,13 @@ Returns the first preceding sibling that is an element, and null otherwise.
 
 > `readonly` **previousSibling**: `ChildNode` \| `null`
 
-Returns the previous sibling.
+The read-only **`previousSibling`** property of the Node interface returns the node immediately preceding the specified one in its parent's childNodes list, or null if the specified node is the first in that list.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/previousSibling)
 
 #### Inherited from
 
-`TexarynFormElement`.[`previousSibling`](#previoussibling)
+`HTMLElement.previousSibling`
 
 ***
 
@@ -3087,6 +2937,8 @@ node is a ProcessingInstruction node.
 
 > **role**: `string` \| `null`
 
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/role)
+
 #### Inherited from
 
 `HTMLElement.role`
@@ -3105,6 +2957,8 @@ Borrowed: assigned from outside, rendered, and never destroyed by the element.
 
 > `readonly` **scrollHeight**: `number`
 
+The **`scrollHeight`** read-only property of the Element interface is a measurement of the height of an element's content, including content not visible on the screen due to overflow.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollHeight)
 
 #### Inherited from
@@ -3116,6 +2970,8 @@ Borrowed: assigned from outside, rendered, and never destroyed by the element.
 ### scrollLeft
 
 > **scrollLeft**: `number`
+
+The **`scrollLeft`** property of the Element interface gets or sets the number of pixels by which an element's content is scrolled from its left edge. This value is subpixel precise in modern browsers, meaning that it isn't necessarily a whole number.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollLeft)
 
@@ -3129,6 +2985,8 @@ Borrowed: assigned from outside, rendered, and never destroyed by the element.
 
 > **scrollTop**: `number`
 
+The **`scrollTop`** property of the Element interface gets or sets the number of pixels by which an element's content is scrolled from its top edge. This value is subpixel precise in modern browsers, meaning that it isn't necessarily a whole number.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollTop)
 
 #### Inherited from
@@ -3140,6 +2998,8 @@ Borrowed: assigned from outside, rendered, and never destroyed by the element.
 ### scrollWidth
 
 > `readonly` **scrollWidth**: `number`
+
+The **`scrollWidth`** read-only property of the Element interface is a measurement of the width of an element's content, including content not visible on the screen due to overflow.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollWidth)
 
@@ -3153,7 +3013,7 @@ Borrowed: assigned from outside, rendered, and never destroyed by the element.
 
 > `readonly` **shadowRoot**: `ShadowRoot` \| `null`
 
-Returns element's shadow root, if any, and if shadow root's mode is "open", and null otherwise.
+The **`Element.shadowRoot`** read-only property represents the shadow root hosted by the element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/shadowRoot)
 
@@ -3167,7 +3027,7 @@ Returns element's shadow root, if any, and if shadow root's mode is "open", and 
 
 > **slot**: `string`
 
-Returns the value of element's slot content attribute. Can be set to change it.
+The **`slot`** property of the Element interface returns the name of the shadow DOM slot the element is inserted in.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/slot)
 
@@ -3180,6 +3040,8 @@ Returns the value of element's slot content attribute. Can be set to change it.
 ### spellcheck
 
 > **spellcheck**: `boolean`
+
+The **`spellcheck`** property of the HTMLElement interface represents a boolean value that controls the spell-checking hint. It is available on all HTML elements, though it doesn't affect all of them.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/spellcheck)
 
@@ -3205,7 +3067,7 @@ Returns the value of element's slot content attribute. Can be set to change it.
 
 > `readonly` **tagName**: `string`
 
-Returns the HTML-uppercased qualified name.
+The **`tagName`** read-only property of the Element interface returns the tag name of the element on which it's called.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/tagName)
 
@@ -3227,21 +3089,11 @@ node is a Text node.
 
 ***
 
-### textContent
-
-> **textContent**: `string` \| `null`
-
-[MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/textContent)
-
-#### Inherited from
-
-`TexarynFormElement`.[`textContent`](#textcontent)
-
-***
-
 ### title
 
 > **title**: `string`
+
+The **`HTMLElement.title`** property represents the title of the element: the text usually displayed in a 'tooltip' popup when the mouse is over the node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/title)
 
@@ -3255,6 +3107,8 @@ node is a Text node.
 
 > **translate**: `boolean`
 
+The **`translate`** property of the HTMLElement interface indicates whether an element's attribute values and the values of its Text node children are to be translated when the page is localized, or whether to leave them unchanged.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/translate)
 
 #### Inherited from
@@ -3266,6 +3120,8 @@ node is a Text node.
 ### writingSuggestions
 
 > **writingSuggestions**: `string`
+
+The **`writingSuggestions`** property of the HTMLElement interface is a string indicating if browser-provided writing suggestions should be enabled under the scope of the element or not.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/writingSuggestions)
 
@@ -3281,7 +3137,7 @@ node is a Text node.
 
 > **get** **classList**(): `DOMTokenList`
 
-Allows for manipulation of element's class content attribute as a set of whitespace-separated tokens through a DOMTokenList object.
+The read-only **`classList`** property of the Element interface contains a live DOMTokenList collection representing the class attribute of the element. This can then be used to manipulate the class list.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/classList)
 
@@ -3314,6 +3170,8 @@ Allows for manipulation of element's class content attribute as a set of whitesp
 #### Get Signature
 
 > **get** **part**(): `DOMTokenList`
+
+The read-only **`part`** property of the Element interface contains a DOMTokenList object representing the part identifier(s) of the element. It reflects the element's part content attribute. These can be used to style parts of a shadow DOM, via the ::part pseudo-element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/part)
 
@@ -3370,6 +3228,42 @@ Allows for manipulation of element's class content attribute as a set of whitesp
 #### Inherited from
 
 `HTMLElement.style`
+
+***
+
+### textContent
+
+#### Get Signature
+
+> **get** **textContent**(): `string`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/textContent)
+
+##### Returns
+
+`string`
+
+#### Set Signature
+
+> **set** **textContent**(`value`): `void`
+
+The **`textContent`** property of the Node interface represents the text content of the node and its descendants.
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/textContent)
+
+##### Parameters
+
+###### value
+
+`string` \| `null`
+
+##### Returns
+
+`void`
+
+#### Inherited from
+
+`TexarynFormElement`.[`textContent`](#textcontent)
 
 ## Methods
 
@@ -3517,6 +3411,8 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **appendChild**\<`T`\>(`node`): `T`
 
+The **`appendChild()`** method of the Node interface adds a node to the end of the list of children of a specified parent node.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/appendChild)
 
 #### Type Parameters
@@ -3545,6 +3441,8 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **attachInternals**(): `ElementInternals`
 
+The **`HTMLElement.attachInternals()`** method returns an ElementInternals object. This method allows a custom element to participate in HTML forms. The ElementInternals interface provides utilities for working with these elements in the same way you would work with any standard HTML form element, and also exposes the Accessibility Object Model to the element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/attachInternals)
 
 #### Returns
@@ -3561,7 +3459,7 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **attachShadow**(`init`): `ShadowRoot`
 
-Creates a shadow root for element and returns it.
+The **`Element.attachShadow()`** method attaches a shadow DOM tree to the specified element and returns a reference to its ShadowRoot.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/attachShadow)
 
@@ -3627,6 +3525,8 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **checkVisibility**(`options?`): `boolean`
 
+The **`checkVisibility()`** method of the Element interface checks whether the element is visible.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/checkVisibility)
 
 #### Parameters
@@ -3649,6 +3549,8 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **click**(): `void`
 
+The **`HTMLElement.click()`** method simulates a mouse click on an element. When called on an element, the element's click event is fired (unless its disabled attribute is set).
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/click)
 
 #### Returns
@@ -3665,7 +3567,7 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **cloneNode**(`subtree?`): `Node`
 
-Returns a copy of node. If deep is true, the copy also includes the node's descendants.
+The **`cloneNode()`** method of the Node interface returns a duplicate of the node on which this method was called. Its parameter controls if the subtree contained in the node is also cloned or not.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/cloneNode)
 
@@ -3691,7 +3593,7 @@ Returns a copy of node. If deep is true, the copy also includes the node's desce
 
 > **closest**\<`K`\>(`selector`): `HTMLElementTagNameMap`\[`K`\] \| `null`
 
-Returns the first (starting at element) inclusive ancestor that matches selectors, and null otherwise.
+The **`closest()`** method of the Element interface traverses the element and its parents (heading toward the document root) until it finds a node that matches the specified CSS selector.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/closest)
 
@@ -3793,7 +3695,7 @@ Returns the first (starting at element) inclusive ancestor that matches selector
 
 > **compareDocumentPosition**(`other`): `number`
 
-Returns a bitmask indicating the position of other relative to node.
+The **`compareDocumentPosition()`** method of the Node interface reports the position of its argument node relative to the node on which it is called.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/compareDocumentPosition)
 
@@ -3817,6 +3719,8 @@ Returns a bitmask indicating the position of other relative to node.
 
 > **computedStyleMap**(): `StylePropertyMapReadOnly`
 
+The **`computedStyleMap()`** method of the Element interface returns a StylePropertyMapReadOnly interface which provides a read-only representation of a CSS declaration block that is an alternative to CSSStyleDeclaration.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/computedStyleMap)
 
 #### Returns
@@ -3833,7 +3737,7 @@ Returns a bitmask indicating the position of other relative to node.
 
 > **contains**(`other`): `boolean`
 
-Returns true if other is an inclusive descendant of node, and false otherwise.
+The **`contains()`** method of the Node interface returns a boolean value indicating whether a node is a descendant of a given node, that is the node itself, one of its direct children (childNodes), one of the children's direct children, and so on.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/contains)
 
@@ -3857,7 +3761,7 @@ Returns true if other is an inclusive descendant of node, and false otherwise.
 
 > **dispatchEvent**(`event`): `boolean`
 
-Dispatches a synthetic event event to target and returns true if either event's cancelable attribute value is false or its preventDefault() method was not invoked, and false otherwise.
+The **`dispatchEvent()`** method of the EventTarget sends an Event to the object, (synchronously) invoking the affected event listeners in the appropriate order. The normal event processing rules (including the capturing and optional bubbling phase) also apply to events dispatched manually with dispatchEvent().
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/EventTarget/dispatchEvent)
 
@@ -3925,7 +3829,7 @@ Dispatches a synthetic event event to target and returns true if either event's 
 
 > **getAttribute**(`qualifiedName`): `string` \| `null`
 
-Returns element's first attribute whose qualified name is qualifiedName, and null if there is no such attribute otherwise.
+The **`getAttribute()`** method of the Element interface returns the value of a specified attribute on the element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getAttribute)
 
@@ -3949,7 +3853,7 @@ Returns element's first attribute whose qualified name is qualifiedName, and nul
 
 > **getAttributeNames**(): `string`[]
 
-Returns the qualified names of all element's attributes. Can contain duplicates.
+The **`getAttributeNames()`** method of the Element interface returns the attribute names of the element as an Array of strings. If the element has no attributes it returns an empty array.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getAttributeNames)
 
@@ -3966,6 +3870,8 @@ Returns the qualified names of all element's attributes. Can contain duplicates.
 ### getAttributeNode()
 
 > **getAttributeNode**(`qualifiedName`): `Attr` \| `null`
+
+Returns the specified attribute of the specified element, as an Attr node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getAttributeNode)
 
@@ -3988,6 +3894,8 @@ Returns the qualified names of all element's attributes. Can contain duplicates.
 ### getAttributeNodeNS()
 
 > **getAttributeNodeNS**(`namespace`, `localName`): `Attr` \| `null`
+
+The **`getAttributeNodeNS()`** method of the Element interface returns the namespaced Attr node of an element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getAttributeNodeNS)
 
@@ -4015,7 +3923,7 @@ Returns the qualified names of all element's attributes. Can contain duplicates.
 
 > **getAttributeNS**(`namespace`, `localName`): `string` \| `null`
 
-Returns element's attribute whose namespace is namespace and local name is localName, and null if there is no such attribute otherwise.
+The **`getAttributeNS()`** method of the Element interface returns the string value of the attribute with the specified namespace and name. If the named attribute does not exist, the value returned will either be null or "" (the empty string); see Notes for details.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getAttributeNS)
 
@@ -4043,6 +3951,8 @@ Returns element's attribute whose namespace is namespace and local name is local
 
 > **getBoundingClientRect**(): `DOMRect`
 
+The **`Element.getBoundingClientRect()`** method returns a DOMRect object providing information about the size of an element and its position relative to the viewport.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getBoundingClientRect)
 
 #### Returns
@@ -4058,6 +3968,8 @@ Returns element's attribute whose namespace is namespace and local name is local
 ### getClientRects()
 
 > **getClientRects**(): `DOMRectList`
+
+The **`getClientRects()`** method of the Element interface returns a collection of DOMRect objects that indicate the bounding rectangles for each CSS border box in a client.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getClientRects)
 
@@ -4075,7 +3987,7 @@ Returns element's attribute whose namespace is namespace and local name is local
 
 > **getElementsByClassName**(`classNames`): `HTMLCollectionOf`\<`Element`\>
 
-Returns a HTMLCollection of the elements in the object on which the method was invoked (a document or an element) that have all the classes given by classNames. The classNames argument is interpreted as a space-separated list of classes.
+The Element method **`getElementsByClassName()`** returns a live HTMLCollection which contains every descendant element which has the specified class name or names.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getElementsByClassName)
 
@@ -4100,6 +4012,8 @@ Returns a HTMLCollection of the elements in the object on which the method was i
 #### Call Signature
 
 > **getElementsByTagName**\<`K`\>(`qualifiedName`): `HTMLCollectionOf`\<`HTMLElementTagNameMap`\[`K`\]\>
+
+The **`Element.getElementsByTagName()`** method returns a live HTMLCollection of elements with the given tag name.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getElementsByTagName)
 
@@ -4223,6 +4137,8 @@ Returns a HTMLCollection of the elements in the object on which the method was i
 
 > **getElementsByTagNameNS**(`namespaceURI`, `localName`): `HTMLCollectionOf`\<`HTMLElement`\>
 
+The **`Element.getElementsByTagNameNS()`** method returns a live HTMLCollection of elements with the given tag name belonging to the given namespace. It is similar to Document.getElementsByTagNameNS, except that its search is restricted to descendants of the specified element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getElementsByTagNameNS)
 
 ##### Parameters
@@ -4315,6 +4231,8 @@ Returns a HTMLCollection of the elements in the object on which the method was i
 
 > **getHTML**(`options?`): `string`
 
+The **`getHTML()`** method of the Element interface is used to serialize an element's DOM to an HTML string.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/getHTML)
 
 #### Parameters
@@ -4337,7 +4255,7 @@ Returns a HTMLCollection of the elements in the object on which the method was i
 
 > **getRootNode**(`options?`): `Node`
 
-Returns node's root.
+The **`getRootNode()`** method of the Node interface returns the context object's root, which optionally includes the shadow root if it is available.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/getRootNode)
 
@@ -4361,7 +4279,7 @@ Returns node's root.
 
 > **hasAttribute**(`qualifiedName`): `boolean`
 
-Returns true if element has an attribute whose qualified name is qualifiedName, and false otherwise.
+The **`Element.hasAttribute()`** method returns a Boolean value indicating whether the specified element has the specified attribute or not.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/hasAttribute)
 
@@ -4385,7 +4303,7 @@ Returns true if element has an attribute whose qualified name is qualifiedName, 
 
 > **hasAttributeNS**(`namespace`, `localName`): `boolean`
 
-Returns true if element has an attribute whose namespace is namespace and local name is localName.
+The **`hasAttributeNS()`** method of the Element interface returns a boolean value indicating whether the current element has the specified attribute with the specified namespace.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/hasAttributeNS)
 
@@ -4413,7 +4331,7 @@ Returns true if element has an attribute whose namespace is namespace and local 
 
 > **hasAttributes**(): `boolean`
 
-Returns true if element has attributes, and false otherwise.
+The **`hasAttributes()`** method of the Element interface returns a boolean value indicating whether the current element has any attributes or not.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/hasAttributes)
 
@@ -4431,7 +4349,7 @@ Returns true if element has attributes, and false otherwise.
 
 > **hasChildNodes**(): `boolean`
 
-Returns whether node has children.
+The **`hasChildNodes()`** method of the Node interface returns a boolean value indicating whether the given Node has child nodes or not.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/hasChildNodes)
 
@@ -4448,6 +4366,8 @@ Returns whether node has children.
 ### hasPointerCapture()
 
 > **hasPointerCapture**(`pointerId`): `boolean`
+
+The **`hasPointerCapture()`** method of the Element interface checks whether the element on which it is invoked has pointer capture for the pointer identified by the given pointer ID.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/hasPointerCapture)
 
@@ -4471,6 +4391,8 @@ Returns whether node has children.
 
 > **hidePopover**(): `void`
 
+The **`hidePopover()`** method of the HTMLElement interface hides a popover element (i.e., one that has a valid popover attribute) by removing it from the top layer and styling it with display: none.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover)
 
 #### Returns
@@ -4486,6 +4408,8 @@ Returns whether node has children.
 ### insertAdjacentElement()
 
 > **insertAdjacentElement**(`where`, `element`): `Element` \| `null`
+
+The **`insertAdjacentElement()`** method of the Element interface inserts a given element node at a given position relative to the element it is invoked upon.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/insertAdjacentElement)
 
@@ -4513,6 +4437,8 @@ Returns whether node has children.
 
 > **insertAdjacentHTML**(`position`, `string`): `void`
 
+The **`insertAdjacentHTML()`** method of the Element interface parses the specified input as HTML or XML and inserts the resulting nodes into the DOM tree at a specified position.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/insertAdjacentHTML)
 
 #### Parameters
@@ -4539,6 +4465,8 @@ Returns whether node has children.
 
 > **insertAdjacentText**(`where`, `data`): `void`
 
+The **`insertAdjacentText()`** method of the Element interface, given a relative position and a string, inserts a new text node at the given position relative to the element it is called from.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/insertAdjacentText)
 
 #### Parameters
@@ -4564,6 +4492,8 @@ Returns whether node has children.
 ### insertBefore()
 
 > **insertBefore**\<`T`\>(`node`, `child`): `T`
+
+The **`insertBefore()`** method of the Node interface inserts a node before a reference node as a child of a specified parent node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/insertBefore)
 
@@ -4597,6 +4527,8 @@ Returns whether node has children.
 
 > **isDefaultNamespace**(`namespace`): `boolean`
 
+The **`isDefaultNamespace()`** method of the Node interface accepts a namespace URI as an argument. It returns a boolean value that is true if the namespace is the default namespace on the given node and false if not. The default namespace can be retrieved with Node.lookupNamespaceURI() by passing null as the argument.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/isDefaultNamespace)
 
 #### Parameters
@@ -4619,7 +4551,7 @@ Returns whether node has children.
 
 > **isEqualNode**(`otherNode`): `boolean`
 
-Returns whether node and otherNode have the same properties.
+The **`isEqualNode()`** method of the Node interface tests whether two nodes are equal. Two nodes are equal when they have the same type, defining characteristics (for elements, this would be their ID, number of children, and so forth), its attributes match, and so on. The specific set of data points that must match varies depending on the types of the nodes.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/isEqualNode)
 
@@ -4643,6 +4575,8 @@ Returns whether node and otherNode have the same properties.
 
 > **isSameNode**(`otherNode`): `boolean`
 
+The **`isSameNode()`** method of the Node interface is a legacy alias the for the === strict equality operator. That is, it tests whether two nodes are the same (in other words, whether they reference the same object).
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/isSameNode)
 
 #### Parameters
@@ -4664,6 +4598,8 @@ Returns whether node and otherNode have the same properties.
 ### lookupNamespaceURI()
 
 > **lookupNamespaceURI**(`prefix`): `string` \| `null`
+
+The **`lookupNamespaceURI()`** method of the Node interface takes a prefix as parameter and returns the namespace URI associated with it on the given node if found (and null if not). This method's existence allows Node objects to be passed as a namespace resolver to XPathEvaluator.createExpression() and XPathEvaluator.evaluate().
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/lookupNamespaceURI)
 
@@ -4687,6 +4623,8 @@ Returns whether node and otherNode have the same properties.
 
 > **lookupPrefix**(`namespace`): `string` \| `null`
 
+The **`lookupPrefix()`** method of the Node interface returns a string containing the prefix for a given namespace URI, if present, and null if not. When multiple prefixes are possible, the first prefix is returned.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/lookupPrefix)
 
 #### Parameters
@@ -4707,25 +4645,125 @@ Returns whether node and otherNode have the same properties.
 
 ### matches()
 
-> **matches**(`selectors`): `boolean`
+#### Call Signature
 
-Returns true if matching selectors against element's root yields element, and false otherwise.
+> **matches**\<`K`\>(`selectors`): `this is HTMLElementTagNameMap[K]`
+
+The **`matches()`** method of the Element interface tests whether the element would be selected by the specified CSS selector.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/matches)
 
-#### Parameters
+##### Type Parameters
 
-##### selectors
+###### K
+
+`K` *extends* keyof `HTMLElementTagNameMap`
+
+##### Parameters
+
+###### selectors
+
+`K`
+
+##### Returns
+
+`this is HTMLElementTagNameMap[K]`
+
+##### Inherited from
+
+`HTMLElement.matches`
+
+#### Call Signature
+
+> **matches**\<`K`\>(`selectors`): `this is SVGElementTagNameMap[K]`
+
+##### Type Parameters
+
+###### K
+
+`K` *extends* keyof `SVGElementTagNameMap`
+
+##### Parameters
+
+###### selectors
+
+`K`
+
+##### Returns
+
+`this is SVGElementTagNameMap[K]`
+
+##### Inherited from
+
+`HTMLElement.matches`
+
+#### Call Signature
+
+> **matches**\<`K`\>(`selectors`): `this is MathMLElementTagNameMap[K]`
+
+##### Type Parameters
+
+###### K
+
+`K` *extends* keyof `MathMLElementTagNameMap`
+
+##### Parameters
+
+###### selectors
+
+`K`
+
+##### Returns
+
+`this is MathMLElementTagNameMap[K]`
+
+##### Inherited from
+
+`HTMLElement.matches`
+
+#### Call Signature
+
+> **matches**(`selectors`): `boolean`
+
+##### Parameters
+
+###### selectors
 
 `string`
 
-#### Returns
+##### Returns
 
 `boolean`
 
-#### Inherited from
+##### Inherited from
 
 `HTMLElement.matches`
+
+***
+
+### moveBefore()
+
+> **moveBefore**(`node`, `child`): `void`
+
+[MDN Reference](https://developer.mozilla.org/docs/Web/API/Document/moveBefore)
+
+#### Parameters
+
+##### node
+
+`Node`
+
+##### child
+
+`Node` \| `null`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+`HTMLElement.moveBefore`
 
 ***
 
@@ -4733,7 +4771,7 @@ Returns true if matching selectors against element's root yields element, and fa
 
 > **normalize**(): `void`
 
-Removes empty exclusive Text nodes and concatenates the data of remaining contiguous exclusive Text nodes into the first of their nodes.
+The **`normalize()`** method of the Node interface puts the specified node and all of its sub-tree into a normalized form. In a normalized sub-tree, no text nodes in the sub-tree are empty and there are no adjacent text nodes.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/normalize)
 
@@ -5037,6 +5075,8 @@ Returns all element descendants of node that match selectors.
 
 > **releasePointerCapture**(`pointerId`): `void`
 
+The **`releasePointerCapture()`** method of the Element interface releases (stops) pointer capture that was previously set for a specific (PointerEvent) pointer.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/releasePointerCapture)
 
 #### Parameters
@@ -5077,7 +5117,7 @@ Removes node.
 
 > **removeAttribute**(`qualifiedName`): `void`
 
-Removes element's first attribute whose qualified name is qualifiedName.
+The Element method **`removeAttribute()`** removes the attribute with the specified name from the element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/removeAttribute)
 
@@ -5101,6 +5141,8 @@ Removes element's first attribute whose qualified name is qualifiedName.
 
 > **removeAttributeNode**(`attr`): `Attr`
 
+The **`removeAttributeNode()`** method of the Element interface removes the specified Attr node from the element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/removeAttributeNode)
 
 #### Parameters
@@ -5123,7 +5165,7 @@ Removes element's first attribute whose qualified name is qualifiedName.
 
 > **removeAttributeNS**(`namespace`, `localName`): `void`
 
-Removes element's attribute whose namespace is namespace and local name is localName.
+The **`removeAttributeNS()`** method of the Element interface removes the specified attribute with the specified namespace from an element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/removeAttributeNS)
 
@@ -5150,6 +5192,8 @@ Removes element's attribute whose namespace is namespace and local name is local
 ### removeChild()
 
 > **removeChild**\<`T`\>(`child`): `T`
+
+The **`removeChild()`** method of the Node interface removes a child node from the DOM and returns the removed node.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/removeChild)
 
@@ -5241,6 +5285,8 @@ Removes element's attribute whose namespace is namespace and local name is local
 
 > **replaceChild**\<`T`\>(`node`, `child`): `T`
 
+The **`replaceChild()`** method of the Node interface replaces a child node within the given (parent) node.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Node/replaceChild)
 
 #### Type Parameters
@@ -5325,9 +5371,7 @@ Throws a "HierarchyRequestError" DOMException if the constraints of the node tre
 
 > **requestFullscreen**(`options?`): `Promise`\<`void`\>
 
-Displays element fullscreen and resolves promise when done.
-
-When supplied, options's navigationUI member indicates whether showing navigation UI while in fullscreen is preferred or not. If set to "show", navigation simplicity is preferred over screen space, and if set to "hide", more screen space is preferred. User agents are always free to honor user preference over the application's. The default value "auto" indicates no application preference.
+The **`Element.requestFullscreen()`** method issues an asynchronous request to make the element be displayed in fullscreen mode.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/requestFullscreen)
 
@@ -5350,6 +5394,8 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 ### requestPointerLock()
 
 > **requestPointerLock**(`options?`): `Promise`\<`void`\>
+
+The **`requestPointerLock()`** method of the Element interface lets you asynchronously ask for the pointer to be locked on the given element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/requestPointerLock)
 
@@ -5374,6 +5420,8 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 #### Call Signature
 
 > **scroll**(`options?`): `void`
+
+The **`scroll()`** method of the Element interface scrolls the element to a particular set of coordinates inside a given element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scroll)
 
@@ -5421,6 +5469,8 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 
 > **scrollBy**(`options?`): `void`
 
+The **`scrollBy()`** method of the Element interface scrolls an element by the given amount.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollBy)
 
 ##### Parameters
@@ -5465,6 +5515,8 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 
 > **scrollIntoView**(`arg?`): `void`
 
+The Element interface's **`scrollIntoView()`** method scrolls the element's ancestor containers such that the element on which scrollIntoView() is called is visible to the user.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollIntoView)
 
 #### Parameters
@@ -5488,6 +5540,8 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 #### Call Signature
 
 > **scrollTo**(`options?`): `void`
+
+The **`scrollTo()`** method of the Element interface scrolls to a particular set of coordinates inside a given element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/scrollTo)
 
@@ -5533,7 +5587,7 @@ When supplied, options's navigationUI member indicates whether showing navigatio
 
 > **setAttribute**(`qualifiedName`, `value`): `void`
 
-Sets the value of element's first attribute whose qualified name is qualifiedName to value.
+The **`setAttribute()`** method of the Element interface sets the value of an attribute on the specified element. If the attribute already exists, the value is updated; otherwise a new attribute is added with the specified name and value.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setAttribute)
 
@@ -5561,6 +5615,8 @@ Sets the value of element's first attribute whose qualified name is qualifiedNam
 
 > **setAttributeNode**(`attr`): `Attr` \| `null`
 
+The **`setAttributeNode()`** method of the Element interface adds a new Attr node to the specified element.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setAttributeNode)
 
 #### Parameters
@@ -5582,6 +5638,8 @@ Sets the value of element's first attribute whose qualified name is qualifiedNam
 ### setAttributeNodeNS()
 
 > **setAttributeNodeNS**(`attr`): `Attr` \| `null`
+
+The **`setAttributeNodeNS()`** method of the Element interface adds a new namespaced Attr node to an element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setAttributeNodeNS)
 
@@ -5605,7 +5663,7 @@ Sets the value of element's first attribute whose qualified name is qualifiedNam
 
 > **setAttributeNS**(`namespace`, `qualifiedName`, `value`): `void`
 
-Sets the value of element's attribute whose namespace is namespace and local name is localName to value.
+The **`setAttributeNS()`** method of the Element interface adds a new attribute or changes the value of an attribute with the given namespace and name.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setAttributeNS)
 
@@ -5637,6 +5695,8 @@ Sets the value of element's attribute whose namespace is namespace and local nam
 
 > **setHTMLUnsafe**(`html`): `void`
 
+The **`setHTMLUnsafe()`** method of the Element interface is used to parse HTML input into a DocumentFragment, optionally filtering out unwanted elements and attributes, and those that don't belong in the context, and then using it to replace the element's subtree in the DOM.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setHTMLUnsafe)
 
 #### Parameters
@@ -5659,6 +5719,8 @@ Sets the value of element's attribute whose namespace is namespace and local nam
 
 > **setPointerCapture**(`pointerId`): `void`
 
+The **`setPointerCapture()`** method of the Element interface is used to designate a specific element as the capture target of future pointer events. Subsequent events for the pointer will be targeted at the capture element until capture is released (via Element.releasePointerCapture() or the pointerup event is fired).
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/setPointerCapture)
 
 #### Parameters
@@ -5679,9 +5741,17 @@ Sets the value of element's attribute whose namespace is namespace and local nam
 
 ### showPopover()
 
-> **showPopover**(): `void`
+> **showPopover**(`options?`): `void`
+
+The **`showPopover()`** method of the HTMLElement interface shows a popover element (i.e., one that has a valid popover attribute) by adding it to the top layer.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/showPopover)
+
+#### Parameters
+
+##### options?
+
+`ShowPopoverOptions`
 
 #### Returns
 
@@ -5697,9 +5767,7 @@ Sets the value of element's attribute whose namespace is namespace and local nam
 
 > **toggleAttribute**(`qualifiedName`, `force?`): `boolean`
 
-If force is not given, "toggles" qualifiedName, removing it if it is present and adding it if it is not present. If force is true, adds qualifiedName. If force is false, removes qualifiedName.
-
-Returns true if qualifiedName is now present, and false otherwise.
+The **`toggleAttribute()`** method of the Element interface toggles a Boolean attribute (removing it if it is present and adding it if it is not present) on the given element.
 
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/Element/toggleAttribute)
 
@@ -5727,13 +5795,15 @@ Returns true if qualifiedName is now present, and false otherwise.
 
 > **togglePopover**(`options?`): `boolean`
 
+The **`togglePopover()`** method of the HTMLElement interface toggles a popover element (i.e., one that has a valid popover attribute) between the hidden and showing states.
+
 [MDN Reference](https://developer.mozilla.org/docs/Web/API/HTMLElement/togglePopover)
 
 #### Parameters
 
 ##### options?
 
-`boolean`
+`boolean` \| `TogglePopoverOptions`
 
 #### Returns
 

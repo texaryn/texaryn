@@ -8,8 +8,7 @@
     "target": "ES2022",
     "strict": true,
     "skipLibCheck": true,
-    "verbatimModuleSyntax": true,
-    "baseUrl": "."
+    "verbatimModuleSyntax": true
   },
   "include": ["src/lib/**/*.ts", "src/lib/**/*.d.ts", "src/lib/**/*.svelte"],
   "exclude": ["src/lib/**/__tests__/**", "src/lib/**/*.test.ts"]
