@@ -28,6 +28,10 @@ updates:
       # @texaryn/hints-rjsf converts RJSF 5.24.13 uiSchemas (ADR-006).
       - dependency-name: "@rjsf/utils"
         update-types: ["version-update:semver-major"]
+      # @texaryn/solid peers solid-js ^1.9, and the stable vite-plugin-solid
+      # 2.11 cannot compile Solid 2, so solid-js majors move by hand.
+      - dependency-name: solid-js
+        update-types: ["version-update:semver-major"]
       # 1.18.1 fails to compile $id values that are Windows file URIs, which
       # drops 4 mandatory JSON Schema Test Suite passes in every draft.
       - dependency-name: "@hyperjump/json-schema"
